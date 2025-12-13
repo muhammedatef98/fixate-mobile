@@ -13,6 +13,7 @@ const MENU_ITEMS = [
   { id: 'account', title: 'Edit Profile', titleAr: 'تعديل الملف الشخصي', icon: 'person-outline' },
   { id: 'wallet', title: 'Wallet & Payment', titleAr: 'المحفظة وطرق الدفع', icon: 'account-balance-wallet' },
   { id: 'notifications', title: 'Notifications', titleAr: 'الإشعارات', icon: 'notifications-none' },
+  { id: 'support', title: 'Support & Help', titleAr: 'الدعم والمساعدة', icon: 'headset-mic' },
   { id: 'about', title: 'About App', titleAr: 'عن التطبيق', icon: 'info-outline' },
 ];
 
@@ -86,7 +87,9 @@ export default function ProfileScreen() {
           isRTL ? 'هذه الميزة قريباً!' : 'Coming soon!'
         );
         break;
-
+      case 'support':
+        router.push('/contact');
+        break;
       case 'about':
         Alert.alert(
           'Fixate',
