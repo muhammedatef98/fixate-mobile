@@ -87,9 +87,9 @@ export default function AuthScreen() {
     );
   };
 
-  const handleFacebookLogin = () => {
+  const handleXLogin = () => {
     Alert.alert(
-      language === 'ar' ? 'تسجيل الدخول بفيسبوك' : 'Facebook Login',
+      language === 'ar' ? 'تسجيل الدخول بإكس' : 'X Login',
       language === 'ar' ? 'هذه الميزة قريباً!' : 'Coming soon!'
     );
   };
@@ -246,8 +246,12 @@ export default function AuthScreen() {
                   resizeMode="contain"
                 />
               </TouchableOpacity>
-              <TouchableOpacity style={styles.socialButton} onPress={handleFacebookLogin}>
-                <MaterialIcons name="facebook" size={24} color="#4267B2" />
+              <TouchableOpacity style={styles.socialButton} onPress={handleXLogin}>
+                <Image 
+                  source={{ uri: 'https://upload.wikimedia.org/wikipedia/commons/c/ce/X_logo_2023.svg' }}
+                  style={{ width: 20, height: 20 }}
+                  resizeMode="contain"
+                />
               </TouchableOpacity>
               <TouchableOpacity style={styles.socialButton} onPress={handleAppleLogin}>
                 <MaterialIcons name="apple" size={24} color={COLORS.text} />
