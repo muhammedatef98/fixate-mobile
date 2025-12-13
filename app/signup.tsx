@@ -49,7 +49,7 @@ export default function SignupScreen() {
         <View style={styles.header}>
           <Ionicons name="person-add" size={64} color="#10b981" />
           <Text style={styles.title}>إنشاء حساب جديد</Text>
-          <Text style={styles.subtitle}>انضم إلى Fixatee الآن</Text>
+          <Text style={styles.subtitle}>انضم إلى Fixate الآن</Text>
         </View>
 
         <View style={styles.form}>

@@ -300,8 +300,8 @@ export default function RequestScreen() {
               },
               body: JSON.stringify({
                 access_key: 'd3ff12a4-e013-473f-8730-9d5760059a64',
-                subject: `🔔 حجز جديد - Fixatee`,
-                from_name: 'Fixatee App',
+                subject: `🔔 حجز جديد - Fixate`,
+                from_name: 'Fixate App',
                 to: 'fixate01@gmail.com',
                 message: `
 🆕 حجز جديد!

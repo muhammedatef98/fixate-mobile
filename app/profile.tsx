@@ -328,12 +328,12 @@ export default function ProfileScreen() {
       <Modal visible={aboutModalVisible} animationType="slide" transparent>
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { backgroundColor: COLORS.surface }]}>
-            <Text style={[styles.modalTitle, { color: COLORS.text }]}>Fixatee</Text>
+            <Text style={[styles.modalTitle, { color: COLORS.text }]}>Fixate</Text>
             
             <Text style={[styles.aboutText, { color: COLORS.text }]}>
               {isRTL 
-                ? 'تطبيق Fixatee هو منصة شاملة لخدمات الصيانة والإصلاح. نربط العملاء بأفضل الفنيين المعتمدين لإصلاح الأجهزة الإلكترونية.'
-                : 'Fixatee is a comprehensive platform for maintenance and repair services. We connect customers with the best certified technicians to repair electronic devices.'
+                ? 'تطبيق Fixate هو منصة شاملة لخدمات الصيانة والإصلاح. نربط العملاء بأفضل الفنيين المعتمدين لإصلاح الأجهزة الإلكترونية.'
+                : 'Fixate is a comprehensive platform for maintenance and repair services. We connect customers with the best certified technicians to repair electronic devices.'
               }
             </Text>
             
