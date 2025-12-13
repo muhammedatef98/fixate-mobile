@@ -862,6 +862,8 @@ export default function RequestScreen() {
     }
   };
 
+  const styles = createStyles(COLORS, SHADOWS);
+
   return (
     <SafeAreaView style={styles.container}>
       <KeyboardAvoidingView
@@ -914,7 +916,8 @@ export default function RequestScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(COLORS: any, SHADOWS: any) {
+  return StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
@@ -1387,3 +1390,4 @@ const styles = StyleSheet.create({
     right: SPACING.md,
   },
 });
+}
