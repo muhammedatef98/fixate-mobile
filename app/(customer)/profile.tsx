@@ -44,12 +44,70 @@ export default function ProfileScreen() {
   };
 
   const handleLogout = async () => {
-    try {
-      await auth.signOut();
-      Alert.alert('Success', 'Logged out successfully');
-      router.replace('/role-selection');
-    } catch (error: any) {
-      Alert.alert('Error', error.message);
+    Alert.alert(
+      isRTL ? 'تسجيل الخروج' : 'Logout',
+      isRTL ? 'هل أنت متأكد من تسجيل الخروج؟' : 'Are you sure you want to logout?',
+      [
+        {
+          text: isRTL ? 'إلغاء' : 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: isRTL ? 'تسجيل الخروج' : 'Logout',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await auth.signOut();
+              router.replace('/role-selection');
+            } catch (error: any) {
+              Alert.alert('Error', error.message);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleMenuPress = (itemId: string) => {
+    switch (itemId) {
+      case 'account':
+        Alert.alert(
+          isRTL ? 'تعديل الملف الشخصي' : 'Edit Profile',
+          isRTL ? 'هذه الميزة قريباً!' : 'Coming soon!'
+        );
+        break;
+      case 'wallet':
+        Alert.alert(
+          isRTL ? 'المحفظة' : 'Wallet',
+          isRTL ? 'هذه الميزة قريباً!' : 'Coming soon!'
+        );
+        break;
+      case 'notifications':
+        Alert.alert(
+          isRTL ? 'الإشعارات' : 'Notifications',
+          isRTL ? 'هذه الميزة قريباً!' : 'Coming soon!'
+        );
+        break;
+      case 'language':
+        Alert.alert(
+          isRTL ? 'اللغة' : 'Language',
+          isRTL ? 'يمكنك تغيير اللغة من القائمة الجانبية' : 'You can change language from the sidebar menu'
+        );
+        break;
+      case 'support':
+        Alert.alert(
+          isRTL ? 'الدعم والمساعدة' : 'Support & Help',
+          isRTL ? 'للتواصل معنا: fixate01@gmail.com' : 'Contact us: fixate01@gmail.com'
+        );
+        break;
+      case 'about':
+        Alert.alert(
+          'Fixate',
+          isRTL 
+            ? 'تطبيق Fixate هو منصة شاملة لخدمات الصيانة والإصلاح. نربط العملاء بأفضل الفنيين المعتمدين لإصلاح الأجهزة الإلكترونية.\n\nالإصدار: 1.0.0' 
+            : 'Fixate is a comprehensive platform for maintenance and repair services. We connect customers with the best certified technicians to repair electronic devices.\n\nVersion: 1.0.0'
+        );
+        break;
     }
   };
 
@@ -120,7 +178,7 @@ export default function ProfileScreen() {
             <NeuCard 
               key={item.id} 
               style={styles.menuItem}
-              onPress={() => {}}
+              onPress={() => handleMenuPress(item.id)}
             >
               <View style={styles.menuItemLeft}>
                 <View style={styles.menuIcon}>
