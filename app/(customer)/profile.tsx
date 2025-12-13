@@ -13,8 +13,6 @@ const MENU_ITEMS = [
   { id: 'account', title: 'Edit Profile', titleAr: 'تعديل الملف الشخصي', icon: 'person-outline' },
   { id: 'wallet', title: 'Wallet & Payment', titleAr: 'المحفظة وطرق الدفع', icon: 'account-balance-wallet' },
   { id: 'notifications', title: 'Notifications', titleAr: 'الإشعارات', icon: 'notifications-none' },
-  { id: 'language', title: 'Language', titleAr: 'اللغة', icon: 'language' },
-  { id: 'support', title: 'Support & Help', titleAr: 'الدعم والمساعدة', icon: 'headset-mic' },
   { id: 'about', title: 'About App', titleAr: 'عن التطبيق', icon: 'info-outline' },
 ];
 
@@ -88,18 +86,7 @@ export default function ProfileScreen() {
           isRTL ? 'هذه الميزة قريباً!' : 'Coming soon!'
         );
         break;
-      case 'language':
-        Alert.alert(
-          isRTL ? 'اللغة' : 'Language',
-          isRTL ? 'يمكنك تغيير اللغة من القائمة الجانبية' : 'You can change language from the sidebar menu'
-        );
-        break;
-      case 'support':
-        Alert.alert(
-          isRTL ? 'الدعم والمساعدة' : 'Support & Help',
-          isRTL ? 'للتواصل معنا: fixate01@gmail.com' : 'Contact us: fixate01@gmail.com'
-        );
-        break;
+
       case 'about':
         Alert.alert(
           'Fixate',

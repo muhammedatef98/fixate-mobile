@@ -7,6 +7,7 @@ import {
   Linking,
   ScrollView,
   SafeAreaView,
+  Switch,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -22,7 +23,7 @@ const CONTACT_INFO = {
 
 export default function ContactScreen() {
   const router = useRouter();
-  const { language, isDark } = useApp();
+  const { language, isDark, setLanguage, toggleTheme } = useApp();
   const COLORS = getColors(isDark);
   const SHADOWS = getShadows(isDark);
   const t = translations[language];
@@ -113,8 +114,66 @@ export default function ContactScreen() {
           </TouchableOpacity>
         </View>
 
+        {/* Settings Section */}
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, { color: COLORS.text }]}>
+            {isRTL ? 'الإعدادات' : 'Settings'}
+          </Text>
+          
+          {/* Language Toggle */}
+          <View style={[styles.settingCard, { backgroundColor: COLORS.card }, SHADOWS.neuSmall]}>
+            <View style={styles.settingLeft}>
+              <View style={[styles.iconContainer, { backgroundColor: COLORS.primary + '20' }]}>
+                <Ionicons name="language" size={28} color={COLORS.primary} />
+              </View>
+              <Text style={[styles.settingText, { color: COLORS.text }]}>
+                {isRTL ? 'اللغة' : 'Language'}
+              </Text>
+            </View>
+            <View style={styles.languageButtons}>
+              <TouchableOpacity
+                style={[styles.langButton, { backgroundColor: language === 'ar' ? COLORS.primary : COLORS.card }]}
+                onPress={() => setLanguage('ar')}
+              >
+                <Text style={[styles.langButtonText, { color: language === 'ar' ? '#fff' : COLORS.textSecondary }]}>
+                  عربي
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.langButton, { backgroundColor: language === 'en' ? COLORS.primary : COLORS.card }]}
+                onPress={() => setLanguage('en')}
+              >
+                <Text style={[styles.langButtonText, { color: language === 'en' ? '#fff' : COLORS.textSecondary }]}>
+                  EN
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* Dark Mode Toggle */}
+          <View style={[styles.settingCard, { backgroundColor: COLORS.card }, SHADOWS.neuSmall]}>
+            <View style={styles.settingLeft}>
+              <View style={[styles.iconContainer, { backgroundColor: COLORS.primary + '20' }]}>
+                <Ionicons name={isDark ? 'moon' : 'sunny'} size={28} color={COLORS.primary} />
+              </View>
+              <Text style={[styles.settingText, { color: COLORS.text }]}>
+                {isRTL ? 'الوضع الداكن' : 'Dark Mode'}
+              </Text>
+            </View>
+            <Switch
+              value={isDark}
+              onValueChange={toggleTheme}
+              trackColor={{ false: COLORS.border, true: COLORS.primary + '80' }}
+              thumbColor={isDark ? COLORS.primary : '#f4f3f4'}
+            />
+          </View>
+        </View>
+
         {/* Chatbot */}
         <View style={styles.section}>
+          <Text style={[styles.sectionTitle, { color: COLORS.text }]}>
+            {isRTL ? 'الدعم والمساعدة' : 'Support & Help'}
+          </Text>
           <TouchableOpacity
             style={[styles.chatbotCard, { backgroundColor: COLORS.primary }, SHADOWS.primaryGlow]}
             onPress={handleChatBot}
@@ -257,5 +316,42 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     marginRight: 28,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 12,
+    marginLeft: 4,
+  },
+  settingCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 16,
+    borderRadius: 16,
+    marginBottom: 12,
+  },
+  settingLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  settingText: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 12,
+  },
+  languageButtons: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  langButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 12,
+  },
+  langButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
   },
 });
