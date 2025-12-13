@@ -1,13 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, StatusBar } from 'react-native';
 import { useRouter } from 'expo-router';
-import { COLORS, SPACING, BORDER_RADIUS, SHADOWS } from '../../constants/theme';
+import { getColors, getShadows, SPACING, BORDER_RADIUS } from '../../constants/theme';
 import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 import NeuCard from '../../components/NeuCard';
 import BottomNav from '../../components/BottomNav';
 import { services as supabaseServices } from '../../lib/supabase';
 import { ActivityIndicator } from 'react-native';
 import { useApp } from '../../contexts/AppContext';
+
+export default function ServicesScreen() {
+  const router = useRouter();
+  const { language, isDark } = useApp();
+  const COLORS = getColors(isDark);
+  const SHADOWS = getShadows(isDark);
+  const isRTL = language === 'ar';
 
 const SERVICES = [
   { 

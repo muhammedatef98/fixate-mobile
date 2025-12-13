@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, Image, Dimensions, TextInput, Animated, Alert, KeyboardAvoidingView, Platform, Modal } from 'react-native';
 import { useRouter } from 'expo-router';
-import { COLORS, SPACING, SHADOWS, BORDER_RADIUS } from '../constants/theme';
+import { getColors, getShadows, SPACING, BORDER_RADIUS } from '../constants/theme';
 import { MaterialIcons, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import * as Location from 'expo-location';
@@ -43,7 +43,9 @@ const DEVICE_TYPES = [
 export default function RequestScreen() {
   const router = useRouter();
   const { addRequest } = useRequests();
-  const { language } = useApp();
+  const { language, isDark } = useApp();
+  const COLORS = getColors(isDark);
+  const SHADOWS = getShadows(isDark);
   const [currentStep, setCurrentStep] = useState(0);
   
   // Selection State

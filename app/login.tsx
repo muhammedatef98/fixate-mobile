@@ -11,9 +11,14 @@ import {
 } from 'react-native';
 import { Link, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useApp } from '../contexts/AppContext';
+import { getColors, getShadows, SPACING, BORDER_RADIUS } from '../constants/theme';
 
 export default function LoginScreen() {
   const router = useRouter();
+  const { isDark } = useApp();
+  const COLORS = getColors(isDark);
+  const SHADOWS = getShadows(isDark);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);

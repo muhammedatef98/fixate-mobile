@@ -12,9 +12,14 @@ import {
 } from 'react-native';
 import { Link, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useApp } from '../contexts/AppContext';
+import { getColors, getShadows, SPACING, BORDER_RADIUS } from '../constants/theme';
 
 export default function SignupScreen() {
   const router = useRouter();
+  const { isDark } = useApp();
+  const COLORS = getColors(isDark);
+  const SHADOWS = getShadows(isDark);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
