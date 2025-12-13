@@ -1,7 +1,7 @@
 export const translations = {
   ar: {
     // Role Selection
-    appName: 'Fixatee',
+    appName: 'Fixate',
     appTagline: 'شريكك الموثوق للصيانة',
     howToUse: 'كيف تود استخدام التطبيق؟',
     customer: 'عميل',
@@ -105,7 +105,7 @@ export const translations = {
   
   en: {
     // Role Selection
-    appName: 'Fixatee',
+    appName: 'Fixate',
     appTagline: 'Your Trusted Repair Partner',
     howToUse: 'How would you like to use the app?',
     customer: 'Customer',
