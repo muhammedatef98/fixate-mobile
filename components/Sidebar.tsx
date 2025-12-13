@@ -20,7 +20,7 @@ import { translations } from '../constants/translations';
 import { auth } from '../lib/supabase';
 
 const { width } = Dimensions.get('window');
-const DRAWER_WIDTH = width * 0.8;
+const DRAWER_WIDTH = width * 0.65; // Reduced from 80% to 65%
 
 interface SidebarProps {
   visible: boolean;
@@ -283,41 +283,41 @@ function createStyles(COLORS: any, SHADOWS: any, isRTL: boolean) {
       borderBottomRightRadius: 24,
     },
     scrollContent: {
-      paddingVertical: SPACING.xl,
+      paddingVertical: SPACING.lg,
     },
     header: {
       alignItems: 'center',
-      paddingHorizontal: SPACING.lg,
-      paddingBottom: SPACING.xl,
+      paddingHorizontal: SPACING.md,
+      paddingBottom: SPACING.md,
       borderBottomWidth: 1,
       borderBottomColor: COLORS.border,
-      marginBottom: SPACING.lg,
+      marginBottom: SPACING.md,
     },
     avatarContainer: {
-      width: 80,
-      height: 80,
-      borderRadius: 40,
+      width: 60,
+      height: 60,
+      borderRadius: 30,
       backgroundColor: COLORS.background,
       ...SHADOWS.neuLarge,
       justifyContent: 'center',
       alignItems: 'center',
-      marginBottom: SPACING.md,
+      marginBottom: SPACING.sm,
     },
     avatar: {
-      width: 70,
-      height: 70,
-      borderRadius: 35,
+      width: 54,
+      height: 54,
+      borderRadius: 27,
     },
     userName: {
-      fontSize: 20,
+      fontSize: 16,
       fontWeight: '700',
       color: COLORS.text,
-      marginTop: SPACING.sm,
+      marginTop: SPACING.xs,
     },
     userEmail: {
-      fontSize: 14,
+      fontSize: 12,
       color: COLORS.textSecondary,
-      marginTop: 4,
+      marginTop: 2,
     },
     menuSection: {
       paddingHorizontal: SPACING.lg,
@@ -342,13 +342,13 @@ function createStyles(COLORS: any, SHADOWS: any, isRTL: boolean) {
       ...SHADOWS.neu,
     },
     menuItemIcon: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
+      width: 36,
+      height: 36,
+      borderRadius: 18,
       backgroundColor: COLORS.primaryLight,
       justifyContent: 'center',
       alignItems: 'center',
-      marginRight: SPACING.md,
+      marginRight: SPACING.sm,
     },
     menuItemText: {
       flex: 1,
@@ -377,13 +377,13 @@ function createStyles(COLORS: any, SHADOWS: any, isRTL: boolean) {
       flex: 1,
     },
     settingIcon: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
+      width: 36,
+      height: 36,
+      borderRadius: 18,
       backgroundColor: COLORS.primaryLight,
       justifyContent: 'center',
       alignItems: 'center',
-      marginRight: SPACING.md,
+      marginRight: SPACING.sm,
     },
     settingText: {
       fontSize: 16,
