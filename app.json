@@ -38,7 +38,9 @@
         "WRITE_EXTERNAL_STORAGE",
         "POST_NOTIFICATIONS",
         "RECEIVE_BOOT_COMPLETED",
-        "VIBRATE"
+        "VIBRATE",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION"
       ],
       "statusBar": {
         "hidden": true
@@ -70,8 +72,9 @@
         "origin": false
       },
       "eas": {
-        "projectId": "fixatee-mobile-app"
+        "projectId": "2499a02f-3849-4712-a374-d1dc6546af1e"
       }
-    }
+    },
+    "owner": "muhammedatef98"
   }
 }
