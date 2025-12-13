@@ -30,6 +30,10 @@ function RootLayoutContent() {
           headerTitleStyle: {
             fontWeight: 'bold',
           },
+          animation: 'slide_from_right',
+          animationDuration: 200,
+          gestureEnabled: true,
+          gestureDirection: 'horizontal',
         }}
       >
         <Stack.Screen 
