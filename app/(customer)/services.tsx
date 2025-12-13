@@ -117,6 +117,8 @@ export default function ServicesScreen() {
     }
   };
 
+  const styles = createStyles(COLORS, SHADOWS);
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
@@ -189,7 +191,8 @@ export default function ServicesScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(COLORS: any, SHADOWS: any) {
+  return StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
@@ -304,3 +307,4 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
 });
+}
