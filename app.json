@@ -58,13 +58,7 @@
           "locationAlwaysAndWhenInUsePermission": "السماح لـ Fixatee بالوصول إلى موقعك لتحديد عنوان الخدمة."
         }
       ],
-      [
-        "expo-notifications",
-        {
-          "icon": "./assets/notification-icon.png",
-          "color": "#10b981"
-        }
-      ]
+      "expo-notifications"
     ],
     "scheme": "fixatee",
     "extra": {
