@@ -30,8 +30,7 @@ function RootLayoutContent() {
           headerTitleStyle: {
             fontWeight: 'bold',
           },
-          animation: 'fade',
-          animationDuration: 150,
+          animation: 'none',
           gestureEnabled: true,
           gestureDirection: 'horizontal',
         }}

@@ -5,8 +5,7 @@ export default function CustomerLayout() {
     <Stack
       screenOptions={{
         headerShown: false,
-        animation: 'fade',
-        animationDuration: 150, // Ultra fast and smooth
+        animation: 'none', // Instant navigation
         gestureEnabled: true,
         gestureDirection: 'horizontal',
       }}
