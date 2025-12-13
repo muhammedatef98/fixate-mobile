@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, Switch } from 'react-native';
 import { useRouter } from 'expo-router';
 import { COLORS, SPACING, SHADOWS } from '../../constants/theme';
 import { Card } from '../../components/ui/Card';
 import { MaterialIcons, Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import { useRequests } from '../../context/RequestContext';
+import { registerForPushNotifications, subscribeToNewRequests, unsubscribeFromNewRequests, addNotificationResponseListener } from '../../services/localNotificationService';
 
 const STATS = [
   { title: 'أرباح اليوم', value: '450 ر.س', icon: 'wallet', color: '#10B981' },
@@ -18,6 +19,48 @@ export default function TechnicianDashboard() {
   const [isOnline, setIsOnline] = useState(true);
 
   const pendingRequests = requests.filter(req => req.status === 'pending');
+
+  // Setup notifications and real-time listener
+  useEffect(() => {
+    let subscription: any;
+    let notificationListener: any;
+
+    const setupNotifications = async () => {
+      // Request notification permissions
+      const hasPermission = await registerForPushNotifications();
+      if (!hasPermission) {
+        console.log('Notification permissions not granted');
+        return;
+      }
+
+      // Subscribe to new requests
+      subscription = subscribeToNewRequests('', (newRequest) => {
+        console.log('New request received:', newRequest);
+        // The notification is already sent by subscribeToNewRequests
+      });
+
+      // Handle notification tap
+      notificationListener = addNotificationResponseListener((response) => {
+        const data = response.notification.request.content.data;
+        if (data?.orderId) {
+          // Navigate to the order details or refresh the list
+          console.log('Notification tapped for order:', data.orderId);
+        }
+      });
+    };
+
+    setupNotifications();
+
+    // Cleanup
+    return () => {
+      if (subscription) {
+        unsubscribeFromNewRequests(subscription);
+      }
+      if (notificationListener) {
+        notificationListener.remove();
+      }
+    };
+  }, []);
 
   return (
     <SafeAreaView style={styles.container}>
