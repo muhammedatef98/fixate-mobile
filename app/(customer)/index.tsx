@@ -69,7 +69,7 @@ export default function CustomerHome() {
               <MaterialIcons name="menu" size={20} color={COLORS.textSecondary} />
             </TouchableOpacity>
             
-            <Text style={styles.headerTitle}>Fixatee</Text>
+            <Text style={styles.headerTitle}>Fixate</Text>
             
             <TouchableOpacity 
               style={styles.languageButton}
@@ -87,7 +87,7 @@ export default function CustomerHome() {
               <MaterialIcons name="language" size={20} color={COLORS.textSecondary} />
             </TouchableOpacity>
             
-            <Text style={styles.headerTitle}>Fixatee</Text>
+            <Text style={styles.headerTitle}>Fixate</Text>
             
             <TouchableOpacity 
               style={styles.menuButton}
