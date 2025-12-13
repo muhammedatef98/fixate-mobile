@@ -27,16 +27,12 @@ export async function getFCMToken() {
   }
 }
 
-// Save FCM token to Supabase
+// Save FCM token to user metadata
 export async function saveFCMToken(userId: string, token: string) {
   try {
-    const { error } = await supabase
-      .from('fcm_tokens')
-      .upsert({
-        user_id: userId,
-        token: token,
-        updated_at: new Date().toISOString(),
-      });
+    const { error } = await supabase.auth.updateUser({
+      data: { fcm_token: token }
+    });
 
     if (error) throw error;
     console.log('FCM token saved successfully');
