@@ -14,7 +14,7 @@ import {
   Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { MaterialIcons } from '@expo/vector-icons';
+import { MaterialIcons, FontAwesome5 } from '@expo/vector-icons';
 import { getColors, getShadows, SPACING, BORDER_RADIUS } from '../constants/theme';
 import { useApp } from '../contexts/AppContext';
 import { translations } from '../constants/translations';
@@ -247,11 +247,7 @@ export default function AuthScreen() {
                 />
               </TouchableOpacity>
               <TouchableOpacity style={styles.socialButton} onPress={handleXLogin}>
-                <Image 
-                  source={{ uri: 'https://upload.wikimedia.org/wikipedia/commons/c/ce/X_logo_2023.svg' }}
-                  style={{ width: 20, height: 20 }}
-                  resizeMode="contain"
-                />
+                <FontAwesome5 name="x-twitter" size={20} color="#000000" />
               </TouchableOpacity>
               <TouchableOpacity style={styles.socialButton} onPress={handleAppleLogin}>
                 <MaterialIcons name="apple" size={24} color={COLORS.text} />
