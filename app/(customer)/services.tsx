@@ -16,79 +16,74 @@ export default function ServicesScreen() {
   const SHADOWS = getShadows(isDark);
   const isRTL = language === 'ar';
 
-const SERVICES = [
-  { 
-    id: 'phone', 
-    name: 'صيانة الجوالات', 
-    nameEn: 'Phone Repairs',
-    icon: 'cellphone', 
-    color: COLORS.primary, 
-    bg: COLORS.primaryLight,
-    description: 'إصلاح الشاشات، البطاريات، والمشاكل التقنية',
-    descriptionEn: 'Screen, battery, and technical issue repairs',
-    iconSet: 'MaterialCommunityIcons'
-  },
-  { 
-    id: 'laptop', 
-    name: 'صيانة اللابتوب', 
-    nameEn: 'Laptop Repairs',
-    icon: 'laptop', 
-    color: COLORS.blue, 
-    bg: '#EFF6FF',
-    description: 'حل مشاكل الأجهزة والبرمجيات',
-    descriptionEn: 'Hardware and software problem solving',
-    iconSet: 'MaterialCommunityIcons'
-  },
-  { 
-    id: 'tablet', 
-    name: 'صيانة التابلت', 
-    nameEn: 'Tablet Repairs',
-    icon: 'tablet', 
-    color: COLORS.purple, 
-    bg: '#F5F3FF',
-    description: 'إصلاح شامل لجميع أنواع الأجهزة اللوحية',
-    descriptionEn: 'Comprehensive repair for all tablet types',
-    iconSet: 'MaterialCommunityIcons'
-  },
-  { 
-    id: 'smarthome', 
-    name: 'الأجهزة المنزلية الذكية', 
-    nameEn: 'Smart Home Devices',
-    icon: 'home-automation', 
-    color: COLORS.orange, 
-    bg: '#FFFBEB',
-    description: 'تركيب وصيانة الأجهزة الذكية',
-    descriptionEn: 'Smart device installation and maintenance',
-    iconSet: 'MaterialCommunityIcons'
-  },
-  { 
-    id: 'watch', 
-    name: 'صيانة الساعات الذكية', 
-    nameEn: 'Smart Watch Repairs',
-    icon: 'watch', 
-    color: COLORS.pink, 
-    bg: '#FDF2F8',
-    description: 'إصلاح وتحديث الساعات الذكية',
-    descriptionEn: 'Smart watch repair and updates',
-    iconSet: 'MaterialCommunityIcons'
-  },
-  { 
-    id: 'printer', 
-    name: 'صيانة الطابعات', 
-    nameEn: 'Printer Repairs',
-    icon: 'printer', 
-    color: '#6366F1', 
-    bg: '#EEF2FF',
-    description: 'حل مشاكل الطباعة والصيانة الدورية',
-    descriptionEn: 'Printing issues and regular maintenance',
-    iconSet: 'MaterialCommunityIcons'
-  },
-];
-
-export default function ServicesScreen() {
-  const router = useRouter();
-  const { language } = useApp();
-  const isRTL = language === 'ar';
+  const SERVICES = [
+    { 
+      id: 'phone', 
+      name: 'صيانة الجوالات', 
+      nameEn: 'Phone Repairs',
+      icon: 'cellphone', 
+      color: COLORS.primary, 
+      bg: COLORS.primaryLight,
+      description: 'إصلاح الشاشات، البطاريات، والمشاكل التقنية',
+      descriptionEn: 'Screen, battery, and technical issue repairs',
+      iconSet: 'MaterialCommunityIcons'
+    },
+    { 
+      id: 'laptop', 
+      name: 'صيانة اللابتوب', 
+      nameEn: 'Laptop Repairs',
+      icon: 'laptop', 
+      color: COLORS.blue, 
+      bg: '#EFF6FF',
+      description: 'حل مشاكل الأجهزة والبرمجيات',
+      descriptionEn: 'Hardware and software problem solving',
+      iconSet: 'MaterialCommunityIcons'
+    },
+    { 
+      id: 'tablet', 
+      name: 'صيانة التابلت', 
+      nameEn: 'Tablet Repairs',
+      icon: 'tablet', 
+      color: COLORS.purple, 
+      bg: '#F5F3FF',
+      description: 'إصلاح شامل لجميع أنواع الأجهزة اللوحية',
+      descriptionEn: 'Comprehensive repair for all tablet types',
+      iconSet: 'MaterialCommunityIcons'
+    },
+    { 
+      id: 'smarthome', 
+      name: 'الأجهزة المنزلية الذكية', 
+      nameEn: 'Smart Home Devices',
+      icon: 'home-automation', 
+      color: COLORS.orange, 
+      bg: '#FFFBEB',
+      description: 'تركيب وصيانة الأجهزة الذكية',
+      descriptionEn: 'Smart device installation and maintenance',
+      iconSet: 'MaterialCommunityIcons'
+    },
+    { 
+      id: 'watch', 
+      name: 'صيانة الساعات الذكية', 
+      nameEn: 'Smart Watch Repairs',
+      icon: 'watch', 
+      color: COLORS.pink, 
+      bg: '#FDF2F8',
+      description: 'إصلاح وتحديث الساعات الذكية',
+      descriptionEn: 'Smart watch repair and updates',
+      iconSet: 'MaterialCommunityIcons'
+    },
+    { 
+      id: 'printer', 
+      name: 'صيانة الطابعات', 
+      nameEn: 'Printer Repairs',
+      icon: 'printer', 
+      color: '#6366F1', 
+      bg: '#EEF2FF',
+      description: 'حل مشاكل الطباعة والصيانة الدورية',
+      descriptionEn: 'Printing issues and regular maintenance',
+      iconSet: 'MaterialCommunityIcons'
+    },
+  ];
   const [services, setServices] = useState(SERVICES);
   const [loading, setLoading] = useState(false);
 
