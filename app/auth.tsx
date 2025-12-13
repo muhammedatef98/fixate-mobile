@@ -80,6 +80,27 @@ export default function AuthScreen() {
     router.replace('/(customer)');
   };
 
+  const handleGoogleLogin = () => {
+    Alert.alert(
+      language === 'ar' ? 'تسجيل الدخول بجوجل' : 'Google Login',
+      language === 'ar' ? 'هذه الميزة قريباً!' : 'Coming soon!'
+    );
+  };
+
+  const handleFacebookLogin = () => {
+    Alert.alert(
+      language === 'ar' ? 'تسجيل الدخول بفيسبوك' : 'Facebook Login',
+      language === 'ar' ? 'هذه الميزة قريباً!' : 'Coming soon!'
+    );
+  };
+
+  const handleAppleLogin = () => {
+    Alert.alert(
+      language === 'ar' ? 'تسجيل الدخول بأبل' : 'Apple Login',
+      language === 'ar' ? 'هذه الميزة قريباً!' : 'Coming soon!'
+    );
+  };
+
   const styles = createStyles(COLORS, SHADOWS, isRTL);
 
   return (
@@ -218,13 +239,17 @@ export default function AuthScreen() {
 
             {/* Social Login */}
             <View style={styles.socialContainer}>
-              <TouchableOpacity style={styles.socialButton}>
-                <MaterialIcons name="g-translate" size={24} color="#DB4437" />
+              <TouchableOpacity style={styles.socialButton} onPress={handleGoogleLogin}>
+                <Image 
+                  source={{ uri: 'https://www.google.com/images/branding/googleg/1x/googleg_standard_color_128dp.png' }}
+                  style={{ width: 24, height: 24 }}
+                  resizeMode="contain"
+                />
               </TouchableOpacity>
-              <TouchableOpacity style={styles.socialButton}>
+              <TouchableOpacity style={styles.socialButton} onPress={handleFacebookLogin}>
                 <MaterialIcons name="facebook" size={24} color="#4267B2" />
               </TouchableOpacity>
-              <TouchableOpacity style={styles.socialButton}>
+              <TouchableOpacity style={styles.socialButton} onPress={handleAppleLogin}>
                 <MaterialIcons name="apple" size={24} color={COLORS.text} />
               </TouchableOpacity>
             </View>
