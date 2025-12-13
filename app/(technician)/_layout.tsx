@@ -4,8 +4,8 @@ export default function TechnicianLayout() {
   return (
     <Stack screenOptions={{ 
       headerShown: false,
-      animation: 'slide_from_right',
-      animationDuration: 200,
+      animation: 'fade',
+      animationDuration: 150,
       gestureEnabled: true,
       gestureDirection: 'horizontal',
     }}>
