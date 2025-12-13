@@ -247,7 +247,11 @@ export default function AuthScreen() {
                 />
               </TouchableOpacity>
               <TouchableOpacity style={styles.socialButton} onPress={handleXLogin}>
-                <FontAwesome5 name="x-twitter" size={20} color="#000000" />
+                <Image 
+                  source={{ uri: 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/5a/X_icon_2.svg/240px-X_icon_2.svg.png' }}
+                  style={{ width: 20, height: 20 }}
+                  resizeMode="contain"
+                />
               </TouchableOpacity>
               <TouchableOpacity style={styles.socialButton} onPress={handleAppleLogin}>
                 <MaterialIcons name="apple" size={24} color={COLORS.text} />
