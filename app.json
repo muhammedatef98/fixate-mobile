@@ -79,6 +79,12 @@
         "projectId": "2499a02f-3849-4712-a374-d1dc6546af1e"
       }
     },
-    "owner": "muhammedatef98"
+    "owner": "muhammedatef98",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/2499a02f-3849-4712-a374-d1dc6546af1e"
+    }
   }
 }
