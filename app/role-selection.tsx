@@ -59,7 +59,7 @@ export default function RoleSelectionScreen() {
           {/* Logo */}
           <View style={styles.logoContainer}>
             <Image 
-              source={require('../assets/fixatee-logo.png')} 
+              source={require('../assets/fixate-logo-main.png')} 
               style={styles.logoImage}
               resizeMode="contain"
             />
