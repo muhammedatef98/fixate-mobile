@@ -16,7 +16,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { getColors, getShadows, SPACING, BORDER_RADIUS } from '../../constants/theme';
 import { useApp } from '../../contexts/AppContext';
 import { translations } from '../../constants/translations';
-import { technicians as supabaseTechnicians } from '../../lib/supabase';
+import { technicians } from '../../lib/api';
 import NeuCard from '../../components/NeuCard';
 import BottomNav from '../../components/BottomNav';
 
@@ -39,7 +39,7 @@ export default function TechniciansScreen() {
   const loadTechnicians = async () => {
     try {
       setLoading(true);
-      const data = await supabaseTechnicians.getAvailable();
+      const data = await technicians.getAvailable();
       setTechnicians(data);
     } catch (error) {
       console.log('Error loading technicians:', error);

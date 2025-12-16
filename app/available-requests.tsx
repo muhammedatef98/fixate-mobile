@@ -8,7 +8,7 @@ import {
   Alert,
   RefreshControl,
 } from 'react-native';
-import { supabase } from '../lib/supabase';
+import { requests, auth } from '../lib/api';
 import { router } from 'expo-router';
 
 interface Request {
@@ -36,38 +36,17 @@ export default function AvailableRequestsScreen() {
   useEffect(() => {
     fetchAvailableRequests();
     
-    // Subscribe to new requests
-    const subscription = supabase
-      .channel('new_requests')
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'orders',
-          filter: 'status=eq.pending',
-        },
-        (payload) => {
-          console.log('New request received:', payload);
-          fetchAvailableRequests();
-        }
-      )
-      .subscribe();
+    // Polling for new requests (replace with WebSocket if needed)
+    const interval = setInterval(fetchAvailableRequests, 30000); // Every 30 seconds
 
     return () => {
-      subscription.unsubscribe();
+      clearInterval(interval);
     };
   }, []);
 
   const fetchAvailableRequests = async () => {
     try {
-      const { data, error } = await supabase
-        .from('orders')
-        .select('*')
-        .eq('status', 'pending')
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
+      const data = await requests.getAvailable();
       setRequests(data || []);
     } catch (error) {
       console.error('Error fetching requests:', error);
@@ -80,23 +59,13 @@ export default function AvailableRequestsScreen() {
 
   const acceptRequest = async (requestId: string) => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await auth.getCurrentUser();
       if (!user) {
         Alert.alert('خطأ', 'يجب تسجيل الدخول أولاً');
         return;
       }
 
-      const { error } = await supabase
-        .from('orders')
-        .update({
-          status: 'accepted',
-          technician_id: user.id,
-          accepted_at: new Date().toISOString(),
-        })
-        .eq('id', requestId)
-        .eq('status', 'pending'); // Only update if still pending
-
-      if (error) throw error;
+      await requests.acceptRequest(parseInt(requestId));
 
       Alert.alert('نجح!', 'تم قبول الطلب بنجاح');
       fetchAvailableRequests();

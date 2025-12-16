@@ -18,7 +18,7 @@ import { MaterialIcons, FontAwesome5 } from '@expo/vector-icons';
 import { getColors, getShadows, SPACING, BORDER_RADIUS } from '../constants/theme';
 import { useApp } from '../contexts/AppContext';
 import { translations } from '../constants/translations';
-import { auth } from '../lib/supabase';
+import { auth } from '../lib/api';
 
 export default function AuthScreen() {
   const router = useRouter();

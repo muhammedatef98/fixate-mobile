@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router';
 import { getColors, getShadows, SPACING, BORDER_RADIUS } from '../../constants/theme';
 import { MaterialIcons, Ionicons, FontAwesome5, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRequests } from '../../context/RequestContext';
-import { orders as supabaseOrders, auth } from '../../lib/supabase';
+import { requests, auth } from '../../lib/api';
 import { useApp } from '../../contexts/AppContext';
 import { registerForPushNotifications, subscribeToNewRequests, unsubscribeFromNewRequests } from '../../services/localNotificationService';
 
@@ -78,7 +78,7 @@ export default function TechnicianDashboard() {
       if (!user) return;
 
       // Get all orders
-      const allOrders = await supabaseOrders.getAll();
+      const allOrders = await requests.getAll();
       
       // Filter pending orders (new requests)
       const pending = allOrders.filter((o: any) => o.status === 'pending');
@@ -124,7 +124,7 @@ export default function TechnicianDashboard() {
       const user = await auth.getCurrentUser();
       if (!user) return;
 
-      await supabaseOrders.update(orderId, {
+      await requests.update(orderId, {
         status: 'accepted',
         technician_id: user.id,
       });

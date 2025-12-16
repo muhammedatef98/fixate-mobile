@@ -16,7 +16,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { getColors, getShadows, SPACING, BORDER_RADIUS } from '../../constants/theme';
 import { useApp } from '../../contexts/AppContext';
 import { translations } from '../../constants/translations';
-import { orders as supabaseOrders } from '../../lib/supabase';
+import { requests } from '../../lib/api';
 import { ISSUE_CATEGORIES, filterIssuesByCategory, getIssueCategory } from '../../constants/issueCategories';
 import NeuCard from '../../components/NeuCard';
 import BottomNav from '../../components/BottomNav';
@@ -58,7 +58,7 @@ export default function OrdersScreen() {
   const loadOrders = async () => {
     try {
       setLoading(true);
-      const data = await supabaseOrders.getUserOrders();
+      const data = await requests.getUserOrders();
       
       let filteredData = data;
       if (filter === 'active') {

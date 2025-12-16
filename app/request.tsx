@@ -7,7 +7,7 @@ import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import * as Location from 'expo-location';
 import * as ImagePicker from 'expo-image-picker';
 import { useRequests } from '../context/RequestContext';
-import { orders as supabaseOrders, storage, auth } from '../lib/supabase';
+import { requests, storage, auth } from '../lib/api';
 import { BrandLogo } from '../components/BrandLogo';
 import { BRANDS, ISSUES, searchBrands, searchModels, searchIssues, Brand, Issue } from '../constants/repairData';
 import { useApp } from '../contexts/AppContext';
@@ -276,7 +276,7 @@ export default function RequestScreen() {
 
         // Save to Supabase
         const serviceTypeLabel = SERVICE_TYPES.find(s => s.id === selectedServiceType);
-        const order = await supabaseOrders.create({
+        const order = await requests.create({
           user_id: user.id,
           service_id: selectedIssue?.id || 'unknown',
           service_type: selectedServiceType, // 'mobile' or 'pickup'

@@ -17,7 +17,7 @@ import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { getColors, getShadows, SPACING, BORDER_RADIUS } from '../../constants/theme';
 import { useAppContext } from '../../contexts/AppContext';
 import { translations } from '../../constants/translations';
-import { orders as supabaseOrders, auth } from '../../lib/supabase';
+import { requests, auth } from '../../lib/api';
 import { ISSUE_CATEGORIES, getIssueCategory } from '../../constants/issueCategories';
 import NeuCard from '../../components/NeuCard';
 
@@ -53,7 +53,7 @@ export default function AvailableOrdersScreen() {
     getTechnicianLocation();
     
     // Set up real-time subscription for new orders
-    const subscription = supabaseOrders.subscribeToNew((newOrder) => {
+    const subscription = requests.subscribeToNew((newOrder) => {
       // Add new order to the list
       setOrders(prev => [newOrder, ...prev]);
       
@@ -84,7 +84,7 @@ export default function AvailableOrdersScreen() {
   const loadOrders = async () => {
     try {
       setLoading(true);
-      const availableOrders = await supabaseOrders.getAvailable();
+      const availableOrders = await requests.getAvailable();
       setOrders(availableOrders || []);
     } catch (error) {
       console.error('Error loading orders:', error);
@@ -104,7 +104,7 @@ export default function AvailableOrdersScreen() {
       const user = await auth.getCurrentUser();
       if (!user) return;
 
-      const success = await supabaseOrders.assignToTechnician(orderId, user.id);
+      const success = await requests.assignToTechnician(orderId, user.id);
       
       if (success) {
         Alert.alert(

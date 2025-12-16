@@ -17,7 +17,7 @@ import { useRouter } from 'expo-router';
 import { getColors, getShadows, SPACING, BORDER_RADIUS } from '../constants/theme';
 import { useApp } from '../contexts/AppContext';
 import { translations } from '../constants/translations';
-import { auth } from '../lib/supabase';
+import { auth } from '../lib/api';
 
 const { width } = Dimensions.get('window');
 const DRAWER_WIDTH = width * 0.65; // Reduced from 80% to 65%

@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, Ref
 import { useRouter } from 'expo-router';
 import { getColors, getShadows, SPACING, BORDER_RADIUS } from '../../constants/theme';
 import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { orders as supabaseOrders, auth } from '../../lib/supabase';
+import { requests, auth } from '../../lib/api';
 import { useApp } from '../../contexts/AppContext';
 
 const STATUS_TABS = [
@@ -31,7 +31,7 @@ export default function MyOrdersScreen() {
       const user = await auth.getCurrentUser();
       if (!user) return;
 
-      const allOrders = await supabaseOrders.getAll();
+      const allOrders = await requests.getAll();
       const myOrders = allOrders.filter((o: any) => 
         o.technician_id === user.id && o.status === selectedTab
       );
@@ -50,7 +50,7 @@ export default function MyOrdersScreen() {
 
   const updateOrderStatus = async (orderId: string, newStatus: string) => {
     try {
-      await supabaseOrders.update(orderId, { status: newStatus });
+      await requests.update(orderId, { status: newStatus });
       loadOrders();
     } catch (error) {
       console.error('Error updating order:', error);

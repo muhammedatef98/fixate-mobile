@@ -5,7 +5,7 @@ import { getColors, getShadows, SPACING, BORDER_RADIUS } from '../../constants/t
 import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 import NeuCard from '../../components/NeuCard';
 import BottomNav from '../../components/BottomNav';
-import { services as supabaseServices } from '../../lib/supabase';
+import { services } from '../../lib/api';
 import { ActivityIndicator } from 'react-native';
 import { useApp } from '../../contexts/AppContext';
 
@@ -94,7 +94,7 @@ export default function ServicesScreen() {
   const loadServices = async () => {
     try {
       setLoading(true);
-      const data = await supabaseServices.getAll();
+      const data = await services.getAll();
       // Map Supabase services to app format
       if (data && data.length > 0) {
         const mappedServices = data.map((service: any, index: number) => ({

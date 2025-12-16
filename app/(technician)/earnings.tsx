@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, Dim
 import { useRouter } from 'expo-router';
 import { getColors, getShadows, SPACING, BORDER_RADIUS } from '../../constants/theme';
 import { MaterialIcons, MaterialCommunityIcons, FontAwesome5 } from '@expo/vector-icons';
-import { orders as supabaseOrders, auth } from '../../lib/supabase';
+import { requests, auth } from '../../lib/api';
 import { useApp } from '../../contexts/AppContext';
 
 const { width } = Dimensions.get('window');
@@ -38,7 +38,7 @@ export default function EarningsScreen() {
       const user = await auth.getCurrentUser();
       if (!user) return;
 
-      const allOrders = await supabaseOrders.getAll();
+      const allOrders = await requests.getAll();
       const completedOrders = allOrders.filter((o: any) => 
         o.technician_id === user.id && o.status === 'completed'
       );
