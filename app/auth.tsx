@@ -13,7 +13,7 @@ import {
   ScrollView,
   Alert,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { MaterialIcons, FontAwesome5 } from '@expo/vector-icons';
 import { getColors, getShadows, SPACING, BORDER_RADIUS } from '../constants/theme';
 import { useApp } from '../contexts/AppContext';
@@ -22,6 +22,8 @@ import { auth } from '../lib/api';
 
 export default function AuthScreen() {
   const router = useRouter();
+  const { role } = useLocalSearchParams<{ role?: string }>();
+  const userRole = (role as 'customer' | 'technician') || 'customer';
   const { language, isDark } = useApp();
   const COLORS = getColors(isDark);
   const SHADOWS = getShadows(isDark);
@@ -32,6 +34,9 @@ export default function AuthScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [specialization, setSpecialization] = useState('');
+  const [experience, setExperience] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
   const [loading, setLoading] = useState(false);
@@ -56,10 +61,13 @@ export default function AuthScreen() {
           t.success || 'Success',
           language === 'ar' ? 'تم تسجيل الدخول بنجاح!' : 'Logged in successfully!'
         );
-        router.replace('/(customer)');
+        // Navigate based on user role
+        const user = await auth.getCurrentUser();
+        const userType = user?.user_metadata?.role || userRole;
+        router.replace(userType === 'technician' ? '/(technician)' : '/(customer)');
       } else {
         // Sign up
-        await auth.signUp(email, password, name, 'customer');
+        await auth.signUp(email, password, name, userRole);
         Alert.alert(
           t.success || 'Success',
           language === 'ar' ? 'تم إنشاء الحساب بنجاح! يرجى التحقق من بريدك الإلكتروني.' : 'Account created! Please check your email.'
@@ -152,6 +160,70 @@ export default function AuthScreen() {
 
             {/* Name Input (Sign Up only) */}
             {!isLogin && (
+              <>
+              <View style={styles.inputContainer}>
+                <MaterialIcons name="person" size={20} color={COLORS.textSecondary} />
+                <TextInput
+                  style={styles.input}
+                  placeholder={language === 'ar' ? 'الاسم الكامل' : 'Full Name'}
+                  placeholderTextColor={COLORS.textLight}
+                  value={name}
+                  onChangeText={setName}
+                  textAlign={isRTL ? 'right' : 'left'}
+                />
+              </View>
+
+              {/* Phone Input (Technician only) */}
+              {userRole === 'technician' && (
+                <View style={styles.inputContainer}>
+                  <MaterialIcons name="phone" size={20} color={COLORS.textSecondary} />
+                  <TextInput
+                    style={styles.input}
+                    placeholder={language === 'ar' ? 'رقم الهاتف' : 'Phone Number'}
+                    placeholderTextColor={COLORS.textLight}
+                    value={phone}
+                    onChangeText={setPhone}
+                    keyboardType="phone-pad"
+                    textAlign={isRTL ? 'right' : 'left'}
+                  />
+                </View>
+              )}
+
+              {/* Specialization Input (Technician only) */}
+              {userRole === 'technician' && (
+                <View style={styles.inputContainer}>
+                  <MaterialIcons name="build" size={20} color={COLORS.textSecondary} />
+                  <TextInput
+                    style={styles.input}
+                    placeholder={language === 'ar' ? 'التخصص (مثال: صيانة موبايلات)' : 'Specialization'}
+                    placeholderTextColor={COLORS.textLight}
+                    value={specialization}
+                    onChangeText={setSpecialization}
+                    textAlign={isRTL ? 'right' : 'left'}
+                  />
+                </View>
+              )}
+
+              {/* Experience Input (Technician only) */}
+              {userRole === 'technician' && (
+                <View style={styles.inputContainer}>
+                  <MaterialIcons name="work" size={20} color={COLORS.textSecondary} />
+                  <TextInput
+                    style={styles.input}
+                    placeholder={language === 'ar' ? 'سنوات الخبرة' : 'Years of Experience'}
+                    placeholderTextColor={COLORS.textLight}
+                    value={experience}
+                    onChangeText={setExperience}
+                    keyboardType="numeric"
+                    textAlign={isRTL ? 'right' : 'left'}
+                  />
+                </View>
+              )}
+              </>
+            )}
+
+            {/* Remove duplicate name input */}
+            {false && (
               <View style={styles.inputContainer}>
                 <MaterialIcons name="person" size={20} color={COLORS.textSecondary} />
                 <TextInput

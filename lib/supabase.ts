@@ -168,6 +168,17 @@ export const services = {
 };
 
 export const orders = {
+  // Get all orders
+  getAll: async () => {
+    const { data, error } = await supabase
+      .from('orders')
+      .select('*')
+      .order('created_at', { ascending: false });
+    
+    if (error) throw error;
+    return data as Order[];
+  },
+
   // Create new order
   create: async (orderData: Omit<Order, 'id' | 'created_at' | 'updated_at'>) => {
     const { data, error } = await supabase
@@ -210,6 +221,19 @@ export const orders = {
     
     if (error) throw error;
     return data;
+  },
+
+  // Update order
+  update: async (id: string, updates: Partial<Order>) => {
+    const { data, error } = await supabase
+      .from('orders')
+      .update({ ...updates, updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .select()
+      .single();
+    
+    if (error) throw error;
+    return data as Order;
   },
 
   // Update order status
