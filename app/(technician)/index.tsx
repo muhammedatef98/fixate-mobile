@@ -4,7 +4,8 @@ import { useRouter } from 'expo-router';
 import { getColors, getShadows, SPACING, BORDER_RADIUS } from '../../constants/theme';
 import { MaterialIcons, Ionicons, FontAwesome5, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRequests } from '../../context/RequestContext';
-import { requests, auth } from '../../lib/api';
+import { auth } from '../../lib/supabase';
+import { supabase } from '../../lib/supabase';
 import { useApp } from '../../contexts/AppContext';
 import { registerForPushNotifications, subscribeToNewRequests, unsubscribeFromNewRequests } from '../../services/localNotificationService';
 
@@ -77,8 +78,14 @@ export default function TechnicianDashboard() {
       const user = await auth.getCurrentUser();
       if (!user) return;
 
-      // Get all orders
-      const allOrders = await requests.getAll();
+      // Get all orders from Supabase
+      const { data: allOrders, error } = await supabase
+        .from('orders')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      if (!allOrders) return;
       
       // Filter pending orders (new requests)
       const pending = allOrders.filter((o: any) => o.status === 'pending');
@@ -124,10 +131,15 @@ export default function TechnicianDashboard() {
       const user = await auth.getCurrentUser();
       if (!user) return;
 
-      await requests.update(orderId, {
-        status: 'accepted',
-        technician_id: user.id,
-      });
+      const { error } = await supabase
+        .from('orders')
+        .update({
+          status: 'accepted',
+          technician_id: user.id,
+        })
+        .eq('id', orderId);
+      
+      if (error) throw error;
       
       loadOrders();
     } catch (error) {

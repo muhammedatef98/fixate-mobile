@@ -33,8 +33,12 @@ export default function RoleSelectionScreen() {
   }, []);
 
   const handleRoleSelect = (role: 'customer' | 'technician') => {
-    // Navigate to auth page with role parameter
-    router.push(`/auth?role=${role}`);
+    // Navigate to appropriate auth page
+    if (role === 'technician') {
+      router.push('/technician-auth');
+    } else {
+      router.push(`/auth?role=${role}`);
+    }
   };
 
   const styles = createStyles(COLORS, SHADOWS);
