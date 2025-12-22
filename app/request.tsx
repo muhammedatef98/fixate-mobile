@@ -6,7 +6,7 @@ import { MaterialIcons, Ionicons, MaterialCommunityIcons } from '@expo/vector-ic
 import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import * as Location from 'expo-location';
 import * as ImagePicker from 'expo-image-picker';
-import { useRequests } from '../context/RequestContext';
+import { useRequests } from '../contexts/RequestContext';
 import { requests, storage, auth } from '../lib/supabase-api';
 import { BrandLogo } from '../components/BrandLogo';
 import { BRANDS, ISSUES, searchBrands, searchModels, searchIssues, Brand, Issue } from '../constants/repairData';

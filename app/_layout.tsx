@@ -2,8 +2,8 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { I18nManager } from 'react-native';
-import { RequestProvider } from '../context/RequestContext';
-import { ThemeProvider } from '../context/ThemeContext';
+import { RequestProvider } from '../contexts/RequestContext';
+import { ThemeProvider } from '../contexts/ThemeContext';
 import { AppProvider, useApp } from '../contexts/AppContext';
 import '../i18n';
 
