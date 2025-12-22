@@ -26,7 +26,7 @@ export interface Order {
   latitude: number;
   longitude: number;
   media_urls?: string[];
-  status: 'pending' | 'accepted' | 'in_progress' | 'completed' | 'cancelled';
+  status: 'pending' | 'accepted' | 'picking_up' | 'diagnosing' | 'repairing' | 'delivering' | 'completed' | 'cancelled';
   technician_id?: string;
   created_at: string;
   updated_at: string;
@@ -221,6 +221,56 @@ export const requests = {
     }
 
     return data || [];
+  },
+
+  // Subscribe to new orders (real-time)
+  subscribeToNew: (callback: (order: Order) => void) => {
+    const subscription = supabase
+      .channel('orders-new')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'orders',
+          filter: 'status=eq.pending'
+        },
+        (payload) => {
+          callback(payload.new as Order);
+        }
+      )
+      .subscribe();
+
+    return {
+      unsubscribe: () => {
+        supabase.removeChannel(subscription);
+      }
+    };
+  },
+
+  // Subscribe to order updates (real-time)
+  subscribeToUpdates: (orderId: string, callback: (order: Order) => void) => {
+    const subscription = supabase
+      .channel(`order-${orderId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'orders',
+          filter: `id=eq.${orderId}`
+        },
+        (payload) => {
+          callback(payload.new as Order);
+        }
+      )
+      .subscribe();
+
+    return {
+      unsubscribe: () => {
+        supabase.removeChannel(subscription);
+      }
+    };
   },
 };
 
