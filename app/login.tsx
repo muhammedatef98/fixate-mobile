@@ -44,6 +44,15 @@ export default function LoginScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <View style={styles.content}>
+        {/* Back Button */}
+        <TouchableOpacity 
+          style={styles.backButton}
+          onPress={() => router.push('/role-selection')}
+        >
+          <Ionicons name="arrow-back" size={24} color="#6b7280" />
+          <Text style={styles.backText}>رجوع</Text>
+        </TouchableOpacity>
+
         <View style={styles.header}>
           <Ionicons name="log-in" size={64} color="#10b981" />
           <Text style={styles.title}>مرحباً بعودتك!</Text>
@@ -181,5 +190,17 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#10b981',
     fontWeight: 'bold',
+  },
+  backButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 20,
+    paddingVertical: 8,
+  },
+  backText: {
+    fontSize: 16,
+    color: '#6b7280',
+    fontWeight: '600',
   },
 });

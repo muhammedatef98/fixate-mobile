@@ -33,7 +33,7 @@ export default function Sidebar({ visible, onClose }: SidebarProps) {
   const COLORS = getColors(isDark);
   const SHADOWS = getShadows(isDark);
   const isRTL = language === 'ar';
-  const [slideAnim] = useState(new Animated.Value(isRTL ? DRAWER_WIDTH : -DRAWER_WIDTH));
+  const [slideAnim] = useState(new Animated.Value(-DRAWER_WIDTH));
   const [user, setUser] = useState<any>(null);
   
   const t = translations[language];
@@ -43,7 +43,7 @@ export default function Sidebar({ visible, onClose }: SidebarProps) {
   }, []);
 
   React.useEffect(() => {
-    const hiddenPosition = isRTL ? DRAWER_WIDTH : -DRAWER_WIDTH;
+    const hiddenPosition = -DRAWER_WIDTH;
     if (visible) {
       Animated.spring(slideAnim, {
         toValue: 0,
@@ -139,7 +139,6 @@ export default function Sidebar({ visible, onClose }: SidebarProps) {
         <Animated.View 
           style={[
             styles.drawer,
-            isRTL && styles.drawerRTL,
             {
               transform: [{ translateX: slideAnim }],
             },
@@ -265,20 +264,20 @@ function createStyles(COLORS: any, SHADOWS: any, isRTL: boolean) {
   return StyleSheet.create({
     overlay: {
       flex: 1,
-      flexDirection: isRTL ? 'row-reverse' : 'row',
+      flexDirection: 'row',
       backgroundColor: 'rgba(0, 0, 0, 0.5)',
     },
     backdrop: {
       flex: 1,
     },
     drawer: {
+      position: 'absolute',
+      left: 0,
+      top: 0,
+      bottom: 0,
       width: DRAWER_WIDTH,
       backgroundColor: COLORS.background,
       ...SHADOWS.large,
-    },
-    drawerRTL: {
-      borderTopLeftRadius: 0,
-      borderBottomLeftRadius: 0,
       borderTopRightRadius: 24,
       borderBottomRightRadius: 24,
     },
