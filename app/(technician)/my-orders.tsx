@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, Ref
 import { useRouter } from 'expo-router';
 import { getColors, getShadows, SPACING, BORDER_RADIUS } from '../../constants/theme';
 import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { requests, auth } from '../../lib/api';
+import { requests, auth } from '../../lib/supabase-api';
 import { useApp } from '../../contexts/AppContext';
 
 const STATUS_TABS = [

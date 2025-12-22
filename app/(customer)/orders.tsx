@@ -16,7 +16,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { getColors, getShadows, SPACING, BORDER_RADIUS } from '../../constants/theme';
 import { useApp } from '../../contexts/AppContext';
 import { translations } from '../../constants/translations';
-import { requests } from '../../lib/api';
+import { requests } from '../../lib/supabase-api';
 import { ISSUE_CATEGORIES, filterIssuesByCategory, getIssueCategory } from '../../constants/issueCategories';
 import NeuCard from '../../components/NeuCard';
 import BottomNav from '../../components/BottomNav';
