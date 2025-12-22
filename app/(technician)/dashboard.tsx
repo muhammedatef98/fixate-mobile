@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router';
 import { COLORS, SPACING, SHADOWS } from '../../constants/theme';
 import { Card } from '../../components/ui/Card';
 import { MaterialIcons, Ionicons, FontAwesome5 } from '@expo/vector-icons';
-import { useRequests } from '../../context/RequestContext';
+import { useRequests } from '../../contexts/RequestContext';
 import { registerForPushNotifications, subscribeToNewRequests, unsubscribeFromNewRequests, addNotificationResponseListener } from '../../services/localNotificationService';
 
 const STATS = [
