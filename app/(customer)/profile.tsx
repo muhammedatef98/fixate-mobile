@@ -5,7 +5,7 @@ import { COLORS, SPACING, BORDER_RADIUS, SHADOWS } from '../../constants/theme';
 import { MaterialIcons } from '@expo/vector-icons';
 import NeuCard from '../../components/NeuCard';
 import BottomNav from '../../components/BottomNav';
-import { auth } from '../../lib/api';
+import { auth } from '../../lib/supabase-api';
 import { ActivityIndicator, Alert } from 'react-native';
 import { useApp } from '../../contexts/AppContext';
 

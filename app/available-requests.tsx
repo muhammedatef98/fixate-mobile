@@ -8,7 +8,7 @@ import {
   Alert,
   RefreshControl,
 } from 'react-native';
-import { requests, auth } from '../lib/api';
+import { requests, auth } from '../lib/supabase-api';
 import { router } from 'expo-router';
 
 interface Request {
