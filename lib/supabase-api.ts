@@ -44,6 +44,16 @@ export interface Technician {
   created_at: string;
 }
 
+export interface Service {
+  id: string;
+  name: string;
+  description: string;
+  category: string;
+  icon?: string;
+  price_range?: string;
+  created_at: string;
+}
+
 // Authentication API
 export const auth = {
   // Get current user
@@ -276,6 +286,56 @@ export const technicians = {
   },
 };
 
+// Services API
+export const services = {
+  // Get all services
+  getAll: async (): Promise<Service[]> => {
+    const { data, error } = await supabase
+      .from('services')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error getting services:', error);
+      return [];
+    }
+
+    return data || [];
+  },
+
+  // Get service by ID
+  getById: async (id: string): Promise<Service | null> => {
+    const { data, error } = await supabase
+      .from('services')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (error) {
+      console.error('Error getting service:', error);
+      return null;
+    }
+
+    return data;
+  },
+
+  // Get services by category
+  getByCategory: async (category: string): Promise<Service[]> => {
+    const { data, error } = await supabase
+      .from('services')
+      .select('*')
+      .eq('category', category)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error getting services by category:', error);
+      return [];
+    }
+
+    return data || [];
+  },
+};
+
 // Storage API
 export const storage = {
   // Upload image from URI
@@ -341,5 +401,6 @@ export default {
   auth,
   requests,
   technicians,
+  services,
   storage,
 };
