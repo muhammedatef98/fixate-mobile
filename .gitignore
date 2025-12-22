@@ -43,3 +43,13 @@ coverage/
 
 # Misc
 .cache/
+
+# Security - Sensitive files (DO NOT COMMIT)
+*.jks
+*.keystore
+google-services.json
+GoogleService-Info.plist
+
+# Reports and temporary documentation
+*-report.md
+*-complete.md
