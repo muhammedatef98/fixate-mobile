@@ -15,7 +15,7 @@ import {
 import { useRouter } from 'expo-router';
 import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { getColors, getShadows, SPACING, BORDER_RADIUS } from '../../constants/theme';
-import { useAppContext } from '../../contexts/AppContext';
+import { useApp } from '../../contexts/AppContext';
 import { translations } from '../../constants/translations';
 import { requests, auth } from '../../lib/api';
 import { ISSUE_CATEGORIES, getIssueCategory } from '../../constants/issueCategories';
@@ -36,7 +36,7 @@ function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: numbe
 
 export default function AvailableOrdersScreen() {
   const router = useRouter();
-  const { language, isDark } = useAppContext();
+  const { language, isDark } = useApp();
   const COLORS = getColors(isDark);
   const SHADOWS = getShadows(isDark);
   const t = translations[language];
