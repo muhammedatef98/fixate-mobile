@@ -17,7 +17,7 @@ import { useRouter } from 'expo-router';
 import { getColors, getShadows, SPACING, BORDER_RADIUS } from '../constants/theme';
 import { useApp } from '../contexts/AppContext';
 import { translations } from '../constants/translations';
-import { auth } from '../lib/api';
+import api from '../lib/supabase-api';
 
 const { width } = Dimensions.get('window');
 const DRAWER_WIDTH = width * 0.65; // Reduced from 80% to 65%
@@ -61,9 +61,9 @@ export default function Sidebar({ visible, onClose }: SidebarProps) {
 
   const loadUser = async () => {
     try {
-      const currentUser = await auth.getCurrentUser();
+      const currentUser = await api.auth.getCurrentUser();
       if (currentUser) {
-        const profile = await auth.getUserProfile(currentUser.id);
+        const profile = await api.auth.getUserProfile(currentUser.id);
         setUser(profile);
       }
     } catch (error) {
@@ -85,7 +85,7 @@ export default function Sidebar({ visible, onClose }: SidebarProps) {
           style: 'destructive',
           onPress: async () => {
             try {
-              await auth.signOut();
+              await api.auth.signOut();
               onClose();
               router.replace('/role-selection');
             } catch (error) {
