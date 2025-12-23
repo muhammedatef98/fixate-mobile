@@ -408,7 +408,7 @@ export const storage = {
     try {
       // Read file as base64
       const base64 = await FileSystem.readAsStringAsync(uri, {
-        encoding: FileSystem.EncodingType.Base64,
+        encoding: 'base64',
       });
 
       // Convert base64 to array buffer
