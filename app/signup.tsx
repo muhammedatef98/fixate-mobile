@@ -14,6 +14,7 @@ import { Link, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../contexts/AppContext';
 import { getColors, getShadows, SPACING, BORDER_RADIUS } from '../constants/theme';
+import { validatePassword, validateEmail, validatePhone, getPasswordStrengthColor, getPasswordStrengthText } from '../utils/validation';
 
 export default function SignupScreen() {
   const router = useRouter();
@@ -25,10 +26,41 @@ export default function SignupScreen() {
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [passwordFocused, setPasswordFocused] = useState(false);
+  const { language } = useApp();
+  
+  const passwordValidation = validatePassword(password, language);
 
   const handleSignup = () => {
     if (!name || !email || !phone || !password) {
-      Alert.alert('خطأ', 'الرجاء ملء جميع الحقول');
+      Alert.alert(
+        language === 'ar' ? 'خطأ' : 'Error',
+        language === 'ar' ? 'الرجاء ملء جميع الحقول' : 'Please fill all fields'
+      );
+      return;
+    }
+    
+    if (!validateEmail(email)) {
+      Alert.alert(
+        language === 'ar' ? 'خطأ' : 'Error',
+        language === 'ar' ? 'البريد الإلكتروني غير صحيح' : 'Invalid email address'
+      );
+      return;
+    }
+    
+    if (!validatePhone(phone)) {
+      Alert.alert(
+        language === 'ar' ? 'خطأ' : 'Error',
+        language === 'ar' ? 'رقم الهاتف غير صحيح' : 'Invalid phone number'
+      );
+      return;
+    }
+    
+    if (!passwordValidation.isValid) {
+      Alert.alert(
+        language === 'ar' ? 'كلمة مرور ضعيفة' : 'Weak Password',
+        passwordValidation.errors.join('\n')
+      );
       return;
     }
 
@@ -113,6 +145,8 @@ export default function SignupScreen() {
                 placeholder="••••••••"
                 value={password}
                 onChangeText={setPassword}
+                onFocus={() => setPasswordFocused(true)}
+                onBlur={() => setPasswordFocused(false)}
                 secureTextEntry={!showPassword}
               />
               <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
@@ -123,6 +157,31 @@ export default function SignupScreen() {
                 />
               </TouchableOpacity>
             </View>
+            {password.length > 0 && (
+              <View style={styles.passwordStrength}>
+                <View style={styles.strengthBar}>
+                  <View 
+                    style={[
+                      styles.strengthFill,
+                      { 
+                        width: passwordValidation.strength === 'weak' ? '33%' : passwordValidation.strength === 'medium' ? '66%' : '100%',
+                        backgroundColor: getPasswordStrengthColor(passwordValidation.strength)
+                      }
+                    ]} 
+                  />
+                </View>
+                <Text style={[styles.strengthText, { color: getPasswordStrengthColor(passwordValidation.strength) }]}>
+                  {getPasswordStrengthText(passwordValidation.strength, language)}
+                </Text>
+              </View>
+            )}
+            {passwordFocused && password.length > 0 && !passwordValidation.isValid && (
+              <View style={styles.passwordHints}>
+                {passwordValidation.errors.map((error, index) => (
+                  <Text key={index} style={styles.hintText}>• {error}</Text>
+                ))}
+              </View>
+            )}
           </View>
 
           <TouchableOpacity style={styles.signupButton} onPress={handleSignup}>
@@ -230,5 +289,36 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#6b7280',
     fontWeight: '600',
+  },
+  passwordStrength: {
+    marginTop: 8,
+  },
+  strengthBar: {
+    height: 4,
+    backgroundColor: '#e5e7eb',
+    borderRadius: 2,
+    overflow: 'hidden',
+    marginBottom: 4,
+  },
+  strengthFill: {
+    height: '100%',
+    borderRadius: 2,
+  },
+  strengthText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  passwordHints: {
+    marginTop: 8,
+    padding: 12,
+    backgroundColor: '#FEF2F2',
+    borderRadius: 8,
+    borderLeftWidth: 3,
+    borderLeftColor: '#EF4444',
+  },
+  hintText: {
+    fontSize: 12,
+    color: '#EF4444',
+    marginBottom: 4,
   },
 });
