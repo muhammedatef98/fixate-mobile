@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../contexts/AppContext';
 import { getColors, getShadows, SPACING, BORDER_RADIUS } from '../constants/theme';
 import { validatePassword, validateEmail, validatePhone, getPasswordStrengthColor, getPasswordStrengthText } from '../utils/validation';
+import { supabase } from '../lib/supabase';
 
 export default function SignupScreen() {
   const router = useRouter();
@@ -31,7 +32,7 @@ export default function SignupScreen() {
   
   const passwordValidation = validatePassword(password, language);
 
-  const handleSignup = () => {
+  const handleSignup = async () => {
     if (!name || !email || !phone || !password) {
       Alert.alert(
         language === 'ar' ? 'خطأ' : 'Error',
@@ -188,6 +189,33 @@ export default function SignupScreen() {
             <Text style={styles.signupButtonText}>إنشاء حساب</Text>
           </TouchableOpacity>
 
+          <View style={styles.divider}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>أو</Text>
+            <View style={styles.dividerLine} />
+          </View>
+
+          <View style={styles.socialButtons}>
+            <TouchableOpacity style={styles.socialButton} onPress={async () => {
+              const { error } = await supabase.auth.signInWithOAuth({ provider: 'google' });
+              if (error) Alert.alert('خطأ', error.message);
+            }}>
+              <Ionicons name="logo-google" size={24} color="#DB4437" />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.socialButton} onPress={async () => {
+              const { error } = await supabase.auth.signInWithOAuth({ provider: 'apple' });
+              if (error) Alert.alert('خطأ', error.message);
+            }}>
+              <Ionicons name="logo-apple" size={24} color="#000" />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.socialButton} onPress={async () => {
+              const { error } = await supabase.auth.signInWithOAuth({ provider: 'facebook' });
+              if (error) Alert.alert('خطأ', error.message);
+            }}>
+              <Ionicons name="logo-facebook" size={24} color="#1877F2" />
+            </TouchableOpacity>
+          </View>
+
           <View style={styles.footer}>
             <Text style={styles.footerText}>لديك حساب بالفعل؟</Text>
             <Link href="/login" asChild>
@@ -320,5 +348,35 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#EF4444',
     marginBottom: 4,
+  },
+  divider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 24,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: '#e5e7eb',
+  },
+  dividerText: {
+    marginHorizontal: 16,
+    fontSize: 14,
+    color: '#6b7280',
+  },
+  socialButtons: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 16,
+  },
+  socialButton: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });
