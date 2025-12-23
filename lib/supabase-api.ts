@@ -121,6 +121,21 @@ export const requests = {
     return data;
   },
 
+  // Get all orders
+  getAll: async (): Promise<Order[]> => {
+    const { data, error } = await supabase
+      .from('orders')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error getting all orders:', error);
+      return [];
+    }
+
+    return data || [];
+  },
+
   // Get user orders
   getUserRequests: async (userId: string): Promise<Order[]> => {
     const { data, error } = await supabase
