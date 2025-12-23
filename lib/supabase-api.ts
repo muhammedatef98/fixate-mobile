@@ -58,12 +58,17 @@ export interface Service {
 export const auth = {
   // Get current user
   getCurrentUser: async (): Promise<User | null> => {
-    const { data: { user }, error } = await supabase.auth.getUser();
-    if (error) {
-      console.error('Error getting current user:', error);
+    try {
+      const { data: { user }, error } = await supabase.auth.getUser();
+      if (error) {
+        // Silently return null if no session
+        return null;
+      }
+      return user;
+    } catch (error) {
+      // Handle any exceptions (like AuthSessionMissingError)
       return null;
     }
-    return user;
   },
 
   // Get user profile
