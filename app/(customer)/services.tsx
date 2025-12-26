@@ -111,7 +111,7 @@ export default function ServicesScreen() {
         setServices(mappedServices);
       }
     } catch (error) {
-      console.log('Using local services data');
+      logger.debug('Using local services data');
     } finally {
       setLoading(false);
     }

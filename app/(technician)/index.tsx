@@ -116,7 +116,7 @@ export default function TechnicianDashboard() {
         rating: 4.9 // TODO: Calculate from reviews
       });
     } catch (error) {
-      console.error('Error loading orders:', error);
+      logger.error('Error loading orders:', error);
     }
   };
 
@@ -143,7 +143,7 @@ export default function TechnicianDashboard() {
       
       loadOrders();
     } catch (error) {
-      console.error('Error accepting order:', error);
+      logger.error('Error accepting order:', error);
     }
   };
 

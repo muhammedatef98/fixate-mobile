@@ -36,7 +36,7 @@ export default function ProfileScreen() {
         setUser(profile);
       }
     } catch (error) {
-      console.log('User not logged in');
+      logger.debug('User not logged in');
     } finally {
       setLoading(false);
     }

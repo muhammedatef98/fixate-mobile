@@ -73,7 +73,7 @@ export default function OrdersScreen() {
       
       setOrders(filteredData);
     } catch (error) {
-      console.log('Error loading orders:', error);
+      logger.debug('Error loading orders:', error);
     } finally {
       setLoading(false);
       setRefreshing(false);

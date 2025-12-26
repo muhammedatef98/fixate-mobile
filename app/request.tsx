@@ -141,7 +141,7 @@ export default function RequestScreen() {
         setMediaFiles([...mediaFiles, result.assets[0].uri]);
       }
     } catch (error) {
-      console.error('Error picking image:', error);
+      logger.error('Error picking image:', error);
     }
   };
 
@@ -165,7 +165,7 @@ export default function RequestScreen() {
         setMediaFiles([...mediaFiles, result.assets[0].uri]);
       }
     } catch (error) {
-      console.error('Error taking photo:', error);
+      logger.error('Error taking photo:', error);
     }
   };
 
@@ -204,7 +204,7 @@ export default function RequestScreen() {
         setAddress(`${addr.street || ''}, ${addr.city || ''}, ${addr.region || ''}`);
       }
     } catch (error) {
-      console.error('Error getting location:', error);
+      logger.error('Error getting location:', error);
       Alert.alert(
         language === 'ar' ? 'خطأ' : 'Error',
         language === 'ar' ? 'حدث خطأ في تحديد الموقع. يرجى المحاولة مرة أخرى.' : 'Error getting location. Please try again.'
@@ -270,7 +270,7 @@ export default function RequestScreen() {
               const url = await storage.uploadImageFromUri('orders', uri, fileName);
               uploadedUrls.push(url);
             } catch (uploadError) {
-              console.error('Error uploading file:', uploadError);
+              logger.error('Error uploading file:', uploadError);
             }
           }
         }
@@ -324,7 +324,7 @@ export default function RequestScreen() {
               }),
             });
           } catch (emailError) {
-            console.error('Email notification failed:', emailError);
+            logger.error('Email notification failed:', emailError);
             // Don't block the user if email fails
           }
 
@@ -368,7 +368,7 @@ export default function RequestScreen() {
         );
       }
     } catch (error) {
-      console.error('Error submitting request:', error);
+      logger.error('Error submitting request:', error);
       Alert.alert(language === 'ar' ? 'خطأ' : 'Error', language === 'ar' ? 'حدث خطأ أثناء إرسال الطلب' : 'An error occurred while submitting the request');
     }
   };
@@ -871,7 +871,7 @@ export default function RequestScreen() {
                     setAddress(`${addr.street || ''}, ${addr.city || ''}, ${addr.region || ''}`);
                   }
                 } catch (error) {
-                  console.error('Error reverse geocoding:', error);
+                  logger.error('Error reverse geocoding:', error);
                   // Keep the location but set a generic address
                   setAddress(`${region.latitude.toFixed(6)}, ${region.longitude.toFixed(6)}`);
                 }
