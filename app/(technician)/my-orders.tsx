@@ -38,7 +38,7 @@ export default function MyOrdersScreen() {
       
       setOrders(myOrders);
     } catch (error) {
-      console.error('Error loading orders:', error);
+      logger.error('Error loading orders:', error);
     }
   };
 
@@ -53,7 +53,7 @@ export default function MyOrdersScreen() {
       await requests.update(orderId, { status: newStatus });
       loadOrders();
     } catch (error) {
-      console.error('Error updating order:', error);
+      logger.error('Error updating order:', error);
     }
   };
 

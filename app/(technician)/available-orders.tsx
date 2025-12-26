@@ -87,7 +87,7 @@ export default function AvailableOrdersScreen() {
       const availableOrders = await requests.getAvailable();
       setOrders(availableOrders || []);
     } catch (error) {
-      console.error('Error loading orders:', error);
+      logger.error('Error loading orders:', error);
     } finally {
       setLoading(false);
     }
@@ -114,7 +114,7 @@ export default function AvailableOrdersScreen() {
         loadOrders(); // Refresh list
       }
     } catch (error) {
-      console.error('Error accepting order:', error);
+      logger.error('Error accepting order:', error);
       Alert.alert(
         language === 'ar' ? 'خطأ' : 'Error',
         language === 'ar' ? 'حدث خطأ أثناء قبول الطلب' : 'An error occurred while accepting the order'

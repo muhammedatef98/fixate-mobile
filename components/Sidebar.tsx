@@ -67,7 +67,7 @@ export default function Sidebar({ visible, onClose }: SidebarProps) {
         setUser(profile);
       }
     } catch (error) {
-      console.log('User not logged in');
+      logger.debug('User not logged in');
     }
   };
 
@@ -89,7 +89,7 @@ export default function Sidebar({ visible, onClose }: SidebarProps) {
               onClose();
               router.replace('/role-selection');
             } catch (error) {
-              console.log('Logout error:', error);
+              logger.debug('Logout error:', error);
             }
           },
         },

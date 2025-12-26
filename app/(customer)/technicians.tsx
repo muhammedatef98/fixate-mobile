@@ -42,7 +42,7 @@ export default function TechniciansScreen() {
       const data = await technicians.getAvailable();
       setTechnicians(data);
     } catch (error) {
-      console.log('Error loading technicians:', error);
+      logger.debug('Error loading technicians:', error);
     } finally {
       setLoading(false);
       setRefreshing(false);

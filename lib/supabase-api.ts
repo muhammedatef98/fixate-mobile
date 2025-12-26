@@ -119,7 +119,7 @@ export const requests = {
       .single();
 
     if (error) {
-      console.error('Error creating order:', error);
+      logger.error('Error creating order:', error);
       throw error;
     }
 
@@ -134,7 +134,7 @@ export const requests = {
       .order('created_at', { ascending: false });
 
     if (error) {
-      console.error('Error getting all orders:', error);
+      logger.error('Error getting all orders:', error);
       return [];
     }
 
@@ -150,7 +150,7 @@ export const requests = {
       .order('created_at', { ascending: false });
 
     if (error) {
-      console.error('Error getting user orders:', error);
+      logger.error('Error getting user orders:', error);
       return [];
     }
 
@@ -166,7 +166,7 @@ export const requests = {
       .single();
 
     if (error) {
-      console.error('Error getting order:', error);
+      logger.error('Error getting order:', error);
       return null;
     }
 
@@ -183,7 +183,7 @@ export const requests = {
       .single();
 
     if (error) {
-      console.error('Error updating order status:', error);
+      logger.error('Error updating order status:', error);
       throw error;
     }
 
@@ -199,7 +199,7 @@ export const requests = {
       .order('created_at', { ascending: false });
 
     if (error) {
-      console.error('Error getting available orders:', error);
+      logger.error('Error getting available orders:', error);
       return [];
     }
 
@@ -220,7 +220,7 @@ export const requests = {
       .single();
 
     if (error) {
-      console.error('Error accepting order:', error);
+      logger.error('Error accepting order:', error);
       throw error;
     }
 
@@ -236,7 +236,7 @@ export const requests = {
       .order('created_at', { ascending: false });
 
     if (error) {
-      console.error('Error getting technician orders:', error);
+      logger.error('Error getting technician orders:', error);
       return [];
     }
 
@@ -304,7 +304,7 @@ export const technicians = {
       .eq('is_available', true);
 
     if (error) {
-      console.error('Error getting available technicians:', error);
+      logger.error('Error getting available technicians:', error);
       return [];
     }
 
@@ -320,7 +320,7 @@ export const technicians = {
       .single();
 
     if (error) {
-      console.error('Error getting technician:', error);
+      logger.error('Error getting technician:', error);
       return null;
     }
 
@@ -348,7 +348,7 @@ export const technicians = {
       .single();
 
     if (error) {
-      console.error('Error creating technician:', error);
+      logger.error('Error creating technician:', error);
       throw error;
     }
 
@@ -366,7 +366,7 @@ export const services = {
       .order('created_at', { ascending: false });
 
     if (error) {
-      console.error('Error getting services:', error);
+      logger.error('Error getting services:', error);
       return [];
     }
 
@@ -382,7 +382,7 @@ export const services = {
       .single();
 
     if (error) {
-      console.error('Error getting service:', error);
+      logger.error('Error getting service:', error);
       return null;
     }
 
@@ -398,7 +398,7 @@ export const services = {
       .order('created_at', { ascending: false });
 
     if (error) {
-      console.error('Error getting services by category:', error);
+      logger.error('Error getting services by category:', error);
       return [];
     }
 
@@ -428,7 +428,7 @@ export const storage = {
         });
 
       if (error) {
-        console.error('Error uploading image:', error);
+        logger.error('Error uploading image:', error);
         throw error;
       }
 
@@ -439,7 +439,7 @@ export const storage = {
 
       return urlData.publicUrl;
     } catch (error) {
-      console.error('Error in uploadImageFromUri:', error);
+      logger.error('Error in uploadImageFromUri:', error);
       throw error;
     }
   },
@@ -454,7 +454,7 @@ export const storage = {
       });
 
     if (error) {
-      console.error('Error uploading image:', error);
+      logger.error('Error uploading image:', error);
       throw error;
     }
 
