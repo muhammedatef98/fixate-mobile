@@ -38,6 +38,7 @@ const DEVICE_TYPES = [
   { id: 'tablet', name: 'تابلت', nameEn: 'Tablet', icon: 'tablet' },
   { id: 'laptop', name: 'لابتوب', nameEn: 'Laptop', icon: 'laptop' },
   { id: 'watch', name: 'ساعة ذكية', nameEn: 'Smart Watch', icon: 'watch' },
+  { id: 'printer', name: 'طابعة', nameEn: 'Printer', icon: 'printer' },
 ];
 
 export default function RequestScreen() {
@@ -52,7 +53,6 @@ export default function RequestScreen() {
   const [selectedServiceType, setSelectedServiceType] = useState<string>('mobile'); // Default to mobile technician
   const [selectedDeviceType, setSelectedDeviceType] = useState<string>('phone'); // Default to phone
   const [selectedBrand, setSelectedBrand] = useState<Brand | null>(null);
-  const [selectedType, setSelectedType] = useState<string | null>(null);
   const [selectedModel, setSelectedModel] = useState<string | null>(null);
   const [selectedIssue, setSelectedIssue] = useState<Issue | null>(null);
   const [issueDescription, setIssueDescription] = useState('');
@@ -78,8 +78,8 @@ export default function RequestScreen() {
   const slideAnim = useRef(new Animated.Value(50)).current;
   
   const STEPS = language === 'ar' 
-    ? ['نوع الخدمة', 'الماركة', 'النوع', 'الموديل', 'العطل', 'التفاصيل', 'الموقع']
-    : ['Service Type', 'Brand', 'Type', 'Model', 'Issue', 'Details', 'Location'];
+    ? ['نوع الخدمة', 'نوع الجهاز', 'الماركة', 'الموديل', 'العطل', 'التفاصيل', 'الموقع']
+    : ['Service Type', 'Device Type', 'Brand', 'Model', 'Issue', 'Details', 'Location'];
 
   useEffect(() => {
     Animated.parallel([
@@ -214,12 +214,9 @@ export default function RequestScreen() {
 
   const handleNext = () => {
     // Step 0: Service Type (no validation needed, has default)
-    if (currentStep === 1 && !selectedBrand) {
+    // Step 1: Device Type (no validation needed, has default)
+    if (currentStep === 2 && !selectedBrand) {
       Alert.alert(language === 'ar' ? 'تنبيه' : 'Alert', language === 'ar' ? 'الرجاء اختيار الماركة' : 'Please select a brand');
-      return;
-    }
-    if (currentStep === 2 && !selectedType) {
-      Alert.alert(language === 'ar' ? 'تنبيه' : 'Alert', language === 'ar' ? 'الرجاء اختيار النوع' : 'Please select a type');
       return;
     }
     if (currentStep === 3 && !selectedModel) {
@@ -474,6 +471,57 @@ export default function RequestScreen() {
     </Animated.View>
   );
 
+  const renderDeviceTypeSelection = () => (
+    <Animated.View
+      style={[
+        styles.stepContent,
+        { opacity: fadeAnim, transform: [{ translateY: slideAnim }] },
+      ]}
+    >
+      <Text style={styles.stepTitle}>
+        {language === 'ar' ? 'اختر نوع الجهاز' : 'Select Device Type'}
+      </Text>
+      <Text style={styles.stepSubtitle}>
+        {language === 'ar' ? 'ما هو نوع الجهاز الذي تريد إصلاحه؟' : 'What type of device do you want to repair?'}
+      </Text>
+      <View style={styles.serviceTypesContainer}>
+        {DEVICE_TYPES.map((deviceType) => (
+          <TouchableOpacity
+            key={deviceType.id}
+            style={[
+              styles.serviceTypeCard,
+              selectedDeviceType === deviceType.id && styles.serviceTypeActive,
+            ]}
+            onPress={() => {
+              setSelectedDeviceType(deviceType.id);
+              setSelectedBrand(null);
+              setSelectedModel(null);
+            }}
+          >
+            <View style={styles.serviceTypeHeader}>
+              <MaterialCommunityIcons
+                name={deviceType.icon as any}
+                size={48}
+                color={selectedDeviceType === deviceType.id ? COLORS.primary : COLORS.textSecondary}
+              />
+              <Text style={[
+                styles.serviceTypeName,
+                selectedDeviceType === deviceType.id && styles.serviceTypeNameActive
+              ]}>
+                {language === 'ar' ? deviceType.name : deviceType.nameEn}
+              </Text>
+            </View>
+            {selectedDeviceType === deviceType.id && (
+              <View style={styles.selectedBadge}>
+                <MaterialIcons name="check-circle" size={24} color={COLORS.primary} />
+              </View>
+            )}
+          </TouchableOpacity>
+        ))}
+      </View>
+    </Animated.View>
+  );
+
   const renderBrandSelection = () => (
     <Animated.View
       style={[
@@ -515,40 +563,6 @@ export default function RequestScreen() {
           ))}
         </View>
       </ScrollView>
-    </Animated.View>
-  );
-
-  const renderTypeSelection = () => (
-    <Animated.View
-      style={[
-        styles.stepContent,
-        { opacity: fadeAnim, transform: [{ translateY: slideAnim }] },
-      ]}
-    >
-      <Text style={styles.stepTitle}>
-        {language === 'ar' ? 'اختر نوع الجهاز' : 'Select Device Type'}
-      </Text>
-      <View style={styles.optionsGrid}>
-        {DEVICE_TYPES.map((type) => (
-          <TouchableOpacity
-            key={type.id}
-            style={[
-              styles.optionCard,
-              selectedType === type.id && styles.optionActive,
-            ]}
-            onPress={() => setSelectedType(type.id)}
-          >
-            <MaterialCommunityIcons
-              name={type.icon as any}
-              size={40}
-              color={selectedType === type.id ? COLORS.primary : COLORS.textSecondary}
-            />
-            <Text style={styles.optionText}>
-              {language === 'ar' ? type.name : type.nameEn}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
     </Animated.View>
   );
 
@@ -856,9 +870,9 @@ export default function RequestScreen() {
       case 0:
         return renderServiceTypeSelection();
       case 1:
-        return renderBrandSelection();
+        return renderDeviceTypeSelection();
       case 2:
-        return renderTypeSelection();
+        return renderBrandSelection();
       case 3:
         return renderModelSelection();
       case 4:
