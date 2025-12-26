@@ -20,11 +20,11 @@ const getPricingData = (language: 'ar' | 'en') => ({
     { id: 'laptop', nameAr: 'لابتوب', nameEn: 'Laptop', icon: 'laptop' },
   ],
   issues: [
-    { id: 'screen', nameAr: 'كسر الشاشة', nameEn: 'Screen Crack', basePrice: 250 },
-    { id: 'battery', nameAr: 'تغيير بطارية', nameEn: 'Battery Replacement', basePrice: 120 },
-    { id: 'charging', nameAr: 'مدخل الشحن', nameEn: 'Charging Port', basePrice: 100 },
-    { id: 'camera', nameAr: 'الكاميرا', nameEn: 'Camera', basePrice: 180 },
-    { id: 'software', nameAr: 'سوفتوير', nameEn: 'Software', basePrice: 80 },
+    { id: 'screen', nameAr: 'كسر الشاشة', nameEn: 'Screen Crack', basePrice: 500, priceRange: { min: 400, max: 600 } },
+    { id: 'battery', nameAr: 'تغيير بطارية', nameEn: 'Battery Replacement', basePrice: 250, priceRange: { min: 200, max: 300 } },
+    { id: 'charging', nameAr: 'مدخل الشحن', nameEn: 'Charging Port', basePrice: 220, priceRange: { min: 190, max: 260 } },
+    { id: 'camera', nameAr: 'الكاميرا', nameEn: 'Camera', basePrice: 350, priceRange: { min: 300, max: 420 } },
+    { id: 'software', nameAr: 'سوفتوير', nameEn: 'Software', basePrice: 150, priceRange: { min: 120, max: 180 } },
   ]
 });
 
@@ -42,16 +42,28 @@ export default function PriceCalculatorScreen() {
   const PRICING_DATA = getPricingData(language);
 
   const calculatePrice = () => {
-    if (!selectedIssue) return 0;
+    if (!selectedIssue) return { min: 0, max: 0 };
     const issue = PRICING_DATA.issues.find(i => i.id === selectedIssue);
-    let price = issue?.basePrice || 0;
+    if (!issue?.priceRange) return { min: 0, max: 0 };
+    
+    let minPrice = issue.priceRange.min;
+    let maxPrice = issue.priceRange.max;
 
     // Price adjustments based on brand/device
-    if (selectedBrand === 'apple') price *= 1.2; // Apple parts are more expensive
-    if (selectedDevice === 'laptop') price *= 1.5; // Laptop repairs are more complex
-    if (selectedDevice === 'tablet') price *= 1.3;
+    if (selectedBrand === 'apple') {
+      minPrice = Math.round(minPrice * 1.2);
+      maxPrice = Math.round(maxPrice * 1.2);
+    }
+    if (selectedDevice === 'laptop') {
+      minPrice = Math.round(minPrice * 1.5);
+      maxPrice = Math.round(maxPrice * 1.5);
+    }
+    if (selectedDevice === 'tablet') {
+      minPrice = Math.round(minPrice * 1.3);
+      maxPrice = Math.round(maxPrice * 1.3);
+    }
 
-    return Math.round(price);
+    return { min: minPrice, max: maxPrice };
   };
 
   const totalPrice = calculatePrice();
@@ -151,19 +163,30 @@ export default function PriceCalculatorScreen() {
             {isRTL ? 'السعر التقديري:' : 'Estimated Price:'}
           </Text>
           <Text style={styles.priceValue}>
-            {totalPrice > 0 ? (isRTL ? `${totalPrice} ر.س` : `SAR ${totalPrice}`) : '--'}
+            {totalPrice.min > 0 ? (isRTL ? `${totalPrice.min}-${totalPrice.max} ر.س` : `SAR ${totalPrice.min}-${totalPrice.max}`) : '--'}
           </Text>
         </View>
-        <Text style={styles.disclaimer}>
-          {isRTL 
-            ? '* السعر نهائي بعد الفحص وقد يختلف حسب الموديل الدقيق'
-            : '* Final price after inspection, may vary by model'
-          }
-        </Text>
+        <View style={styles.disclaimerContainer}>
+          <MaterialCommunityIcons name="information" size={16} color={COLORS.textSecondary} style={{ marginTop: 2 }} />
+          <View style={{ flex: 1, marginLeft: isRTL ? 0 : 8, marginRight: isRTL ? 8 : 0 }}>
+            <Text style={styles.disclaimer}>
+              {isRTL 
+                ? '• السعر النهائي يتحدد بعد فحص الجهاز'
+                : '• Final price determined after device inspection'
+              }
+            </Text>
+            <Text style={styles.disclaimer}>
+              {isRTL 
+                ? '• الأسعار شاملة للضريبة'
+                : '• Prices include VAT'
+              }
+            </Text>
+          </View>
+        </View>
         
         <TouchableOpacity 
-          style={[styles.bookBtn, totalPrice === 0 && styles.disabledBtn]}
-          disabled={totalPrice === 0}
+          style={[styles.bookBtn, totalPrice.min === 0 && styles.disabledBtn]}
+          disabled={totalPrice.min === 0}
           onPress={() => router.push('/request')}
         >
           <Text style={styles.bookBtnText}>
@@ -292,11 +315,20 @@ const createStyles = (COLORS: any, SHADOWS: any, isRTL: boolean) => StyleSheet.c
     color: COLORS.primary,
     fontWeight: 'bold',
   },
+  disclaimerContainer: {
+    flexDirection: isRTL ? 'row-reverse' : 'row',
+    backgroundColor: COLORS.surface,
+    padding: SPACING.md,
+    borderRadius: 12,
+    marginBottom: SPACING.md,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
   disclaimer: {
     fontSize: 12,
     color: COLORS.textSecondary,
     textAlign: isRTL ? 'right' : 'left',
-    marginBottom: SPACING.md,
+    marginBottom: 4,
   },
   bookBtn: {
     backgroundColor: COLORS.primary,
