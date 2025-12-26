@@ -5,6 +5,7 @@ import { I18nManager } from 'react-native';
 import { RequestProvider } from '../contexts/RequestContext';
 import { ThemeProvider } from '../contexts/ThemeContext';
 import { AppProvider, useApp } from '../contexts/AppContext';
+import ErrorBoundary from '../components/ErrorBoundary';
 import '../i18n';
 
 function RootLayoutContent() {
@@ -131,12 +132,14 @@ function RootLayoutContent() {
 
 export default function RootLayout() {
   return (
-    <AppProvider>
-      <ThemeProvider>
-        <RequestProvider>
-          <RootLayoutContent />
-        </RequestProvider>
-      </ThemeProvider>
-    </AppProvider>
+    <ErrorBoundary>
+      <AppProvider>
+        <ThemeProvider>
+          <RequestProvider>
+            <RootLayoutContent />
+          </RequestProvider>
+        </ThemeProvider>
+      </AppProvider>
+    </ErrorBoundary>
   );
 }
