@@ -623,6 +623,14 @@ export default function RequestScreen() {
       <Text style={styles.stepTitle}>
         {language === 'ar' ? 'ما هي المشكلة؟' : 'What is the issue?'}
       </Text>
+      <View style={styles.priceNotice}>
+        <MaterialIcons name="info-outline" size={18} color={COLORS.primary} />
+        <Text style={styles.priceNoticeText}>
+          {language === 'ar' 
+            ? 'الأسعار تقديرية وشاملة للضريبة. السعر النهائي يتحدد بعد الفحص.' 
+            : 'Prices are estimated and include VAT. Final price determined after inspection.'}
+        </Text>
+      </View>
       
       {renderSearchBar(
         language === 'ar' ? 'ابحث عن المشكلة...' : 'Search for issue...',
@@ -653,7 +661,9 @@ export default function RequestScreen() {
                 {language === 'ar' ? issue.nameAr : issue.name}
               </Text>
               <Text style={styles.issuePrice}>
-                {issue.estimatedPrice} {language === 'ar' ? 'ر.س' : 'SAR'}
+                {issue.priceRange 
+                  ? `${issue.priceRange.min}-${issue.priceRange.max}` 
+                  : issue.estimatedPrice} {language === 'ar' ? 'ر.س' : 'SAR'}
               </Text>
             </TouchableOpacity>
           ))}
@@ -746,7 +756,17 @@ export default function RequestScreen() {
             {language === 'ar' ? 'السعر التقديري:' : 'Estimated Price:'}
           </Text>
           <Text style={styles.summaryTotalValue}>
-            {selectedIssue?.estimatedPrice} {language === 'ar' ? 'ر.س' : 'SAR'}
+            {selectedIssue?.priceRange 
+              ? `${selectedIssue.priceRange.min}-${selectedIssue.priceRange.max}` 
+              : selectedIssue?.estimatedPrice} {language === 'ar' ? 'ر.س' : 'SAR'}
+          </Text>
+        </View>
+        <View style={styles.priceDisclaimer}>
+          <MaterialIcons name="info-outline" size={16} color={COLORS.textSecondary} />
+          <Text style={styles.disclaimerText}>
+            {language === 'ar' 
+              ? '• السعر النهائي يتحدد بعد فحص الجهاز\n• الأسعار شاملة الضريبة' 
+              : '• Final price determined after device inspection\n• Prices include VAT'}
           </Text>
         </View>
       </View>
@@ -1412,6 +1432,40 @@ function createStyles(COLORS: any, SHADOWS: any) {
     position: 'absolute',
     top: SPACING.md,
     right: SPACING.md,
+  },
+  priceNotice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.primaryLight || COLORS.background,
+    padding: SPACING.md,
+    borderRadius: BORDER_RADIUS.md,
+    marginBottom: SPACING.md,
+    borderLeftWidth: 3,
+    borderLeftColor: COLORS.primary,
+  },
+  priceNoticeText: {
+    flex: 1,
+    marginLeft: SPACING.sm,
+    fontSize: 13,
+    color: COLORS.text,
+    lineHeight: 18,
+  },
+  priceDisclaimer: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: COLORS.cardBackground || COLORS.background,
+    padding: SPACING.md,
+    borderRadius: BORDER_RADIUS.md,
+    marginTop: SPACING.md,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  disclaimerText: {
+    flex: 1,
+    marginLeft: SPACING.sm,
+    fontSize: 12,
+    color: COLORS.textSecondary,
+    lineHeight: 18,
   },
 });
 }

@@ -13,7 +13,11 @@ export interface Issue {
   name: string;
   nameAr: string;
   icon: string;
-  estimatedPrice: number;
+  estimatedPrice: number; // Kept for backward compatibility
+  priceRange?: {
+    min: number;
+    max: number;
+  };
 }
 
 // All major phone brands with logos
@@ -462,42 +466,54 @@ export const ISSUES: Issue[] = [
     name: 'Broken Screen',
     nameAr: 'شاشة مكسورة',
     icon: 'tablet-cellphone',
-    estimatedPrice: 600 // Market: 450-500 SAR + 20-25% profit
+    estimatedPrice: 60,
+    priceRange: { min: 50, max: 70 }0,
+    priceRange: { min: 500, max: 700 }
   },
   {
     id: 'screen_crack',
     name: 'Screen Crack',
     nameAr: 'شرخ في الشاشة',
     icon: 'cellphone-remove',
-    estimatedPrice: 500 // Market: 400 SAR + 25% profit
+    estimatedPrice: 50,
+    priceRange: { min: 40, max: 60 }0,
+    priceRange: { min: 400, max: 600 }
   },
   {
     id: 'screen_black',
     name: 'Black Screen',
     nameAr: 'شاشة سوداء',
     icon: 'cellphone-off',
-    estimatedPrice: 650 // Market: 500-550 SAR + 20% profit
+    estimatedPrice: 65,
+    priceRange: { min: 60, max: 80 }0,
+    priceRange: { min: 550, max: 750 }
   },
   {
     id: 'screen_lines',
     name: 'Lines on Screen',
     nameAr: 'خطوط على الشاشة',
     icon: 'cellphone-wireless',
-    estimatedPrice: 550 // Market: 450 SAR + 22% profit
+    estimatedPrice: 55,
+    priceRange: { min: 50, max: 70 }0,
+    priceRange: { min: 450, max: 650 }
   },
   {
     id: 'touch_not_working',
     name: 'Touch Not Working',
     nameAr: 'اللمس لا يعمل',
     icon: 'gesture-tap',
-    estimatedPrice: 600 // Market: 480-500 SAR + 20% profit
+    estimatedPrice: 60,
+    priceRange: { min: 50, max: 70 }0,
+    priceRange: { min: 500, max: 700 }
   },
   {
     id: 'screen_flickering',
     name: 'Screen Flickering',
     nameAr: 'وميض الشاشة',
     icon: 'flash',
-    estimatedPrice: 520 // Market: 420 SAR + 24% profit
+    estimatedPrice: 52,
+    priceRange: { min: 40, max: 60 }0,
+    priceRange: { min: 450, max: 600 }
   },
   
   // Battery Issues
@@ -506,35 +522,45 @@ export const ISSUES: Issue[] = [
     name: 'Battery Draining Fast',
     nameAr: 'البطارية تنفذ بسرعة',
     icon: 'battery-alert',
-    estimatedPrice: 250 // Market: 200 SAR + 25% profit
+    estimatedPrice: 25,
+    priceRange: { min: 20, max: 30 }0,
+    priceRange: { min: 200, max: 300 }
   },
   {
     id: 'battery_not_charging',
     name: 'Not Charging',
     nameAr: 'لا يشحن',
     icon: 'battery-charging-outline',
-    estimatedPrice: 280 // Market: 220-230 SAR + 22% profit
+    estimatedPrice: 28,
+    priceRange: { min: 20, max: 30 }0,
+    priceRange: { min: 230, max: 350 }
   },
   {
     id: 'battery_swollen',
     name: 'Swollen Battery',
     nameAr: 'بطارية منتفخة',
     icon: 'battery-alert-variant',
-    estimatedPrice: 320 // Market: 250-260 SAR + 23% profit (urgent)
+    estimatedPrice: 32,
+    priceRange: { min: 30, max: 40 }0,
+    priceRange: { min: 280, max: 380 }
   },
   {
     id: 'battery_replacement',
     name: 'Battery Replacement',
     nameAr: 'استبدال البطارية',
     icon: 'battery',
-    estimatedPrice: 280 // Market: 220-230 SAR + 22% profit
+    estimatedPrice: 28,
+    priceRange: { min: 20, max: 30 }0,
+    priceRange: { min: 230, max: 350 }
   },
   {
     id: 'charging_slow',
     name: 'Slow Charging',
     nameAr: 'شحن بطيء',
     icon: 'battery-charging-low',
-    estimatedPrice: 200 // Market: 160 SAR + 25% profit
+    estimatedPrice: 20,
+    priceRange: { min: 20, max: 20 }0,
+    priceRange: { min: 170, max: 250 }
   },
   
   // Charging Port Issues
@@ -543,21 +569,24 @@ export const ISSUES: Issue[] = [
     name: 'Charging Port Issue',
     nameAr: 'مشكلة منفذ الشحن',
     icon: 'usb-port',
-    estimatedPrice: 220 // Market: 180 SAR + 22% profit
+    estimatedPrice: 220,
+    priceRange: { min: 190, max: 260 } // Market: 180 SAR + 22% profit
   },
   {
     id: 'charging_port_loose',
     name: 'Loose Charging Port',
     nameAr: 'منفذ شحن مفكوك',
     icon: 'connection',
-    estimatedPrice: 130
+    estimatedPrice: 130,
+    priceRange: { min: 110, max: 160 }
   },
   {
     id: 'charging_port_damaged',
     name: 'Damaged Charging Port',
     nameAr: 'منفذ شحن تالف',
     icon: 'alert-circle',
-    estimatedPrice: 170
+    estimatedPrice: 170,
+    priceRange: { min: 140, max: 200 }
   },
   
   // Camera Issues
@@ -566,35 +595,40 @@ export const ISSUES: Issue[] = [
     name: 'Camera Not Working',
     nameAr: 'الكاميرا لا تعمل',
     icon: 'camera-off',
-    estimatedPrice: 550
+    estimatedPrice: 550,
+    priceRange: { min: 470, max: 660 }
   },
   {
     id: 'camera_blurry',
     name: 'Blurry Camera',
     nameAr: 'كاميرا ضبابية',
     icon: 'camera',
-    estimatedPrice: 220
+    estimatedPrice: 220,
+    priceRange: { min: 190, max: 260 }
   },
   {
     id: 'camera_lens_broken',
     name: 'Broken Camera Lens',
     nameAr: 'عدسة كاميرا مكسورة',
     icon: 'camera-enhance',
-    estimatedPrice: 600
+    estimatedPrice: 600,
+    priceRange: { min: 510, max: 720 }
   },
   {
     id: 'front_camera_issue',
     name: 'Front Camera Issue',
     nameAr: 'مشكلة الكاميرا الأمامية',
     icon: 'camera-front',
-    estimatedPrice: 230
+    estimatedPrice: 230,
+    priceRange: { min: 200, max: 280 }
   },
   {
     id: 'back_camera_issue',
     name: 'Back Camera Issue',
     nameAr: 'مشكلة الكاميرا الخلفية',
     icon: 'camera-rear',
-    estimatedPrice: 260
+    estimatedPrice: 260,
+    priceRange: { min: 220, max: 310 }
   },
   
   // Audio Issues
@@ -603,35 +637,40 @@ export const ISSUES: Issue[] = [
     name: 'Speaker Not Working',
     nameAr: 'السماعة لا تعمل',
     icon: 'volume-off',
-    estimatedPrice: 220
+    estimatedPrice: 220,
+    priceRange: { min: 190, max: 260 }
   },
   {
     id: 'microphone_issue',
     name: 'Microphone Issue',
     nameAr: 'مشكلة الميكروفون',
     icon: 'microphone-off',
-    estimatedPrice: 140
+    estimatedPrice: 140,
+    priceRange: { min: 120, max: 170 }
   },
   {
     id: 'earpiece_issue',
     name: 'Earpiece Issue',
     nameAr: 'مشكلة سماعة الأذن',
     icon: 'phone-hangup',
-    estimatedPrice: 130
+    estimatedPrice: 130,
+    priceRange: { min: 110, max: 160 }
   },
   {
     id: 'no_sound',
     name: 'No Sound',
     nameAr: 'لا يوجد صوت',
     icon: 'volume-mute',
-    estimatedPrice: 160
+    estimatedPrice: 160,
+    priceRange: { min: 140, max: 190 }
   },
   {
     id: 'headphone_jack',
     name: 'Headphone Jack Issue',
     nameAr: 'مشكلة منفذ السماعة',
     icon: 'headphones',
-    estimatedPrice: 600
+    estimatedPrice: 600,
+    priceRange: { min: 510, max: 720 }
   },
   
   // Button Issues
@@ -640,21 +679,24 @@ export const ISSUES: Issue[] = [
     name: 'Power Button Issue',
     nameAr: 'مشكلة زر الطاقة',
     icon: 'power',
-    estimatedPrice: 180
+    estimatedPrice: 180,
+    priceRange: { min: 150, max: 220 }
   },
   {
     id: 'volume_button',
     name: 'Volume Button Issue',
     nameAr: 'مشكلة زر الصوت',
     icon: 'volume-high',
-    estimatedPrice: 90
+    estimatedPrice: 90,
+    priceRange: { min: 80, max: 110 }
   },
   {
     id: 'home_button',
     name: 'Home Button Issue',
     nameAr: 'مشكلة زر الهوم',
     icon: 'home',
-    estimatedPrice: 110
+    estimatedPrice: 110,
+    priceRange: { min: 90, max: 130 }
   },
   
   // Software Issues
@@ -663,49 +705,56 @@ export const ISSUES: Issue[] = [
     name: 'Software Crash',
     nameAr: 'تعطل النظام',
     icon: 'alert',
-    estimatedPrice: 150
+    estimatedPrice: 150,
+    priceRange: { min: 130, max: 180 }
   },
   {
     id: 'slow_performance',
     name: 'Slow Performance',
     nameAr: 'أداء بطيء',
     icon: 'speedometer-slow',
-    estimatedPrice: 70
+    estimatedPrice: 70,
+    priceRange: { min: 60, max: 80 }
   },
   {
     id: 'wont_turn_on',
     name: 'Won\'t Turn On',
     nameAr: 'لا يعمل',
     icon: 'power-off',
-    estimatedPrice: 220
+    estimatedPrice: 220,
+    priceRange: { min: 190, max: 260 }
   },
   {
     id: 'freezing',
     name: 'Freezing/Hanging',
     nameAr: 'تجميد/تعليق',
     icon: 'snowflake',
-    estimatedPrice: 90
+    estimatedPrice: 90,
+    priceRange: { min: 80, max: 110 }
   },
   {
     id: 'boot_loop',
     name: 'Boot Loop',
     nameAr: 'حلقة إعادة التشغيل',
     icon: 'restart',
-    estimatedPrice: 600
+    estimatedPrice: 600,
+    priceRange: { min: 510, max: 720 }
   },
   {
     id: 'virus_malware',
     name: 'Virus/Malware',
     nameAr: 'فيروس/برمجيات خبيثة',
     icon: 'bug',
-    estimatedPrice: 180
+    estimatedPrice: 180,
+    priceRange: { min: 150, max: 220 }
   },
   {
     id: 'system_update',
     name: 'System Update Issue',
     nameAr: 'مشكلة تحديث النظام',
     icon: 'update',
-    estimatedPrice: 150
+    estimatedPrice: 150,
+    priceRange: { min: 130, max: 180 }
   },
   
   // Connectivity Issues
@@ -714,35 +763,40 @@ export const ISSUES: Issue[] = [
     name: 'WiFi Not Working',
     nameAr: 'الواي فاي لا يعمل',
     icon: 'wifi-off',
-    estimatedPrice: 130
+    estimatedPrice: 130,
+    priceRange: { min: 110, max: 160 }
   },
   {
     id: 'bluetooth_issue',
     name: 'Bluetooth Issue',
     nameAr: 'مشكلة البلوتوث',
     icon: 'bluetooth-off',
-    estimatedPrice: 600
+    estimatedPrice: 600,
+    priceRange: { min: 510, max: 720 }
   },
   {
     id: 'no_signal',
     name: 'No Signal',
     nameAr: 'لا توجد إشارة',
     icon: 'signal-off',
-    estimatedPrice: 180
+    estimatedPrice: 180,
+    priceRange: { min: 150, max: 220 }
   },
   {
     id: 'sim_not_detected',
     name: 'SIM Not Detected',
     nameAr: 'الشريحة غير مكتشفة',
     icon: 'sim-alert',
-    estimatedPrice: 140
+    estimatedPrice: 140,
+    priceRange: { min: 120, max: 170 }
   },
   {
     id: 'gps_not_working',
     name: 'GPS Not Working',
     nameAr: 'GPS لا يعمل',
     icon: 'map-marker-off',
-    estimatedPrice: 220
+    estimatedPrice: 220,
+    priceRange: { min: 190, max: 260 }
   },
   
   // Physical Damage
@@ -751,28 +805,32 @@ export const ISSUES: Issue[] = [
     name: 'Water Damage',
     nameAr: 'ضرر مائي',
     icon: 'water',
-    estimatedPrice: 600
+    estimatedPrice: 600,
+    priceRange: { min: 510, max: 720 }
   },
   {
     id: 'back_glass_broken',
     name: 'Broken Back Glass',
     nameAr: 'زجاج خلفي مكسور',
     icon: 'cellphone-screenshot',
-    estimatedPrice: 180
+    estimatedPrice: 180,
+    priceRange: { min: 150, max: 220 }
   },
   {
     id: 'frame_bent',
     name: 'Bent Frame',
     nameAr: 'إطار منحني',
     icon: 'cellphone-settings',
-    estimatedPrice: 550
+    estimatedPrice: 550,
+    priceRange: { min: 470, max: 660 }
   },
   {
     id: 'overheating',
     name: 'Overheating',
     nameAr: 'سخونة زائدة',
     icon: 'thermometer',
-    estimatedPrice: 160
+    estimatedPrice: 160,
+    priceRange: { min: 140, max: 190 }
   },
   
   // Storage Issues
@@ -781,14 +839,16 @@ export const ISSUES: Issue[] = [
     name: 'Storage Full',
     nameAr: 'الذاكرة ممتلئة',
     icon: 'harddisk',
-    estimatedPrice: 60
+    estimatedPrice: 60,
+    priceRange: { min: 50, max: 70 }
   },
   {
     id: 'sd_card_issue',
     name: 'SD Card Issue',
     nameAr: 'مشكلة بطاقة الذاكرة',
     icon: 'sd',
-    estimatedPrice: 150
+    estimatedPrice: 150,
+    priceRange: { min: 130, max: 180 }
   },
   
   // Other Issues
@@ -797,49 +857,56 @@ export const ISSUES: Issue[] = [
     name: 'Face ID Not Working',
     nameAr: 'Face ID لا يعمل',
     icon: 'face-recognition',
-    estimatedPrice: 600
+    estimatedPrice: 600,
+    priceRange: { min: 510, max: 720 }
   },
   {
     id: 'fingerprint_issue',
     name: 'Fingerprint Scanner Issue',
     nameAr: 'مشكلة بصمة الإصبع',
     icon: 'fingerprint',
-    estimatedPrice: 180
+    estimatedPrice: 180,
+    priceRange: { min: 150, max: 220 }
   },
   {
     id: 'vibration_issue',
     name: 'Vibration Not Working',
     nameAr: 'الاهتزاز لا يعمل',
     icon: 'vibrate',
-    estimatedPrice: 180
+    estimatedPrice: 180,
+    priceRange: { min: 150, max: 220 }
   },
   {
     id: 'proximity_sensor',
     name: 'Proximity Sensor Issue',
     nameAr: 'مشكلة مستشعر القرب',
     icon: 'radar',
-    estimatedPrice: 600
+    estimatedPrice: 600,
+    priceRange: { min: 510, max: 720 }
   },
   {
     id: 'data_recovery',
     name: 'Data Recovery',
     nameAr: 'استعادة البيانات',
     icon: 'database',
-    estimatedPrice: 220
+    estimatedPrice: 220,
+    priceRange: { min: 190, max: 260 }
   },
   {
     id: 'factory_reset',
     name: 'Factory Reset Needed',
     nameAr: 'يحتاج إعادة ضبط المصنع',
     icon: 'restore',
-    estimatedPrice: 50
+    estimatedPrice: 50,
+    priceRange: { min: 40, max: 60 }
   },
   {
     id: 'other',
     name: 'Other Issue',
     nameAr: 'مشكلة أخرى',
     icon: 'help-circle',
-    estimatedPrice: 180
+    estimatedPrice: 180,
+    priceRange: { min: 150, max: 220 }
   }
 ];
 
