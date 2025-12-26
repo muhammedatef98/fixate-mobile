@@ -117,6 +117,13 @@ function RootLayoutContent() {
             headerShown: false 
           }} 
         />
+        <Stack.Screen 
+          name="technician-auth" 
+          options={{ 
+            title: 'تسجيل دخول الفني',
+            headerShown: true 
+          }} 
+        />
       </Stack>
     </>
   );
