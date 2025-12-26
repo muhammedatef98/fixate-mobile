@@ -205,6 +205,10 @@ export default function RequestScreen() {
       }
     } catch (error) {
       console.error('Error getting location:', error);
+      Alert.alert(
+        language === 'ar' ? 'خطأ' : 'Error',
+        language === 'ar' ? 'حدث خطأ في تحديد الموقع. يرجى المحاولة مرة أخرى.' : 'Error getting location. Please try again.'
+      );
     }
   };
 
@@ -822,14 +826,20 @@ export default function RequestScreen() {
               provider={PROVIDER_GOOGLE}
               region={location}
               onRegionChangeComplete={async (region) => {
-                setLocation(region);
-                const addresses = await Location.reverseGeocodeAsync({
-                  latitude: region.latitude,
-                  longitude: region.longitude,
-                });
-                if (addresses.length > 0) {
-                  const addr = addresses[0];
-                  setAddress(`${addr.street || ''}, ${addr.city || ''}, ${addr.region || ''}`);
+                try {
+                  setLocation(region);
+                  const addresses = await Location.reverseGeocodeAsync({
+                    latitude: region.latitude,
+                    longitude: region.longitude,
+                  });
+                  if (addresses.length > 0) {
+                    const addr = addresses[0];
+                    setAddress(`${addr.street || ''}, ${addr.city || ''}, ${addr.region || ''}`);
+                  }
+                } catch (error) {
+                  console.error('Error reverse geocoding:', error);
+                  // Keep the location but set a generic address
+                  setAddress(`${region.latitude.toFixed(6)}, ${region.longitude.toFixed(6)}`);
                 }
               }}
             >
