@@ -84,9 +84,7 @@ export default function AuthScreen() {
     }
   };
 
-  const handleGuestContinue = () => {
-    router.replace('/(customer)');
-  };
+  // Guest login removed for technicians
 
   const handleGoogleLogin = () => {
     Alert.alert(
@@ -300,14 +298,6 @@ export default function AuthScreen() {
               </Text>
               <View style={styles.dividerLine} />
             </View>
-
-            {/* Guest Button */}
-            <TouchableOpacity style={styles.guestButton} onPress={handleGuestContinue}>
-              <MaterialIcons name="person-outline" size={20} color={COLORS.primary} />
-              <Text style={styles.guestButtonText}>
-                {language === 'ar' ? 'الاستمرار كضيف' : 'Continue as Guest'}
-              </Text>
-            </TouchableOpacity>
 
             {/* Social Login */}
             <View style={styles.socialContainer}>

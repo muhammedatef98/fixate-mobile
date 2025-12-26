@@ -367,6 +367,90 @@ export const BRANDS: Brand[] = [
       'Samsung Xpress', 'Samsung ProXpress', 'Samsung MultiXpress',
       'Samsung M Series', 'Samsung C Series'
     ]
+  },
+
+  // Smartwatch Brands
+  {
+    id: 'apple-watch',
+    name: 'Apple Watch',
+    deviceType: 'watch',
+    logo: require('../assets/brands/apple.png'),
+    models: [
+      'Apple Watch Ultra 2', 'Apple Watch Ultra',
+      'Apple Watch Series 9', 'Apple Watch Series 8', 'Apple Watch Series 7',
+      'Apple Watch Series 6', 'Apple Watch Series 5', 'Apple Watch Series 4',
+      'Apple Watch SE (2023)', 'Apple Watch SE (2022)', 'Apple Watch SE'
+    ]
+  },
+  {
+    id: 'samsung-watch',
+    name: 'Samsung Galaxy Watch',
+    deviceType: 'watch',
+    logo: require('../assets/brands/samsung.png'),
+    models: [
+      'Galaxy Watch 6 Classic', 'Galaxy Watch 6',
+      'Galaxy Watch 5 Pro', 'Galaxy Watch 5',
+      'Galaxy Watch 4 Classic', 'Galaxy Watch 4',
+      'Galaxy Watch 3', 'Galaxy Watch Active 2', 'Galaxy Watch Active',
+      'Galaxy Fit 3', 'Galaxy Fit 2', 'Galaxy Fit'
+    ]
+  },
+  {
+    id: 'huawei-watch',
+    name: 'Huawei Watch',
+    deviceType: 'watch',
+    logo: require('../assets/brands/huawei.png'),
+    models: [
+      'Watch GT 4', 'Watch GT 3 Pro', 'Watch GT 3',
+      'Watch GT 2 Pro', 'Watch GT 2e', 'Watch GT 2',
+      'Watch Fit 3', 'Watch Fit 2', 'Watch Fit',
+      'Band 8', 'Band 7', 'Band 6'
+    ]
+  },
+  {
+    id: 'xiaomi-watch',
+    name: 'Xiaomi Watch',
+    deviceType: 'watch',
+    logo: require('../assets/brands/xiaomi.png'),
+    models: [
+      'Watch S3', 'Watch S2', 'Watch S1 Pro', 'Watch S1',
+      'Watch 2 Pro', 'Watch 2', 'Watch Color 2',
+      'Mi Band 8 Pro', 'Mi Band 8', 'Mi Band 7', 'Mi Band 6',
+      'Redmi Watch 3 Active', 'Redmi Watch 3', 'Redmi Watch 2'
+    ]
+  },
+  {
+    id: 'garmin',
+    name: 'Garmin',
+    deviceType: 'watch',
+    logo: require('../assets/brands/apple.png'), // Placeholder
+    models: [
+      'Fenix 7X', 'Fenix 7', 'Fenix 6X Pro', 'Fenix 6 Pro',
+      'Forerunner 965', 'Forerunner 955', 'Forerunner 265', 'Forerunner 255',
+      'Venu 3', 'Venu 2 Plus', 'Venu 2', 'Vivoactive 5', 'Vivoactive 4'
+    ]
+  },
+  {
+    id: 'fitbit',
+    name: 'Fitbit',
+    deviceType: 'watch',
+    logo: require('../assets/brands/apple.png'), // Placeholder
+    models: [
+      'Sense 2', 'Sense', 'Versa 4', 'Versa 3', 'Versa 2',
+      'Charge 6', 'Charge 5', 'Charge 4',
+      'Inspire 3', 'Inspire 2', 'Luxe'
+    ]
+  },
+  {
+    id: 'amazfit',
+    name: 'Amazfit',
+    deviceType: 'watch',
+    logo: require('../assets/brands/apple.png'), // Placeholder
+    models: [
+      'GTR 4', 'GTR 3 Pro', 'GTR 3', 'GTR 2e', 'GTR 2',
+      'GTS 4', 'GTS 3', 'GTS 2e', 'GTS 2',
+      'T-Rex Ultra', 'T-Rex 2', 'Bip 5', 'Bip 3 Pro', 'Bip 3'
+    ]
   }
 ];
 
@@ -378,42 +462,42 @@ export const ISSUES: Issue[] = [
     name: 'Broken Screen',
     nameAr: 'شاشة مكسورة',
     icon: 'tablet-cellphone',
-    estimatedPrice: 300
+    estimatedPrice: 600 // Market: 450-500 SAR + 20-25% profit
   },
   {
     id: 'screen_crack',
     name: 'Screen Crack',
     nameAr: 'شرخ في الشاشة',
     icon: 'cellphone-remove',
-    estimatedPrice: 250
+    estimatedPrice: 500 // Market: 400 SAR + 25% profit
   },
   {
     id: 'screen_black',
     name: 'Black Screen',
     nameAr: 'شاشة سوداء',
     icon: 'cellphone-off',
-    estimatedPrice: 350
+    estimatedPrice: 650 // Market: 500-550 SAR + 20% profit
   },
   {
     id: 'screen_lines',
     name: 'Lines on Screen',
     nameAr: 'خطوط على الشاشة',
     icon: 'cellphone-wireless',
-    estimatedPrice: 280
+    estimatedPrice: 550 // Market: 450 SAR + 22% profit
   },
   {
     id: 'touch_not_working',
     name: 'Touch Not Working',
     nameAr: 'اللمس لا يعمل',
     icon: 'gesture-tap',
-    estimatedPrice: 320
+    estimatedPrice: 600 // Market: 480-500 SAR + 20% profit
   },
   {
     id: 'screen_flickering',
     name: 'Screen Flickering',
     nameAr: 'وميض الشاشة',
     icon: 'flash',
-    estimatedPrice: 270
+    estimatedPrice: 520 // Market: 420 SAR + 24% profit
   },
   
   // Battery Issues
@@ -422,35 +506,35 @@ export const ISSUES: Issue[] = [
     name: 'Battery Draining Fast',
     nameAr: 'البطارية تنفذ بسرعة',
     icon: 'battery-alert',
-    estimatedPrice: 150
+    estimatedPrice: 250 // Market: 200 SAR + 25% profit
   },
   {
     id: 'battery_not_charging',
     name: 'Not Charging',
     nameAr: 'لا يشحن',
     icon: 'battery-charging-outline',
-    estimatedPrice: 180
+    estimatedPrice: 280 // Market: 220-230 SAR + 22% profit
   },
   {
     id: 'battery_swollen',
     name: 'Swollen Battery',
     nameAr: 'بطارية منتفخة',
     icon: 'battery-alert-variant',
-    estimatedPrice: 200
+    estimatedPrice: 320 // Market: 250-260 SAR + 23% profit (urgent)
   },
   {
     id: 'battery_replacement',
     name: 'Battery Replacement',
     nameAr: 'استبدال البطارية',
     icon: 'battery',
-    estimatedPrice: 180
+    estimatedPrice: 280 // Market: 220-230 SAR + 22% profit
   },
   {
     id: 'charging_slow',
     name: 'Slow Charging',
     nameAr: 'شحن بطيء',
     icon: 'battery-charging-low',
-    estimatedPrice: 120
+    estimatedPrice: 200 // Market: 160 SAR + 25% profit
   },
   
   // Charging Port Issues
@@ -459,7 +543,7 @@ export const ISSUES: Issue[] = [
     name: 'Charging Port Issue',
     nameAr: 'مشكلة منفذ الشحن',
     icon: 'usb-port',
-    estimatedPrice: 150
+    estimatedPrice: 220 // Market: 180 SAR + 22% profit
   },
   {
     id: 'charging_port_loose',
@@ -482,7 +566,7 @@ export const ISSUES: Issue[] = [
     name: 'Camera Not Working',
     nameAr: 'الكاميرا لا تعمل',
     icon: 'camera-off',
-    estimatedPrice: 250
+    estimatedPrice: 550
   },
   {
     id: 'camera_blurry',
@@ -496,7 +580,7 @@ export const ISSUES: Issue[] = [
     name: 'Broken Camera Lens',
     nameAr: 'عدسة كاميرا مكسورة',
     icon: 'camera-enhance',
-    estimatedPrice: 200
+    estimatedPrice: 600
   },
   {
     id: 'front_camera_issue',
@@ -519,7 +603,7 @@ export const ISSUES: Issue[] = [
     name: 'Speaker Not Working',
     nameAr: 'السماعة لا تعمل',
     icon: 'volume-off',
-    estimatedPrice: 150
+    estimatedPrice: 220
   },
   {
     id: 'microphone_issue',
@@ -547,7 +631,7 @@ export const ISSUES: Issue[] = [
     name: 'Headphone Jack Issue',
     nameAr: 'مشكلة منفذ السماعة',
     icon: 'headphones',
-    estimatedPrice: 120
+    estimatedPrice: 600
   },
   
   // Button Issues
@@ -556,7 +640,7 @@ export const ISSUES: Issue[] = [
     name: 'Power Button Issue',
     nameAr: 'مشكلة زر الطاقة',
     icon: 'power',
-    estimatedPrice: 100
+    estimatedPrice: 180
   },
   {
     id: 'volume_button',
@@ -579,7 +663,7 @@ export const ISSUES: Issue[] = [
     name: 'Software Crash',
     nameAr: 'تعطل النظام',
     icon: 'alert',
-    estimatedPrice: 80
+    estimatedPrice: 150
   },
   {
     id: 'slow_performance',
@@ -593,7 +677,7 @@ export const ISSUES: Issue[] = [
     name: 'Won\'t Turn On',
     nameAr: 'لا يعمل',
     icon: 'power-off',
-    estimatedPrice: 150
+    estimatedPrice: 220
   },
   {
     id: 'freezing',
@@ -607,21 +691,21 @@ export const ISSUES: Issue[] = [
     name: 'Boot Loop',
     nameAr: 'حلقة إعادة التشغيل',
     icon: 'restart',
-    estimatedPrice: 120
+    estimatedPrice: 600
   },
   {
     id: 'virus_malware',
     name: 'Virus/Malware',
     nameAr: 'فيروس/برمجيات خبيثة',
     icon: 'bug',
-    estimatedPrice: 100
+    estimatedPrice: 180
   },
   {
     id: 'system_update',
     name: 'System Update Issue',
     nameAr: 'مشكلة تحديث النظام',
     icon: 'update',
-    estimatedPrice: 80
+    estimatedPrice: 150
   },
   
   // Connectivity Issues
@@ -637,7 +721,7 @@ export const ISSUES: Issue[] = [
     name: 'Bluetooth Issue',
     nameAr: 'مشكلة البلوتوث',
     icon: 'bluetooth-off',
-    estimatedPrice: 120
+    estimatedPrice: 600
   },
   {
     id: 'no_signal',
@@ -658,7 +742,7 @@ export const ISSUES: Issue[] = [
     name: 'GPS Not Working',
     nameAr: 'GPS لا يعمل',
     icon: 'map-marker-off',
-    estimatedPrice: 150
+    estimatedPrice: 220
   },
   
   // Physical Damage
@@ -667,7 +751,7 @@ export const ISSUES: Issue[] = [
     name: 'Water Damage',
     nameAr: 'ضرر مائي',
     icon: 'water',
-    estimatedPrice: 300
+    estimatedPrice: 600
   },
   {
     id: 'back_glass_broken',
@@ -681,7 +765,7 @@ export const ISSUES: Issue[] = [
     name: 'Bent Frame',
     nameAr: 'إطار منحني',
     icon: 'cellphone-settings',
-    estimatedPrice: 250
+    estimatedPrice: 550
   },
   {
     id: 'overheating',
@@ -704,7 +788,7 @@ export const ISSUES: Issue[] = [
     name: 'SD Card Issue',
     nameAr: 'مشكلة بطاقة الذاكرة',
     icon: 'sd',
-    estimatedPrice: 80
+    estimatedPrice: 150
   },
   
   // Other Issues
@@ -713,7 +797,7 @@ export const ISSUES: Issue[] = [
     name: 'Face ID Not Working',
     nameAr: 'Face ID لا يعمل',
     icon: 'face-recognition',
-    estimatedPrice: 200
+    estimatedPrice: 600
   },
   {
     id: 'fingerprint_issue',
@@ -727,21 +811,21 @@ export const ISSUES: Issue[] = [
     name: 'Vibration Not Working',
     nameAr: 'الاهتزاز لا يعمل',
     icon: 'vibrate',
-    estimatedPrice: 100
+    estimatedPrice: 180
   },
   {
     id: 'proximity_sensor',
     name: 'Proximity Sensor Issue',
     nameAr: 'مشكلة مستشعر القرب',
     icon: 'radar',
-    estimatedPrice: 120
+    estimatedPrice: 600
   },
   {
     id: 'data_recovery',
     name: 'Data Recovery',
     nameAr: 'استعادة البيانات',
     icon: 'database',
-    estimatedPrice: 150
+    estimatedPrice: 220
   },
   {
     id: 'factory_reset',
@@ -755,7 +839,7 @@ export const ISSUES: Issue[] = [
     name: 'Other Issue',
     nameAr: 'مشكلة أخرى',
     icon: 'help-circle',
-    estimatedPrice: 100
+    estimatedPrice: 180
   }
 ];
 
