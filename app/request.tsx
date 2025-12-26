@@ -344,7 +344,7 @@ export default function RequestScreen() {
         const newRequest = {
           id: Date.now().toString(),
           brand: selectedBrand?.name || '',
-          type: selectedType || '',
+          type: DEVICE_TYPES.find(d => d.id === selectedDeviceType)?.name || '',
           model: selectedModel || '',
           issue: selectedIssue?.name || '',
           description: issueDescription,
@@ -728,8 +728,8 @@ export default function RequestScreen() {
           <Text style={styles.summaryValue}>{selectedBrand?.name}</Text>
         </View>
         <View style={styles.summaryRow}>
-          <Text style={styles.summaryLabel}>{language === 'ar' ? 'النوع:' : 'Type:'}</Text>
-          <Text style={styles.summaryValue}>{selectedType}</Text>
+          <Text style={styles.summaryLabel}>{language === 'ar' ? 'نوع الجهاز:' : 'Device Type:'}</Text>
+          <Text style={styles.summaryValue}>{DEVICE_TYPES.find(d => d.id === selectedDeviceType)?.name || DEVICE_TYPES.find(d => d.id === selectedDeviceType)?.nameEn}</Text>
         </View>
         <View style={styles.summaryRow}>
           <Text style={styles.summaryLabel}>{language === 'ar' ? 'الموديل:' : 'Model:'}</Text>
