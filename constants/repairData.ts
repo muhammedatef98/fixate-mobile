@@ -474,8 +474,7 @@ export const ISSUES: Issue[] = [
     name: 'Screen Crack',
     nameAr: 'شرخ في الشاشة',
     icon: 'cellphone-remove',
-    estimatedPrice: 50,
-    priceRange: { min: 40, max: 60 }0,
+    estimatedPrice: 500,
     priceRange: { min: 400, max: 600 }
   },
   {
@@ -484,7 +483,6 @@ export const ISSUES: Issue[] = [
     nameAr: 'شاشة سوداء',
     icon: 'cellphone-off',
     estimatedPrice: 65,
-    priceRange: { min: 60, max: 80 }0,
     priceRange: { min: 550, max: 750 }
   },
   {
@@ -493,7 +491,6 @@ export const ISSUES: Issue[] = [
     nameAr: 'خطوط على الشاشة',
     icon: 'cellphone-wireless',
     estimatedPrice: 55,
-    priceRange: { min: 50, max: 70 }0,
     priceRange: { min: 450, max: 650 }
   },
   {
@@ -510,7 +507,6 @@ export const ISSUES: Issue[] = [
     nameAr: 'وميض الشاشة',
     icon: 'flash',
     estimatedPrice: 52,
-    priceRange: { min: 40, max: 60 }0,
     priceRange: { min: 450, max: 600 }
   },
   
@@ -521,7 +517,6 @@ export const ISSUES: Issue[] = [
     nameAr: 'البطارية تنفذ بسرعة',
     icon: 'battery-alert',
     estimatedPrice: 25,
-    priceRange: { min: 20, max: 30 }0,
     priceRange: { min: 200, max: 300 }
   },
   {
@@ -530,7 +525,6 @@ export const ISSUES: Issue[] = [
     nameAr: 'لا يشحن',
     icon: 'battery-charging-outline',
     estimatedPrice: 28,
-    priceRange: { min: 20, max: 30 }0,
     priceRange: { min: 230, max: 350 }
   },
   {
@@ -539,7 +533,6 @@ export const ISSUES: Issue[] = [
     nameAr: 'بطارية منتفخة',
     icon: 'battery-alert-variant',
     estimatedPrice: 32,
-    priceRange: { min: 30, max: 40 }0,
     priceRange: { min: 280, max: 380 }
   },
   {
@@ -548,7 +541,6 @@ export const ISSUES: Issue[] = [
     nameAr: 'استبدال البطارية',
     icon: 'battery',
     estimatedPrice: 28,
-    priceRange: { min: 20, max: 30 }0,
     priceRange: { min: 230, max: 350 }
   },
   {
@@ -556,8 +548,7 @@ export const ISSUES: Issue[] = [
     name: 'Slow Charging',
     nameAr: 'شحن بطيء',
     icon: 'battery-charging-low',
-    estimatedPrice: 20,
-    priceRange: { min: 20, max: 20 }0,
+    estimatedPrice: 200,
     priceRange: { min: 170, max: 250 }
   },
   
