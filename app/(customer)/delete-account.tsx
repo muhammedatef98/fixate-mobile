@@ -69,27 +69,24 @@ export default function DeleteAccountScreen() {
                 throw new Error('No user found');
               }
 
-              // Delete user data from database
-              // Note: This requires proper RLS policies and database triggers
-              const { error: deleteError } = await supabase.rpc('delete_user_data', {
-                user_id: user.id,
-              });
+              // Soft delete user account (marks as deleted, will be permanently deleted after 30 days)
+              const { error: deleteError } = await supabase
+                .from('users')
+                .update({ deleted_at: new Date().toISOString() })
+                .eq('id', user.id);
 
               if (deleteError) {
-                logger.error('Error deleting user data:', deleteError);
-                // Continue anyway to delete auth account
+                throw deleteError;
               }
 
-              // Delete auth account
-              // Note: This requires admin privileges or proper setup
-              // For now, we'll just sign out and show a message
+              // Sign out user
               await auth.signOut();
 
               Alert.alert(
-                isRTL ? 'تم الإرسال' : 'Request Submitted',
+                isRTL ? 'تم حذف الحساب' : 'Account Deleted',
                 isRTL
-                  ? 'تم إرسال طلب حذف حسابك. سيتم معالجته خلال 24-48 ساعة. يمكنك التواصل معنا على fixate01@gmail.com للاستفسار.'
-                  : 'Your account deletion request has been submitted. It will be processed within 24-48 hours. You can contact us at fixate01@gmail.com for inquiries.',
+                  ? 'تم حذف حسابك بنجاح. سيتم حذف جميع بياناتك نهائياً بعد 30 يوماً. يمكنك التواصل معنا على fixate01@gmail.com خلال هذه الفترة لاسترجاع حسابك.'
+                  : 'Your account has been successfully deleted. All your data will be permanently deleted after 30 days. You can contact us at fixate01@gmail.com during this period to restore your account.',
                 [
                   {
                     text: isRTL ? 'حسناً' : 'OK',
