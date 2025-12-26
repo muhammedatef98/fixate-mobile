@@ -466,8 +466,7 @@ export const ISSUES: Issue[] = [
     name: 'Broken Screen',
     nameAr: 'شاشة مكسورة',
     icon: 'tablet-cellphone',
-    estimatedPrice: 60,
-    priceRange: { min: 50, max: 70 }0,
+    estimatedPrice: 600,
     priceRange: { min: 500, max: 700 }
   },
   {
@@ -502,8 +501,7 @@ export const ISSUES: Issue[] = [
     name: 'Touch Not Working',
     nameAr: 'اللمس لا يعمل',
     icon: 'gesture-tap',
-    estimatedPrice: 60,
-    priceRange: { min: 50, max: 70 }0,
+    estimatedPrice: 600,
     priceRange: { min: 500, max: 700 }
   },
   {
