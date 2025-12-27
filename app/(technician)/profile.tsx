@@ -47,7 +47,7 @@ export default function TechnicianProfileScreen() {
         setSpecialty(currentUser.user_metadata?.specialty || '');
       }
     } catch (error) {
-      logger.error('Error loading profile:', error);
+      console.error('Error loading profile:', error);
     } finally {
       setLoading(false);
     }
@@ -108,7 +108,7 @@ export default function TechnicianProfileScreen() {
               await auth.signOut();
               router.replace('/role-selection');
             } catch (error) {
-              logger.error('Logout error:', error);
+              console.error('Logout error:', error);
             }
           },
         },

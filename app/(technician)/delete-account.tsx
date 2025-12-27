@@ -97,7 +97,7 @@ export default function TechnicianDeleteAccountScreen() {
                 ]
               );
             } catch (error) {
-              logger.error('Error deleting account:', error);
+              console.error('Error deleting account:', error);
               Alert.alert(
                 isRTL ? 'خطأ' : 'Error',
                 isRTL

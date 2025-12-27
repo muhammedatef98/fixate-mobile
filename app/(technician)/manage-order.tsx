@@ -57,7 +57,7 @@ export default function ManageOrderScreen() {
       const orderData = await requests.getById(id as string);
       setOrder(orderData);
     } catch (error) {
-      logger.error('Error loading order:', error);
+      console.error('Error loading order:', error);
     } finally {
       setLoading(false);
     }
@@ -75,7 +75,7 @@ export default function ManageOrderScreen() {
         isRTL ? 'تم قبول الطلب بنجاح' : 'Order accepted successfully'
       );
     } catch (error) {
-      logger.error('Error accepting order:', error);
+      console.error('Error accepting order:', error);
       Alert.alert(
         isRTL ? 'خطأ' : 'Error',
         isRTL ? 'حدث خطأ أثناء قبول الطلب' : 'Error accepting order'
@@ -98,7 +98,7 @@ export default function ManageOrderScreen() {
           : `Status updated to: ${statusAction?.enLabel}`
       );
     } catch (error) {
-      logger.error('Error updating status:', error);
+      console.error('Error updating status:', error);
       Alert.alert(
         isRTL ? 'خطأ' : 'Error',
         isRTL ? 'حدث خطأ أثناء تحديث الحالة' : 'Error updating status'

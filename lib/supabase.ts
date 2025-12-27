@@ -2,7 +2,6 @@ import 'react-native-url-polyfill/auto';
 import { createClient } from '@supabase/supabase-js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
-import { logger } from '../utils/logger';
 
 // Supabase Configuration
 // Get these from: https://supabase.com/dashboard/project/_/settings/api
@@ -351,7 +350,7 @@ export const storage = {
 
       return publicUrl;
     } catch (error) {
-      logger.error('Error uploading image:', error);
+      console.error('Error uploading image:', error);
       throw error;
     }
   },

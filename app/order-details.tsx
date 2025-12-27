@@ -56,7 +56,7 @@ export default function OrderDetailsScreen() {
       const orderData = await requests.getById(id as string);
       setOrder(orderData);
     } catch (error) {
-      logger.error('Error loading order:', error);
+      console.error('Error loading order:', error);
     } finally {
       setLoading(false);
     }

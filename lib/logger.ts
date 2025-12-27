@@ -38,7 +38,7 @@ class Logger {
 
   debug(message: string, data?: any) {
     if (this.shouldLog('debug')) {
-      logger.debug(this.formatMessage('debug', message, data), data || '');
+      console.log(this.formatMessage('debug', message, data), data || '');
     }
   }
 
@@ -56,7 +56,7 @@ class Logger {
 
   error(message: string, error?: any) {
     if (this.shouldLog('error')) {
-      logger.error(this.formatMessage('error', message, error), error || '');
+      console.error(this.formatMessage('error', message, error), error || '');
       
       // In production, you could send errors to a service like Sentry
       if (!__DEV__) {

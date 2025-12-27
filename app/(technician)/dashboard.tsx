@@ -29,13 +29,13 @@ export default function TechnicianDashboard() {
       // Request notification permissions
       const hasPermission = await registerForPushNotifications();
       if (!hasPermission) {
-        logger.debug('Notification permissions not granted');
+        console.log('Notification permissions not granted');
         return;
       }
 
       // Subscribe to new requests
       subscription = subscribeToNewRequests('', (newRequest) => {
-        logger.debug('New request received:', newRequest);
+        console.log('New request received:', newRequest);
         // The notification is already sent by subscribeToNewRequests
       });
 
@@ -44,7 +44,7 @@ export default function TechnicianDashboard() {
         const data = response.notification.request.content.data;
         if (data?.orderId) {
           // Navigate to the order details or refresh the list
-          logger.debug('Notification tapped for order:', data.orderId);
+          console.log('Notification tapped for order:', data.orderId);
         }
       });
     };

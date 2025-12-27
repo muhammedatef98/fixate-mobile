@@ -9,7 +9,7 @@ export async function requestNotificationPermission() {
     authStatus === messaging.AuthorizationStatus.PROVISIONAL;
 
   if (enabled) {
-    logger.debug('Authorization status:', authStatus);
+    console.log('Authorization status:', authStatus);
     return true;
   }
   return false;
@@ -19,10 +19,10 @@ export async function requestNotificationPermission() {
 export async function getFCMToken() {
   try {
     const token = await messaging().getToken();
-    logger.debug('FCM Token:', token);
+    console.log('FCM Token:', token);
     return token;
   } catch (error) {
-    logger.error('Error getting FCM token:', error);
+    console.error('Error getting FCM token:', error);
     return null;
   }
 }
@@ -35,21 +35,21 @@ export async function saveFCMToken(userId: string, token: string) {
     });
 
     if (error) throw error;
-    logger.debug('FCM token saved successfully');
+    console.log('FCM token saved successfully');
   } catch (error) {
-    logger.error('Error saving FCM token:', error);
+    console.error('Error saving FCM token:', error);
   }
 }
 
 // Listen for foreground notifications
 export function onMessageReceived(callback: (message: any) => void) {
   return messaging().onMessage(async remoteMessage => {
-    logger.debug('Foreground notification:', remoteMessage);
+    console.log('Foreground notification:', remoteMessage);
     callback(remoteMessage);
   });
 }
 
 // Handle background notifications
 messaging().setBackgroundMessageHandler(async remoteMessage => {
-  logger.debug('Background notification:', remoteMessage);
+  console.log('Background notification:', remoteMessage);
 });
