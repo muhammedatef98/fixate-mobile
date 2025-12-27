@@ -76,7 +76,7 @@ export default function EarningsScreen() {
       });
       setOrders(filteredOrders);
     } catch (error) {
-      logger.error('Error loading earnings:', error);
+      console.error('Error loading earnings:', error);
     }
   };
 

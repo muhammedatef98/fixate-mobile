@@ -102,7 +102,7 @@ export default function MyOrdersScreen() {
       const userOrders = await requests.getUserRequests(user.id);
       setOrders(userOrders);
     } catch (error) {
-      logger.error('Error loading orders:', error);
+      console.error('Error loading orders:', error);
     } finally {
       setLoading(false);
       setRefreshing(false);
