@@ -65,12 +65,44 @@ export default function SignupScreen() {
       return;
     }
 
-    Alert.alert('نجح', 'تم إنشاء الحساب بنجاح', [
-      {
-        text: 'حسناً',
-        onPress: () => router.push('/'),
-      },
-    ]);
+    try {
+      // Sign up with Supabase
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            name,
+            phone,
+            user_type: 'customer',
+          },
+        },
+      });
+
+      if (error) {
+        Alert.alert(
+          language === 'ar' ? 'خطأ' : 'Error',
+          error.message
+        );
+        return;
+      }
+
+      Alert.alert(
+        language === 'ar' ? 'نجح' : 'Success',
+        language === 'ar' ? 'تم إنشاء الحساب بنجاح! يرجى التحقق من بريدك الإلكتروني.' : 'Account created successfully! Please check your email.',
+        [
+          {
+            text: language === 'ar' ? 'حسناً' : 'OK',
+            onPress: () => router.push('/login'),
+          },
+        ]
+      );
+    } catch (error: any) {
+      Alert.alert(
+        language === 'ar' ? 'خطأ' : 'Error',
+        error.message || (language === 'ar' ? 'حدث خطأ أثناء إنشاء الحساب' : 'An error occurred while creating account')
+      );
+    }
   };
 
   return (

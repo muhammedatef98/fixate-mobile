@@ -293,6 +293,45 @@ export const requests = {
     };
   },
 
+  // Get user orders (gets current user automatically)
+  getUserOrders: async (): Promise<Order[]> => {
+    try {
+      const user = await auth.getCurrentUser();
+      if (!user) {
+        console.error('No authenticated user found');
+        return [];
+      }
+      return await requests.getUserRequests(user.id);
+    } catch (error) {
+      console.error('Error getting user orders:', error);
+      return [];
+    }
+  },
+
+  // Assign order to technician
+  assignToTechnician: async (orderId: string, technicianId: string): Promise<boolean> => {
+    try {
+      const { error } = await supabase
+        .from('orders')
+        .update({ 
+          status: 'accepted', 
+          technician_id: technicianId,
+          updated_at: new Date().toISOString() 
+        })
+        .eq('id', orderId);
+
+      if (error) {
+        console.error('Error assigning order to technician:', error);
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Error in assignToTechnician:', error);
+      return false;
+    }
+  },
+
   // Update order
   update: async (orderId: string, updates: Partial<Order>): Promise<Order | null> => {
     const { data, error } = await supabase
