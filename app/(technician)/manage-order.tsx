@@ -10,6 +10,7 @@ import {
   Alert,
   Image,
   Linking,
+  I18nManager,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -419,7 +420,7 @@ const styles = StyleSheet.create({
   infoValue: {
     fontSize: 14,
     flex: 2,
-    textAlign: 'right',
+    textAlign: I18nManager.isRTL ? 'right' : 'left',
   },
   locationText: {
     fontSize: 14,

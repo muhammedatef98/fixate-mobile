@@ -17,6 +17,7 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const systemColorScheme = useColorScheme();
+  // Default language is Arabic (RTL)
   const [language, setLanguage] = useState<Language>('ar');
   const [theme, setTheme] = useState<Theme>('light');
 

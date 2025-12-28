@@ -13,9 +13,12 @@ function RootLayoutContent() {
   
   useEffect(() => {
     const isRTL = language === 'ar';
+    // Force RTL for Arabic
     if (I18nManager.isRTL !== isRTL) {
       I18nManager.forceRTL(isRTL);
       I18nManager.allowRTL(isRTL);
+      // Note: App needs to be reloaded for RTL changes to take effect
+      // For development: reload the app after changing language
     }
   }, [language]);
 

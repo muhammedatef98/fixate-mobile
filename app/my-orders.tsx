@@ -8,6 +8,7 @@ import {
   SafeAreaView,
   RefreshControl,
   ActivityIndicator,
+  I18nManager,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -392,7 +393,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     width: 40,
-    textAlign: 'right',
+    textAlign: I18nManager.isRTL ? 'right' : 'left',
   },
   orderFooter: {
     flexDirection: 'row',
