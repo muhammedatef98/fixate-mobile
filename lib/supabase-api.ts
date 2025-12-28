@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import * as FileSystem from 'expo-file-system';
+import { File } from 'expo-file-system/next';
 import { decode } from 'base64-arraybuffer';
 
 // Database Types (matching Supabase schema)
@@ -292,6 +292,23 @@ export const requests = {
       }
     };
   },
+
+  // Update order
+  update: async (orderId: string, updates: Partial<Order>): Promise<Order | null> => {
+    const { data, error } = await supabase
+      .from('orders')
+      .update({ ...updates, updated_at: new Date().toISOString() })
+      .eq('id', orderId)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error updating order:', error);
+      throw error;
+    }
+
+    return data;
+  },
 };
 
 // Technicians API
@@ -411,13 +428,9 @@ export const storage = {
   // Upload image from URI
   uploadImageFromUri: async (bucket: string, uri: string, fileName: string): Promise<string> => {
     try {
-      // Read file as base64
-      const base64 = await FileSystem.readAsStringAsync(uri, {
-        encoding: 'base64',
-      });
-
-      // Convert base64 to array buffer
-      const arrayBuffer = decode(base64);
+      // Use new File API
+      const file = new File(uri);
+      const arrayBuffer = await file.arrayBuffer();
 
       // Upload to Supabase Storage
       const { data, error } = await supabase.storage
