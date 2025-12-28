@@ -223,7 +223,7 @@ export default function OrdersScreen() {
                 <TouchableOpacity 
                   style={styles.viewButton}
                   onPress={() => {
-                    // Navigate to order details
+                    router.push(`/order-details?id=${order.id}`);
                   }}
                 >
                   <Text style={styles.viewButtonText}>
