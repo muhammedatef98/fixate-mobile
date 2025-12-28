@@ -10,6 +10,7 @@ import { ActivityIndicator, Alert } from 'react-native';
 import { useApp } from '../../contexts/AppContext';
 
 const MENU_ITEMS = [
+  { id: 'orders', title: 'My Orders', titleAr: 'طلباتي', icon: 'receipt-long' },
   { id: 'account', title: 'Edit Profile', titleAr: 'تعديل الملف الشخصي', icon: 'person-outline' },
   { id: 'wallet', title: 'Wallet & Payment', titleAr: 'المحفظة وطرق الدفع', icon: 'account-balance-wallet' },
   { id: 'notifications', title: 'Notifications', titleAr: 'الإشعارات', icon: 'notifications-none' },
@@ -69,6 +70,9 @@ export default function ProfileScreen() {
 
   const handleMenuPress = (itemId: string) => {
     switch (itemId) {
+      case 'orders':
+        router.push('/(customer)/orders');
+        break;
       case 'account':
         Alert.alert(
           isRTL ? 'تعديل الملف الشخصي' : 'Edit Profile',
