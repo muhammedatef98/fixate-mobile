@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, SafeAreaView, Dimensions, StatusBar } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, SafeAreaView, Dimensions, StatusBar, I18nManager } from 'react-native';
 import { useRouter } from 'expo-router';
 import { COLORS, SPACING, SHADOWS } from '../../constants/theme';
 import { MaterialIcons, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -230,7 +230,7 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     fontSize: 14,
     flex: 1,
-    textAlign: 'right',
+    textAlign: I18nManager.isRTL ? 'right' : 'left',
   },
   calculatorBanner: {
     marginHorizontal: SPACING.l,

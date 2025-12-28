@@ -8,6 +8,7 @@ import {
   TextInput,
   KeyboardAvoidingView,
   Platform,
+  I18nManager,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -317,7 +318,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 10,
     fontSize: 15,
-    textAlign: 'right',
+    textAlign: I18nManager.isRTL ? 'right' : 'left',
   },
   sendButton: {
     width: 44,
