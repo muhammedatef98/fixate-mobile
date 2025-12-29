@@ -12,6 +12,7 @@ import {
   Platform,
   ScrollView,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { MaterialIcons, FontAwesome5 } from '@expo/vector-icons';
@@ -222,21 +223,6 @@ export default function AuthScreen() {
               </>
             )}
 
-            {/* Remove duplicate name input */}
-            {false && (
-              <View style={[styles.inputContainer, SHADOWS.neuFlat]}>
-                <MaterialIcons name="person" size={20} color={COLORS.textSecondary} />
-                <TextInput
-                  style={styles.input}
-                  placeholder={language === 'ar' ? 'الاسم الكامل' : 'Full Name'}
-                  placeholderTextColor={COLORS.textLight}
-                  value={name}
-                  onChangeText={setName}
-                  textAlign={isRTL ? 'right' : 'left'}
-                />
-              </View>
-            )}
-
             {/* Email Input */}
             <View style={[styles.inputContainer, SHADOWS.neuFlat]}>
               <MaterialIcons name="email" size={20} color={COLORS.textSecondary} />
@@ -273,62 +259,32 @@ export default function AuthScreen() {
               </TouchableOpacity>
             </View>
 
-            {/* Forgot Password (Login only) */}
-            {isLogin && (
-              <TouchableOpacity style={styles.forgotButton}>
-                <Text style={styles.forgotText}>
-                  {language === 'ar' ? 'نسيت كلمة المرور؟' : 'Forgot Password?'}
+            {/* Action Button */}
+            <TouchableOpacity
+              style={[styles.actionButton, SHADOWS.neuFlat]}
+              onPress={handleAuth}
+              disabled={loading}
+            >
+              {loading ? (
+                <ActivityIndicator color="#FFF" />
+              ) : (
+                <Text style={styles.actionButtonText}>
+                  {isLogin 
+                    ? (language === 'ar' ? 'تسجيل الدخول' : 'Login')
+                    : (language === 'ar' ? 'إنشاء حساب' : 'Sign Up')
+                  }
                 </Text>
-              </TouchableOpacity>
-            )}
-
-            {/* Auth Button */}
-            <TouchableOpacity style={[styles.authButton, SHADOWS.neuRaised]} onPress={handleAuth}>
-              <Text style={styles.authButtonText}>
-                {isLogin 
-                  ? (language === 'ar' ? 'تسجيل الدخول' : 'Login')
-                  : (language === 'ar' ? 'إنشاء حساب' : 'Sign Up')
-                }
-              </Text>
+              )}
             </TouchableOpacity>
 
-            {/* Divider */}
-            <View style={styles.divider}>
-              <View style={styles.dividerLine} />
-              <Text style={styles.dividerText}>
-                {language === 'ar' ? 'أو' : 'OR'}
-              </Text>
-              <View style={styles.dividerLine} />
-            </View>
-
-            {/* Social Login */}
-            <View style={styles.socialContainer}>
-              <TouchableOpacity style={[styles.socialButton, SHADOWS.neuFlat]} onPress={handleGoogleLogin}>
-                <Image 
-                  source={{ uri: 'https://www.google.com/images/branding/googleg/1x/googleg_standard_color_128dp.png' }}
-                  style={{ width: 24, height: 24 }}
-                  resizeMode="contain"
-                />
-              </TouchableOpacity>
-              <TouchableOpacity style={[styles.socialButton, SHADOWS.neuFlat]} onPress={handleFacebookLogin}>
-                <MaterialIcons name="facebook" size={24} color="#4267B2" />
-              </TouchableOpacity>
-              <TouchableOpacity style={[styles.socialButton, SHADOWS.neuFlat]} onPress={handleAppleLogin}>
-                <MaterialIcons name="apple" size={24} color={COLORS.text} />
-              </TouchableOpacity>
-            </View>
+            {/* Back Button */}
+            <TouchableOpacity
+              style={styles.backButton}
+              onPress={() => router.back()}
+            >
+              <MaterialIcons name={isRTL ? "arrow-forward" : "arrow-back"} size={24} color={COLORS.textSecondary} />
+            </TouchableOpacity>
           </View>
-
-          {/* Back Button */}
-          <TouchableOpacity 
-            style={styles.backButton}
-            onPress={() => router.back()}
-          >
-            <MaterialIcons name="arrow-back" size={20} color={COLORS.textSecondary} />
-            <Text style={styles.backText}>
-              {language === 'ar' ? 'رجوع' : 'Back'}
-            </Text>
-          </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -345,153 +301,95 @@ const createStyles = (COLORS: any, SHADOWS: any, isRTL: boolean) => StyleSheet.c
   },
   scrollContent: {
     flexGrow: 1,
-    padding: SPACING.xl,
+    padding: SPACING.lg,
     justifyContent: 'center',
   },
   logoContainer: {
     alignItems: 'center',
-    marginBottom: SPACING.xxl,
+    marginBottom: SPACING.xl,
   },
   logoCircle: {
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: COLORS.background,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: SPACING.lg,
+    marginBottom: SPACING.md,
   },
   logoImage: {
-    width: 70,
-    height: 70,
+    width: 60,
+    height: 60,
   },
   appName: {
-    fontSize: 32,
+    fontSize: 28,
     fontWeight: 'bold',
-    color: COLORS.text,
+    color: COLORS.primary,
     marginBottom: SPACING.xs,
   },
   appTagline: {
-    fontSize: 16,
+    fontSize: 14,
     color: COLORS.textSecondary,
   },
   formContainer: {
     width: '100%',
+    marginBottom: SPACING.xl,
   },
   toggleContainer: {
-    flexDirection: 'row',
-    backgroundColor: COLORS.surface,
+    flexDirection: isRTL ? 'row-reverse' : 'row',
+    backgroundColor: COLORS.background,
     borderRadius: BORDER_RADIUS.lg,
     padding: 4,
-    marginBottom: SPACING.xl,
+    marginBottom: SPACING.lg,
   },
   toggleButton: {
     flex: 1,
-    paddingVertical: SPACING.md,
-    borderRadius: BORDER_RADIUS.md,
+    paddingVertical: SPACING.sm,
     alignItems: 'center',
+    borderRadius: BORDER_RADIUS.md,
   },
   toggleButtonActive: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: COLORS.background,
   },
   toggleText: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '600',
     color: COLORS.textSecondary,
   },
   toggleTextActive: {
-    color: '#FFFFFF',
+    color: COLORS.primary,
   },
   inputContainer: {
     flexDirection: isRTL ? 'row-reverse' : 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.surface,
-    borderRadius: BORDER_RADIUS.lg,
+    backgroundColor: COLORS.background,
+    borderRadius: BORDER_RADIUS.md,
     paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm,
     marginBottom: SPACING.md,
-    gap: SPACING.sm,
+    height: 50,
   },
   input: {
     flex: 1,
-    fontSize: 16,
+    marginHorizontal: SPACING.sm,
     color: COLORS.text,
-    paddingVertical: SPACING.xs,
+    fontSize: 16,
   },
-  forgotButton: {
-    alignSelf: isRTL ? 'flex-start' : 'flex-end',
-    marginBottom: SPACING.lg,
-  },
-  forgotText: {
-    fontSize: 14,
-    color: COLORS.primary,
-    fontWeight: '600',
-  },
-  authButton: {
+  actionButton: {
     backgroundColor: COLORS.primary,
-    borderRadius: BORDER_RADIUS.lg,
-    paddingVertical: SPACING.md,
+    borderRadius: BORDER_RADIUS.md,
+    height: 50,
+    justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: SPACING.lg,
+    marginTop: SPACING.sm,
   },
-  authButtonText: {
+  actionButtonText: {
+    color: '#FFF',
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#FFFFFF',
-  },
-  divider: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: SPACING.lg,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: COLORS.border,
-  },
-  dividerText: {
-    marginHorizontal: SPACING.md,
-    fontSize: 14,
-    color: COLORS.textSecondary,
-  },
-  guestButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: COLORS.surface,
-    borderRadius: BORDER_RADIUS.lg,
-    paddingVertical: SPACING.md,
-    marginBottom: SPACING.lg,
-    gap: SPACING.sm,
-  },
-  guestButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: COLORS.primary,
-  },
-  socialContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: SPACING.md,
-    marginBottom: SPACING.lg,
-  },
-  socialButton: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: COLORS.surface,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   backButton: {
-    flexDirection: isRTL ? 'row-reverse' : 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: SPACING.xs,
-    paddingVertical: SPACING.md,
-  },
-  backText: {
-    fontSize: 16,
-    color: COLORS.textSecondary,
+    marginTop: SPACING.md,
+    padding: SPACING.sm,
   },
 });

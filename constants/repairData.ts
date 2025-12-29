@@ -18,16 +18,17 @@ export interface Issue {
     min: number;
     max: number;
   };
+  deviceType?: string; // To filter issues by device type
 }
 
 // All major phone brands with logos
 export const BRANDS: Brand[] = [
+  // Phones
   {
     id: 'apple',
     name: 'Apple',
     deviceType: 'phone',
     logo: require('../assets/brands/apple.png'),
-    deviceType: 'phone',
     models: [
       'iPhone 15 Pro Max', 'iPhone 15 Pro', 'iPhone 15 Plus', 'iPhone 15',
       'iPhone 14 Pro Max', 'iPhone 14 Pro', 'iPhone 14 Plus', 'iPhone 14',
@@ -44,7 +45,6 @@ export const BRANDS: Brand[] = [
     name: 'Samsung',
     deviceType: 'phone',
     logo: require('../assets/brands/samsung.png'),
-    deviceType: 'phone',
     models: [
       'Galaxy S24 Ultra', 'Galaxy S24+', 'Galaxy S24',
       'Galaxy S23 Ultra', 'Galaxy S23+', 'Galaxy S23',
@@ -284,7 +284,7 @@ export const BRANDS: Brand[] = [
     id: 'hp',
     name: 'HP',
     deviceType: 'laptop',
-    logo: require('../assets/brands/apple.png'), // Placeholder - actual logo rendered by BrandLogo component
+    logo: require('../assets/brands/hp.png'),
     models: [
       'HP Spectre x360', 'HP Envy', 'HP Pavilion', 'HP EliteBook', 'HP ProBook',
       'HP Omen', 'HP Victus', 'HP 15s', 'HP 14s'
@@ -294,10 +294,10 @@ export const BRANDS: Brand[] = [
     id: 'dell',
     name: 'Dell',
     deviceType: 'laptop',
-    logo: require('../assets/brands/apple.png'), // Placeholder - actual logo rendered by BrandLogo component
+    logo: require('../assets/brands/dell.png'),
     models: [
-      'Dell XPS 15', 'Dell XPS 13', 'Dell Inspiron 15', 'Dell Inspiron 14',
-      'Dell Latitude', 'Dell Precision', 'Dell G15', 'Dell Alienware'
+      'Dell XPS 15', 'Dell XPS 13', 'Dell Inspiron 16', 'Dell Inspiron 15', 'Dell Inspiron 14',
+      'Dell G15', 'Dell G16', 'Alienware m18', 'Alienware m16', 'Alienware x16'
     ]
   },
   {
@@ -306,70 +306,49 @@ export const BRANDS: Brand[] = [
     deviceType: 'laptop',
     logo: require('../assets/brands/lenovo.png'),
     models: [
-      'ThinkPad X1 Carbon', 'ThinkPad T14', 'ThinkPad E15', 'ThinkBook 15',
-      'IdeaPad Slim 5', 'IdeaPad Gaming 3', 'Legion 5 Pro', 'Yoga 9i'
+      'ThinkPad X1 Carbon', 'ThinkPad T14', 'ThinkPad E14',
+      'Yoga 9i', 'Yoga 7i', 'IdeaPad Slim 5', 'IdeaPad Slim 3',
+      'Legion Pro 7i', 'Legion Pro 5i', 'LOQ 15'
     ]
   },
   {
     id: 'asus',
     name: 'Asus',
     deviceType: 'laptop',
-    logo: require('../assets/brands/apple.png'), // Placeholder - actual logo rendered by BrandLogo component
+    logo: require('../assets/brands/asus.png'),
     models: [
-      'ZenBook 14', 'ZenBook Pro', 'VivoBook 15', 'VivoBook S15',
-      'ROG Zephyrus', 'ROG Strix', 'TUF Gaming', 'ExpertBook'
-    ]
-  },
-  
-  // Printer Brands
-  {
-    id: 'hp-printer',
-    name: 'HP',
-    deviceType: 'printer',
-    logo: require('../assets/brands/apple.png'), // Placeholder - actual logo rendered by BrandLogo component
-    models: [
-      'HP LaserJet Pro', 'HP OfficeJet Pro', 'HP DeskJet', 'HP Envy',
-      'HP Smart Tank', 'HP PageWide', 'HP Color LaserJet'
+      'ROG Strix Scar 18', 'ROG Zephyrus G14', 'TUF Gaming F15', 'TUF Gaming A15',
+      'Zenbook S 13 OLED', 'Zenbook 14 OLED', 'Vivobook Pro 15', 'Vivobook 16', 'Vivobook 15'
     ]
   },
   {
-    id: 'canon',
-    name: 'Canon',
-    deviceType: 'printer',
-    logo: require('../assets/brands/apple.png'), // Placeholder - actual logo rendered by BrandLogo component
+    id: 'acer',
+    name: 'Acer',
+    deviceType: 'laptop',
+    logo: require('../assets/brands/acer.png'),
     models: [
-      'Canon PIXMA', 'Canon imageCLASS', 'Canon imageRUNNER',
-      'Canon MAXIFY', 'Canon G Series', 'Canon TR Series'
+      'Predator Helios 18', 'Predator Helios 16', 'Nitro 17', 'Nitro 5',
+      'Swift Go 14', 'Swift X 14', 'Aspire 5', 'Aspire 3'
     ]
   },
   {
-    id: 'epson',
-    name: 'Epson',
-    deviceType: 'printer',
-    logo: require('../assets/brands/apple.png'), // Placeholder - actual logo rendered by BrandLogo component
+    id: 'microsoft',
+    name: 'Microsoft Surface',
+    deviceType: 'laptop',
+    logo: require('../assets/brands/microsoft.png'),
     models: [
-      'Epson EcoTank', 'Epson WorkForce', 'Epson Expression',
-      'Epson SureColor', 'Epson L Series', 'Epson M Series'
+      'Surface Laptop Studio 2', 'Surface Laptop 5', 'Surface Laptop Go 3',
+      'Surface Pro 9', 'Surface Go 4'
     ]
   },
   {
-    id: 'brother',
-    name: 'Brother',
-    deviceType: 'printer',
-    logo: require('../assets/brands/apple.png'), // Placeholder - actual logo rendered by BrandLogo component
+    id: 'msi',
+    name: 'MSI',
+    deviceType: 'laptop',
+    logo: require('../assets/brands/msi.png'),
     models: [
-      'Brother HL-L2350DW', 'Brother MFC-L2750DW', 'Brother DCP-L2550DW',
-      'Brother HL-L3230CDW', 'Brother MFC-J995DW', 'Brother DCP-T710W'
-    ]
-  },
-  {
-    id: 'samsung-printer',
-    name: 'Samsung',
-    deviceType: 'printer',
-    logo: require('../assets/brands/samsung.png'),
-    models: [
-      'Samsung Xpress', 'Samsung ProXpress', 'Samsung MultiXpress',
-      'Samsung M Series', 'Samsung C Series'
+      'Titan 18 HX', 'Raider GE78', 'Stealth 16', 'Vector GP68',
+      'Katana 15', 'Cyborg 15', 'Thin GF63', 'Modern 15', 'Modern 14'
     ]
   },
 
@@ -382,8 +361,7 @@ export const BRANDS: Brand[] = [
     models: [
       'Apple Watch Ultra 2', 'Apple Watch Ultra',
       'Apple Watch Series 9', 'Apple Watch Series 8', 'Apple Watch Series 7',
-      'Apple Watch Series 6', 'Apple Watch Series 5', 'Apple Watch Series 4',
-      'Apple Watch SE (2023)', 'Apple Watch SE (2022)', 'Apple Watch SE'
+      'Apple Watch SE (2nd gen)', 'Apple Watch SE (1st gen)'
     ]
   },
   {
@@ -394,9 +372,7 @@ export const BRANDS: Brand[] = [
     models: [
       'Galaxy Watch 6 Classic', 'Galaxy Watch 6',
       'Galaxy Watch 5 Pro', 'Galaxy Watch 5',
-      'Galaxy Watch 4 Classic', 'Galaxy Watch 4',
-      'Galaxy Watch 3', 'Galaxy Watch Active 2', 'Galaxy Watch Active',
-      'Galaxy Fit 3', 'Galaxy Fit 2', 'Galaxy Fit'
+      'Galaxy Watch 4 Classic', 'Galaxy Watch 4'
     ]
   },
   {
@@ -405,532 +381,236 @@ export const BRANDS: Brand[] = [
     deviceType: 'watch',
     logo: require('../assets/brands/huawei.png'),
     models: [
+      'Watch Ultimate', 'Watch 4 Pro', 'Watch 4',
       'Watch GT 4', 'Watch GT 3 Pro', 'Watch GT 3',
-      'Watch GT 2 Pro', 'Watch GT 2e', 'Watch GT 2',
-      'Watch Fit 3', 'Watch Fit 2', 'Watch Fit',
-      'Band 8', 'Band 7', 'Band 6'
-    ]
-  },
-  {
-    id: 'xiaomi-watch',
-    name: 'Xiaomi Watch',
-    deviceType: 'watch',
-    logo: require('../assets/brands/xiaomi.png'),
-    models: [
-      'Watch S3', 'Watch S2', 'Watch S1 Pro', 'Watch S1',
-      'Watch 2 Pro', 'Watch 2', 'Watch Color 2',
-      'Mi Band 8 Pro', 'Mi Band 8', 'Mi Band 7', 'Mi Band 6',
-      'Redmi Watch 3 Active', 'Redmi Watch 3', 'Redmi Watch 2'
-    ]
-  },
-  {
-    id: 'garmin',
-    name: 'Garmin',
-    deviceType: 'watch',
-    logo: require('../assets/brands/apple.png'), // Placeholder
-    models: [
-      'Fenix 7X', 'Fenix 7', 'Fenix 6X Pro', 'Fenix 6 Pro',
-      'Forerunner 965', 'Forerunner 955', 'Forerunner 265', 'Forerunner 255',
-      'Venu 3', 'Venu 2 Plus', 'Venu 2', 'Vivoactive 5', 'Vivoactive 4'
-    ]
-  },
-  {
-    id: 'fitbit',
-    name: 'Fitbit',
-    deviceType: 'watch',
-    logo: require('../assets/brands/apple.png'), // Placeholder
-    models: [
-      'Sense 2', 'Sense', 'Versa 4', 'Versa 3', 'Versa 2',
-      'Charge 6', 'Charge 5', 'Charge 4',
-      'Inspire 3', 'Inspire 2', 'Luxe'
-    ]
-  },
-  {
-    id: 'amazfit',
-    name: 'Amazfit',
-    deviceType: 'watch',
-    logo: require('../assets/brands/apple.png'), // Placeholder
-    models: [
-      'GTR 4', 'GTR 3 Pro', 'GTR 3', 'GTR 2e', 'GTR 2',
-      'GTS 4', 'GTS 3', 'GTS 2e', 'GTS 2',
-      'T-Rex Ultra', 'T-Rex 2', 'Bip 5', 'Bip 3 Pro', 'Bip 3'
+      'Watch Fit 3', 'Watch Fit 2'
     ]
   }
 ];
 
-// Comprehensive list of all common device issues
+// Comprehensive list of issues for all device types
 export const ISSUES: Issue[] = [
-  // Screen Issues
+  // Phone Issues
   {
-    id: 'screen_broken',
-    name: 'Broken Screen',
-    nameAr: 'شاشة مكسورة',
-    icon: 'tablet-cellphone',
-    estimatedPrice: 600,
-    priceRange: { min: 500, max: 700 }
+    id: 'screen',
+    name: 'Screen Replacement',
+    nameAr: 'استبدال الشاشة',
+    icon: 'phone-portrait-outline',
+    estimatedPrice: 250,
+    priceRange: { min: 150, max: 800 },
+    deviceType: 'phone'
   },
   {
-    id: 'screen_crack',
-    name: 'Screen Crack',
-    nameAr: 'شرخ في الشاشة',
-    icon: 'cellphone-remove',
-    estimatedPrice: 500,
-    priceRange: { min: 400, max: 600 }
-  },
-  {
-    id: 'screen_black',
-    name: 'Black Screen',
-    nameAr: 'شاشة سوداء',
-    icon: 'cellphone-off',
-    estimatedPrice: 65,
-    priceRange: { min: 550, max: 750 }
-  },
-  {
-    id: 'screen_lines',
-    name: 'Lines on Screen',
-    nameAr: 'خطوط على الشاشة',
-    icon: 'cellphone-wireless',
-    estimatedPrice: 55,
-    priceRange: { min: 450, max: 650 }
-  },
-  {
-    id: 'touch_not_working',
-    name: 'Touch Not Working',
-    nameAr: 'اللمس لا يعمل',
-    icon: 'gesture-tap',
-    estimatedPrice: 600,
-    priceRange: { min: 500, max: 700 }
-  },
-  {
-    id: 'screen_flickering',
-    name: 'Screen Flickering',
-    nameAr: 'وميض الشاشة',
-    icon: 'flash',
-    estimatedPrice: 52,
-    priceRange: { min: 450, max: 600 }
-  },
-  
-  // Battery Issues
-  {
-    id: 'battery_drain',
-    name: 'Battery Draining Fast',
-    nameAr: 'البطارية تنفذ بسرعة',
-    icon: 'battery-alert',
-    estimatedPrice: 25,
-    priceRange: { min: 200, max: 300 }
-  },
-  {
-    id: 'battery_not_charging',
-    name: 'Not Charging',
-    nameAr: 'لا يشحن',
-    icon: 'battery-charging-outline',
-    estimatedPrice: 28,
-    priceRange: { min: 230, max: 350 }
-  },
-  {
-    id: 'battery_swollen',
-    name: 'Swollen Battery',
-    nameAr: 'بطارية منتفخة',
-    icon: 'battery-alert-variant',
-    estimatedPrice: 32,
-    priceRange: { min: 280, max: 380 }
-  },
-  {
-    id: 'battery_replacement',
+    id: 'battery',
     name: 'Battery Replacement',
     nameAr: 'استبدال البطارية',
-    icon: 'battery',
-    estimatedPrice: 28,
-    priceRange: { min: 230, max: 350 }
+    icon: 'battery-charging-outline',
+    estimatedPrice: 150,
+    priceRange: { min: 100, max: 300 },
+    deviceType: 'phone'
   },
   {
-    id: 'charging_slow',
-    name: 'Slow Charging',
-    nameAr: 'شحن بطيء',
-    icon: 'battery-charging-low',
+    id: 'charging',
+    name: 'Charging Port Repair',
+    nameAr: 'إصلاح منفذ الشحن',
+    icon: 'flash-outline',
+    estimatedPrice: 100,
+    priceRange: { min: 80, max: 200 },
+    deviceType: 'phone'
+  },
+  {
+    id: 'camera',
+    name: 'Camera Repair',
+    nameAr: 'إصلاح الكاميرا',
+    icon: 'camera-outline',
     estimatedPrice: 200,
-    priceRange: { min: 170, max: 250 }
-  },
-  
-  // Charging Port Issues
-  {
-    id: 'charging_port',
-    name: 'Charging Port Issue',
-    nameAr: 'مشكلة منفذ الشحن',
-    icon: 'usb-port',
-    estimatedPrice: 220,
-    priceRange: { min: 190, max: 260 } // Market: 180 SAR + 22% profit
+    priceRange: { min: 150, max: 500 },
+    deviceType: 'phone'
   },
   {
-    id: 'charging_port_loose',
-    name: 'Loose Charging Port',
-    nameAr: 'منفذ شحن مفكوك',
-    icon: 'connection',
-    estimatedPrice: 130,
-    priceRange: { min: 110, max: 160 }
-  },
-  {
-    id: 'charging_port_damaged',
-    name: 'Damaged Charging Port',
-    nameAr: 'منفذ شحن تالف',
-    icon: 'alert-circle',
-    estimatedPrice: 170,
-    priceRange: { min: 140, max: 200 }
-  },
-  
-  // Camera Issues
-  {
-    id: 'camera_not_working',
-    name: 'Camera Not Working',
-    nameAr: 'الكاميرا لا تعمل',
-    icon: 'camera-off',
-    estimatedPrice: 550,
-    priceRange: { min: 470, max: 660 }
-  },
-  {
-    id: 'camera_blurry',
-    name: 'Blurry Camera',
-    nameAr: 'كاميرا ضبابية',
-    icon: 'camera',
-    estimatedPrice: 220,
-    priceRange: { min: 190, max: 260 }
-  },
-  {
-    id: 'camera_lens_broken',
-    name: 'Broken Camera Lens',
-    nameAr: 'عدسة كاميرا مكسورة',
-    icon: 'camera-enhance',
-    estimatedPrice: 600,
-    priceRange: { min: 510, max: 720 }
-  },
-  {
-    id: 'front_camera_issue',
-    name: 'Front Camera Issue',
-    nameAr: 'مشكلة الكاميرا الأمامية',
-    icon: 'camera-front',
-    estimatedPrice: 230,
-    priceRange: { min: 200, max: 280 }
-  },
-  {
-    id: 'back_camera_issue',
-    name: 'Back Camera Issue',
-    nameAr: 'مشكلة الكاميرا الخلفية',
-    icon: 'camera-rear',
-    estimatedPrice: 260,
-    priceRange: { min: 220, max: 310 }
-  },
-  
-  // Audio Issues
-  {
-    id: 'speaker_not_working',
-    name: 'Speaker Not Working',
-    nameAr: 'السماعة لا تعمل',
-    icon: 'volume-off',
-    estimatedPrice: 220,
-    priceRange: { min: 190, max: 260 }
-  },
-  {
-    id: 'microphone_issue',
-    name: 'Microphone Issue',
-    nameAr: 'مشكلة الميكروفون',
-    icon: 'microphone-off',
-    estimatedPrice: 140,
-    priceRange: { min: 120, max: 170 }
-  },
-  {
-    id: 'earpiece_issue',
-    name: 'Earpiece Issue',
-    nameAr: 'مشكلة سماعة الأذن',
-    icon: 'phone-hangup',
-    estimatedPrice: 130,
-    priceRange: { min: 110, max: 160 }
-  },
-  {
-    id: 'no_sound',
-    name: 'No Sound',
-    nameAr: 'لا يوجد صوت',
-    icon: 'volume-mute',
-    estimatedPrice: 160,
-    priceRange: { min: 140, max: 190 }
-  },
-  {
-    id: 'headphone_jack',
-    name: 'Headphone Jack Issue',
-    nameAr: 'مشكلة منفذ السماعة',
-    icon: 'headphones',
-    estimatedPrice: 600,
-    priceRange: { min: 510, max: 720 }
-  },
-  
-  // Button Issues
-  {
-    id: 'power_button',
-    name: 'Power Button Issue',
-    nameAr: 'مشكلة زر الطاقة',
-    icon: 'power',
-    estimatedPrice: 180,
-    priceRange: { min: 150, max: 220 }
-  },
-  {
-    id: 'volume_button',
-    name: 'Volume Button Issue',
-    nameAr: 'مشكلة زر الصوت',
-    icon: 'volume-high',
-    estimatedPrice: 90,
-    priceRange: { min: 80, max: 110 }
-  },
-  {
-    id: 'home_button',
-    name: 'Home Button Issue',
-    nameAr: 'مشكلة زر الهوم',
-    icon: 'home',
-    estimatedPrice: 110,
-    priceRange: { min: 90, max: 130 }
-  },
-  
-  // Software Issues
-  {
-    id: 'software_crash',
-    name: 'Software Crash',
-    nameAr: 'تعطل النظام',
-    icon: 'alert',
-    estimatedPrice: 150,
-    priceRange: { min: 130, max: 180 }
-  },
-  {
-    id: 'slow_performance',
-    name: 'Slow Performance',
-    nameAr: 'أداء بطيء',
-    icon: 'speedometer-slow',
-    estimatedPrice: 70,
-    priceRange: { min: 60, max: 80 }
-  },
-  {
-    id: 'wont_turn_on',
-    name: 'Won\'t Turn On',
-    nameAr: 'لا يعمل',
-    icon: 'power-off',
-    estimatedPrice: 220,
-    priceRange: { min: 190, max: 260 }
-  },
-  {
-    id: 'freezing',
-    name: 'Freezing/Hanging',
-    nameAr: 'تجميد/تعليق',
-    icon: 'snowflake',
-    estimatedPrice: 90,
-    priceRange: { min: 80, max: 110 }
-  },
-  {
-    id: 'boot_loop',
-    name: 'Boot Loop',
-    nameAr: 'حلقة إعادة التشغيل',
-    icon: 'restart',
-    estimatedPrice: 600,
-    priceRange: { min: 510, max: 720 }
-  },
-  {
-    id: 'virus_malware',
-    name: 'Virus/Malware',
-    nameAr: 'فيروس/برمجيات خبيثة',
-    icon: 'bug',
-    estimatedPrice: 180,
-    priceRange: { min: 150, max: 220 }
-  },
-  {
-    id: 'system_update',
-    name: 'System Update Issue',
-    nameAr: 'مشكلة تحديث النظام',
-    icon: 'update',
-    estimatedPrice: 150,
-    priceRange: { min: 130, max: 180 }
-  },
-  
-  // Connectivity Issues
-  {
-    id: 'wifi_not_working',
-    name: 'WiFi Not Working',
-    nameAr: 'الواي فاي لا يعمل',
-    icon: 'wifi-off',
-    estimatedPrice: 130,
-    priceRange: { min: 110, max: 160 }
-  },
-  {
-    id: 'bluetooth_issue',
-    name: 'Bluetooth Issue',
-    nameAr: 'مشكلة البلوتوث',
-    icon: 'bluetooth-off',
-    estimatedPrice: 600,
-    priceRange: { min: 510, max: 720 }
-  },
-  {
-    id: 'no_signal',
-    name: 'No Signal',
-    nameAr: 'لا توجد إشارة',
-    icon: 'signal-off',
-    estimatedPrice: 180,
-    priceRange: { min: 150, max: 220 }
-  },
-  {
-    id: 'sim_not_detected',
-    name: 'SIM Not Detected',
-    nameAr: 'الشريحة غير مكتشفة',
-    icon: 'sim-alert',
-    estimatedPrice: 140,
-    priceRange: { min: 120, max: 170 }
-  },
-  {
-    id: 'gps_not_working',
-    name: 'GPS Not Working',
-    nameAr: 'GPS لا يعمل',
-    icon: 'map-marker-off',
-    estimatedPrice: 220,
-    priceRange: { min: 190, max: 260 }
-  },
-  
-  // Physical Damage
-  {
-    id: 'water_damage',
+    id: 'water',
     name: 'Water Damage',
-    nameAr: 'ضرر مائي',
-    icon: 'water',
-    estimatedPrice: 600,
-    priceRange: { min: 510, max: 720 }
+    nameAr: 'تلف بسبب المياه',
+    icon: 'water-outline',
+    estimatedPrice: 300,
+    priceRange: { min: 200, max: 1000 },
+    deviceType: 'phone'
   },
   {
-    id: 'back_glass_broken',
-    name: 'Broken Back Glass',
-    nameAr: 'زجاج خلفي مكسور',
-    icon: 'cellphone-screenshot',
+    id: 'software',
+    name: 'Software Issue',
+    nameAr: 'مشكلة برمجية',
+    icon: 'code-slash-outline',
+    estimatedPrice: 100,
+    priceRange: { min: 50, max: 150 },
+    deviceType: 'phone'
+  },
+  {
+    id: 'speaker',
+    name: 'Speaker/Mic Repair',
+    nameAr: 'إصلاح السماعة/الميكروفون',
+    icon: 'volume-high-outline',
+    estimatedPrice: 120,
+    priceRange: { min: 80, max: 250 },
+    deviceType: 'phone'
+  },
+  {
+    id: 'back-glass',
+    name: 'Back Glass Replacement',
+    nameAr: 'استبدال الزجاج الخلفي',
+    icon: 'phone-portrait-outline',
     estimatedPrice: 180,
-    priceRange: { min: 150, max: 220 }
+    priceRange: { min: 120, max: 400 },
+    deviceType: 'phone'
   },
   {
-    id: 'frame_bent',
-    name: 'Bent Frame',
-    nameAr: 'إطار منحني',
-    icon: 'cellphone-settings',
-    estimatedPrice: 550,
-    priceRange: { min: 470, max: 660 }
+    id: 'buttons',
+    name: 'Buttons Repair',
+    nameAr: 'إصلاح الأزرار',
+    icon: 'radio-button-on-outline',
+    estimatedPrice: 80,
+    priceRange: { min: 50, max: 150 },
+    deviceType: 'phone'
+  },
+
+  // Tablet Issues
+  {
+    id: 'tablet-screen',
+    name: 'Screen Replacement',
+    nameAr: 'استبدال الشاشة',
+    icon: 'tablet-portrait-outline',
+    estimatedPrice: 350,
+    priceRange: { min: 250, max: 1200 },
+    deviceType: 'tablet'
   },
   {
-    id: 'overheating',
-    name: 'Overheating',
-    nameAr: 'سخونة زائدة',
-    icon: 'thermometer',
-    estimatedPrice: 160,
-    priceRange: { min: 140, max: 190 }
-  },
-  
-  // Storage Issues
-  {
-    id: 'storage_full',
-    name: 'Storage Full',
-    nameAr: 'الذاكرة ممتلئة',
-    icon: 'harddisk',
-    estimatedPrice: 60,
-    priceRange: { min: 50, max: 70 }
+    id: 'tablet-battery',
+    name: 'Battery Replacement',
+    nameAr: 'استبدال البطارية',
+    icon: 'battery-charging-outline',
+    estimatedPrice: 200,
+    priceRange: { min: 150, max: 400 },
+    deviceType: 'tablet'
   },
   {
-    id: 'sd_card_issue',
-    name: 'SD Card Issue',
-    nameAr: 'مشكلة بطاقة الذاكرة',
-    icon: 'sd',
+    id: 'tablet-charging',
+    name: 'Charging Port Repair',
+    nameAr: 'إصلاح منفذ الشحن',
+    icon: 'flash-outline',
+    estimatedPrice: 120,
+    priceRange: { min: 100, max: 250 },
+    deviceType: 'tablet'
+  },
+
+  // Laptop Issues
+  {
+    id: 'laptop-screen',
+    name: 'Screen Replacement',
+    nameAr: 'استبدال الشاشة',
+    icon: 'laptop-outline',
+    estimatedPrice: 400,
+    priceRange: { min: 300, max: 1500 },
+    deviceType: 'laptop'
+  },
+  {
+    id: 'laptop-keyboard',
+    name: 'Keyboard Replacement',
+    nameAr: 'استبدال لوحة المفاتيح',
+    icon: 'keypad-outline',
     estimatedPrice: 150,
-    priceRange: { min: 130, max: 180 }
-  },
-  
-  // Other Issues
-  {
-    id: 'face_id_issue',
-    name: 'Face ID Not Working',
-    nameAr: 'Face ID لا يعمل',
-    icon: 'face-recognition',
-    estimatedPrice: 600,
-    priceRange: { min: 510, max: 720 }
+    priceRange: { min: 100, max: 400 },
+    deviceType: 'laptop'
   },
   {
-    id: 'fingerprint_issue',
-    name: 'Fingerprint Scanner Issue',
-    nameAr: 'مشكلة بصمة الإصبع',
-    icon: 'fingerprint',
-    estimatedPrice: 180,
-    priceRange: { min: 150, max: 220 }
+    id: 'laptop-battery',
+    name: 'Battery Replacement',
+    nameAr: 'استبدال البطارية',
+    icon: 'battery-charging-outline',
+    estimatedPrice: 200,
+    priceRange: { min: 150, max: 500 },
+    deviceType: 'laptop'
   },
   {
-    id: 'vibration_issue',
-    name: 'Vibration Not Working',
-    nameAr: 'الاهتزاز لا يعمل',
-    icon: 'vibrate',
-    estimatedPrice: 180,
-    priceRange: { min: 150, max: 220 }
+    id: 'laptop-charging',
+    name: 'Charging Port Repair',
+    nameAr: 'إصلاح منفذ الشحن',
+    icon: 'flash-outline',
+    estimatedPrice: 150,
+    priceRange: { min: 100, max: 300 },
+    deviceType: 'laptop'
   },
   {
-    id: 'proximity_sensor',
-    name: 'Proximity Sensor Issue',
-    nameAr: 'مشكلة مستشعر القرب',
-    icon: 'radar',
-    estimatedPrice: 600,
-    priceRange: { min: 510, max: 720 }
+    id: 'laptop-fan',
+    name: 'Fan Cleaning/Replacement',
+    nameAr: 'تنظيف/استبدال المروحة',
+    icon: 'hardware-chip-outline',
+    estimatedPrice: 100,
+    priceRange: { min: 80, max: 250 },
+    deviceType: 'laptop'
   },
   {
-    id: 'data_recovery',
-    name: 'Data Recovery',
-    nameAr: 'استعادة البيانات',
-    icon: 'database',
-    estimatedPrice: 220,
-    priceRange: { min: 190, max: 260 }
+    id: 'laptop-os',
+    name: 'OS Installation/Format',
+    nameAr: 'تثبيت نظام/فورمات',
+    icon: 'desktop-outline',
+    estimatedPrice: 100,
+    priceRange: { min: 50, max: 150 },
+    deviceType: 'laptop'
   },
   {
-    id: 'factory_reset',
-    name: 'Factory Reset Needed',
-    nameAr: 'يحتاج إعادة ضبط المصنع',
-    icon: 'restore',
-    estimatedPrice: 50,
-    priceRange: { min: 40, max: 60 }
+    id: 'laptop-upgrade',
+    name: 'RAM/SSD Upgrade',
+    nameAr: 'ترقية الرام/الهارد',
+    icon: 'save-outline',
+    estimatedPrice: 200,
+    priceRange: { min: 150, max: 1000 },
+    deviceType: 'laptop'
+  },
+
+  // Watch Issues
+  {
+    id: 'watch-screen',
+    name: 'Screen Replacement',
+    nameAr: 'استبدال الشاشة',
+    icon: 'watch-outline',
+    estimatedPrice: 200,
+    priceRange: { min: 150, max: 600 },
+    deviceType: 'watch'
   },
   {
-    id: 'other',
-    name: 'Other Issue',
-    nameAr: 'مشكلة أخرى',
-    icon: 'help-circle',
-    estimatedPrice: 180,
-    priceRange: { min: 150, max: 220 }
+    id: 'watch-battery',
+    name: 'Battery Replacement',
+    nameAr: 'استبدال البطارية',
+    icon: 'battery-charging-outline',
+    estimatedPrice: 100,
+    priceRange: { min: 80, max: 200 },
+    deviceType: 'watch'
   }
 ];
 
-// Helper function to search brands
 export const searchBrands = (query: string): Brand[] => {
-  if (!query.trim()) return BRANDS;
-  
   const lowerQuery = query.toLowerCase();
   return BRANDS.filter(brand => 
-    brand.name.toLowerCase().includes(lowerQuery)
+    brand.name.toLowerCase().includes(lowerQuery) ||
+    brand.models.some(model => model.toLowerCase().includes(lowerQuery))
   );
 };
 
-// Helper function to search models within a brand
 export const searchModels = (brandId: string, query: string): string[] => {
   const brand = BRANDS.find(b => b.id === brandId);
   if (!brand) return [];
-  
-  if (!query.trim()) return brand.models;
-  
   const lowerQuery = query.toLowerCase();
   return brand.models.filter(model => 
     model.toLowerCase().includes(lowerQuery)
   );
 };
 
-// Helper function to search issues
-export const searchIssues = (query: string, language: 'en' | 'ar' = 'en'): Issue[] => {
-  if (!query.trim()) return ISSUES;
-  
+export const searchIssues = (query: string, deviceType?: string): Issue[] => {
   const lowerQuery = query.toLowerCase();
   return ISSUES.filter(issue => {
-    if (language === 'ar') {
-      return issue.nameAr.includes(query) || issue.name.toLowerCase().includes(lowerQuery);
-    }
-    return issue.name.toLowerCase().includes(lowerQuery) || issue.nameAr.includes(query);
+    const matchesQuery = issue.name.toLowerCase().includes(lowerQuery) ||
+                         issue.nameAr.includes(lowerQuery);
+    const matchesType = deviceType ? issue.deviceType === deviceType : true;
+    return matchesQuery && matchesType;
   });
 };
