@@ -5,6 +5,8 @@ import { COLORS, SPACING, SHADOWS } from '../../constants/theme';
 import { Card } from '../../components/ui/Card';
 import { MaterialIcons, Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import { useRequests } from '../../contexts/RequestContext';
+import { useApp } from '../../contexts/AppContext';
+import { auth } from '../../lib/supabase-api';
 import { registerForPushNotifications, subscribeToNewRequests, unsubscribeFromNewRequests, addNotificationResponseListener } from '../../services/localNotificationService';
 
 const STATS = [
@@ -16,12 +18,26 @@ const STATS = [
 export default function TechnicianDashboard() {
   const router = useRouter();
   const { requests, updateRequestStatus } = useRequests();
+  const [technicianName, setTechnicianName] = useState('فني');
+  const { user } = useApp();
   const [isOnline, setIsOnline] = useState(true);
 
   const pendingRequests = requests.filter(req => req.status === 'pending');
 
   // Setup notifications and real-time listener
   useEffect(() => {
+    const loadProfile = async () => {
+      try {
+        const currentUser = await auth.getCurrentUser();
+        if (currentUser?.user_metadata?.full_name) {
+          setTechnicianName(currentUser.user_metadata.full_name);
+        }
+      } catch (error) {
+        console.error('Error loading profile:', error);
+      }
+    };
+    loadProfile();
+
     let subscription: any;
     let notificationListener: any;
 
@@ -68,7 +84,7 @@ export default function TechnicianDashboard() {
         {/* Header */}
         <View style={styles.header}>
           <View>
-            <Text style={styles.greeting}>أهلاً، كابتن خالد 🔧</Text>
+            <Text style={styles.greeting}>أهلاً، كابتن {technicianName} 🔧</Text>
             <View style={styles.statusContainer}>
               <View style={[styles.statusDot, { backgroundColor: isOnline ? '#10B981' : '#EF4444' }]} />
               <Text style={styles.statusText}>{isOnline ? 'متاح لاستقبال الطلبات' : 'غير متاح حالياً'}</Text>
