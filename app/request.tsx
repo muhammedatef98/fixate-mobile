@@ -499,7 +499,7 @@ export default function RequestScreen() {
                   key={brand.id}
               style={[
                 styles.listItem,
-                selectedBrand?.id === item.id && styles.selectedListItem,
+                selectedBrand?.id === brand.id && styles.selectedListItem,
                 SHADOWS.neuFlat
               ]}
                   onPress={() => setSelectedBrand(brand)}
@@ -540,7 +540,7 @@ export default function RequestScreen() {
                   key={model}
               style={[
                 styles.listItem,
-                selectedModel === item && styles.selectedListItem,
+                selectedModel === model && styles.selectedListItem,
                 SHADOWS.neuFlat
               ]}
                   onPress={() => setSelectedModel(model)}
@@ -580,7 +580,7 @@ export default function RequestScreen() {
                   key={issue.id}
               style={[
                 styles.listItem,
-                selectedIssue?.id === item.id && styles.selectedListItem,
+                selectedIssue?.id === issue.id && styles.selectedListItem,
                 SHADOWS.neuFlat
               ]}
                   onPress={() => setSelectedIssue(issue)}
