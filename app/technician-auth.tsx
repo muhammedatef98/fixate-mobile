@@ -130,8 +130,10 @@ export default function AuthScreen() {
                 resizeMode="contain"
               />
             </View>
-            <Text style={styles.appName}>{t.appName}</Text>
-            <Text style={styles.appTagline}>{t.appTagline}</Text>
+            <Text style={styles.appName}>Fixate</Text>
+            <Text style={styles.appTagline}>
+              {language === 'ar' ? 'بوابة الفنيين' : 'Technician Portal'}
+            </Text>
           </View>
 
           {/* Auth Form */}
