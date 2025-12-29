@@ -9,7 +9,7 @@ const { width } = Dimensions.get('window');
 
 export default function RoleSelectionScreen() {
   const router = useRouter();
-  const { isDark } = useApp();
+  const { isDark, language, setLanguage } = useApp();
   const COLORS = getColors(isDark);
   const SHADOWS = getShadows(isDark);
   
@@ -60,6 +60,22 @@ export default function RoleSelectionScreen() {
             }
           ]}
         >
+          {/* Language Switcher */}
+          <View style={styles.languageContainer}>
+            <TouchableOpacity 
+              style={[styles.langButton, language === 'ar' && styles.activeLangButton]}
+              onPress={() => setLanguage('ar')}
+            >
+              <Text style={[styles.langText, language === 'ar' && styles.activeLangText]}>عربي</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={[styles.langButton, language === 'en' && styles.activeLangButton]}
+              onPress={() => setLanguage('en')}
+            >
+              <Text style={[styles.langText, language === 'en' && styles.activeLangText]}>English</Text>
+            </TouchableOpacity>
+          </View>
+
           {/* Logo */}
           <View style={styles.logoContainer}>
             <Image 
@@ -71,10 +87,14 @@ export default function RoleSelectionScreen() {
 
           {/* Title */}
           <Text style={styles.title}>Fixate</Text>
-          <Text style={styles.subtitle}>شريكك الموثوق للصيانة</Text>
+          <Text style={styles.subtitle}>
+            {language === 'ar' ? 'شريكك الموثوق للصيانة' : 'Your Trusted Repair Partner'}
+          </Text>
 
           {/* Subtitle */}
-          <Text style={styles.question}>كيف تود استخدام التطبيق؟</Text>
+          <Text style={styles.question}>
+            {language === 'ar' ? 'كيف تود استخدام التطبيق؟' : 'How would you like to use the app?'}
+          </Text>
 
           {/* Role Cards */}
           <View style={styles.cardsContainer}>
@@ -88,8 +108,12 @@ export default function RoleSelectionScreen() {
                 <MaterialIcons name="person" size={40} color={COLORS.primary} />
               </View>
               <View style={styles.cardContent}>
-                <Text style={styles.roleTitle}>عميل</Text>
-                <Text style={styles.roleDescription}>أبحث عن خدمات صيانة لأجهزتي</Text>
+                <Text style={styles.roleTitle}>
+                  {language === 'ar' ? 'عميل' : 'Customer'}
+                </Text>
+                <Text style={styles.roleDescription}>
+                  {language === 'ar' ? 'أبحث عن خدمات صيانة لأجهزتي' : 'Looking for repair services'}
+                </Text>
               </View>
               <MaterialIcons name="chevron-right" size={28} color={COLORS.primary} />
             </TouchableOpacity>
@@ -104,8 +128,12 @@ export default function RoleSelectionScreen() {
                 <MaterialCommunityIcons name="account-wrench" size={40} color={COLORS.info} />
               </View>
               <View style={styles.cardContent}>
-                <Text style={styles.roleTitle}>فني صيانة</Text>
-                <Text style={styles.roleDescription}>أقدم خدمات الصيانة وأستقبل الطلبات</Text>
+                <Text style={styles.roleTitle}>
+                  {language === 'ar' ? 'فني صيانة' : 'Technician'}
+                </Text>
+                <Text style={styles.roleDescription}>
+                  {language === 'ar' ? 'أقدم خدمات الصيانة وأستقبل الطلبات' : 'Providing repair services'}
+                </Text>
               </View>
               <MaterialIcons name="chevron-right" size={28} color={COLORS.info} />
             </TouchableOpacity>
@@ -113,10 +141,14 @@ export default function RoleSelectionScreen() {
 
           {/* Footer */}
           <Text style={styles.footer}>
-            بالمتابعة، أنت توافق على{' '}
-            <Text style={styles.link}>شروط الخدمة</Text>
-            {' '}و{' '}
-            <Text style={styles.link}>سياسة الخصوصية</Text>
+            {language === 'ar' ? 'بالمتابعة، أنت توافق على ' : 'By continuing, you agree to our '}
+            <Text style={styles.link}>
+              {language === 'ar' ? 'شروط الخدمة' : 'Terms of Service'}
+            </Text>
+            {language === 'ar' ? ' و ' : ' and '}
+            <Text style={styles.link}>
+              {language === 'ar' ? 'سياسة الخصوصية' : 'Privacy Policy'}
+            </Text>
           </Text>
         </Animated.View>
       </SafeAreaView>
@@ -128,6 +160,33 @@ const createStyles = (COLORS: any, SHADOWS: any) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#FFFFFF',
+  },
+  languageContainer: {
+    position: 'absolute',
+    top: SPACING.xl,
+    right: SPACING.xl,
+    flexDirection: 'row',
+    backgroundColor: COLORS.surface,
+    borderRadius: BORDER_RADIUS.l,
+    padding: 4,
+    zIndex: 10,
+    ...SHADOWS.small,
+  },
+  langButton: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: BORDER_RADIUS.m,
+  },
+  activeLangButton: {
+    backgroundColor: COLORS.primary,
+  },
+  langText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: COLORS.textSecondary,
+  },
+  activeLangText: {
+    color: '#FFFFFF',
   },
   safeArea: {
     flex: 1,

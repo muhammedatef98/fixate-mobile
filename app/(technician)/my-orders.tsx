@@ -58,13 +58,22 @@ export default function MyOrdersScreen() {
   };
 
   const renderOrderCard = (order: any) => {
+    if (!order || !order.id) return null;
     const statusConfig = STATUS_TABS.find(t => t.id === order.status);
     
     return (
       <TouchableOpacity
         key={order.id}
         style={[styles.orderCard, { backgroundColor: COLORS.card }, SHADOWS.medium]}
-        onPress={() => router.push(`/(technician)/order/${order.id}`)}
+        onPress={() => {
+          if (order.id) {
+            // Use correct path for technician order management
+            router.push({
+              pathname: '/(technician)/manage-order',
+              params: { id: order.id }
+            });
+          }
+        }}
       >
         <View style={styles.orderHeader}>
           <View style={styles.orderInfo}>
