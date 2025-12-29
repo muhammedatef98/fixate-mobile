@@ -20,12 +20,14 @@ import { requests, auth } from '../../lib/supabase-api';
 import type { Order } from '../../lib/supabase-api';
 
 const STATUS_ACTIONS = [
-  { status: 'accepted', arLabel: 'قبول الطلب', enLabel: 'Accept Order', icon: 'check-circle', color: '#10B981' },
-  { status: 'picking_up', arLabel: 'جاري الاستلام', enLabel: 'Picking Up', icon: 'car', color: '#3B82F6' },
-  { status: 'diagnosing', arLabel: 'بدء الفحص', enLabel: 'Start Diagnosing', icon: 'magnify', color: '#8B5CF6' },
-  { status: 'repairing', arLabel: 'بدء الإصلاح', enLabel: 'Start Repairing', icon: 'tools', color: '#EC4899' },
-  { status: 'delivering', arLabel: 'جاري التوصيل', enLabel: 'Out for Delivery', icon: 'truck-delivery', color: '#06B6D4' },
-  { status: 'completed', arLabel: 'إكمال الطلب', enLabel: 'Complete Order', icon: 'check-all', color: '#10B981' },
+  { status: 'accepted', arLabel: 'قبول الطلب', enLabel: 'Accept Order', icon: 'check-circle', color: '#10B981', description: 'تأكيد استلام الطلب والبدء في المعالجة' },
+  { status: 'picking_up', arLabel: 'جاري الاستلام', enLabel: 'Picking Up', icon: 'car', color: '#3B82F6', description: 'التوجه لاستلام الجهاز من العميل' },
+  { status: 'diagnosing', arLabel: 'بدء الفحص', enLabel: 'Start Diagnosing', icon: 'magnify', color: '#8B5CF6', description: 'فحص الجهاز وتحديد الأعطال بدقة' },
+  { status: 'waiting_parts', arLabel: 'انتظار قطع غيار', enLabel: 'Waiting for Parts', icon: 'clock-outline', color: '#F59E0B', description: 'الطلب معلق لحين توفر قطع الغيار' },
+  { status: 'repairing', arLabel: 'بدء الإصلاح', enLabel: 'Start Repairing', icon: 'tools', color: '#EC4899', description: 'البدء في عملية الإصلاح الفعلية' },
+  { status: 'testing', arLabel: 'اختبار الجودة', enLabel: 'Quality Testing', icon: 'flask', color: '#6366F1', description: 'اختبار الجهاز بعد الإصلاح لضمان الجودة' },
+  { status: 'delivering', arLabel: 'جاري التوصيل', enLabel: 'Out for Delivery', icon: 'truck-delivery', color: '#06B6D4', description: 'الجهاز جاهز وجاري توصيله للعميل' },
+  { status: 'completed', arLabel: 'إكمال الطلب', enLabel: 'Complete Order', icon: 'check-all', color: '#10B981', description: 'تم تسليم الجهاز وإغلاق الطلب' },
 ];
 
 export default function ManageOrderScreen() {
@@ -182,34 +184,57 @@ export default function ManageOrderScreen() {
       </View>
 
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        {/* Quick Actions */}
-        {nextActions.length > 0 && (
-          <View style={[styles.card, { backgroundColor: COLORS.card }, SHADOWS.medium]}>
-            <Text style={[styles.cardTitle, { color: COLORS.text }]}>
-              {isRTL ? 'الإجراء التالي' : 'Next Action'}
-            </Text>
-            {nextActions.map((action) => (
-              <TouchableOpacity
-                key={action.status}
-                style={[styles.actionButton, { backgroundColor: action.color }]}
-                onPress={() => {
-                  if (action.status === 'accepted') {
-                    handleAcceptOrder();
-                  } else {
-                    handleUpdateStatus(action.status);
-                  }
-                }}
-                disabled={updating}
-              >
-                <MaterialCommunityIcons name={action.icon as any} size={24} color="#FFFFFF" />
-                <Text style={styles.actionButtonText}>
-                  {isRTL ? action.arLabel : action.enLabel}
-                </Text>
-                {updating && <ActivityIndicator size="small" color="#FFFFFF" />}
-              </TouchableOpacity>
-            ))}
+        {/* Professional Workflow Control */}
+        <View style={[styles.card, { backgroundColor: COLORS.card }, SHADOWS.medium]}>
+          <Text style={[styles.cardTitle, { color: COLORS.text }]}>
+            {isRTL ? 'لوحة التحكم في سير العمل' : 'Workflow Control Panel'}
+          </Text>
+          <Text style={[styles.sectionSubtitle, { color: COLORS.textSecondary, marginBottom: SPACING.m }]}>
+            {isRTL ? 'قم بتحديث حالة الطلب بدقة لضمان تتبع العميل' : 'Update order status precisely for client tracking'}
+          </Text>
+          
+          <View style={styles.workflowGrid}>
+            {STATUS_ACTIONS.map((action) => {
+              const isActive = order.status === action.status;
+              const isNext = nextActions.some(a => a.status === action.status);
+              
+              return (
+                <TouchableOpacity
+                  key={action.status}
+                  style={[
+                    styles.workflowButton, 
+                    { 
+                      borderColor: isActive ? action.color : isNext ? action.color : COLORS.border,
+                      backgroundColor: isActive ? `${action.color}15` : 'transparent',
+                      opacity: (isActive || isNext) ? 1 : 0.5
+                    }
+                  ]}
+                  onPress={() => {
+                    if (action.status === 'accepted') {
+                      handleAcceptOrder();
+                    } else {
+                      handleUpdateStatus(action.status);
+                    }
+                  }}
+                  disabled={updating || (!isActive && !isNext)}
+                >
+                  <View style={[styles.iconContainer, { backgroundColor: isActive || isNext ? action.color : COLORS.disabled }]}>
+                    <MaterialCommunityIcons name={action.icon as any} size={20} color="#FFFFFF" />
+                  </View>
+                  <View style={styles.workflowTextContainer}>
+                    <Text style={[styles.workflowTitle, { color: COLORS.text }]}>
+                      {isRTL ? action.arLabel : action.enLabel}
+                    </Text>
+                    <Text style={[styles.workflowDesc, { color: COLORS.textSecondary }]}>
+                      {action.description}
+                    </Text>
+                  </View>
+                  {isActive && <MaterialIcons name="check-circle" size={20} color={action.color} />}
+                </TouchableOpacity>
+              );
+            })}
           </View>
-        )}
+        </View>
 
         {/* Device Info */}
         <View style={[styles.card, { backgroundColor: COLORS.card }, SHADOWS.medium]}>
@@ -464,5 +489,145 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 14,
     fontWeight: '600',
+  },
+});
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: SPACING.xl,
+  },
+  errorText: {
+    marginTop: SPACING.m,
+    fontSize: 16,
+    textAlign: 'center',
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: SPACING.l,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  backButton: {
+    padding: SPACING.s,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  scrollView: {
+    flex: 1,
+    padding: SPACING.l,
+  },
+  card: {
+    borderRadius: BORDER_RADIUS.l,
+    padding: SPACING.l,
+    marginBottom: SPACING.l,
+  },
+  cardTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: SPACING.s,
+  },
+  sectionSubtitle: {
+    fontSize: 14,
+  },
+  workflowGrid: {
+    gap: SPACING.m,
+  },
+  workflowButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: SPACING.m,
+    borderRadius: BORDER_RADIUS.m,
+    borderWidth: 1,
+  },
+  iconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: SPACING.m,
+  },
+  workflowTextContainer: {
+    flex: 1,
+    marginRight: SPACING.m,
+  },
+  workflowTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 4,
+  },
+  workflowDesc: {
+    fontSize: 12,
+  },
+  infoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: SPACING.m,
+  },
+  infoLabel: {
+    marginLeft: SPACING.s,
+    fontSize: 14,
+    width: 80,
+  },
+  infoValue: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  locationText: {
+    fontSize: 14,
+    marginBottom: SPACING.m,
+  },
+  locationButtons: {
+    flexDirection: 'row',
+    gap: SPACING.m,
+  },
+  locationButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: SPACING.m,
+    borderRadius: BORDER_RADIUS.m,
+  },
+  locationButtonText: {
+    color: '#FFFFFF',
+    fontWeight: 'bold',
+    marginLeft: SPACING.s,
+  },
+  mediaImage: {
+    width: 120,
+    height: 120,
+    borderRadius: BORDER_RADIUS.m,
+    marginRight: SPACING.m,
+  },
+  actionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: SPACING.m,
+    borderRadius: BORDER_RADIUS.m,
+    marginBottom: SPACING.s,
+  },
+  actionButtonText: {
+    color: '#FFFFFF',
+    fontWeight: 'bold',
+    marginLeft: SPACING.s,
+    fontSize: 16,
   },
 });
