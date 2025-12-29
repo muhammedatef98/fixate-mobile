@@ -8,7 +8,6 @@ import * as Location from 'expo-location';
 import * as ImagePicker from 'expo-image-picker';
 import { useRequests } from '../contexts/RequestContext';
 import { requests, storage, auth } from '../lib/supabase-api';
-import { BrandLogo } from '../components/BrandLogo';
 import { BRANDS, searchBrands, searchModels, searchIssues, Brand, Issue } from '../constants/repairData';
 import { useApp } from '../contexts/AppContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -82,14 +81,13 @@ export default function RequestScreen() {
   const [issueSearch, setIssueSearch] = useState('');
   
   // Filtered Data
-  const [filteredBrands, setFilteredBrands] = useState(BRANDS);
+  const [filteredBrands, setFilteredBrands] = useState<Brand[]>([]);
   const [filteredModels, setFilteredModels] = useState<string[]>([]);
   const [filteredIssues, setFilteredIssues] = useState<Issue[]>([]);
   
   // Location State
   const [location, setLocation] = useState<any>(null);
   const [address, setAddress] = useState('');
-  const [showMap, setShowMap] = useState(false);
   
   // Animation
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -128,13 +126,11 @@ export default function RequestScreen() {
     ]).start();
   }, [currentStep]);
 
-  // Search Effects
+  // Search Effects - FIXED LOGIC
   useEffect(() => {
-    const allBrands = searchBrands(brandSearch);
-    const filtered = selectedDeviceType 
-      ? allBrands.filter(b => b.deviceType === selectedDeviceType)
-      : allBrands.filter(b => b.deviceType === 'phone');
-    setFilteredBrands(filtered);
+    // Pass both query and deviceType to searchBrands
+    const results = searchBrands(brandSearch, selectedDeviceType);
+    setFilteredBrands(results);
   }, [brandSearch, selectedDeviceType]);
 
   useEffect(() => {
@@ -144,8 +140,9 @@ export default function RequestScreen() {
   }, [modelSearch, selectedBrand]);
 
   useEffect(() => {
-    const issues = searchIssues(issueSearch, selectedDeviceType);
-    setFilteredIssues(issues);
+    // Pass deviceType first, then query to searchIssues (matching repairData.ts signature)
+    const results = searchIssues(selectedDeviceType, issueSearch);
+    setFilteredIssues(results);
   }, [issueSearch, selectedDeviceType]);
 
   useEffect(() => {
@@ -435,31 +432,39 @@ export default function RequestScreen() {
       </View>
       <ScrollView style={styles.listContainer}>
         <View style={styles.gridContainer}>
-          {filteredBrands.map((brand) => (
-            <TouchableOpacity
-              key={brand.id}
-              style={[
-                styles.brandCard,
-                selectedBrand?.id === brand.id && styles.selectedBrandCard
-              ]}
-              onPress={() => {
-                setSelectedBrand(brand);
-                setCurrentStep(currentStep + 1);
-              }}
-            >
-              <Image 
-                source={{ uri: brand.logo }} 
-                style={styles.brandLogo} 
-                resizeMode="contain"
-              />
-              <Text style={[
-                styles.brandName,
-                selectedBrand?.id === brand.id && styles.selectedBrandName
-              ]}>
-                {language === 'ar' ? brand.nameAr : brand.name}
+          {filteredBrands.length > 0 ? (
+            filteredBrands.map((brand) => (
+              <TouchableOpacity
+                key={brand.id}
+                style={[
+                  styles.brandCard,
+                  selectedBrand?.id === brand.id && styles.selectedBrandCard
+                ]}
+                onPress={() => {
+                  setSelectedBrand(brand);
+                  setCurrentStep(currentStep + 1);
+                }}
+              >
+                <Image 
+                  source={{ uri: brand.logo }} 
+                  style={styles.brandLogo} 
+                  resizeMode="contain"
+                />
+                <Text style={[
+                  styles.brandName,
+                  selectedBrand?.id === brand.id && styles.selectedBrandName
+                ]}>
+                  {language === 'ar' ? brand.nameAr || brand.name : brand.name}
+                </Text>
+              </TouchableOpacity>
+            ))
+          ) : (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyStateText}>
+                {language === 'ar' ? 'لا توجد نتائج' : 'No results found'}
               </Text>
-            </TouchableOpacity>
-          ))}
+            </View>
+          )}
         </View>
       </ScrollView>
     </View>
@@ -479,31 +484,39 @@ export default function RequestScreen() {
         />
       </View>
       <ScrollView style={styles.listContainer}>
-        {filteredModels.map((model, index) => (
-          <TouchableOpacity
-            key={index}
-            style={[
-              styles.listItem,
-              selectedModel === model && styles.selectedListItem
-            ]}
-            onPress={() => {
-              setSelectedModel(model);
-              setCurrentStep(currentStep + 1);
-            }}
-          >
-            <Text style={[
-              styles.listItemText,
-              selectedModel === model && styles.selectedListItemText
-            ]}>
-              {model}
+        {filteredModels.length > 0 ? (
+          filteredModels.map((model, index) => (
+            <TouchableOpacity
+              key={index}
+              style={[
+                styles.listItem,
+                selectedModel === model && styles.selectedListItem
+              ]}
+              onPress={() => {
+                setSelectedModel(model);
+                setCurrentStep(currentStep + 1);
+              }}
+            >
+              <Text style={[
+                styles.listItemText,
+                selectedModel === model && styles.selectedListItemText
+              ]}>
+                {model}
+              </Text>
+              <Ionicons 
+                name={isRTL ? "chevron-back" : "chevron-forward"} 
+                size={20} 
+                color={selectedModel === model ? '#fff' : COLORS.gray} 
+              />
+            </TouchableOpacity>
+          ))
+        ) : (
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyStateText}>
+              {language === 'ar' ? 'لا توجد نتائج' : 'No results found'}
             </Text>
-            <Ionicons 
-              name={isRTL ? "chevron-back" : "chevron-forward"} 
-              size={20} 
-              color={selectedModel === model ? '#fff' : COLORS.gray} 
-            />
-          </TouchableOpacity>
-        ))}
+          </View>
+        )}
       </ScrollView>
     </View>
   );
@@ -522,41 +535,49 @@ export default function RequestScreen() {
         />
       </View>
       <ScrollView style={styles.listContainer}>
-        {filteredIssues.map((issue) => (
-          <TouchableOpacity
-            key={issue.id}
-            style={[
-              styles.issueCard,
-              selectedIssue?.id === issue.id && styles.selectedIssueCard
-            ]}
-            onPress={() => {
-              setSelectedIssue(issue);
-              setCurrentStep(currentStep + 1);
-            }}
-          >
-            <View style={styles.issueHeader}>
-              <View style={styles.issueInfo}>
-                <Text style={[
-                  styles.issueName,
-                  selectedIssue?.id === issue.id && styles.selectedIssueName
-                ]}>
-                  {language === 'ar' ? issue.nameAr : issue.name}
-                </Text>
-                <Text style={[
-                  styles.issuePrice,
-                  selectedIssue?.id === issue.id && styles.selectedIssuePrice
-                ]}>
-                  {issue.priceRange} {language === 'ar' ? 'ريال' : 'SAR'}
-                </Text>
+        {filteredIssues.length > 0 ? (
+          filteredIssues.map((issue) => (
+            <TouchableOpacity
+              key={issue.id}
+              style={[
+                styles.issueCard,
+                selectedIssue?.id === issue.id && styles.selectedIssueCard
+              ]}
+              onPress={() => {
+                setSelectedIssue(issue);
+                setCurrentStep(currentStep + 1);
+              }}
+            >
+              <View style={styles.issueHeader}>
+                <View style={styles.issueInfo}>
+                  <Text style={[
+                    styles.issueName,
+                    selectedIssue?.id === issue.id && styles.selectedIssueName
+                  ]}>
+                    {language === 'ar' ? issue.nameAr : issue.name}
+                  </Text>
+                  <Text style={[
+                    styles.issuePrice,
+                    selectedIssue?.id === issue.id && styles.selectedIssuePrice
+                  ]}>
+                    {issue.priceRange ? `${issue.priceRange.min} - ${issue.priceRange.max}` : issue.estimatedPrice} {language === 'ar' ? 'ريال' : 'SAR'}
+                  </Text>
+                </View>
+                <Ionicons 
+                  name={isRTL ? "chevron-back" : "chevron-forward"} 
+                  size={20} 
+                  color={selectedIssue?.id === issue.id ? '#fff' : COLORS.gray} 
+                />
               </View>
-              <Ionicons 
-                name={isRTL ? "chevron-back" : "chevron-forward"} 
-                size={20} 
-                color={selectedIssue?.id === issue.id ? '#fff' : COLORS.gray} 
-              />
-            </View>
-          </TouchableOpacity>
-        ))}
+            </TouchableOpacity>
+          ))
+        ) : (
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyStateText}>
+              {language === 'ar' ? 'لا توجد نتائج' : 'No results found'}
+            </Text>
+          </View>
+        )}
       </ScrollView>
     </View>
   );
@@ -637,7 +658,7 @@ export default function RequestScreen() {
           <View style={styles.reviewRow}>
             <Text style={styles.reviewLabel}>{language === 'ar' ? 'الجهاز:' : 'Device:'}</Text>
             <Text style={styles.reviewValue}>
-              {language === 'ar' ? item.brand.nameAr : item.brand.name} - {item.model}
+              {language === 'ar' ? item.brand.nameAr || item.brand.name : item.brand.name} - {item.model}
             </Text>
           </View>
           
@@ -651,7 +672,7 @@ export default function RequestScreen() {
           <View style={styles.reviewRow}>
             <Text style={styles.reviewLabel}>{language === 'ar' ? 'السعر المتوقع:' : 'Est. Price:'}</Text>
             <Text style={styles.reviewPrice}>
-              {item.issue.priceRange} {language === 'ar' ? 'ريال' : 'SAR'}
+              {item.issue.priceRange ? `${item.issue.priceRange.min} - ${item.issue.priceRange.max}` : item.issue.estimatedPrice} {language === 'ar' ? 'ريال' : 'SAR'}
             </Text>
           </View>
         </View>
@@ -1219,5 +1240,16 @@ const createStyles = (COLORS: any, SHADOWS: any, isRTL: boolean) => StyleSheet.c
     color: '#fff',
     fontSize: 18,
     fontWeight: 'bold',
+  },
+  emptyState: {
+    width: '100%',
+    padding: SPACING.xl,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyStateText: {
+    fontSize: 16,
+    color: COLORS.gray,
+    textAlign: 'center',
   },
 });
