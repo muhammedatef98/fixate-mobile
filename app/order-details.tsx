@@ -119,6 +119,22 @@ export default function OrderDetailsScreen() {
       </View>
 
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+        {/* Chat Button */}
+        {order.status !== 'pending' && order.status !== 'cancelled' && (
+          <TouchableOpacity
+            style={[styles.chatButton, { backgroundColor: '#10B981' }]}
+            onPress={() => router.push({
+              pathname: '/chat',
+              params: { orderId: order.id, otherUserName: isRTL ? 'الفني' : 'Technician' }
+            })}
+          >
+            <MaterialIcons name="chat" size={24} color="#FFFFFF" />
+            <Text style={styles.chatButtonText}>
+              {isRTL ? 'مراسلة الفني' : 'Chat with Technician'}
+            </Text>
+          </TouchableOpacity>
+        )}
+
         {/* Device Info Card */}
         <View style={[styles.card, { backgroundColor: COLORS.card }, SHADOWS.medium]}>
           <Text style={[styles.cardTitle, { color: COLORS.text }]}>
@@ -311,6 +327,22 @@ export default function OrderDetailsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  chatButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: SPACING.m,
+    borderRadius: BORDER_RADIUS.m,
+    marginHorizontal: SPACING.l,
+    marginBottom: SPACING.m,
+    ...SHADOWS.small,
+  },
+  chatButtonText: {
+    color: '#FFFFFF',
+    fontWeight: 'bold',
+    fontSize: 16,
+    marginLeft: SPACING.s,
   },
   loadingContainer: {
     flex: 1,
