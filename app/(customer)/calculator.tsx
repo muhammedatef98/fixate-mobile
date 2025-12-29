@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, Dimensions } from 'react-native';
 import { useRouter } from 'expo-router';
 import { getColors, getShadows, SPACING, BORDER_RADIUS } from '../../constants/theme';
@@ -10,22 +10,37 @@ import { BrandLogo } from '../../components/BrandLogo';
 
 const { width } = Dimensions.get('window');
 
-// Pricing Data
-const getPricingData = (language: 'ar' | 'en', deviceType: string | null) => ({
-  brands: BRANDS.filter(b => b.deviceType === deviceType).map(b => ({ id: b.id, name: b.name })),
-  devices: [
-    { id: 'phone', nameAr: 'جوال', nameEn: 'Phone', icon: 'cellphone' },
-    { id: 'tablet', nameAr: 'تابلت', nameEn: 'Tablet', icon: 'tablet' },
-    { id: 'laptop', nameAr: 'لابتوب', nameEn: 'Laptop', icon: 'laptop' },
-  ],
-  issues: [
-    { id: 'screen', nameAr: 'كسر الشاشة', nameEn: 'Screen Crack', basePrice: 250 },
-    { id: 'battery', nameAr: 'تغيير بطارية', nameEn: 'Battery Replacement', basePrice: 120 },
-    { id: 'charging', nameAr: 'مدخل الشحن', nameEn: 'Charging Port', basePrice: 100 },
-    { id: 'camera', nameAr: 'الكاميرا', nameEn: 'Camera', basePrice: 180 },
-    { id: 'software', nameAr: 'سوفتوير', nameEn: 'Software', basePrice: 80 },
-  ]
-});
+// Enhanced Pricing Data with Device Type filtering
+const DEVICES = [
+  { id: 'phone', nameAr: 'جوال', nameEn: 'Phone', icon: 'cellphone' },
+  { id: 'tablet', nameAr: 'تابلت', nameEn: 'Tablet', icon: 'tablet' },
+  { id: 'laptop', nameAr: 'لابتوب', nameEn: 'Laptop', icon: 'laptop' },
+  { id: 'watch', nameAr: 'ساعة ذكية', nameEn: 'Smart Watch', icon: 'watch' },
+];
+
+const ISSUES = [
+  // Phone Issues
+  { id: 'screen_phone', deviceType: 'phone', nameAr: 'كسر الشاشة', nameEn: 'Screen Crack', basePrice: 250 },
+  { id: 'battery_phone', deviceType: 'phone', nameAr: 'تغيير بطارية', nameEn: 'Battery Replacement', basePrice: 120 },
+  { id: 'charging_phone', deviceType: 'phone', nameAr: 'مدخل الشحن', nameEn: 'Charging Port', basePrice: 100 },
+  { id: 'camera_phone', deviceType: 'phone', nameAr: 'الكاميرا', nameEn: 'Camera', basePrice: 180 },
+  { id: 'software_phone', deviceType: 'phone', nameAr: 'سوفتوير', nameEn: 'Software', basePrice: 80 },
+  
+  // Tablet Issues
+  { id: 'screen_tablet', deviceType: 'tablet', nameAr: 'كسر الشاشة', nameEn: 'Screen Crack', basePrice: 350 },
+  { id: 'battery_tablet', deviceType: 'tablet', nameAr: 'تغيير بطارية', nameEn: 'Battery Replacement', basePrice: 200 },
+  { id: 'charging_tablet', deviceType: 'tablet', nameAr: 'مدخل الشحن', nameEn: 'Charging Port', basePrice: 150 },
+  
+  // Laptop Issues
+  { id: 'screen_laptop', deviceType: 'laptop', nameAr: 'كسر الشاشة', nameEn: 'Screen Crack', basePrice: 450 },
+  { id: 'battery_laptop', deviceType: 'laptop', nameAr: 'تغيير بطارية', nameEn: 'Battery Replacement', basePrice: 300 },
+  { id: 'keyboard_laptop', deviceType: 'laptop', nameAr: 'لوحة المفاتيح', nameEn: 'Keyboard', basePrice: 250 },
+  { id: 'software_laptop', deviceType: 'laptop', nameAr: 'فورمات / ويندوز', nameEn: 'Format / Windows', basePrice: 100 },
+
+  // Watch Issues
+  { id: 'screen_watch', deviceType: 'watch', nameAr: 'كسر الشاشة', nameEn: 'Screen Crack', basePrice: 200 },
+  { id: 'battery_watch', deviceType: 'watch', nameAr: 'تغيير بطارية', nameEn: 'Battery Replacement', basePrice: 150 },
+];
 
 export default function PriceCalculatorScreen() {
   const router = useRouter();
@@ -34,21 +49,32 @@ export default function PriceCalculatorScreen() {
   const SHADOWS = getShadows(isDark);
   const isRTL = language === 'ar';
   
-  const [selectedBrand, setSelectedBrand] = useState<string | null>(null);
   const [selectedDevice, setSelectedDevice] = useState<string | null>(null);
+  const [selectedBrand, setSelectedBrand] = useState<string | null>(null);
   const [selectedIssue, setSelectedIssue] = useState<string | null>(null);
 
-  const PRICING_DATA = getPricingData(language, selectedDevice);
+  // Reset subsequent selections when a parent selection changes
+  useEffect(() => {
+    setSelectedBrand(null);
+    setSelectedIssue(null);
+  }, [selectedDevice]);
+
+  useEffect(() => {
+    setSelectedIssue(null);
+  }, [selectedBrand]);
+
+  // Filtered Data
+  const filteredBrands = BRANDS.filter(b => b.deviceType === selectedDevice);
+  const filteredIssues = ISSUES.filter(i => i.deviceType === selectedDevice);
 
   const calculatePrice = () => {
     if (!selectedIssue) return 0;
-    const issue = PRICING_DATA.issues.find(i => i.id === selectedIssue);
+    const issue = ISSUES.find(i => i.id === selectedIssue);
     let price = issue?.basePrice || 0;
 
-    // Price adjustments based on brand/device
+    // Price adjustments based on brand (example logic)
     if (selectedBrand === 'apple') price *= 1.2;
-    if (selectedDevice === 'laptop') price *= 1.5;
-    if (selectedDevice === 'tablet') price *= 1.3;
+    if (selectedBrand === 'samsung') price *= 1.1;
 
     return Math.round(price);
   };
@@ -68,7 +94,7 @@ export default function PriceCalculatorScreen() {
         
         <View style={styles.headerContent}>
           <Text style={[styles.headerTitle, { color: COLORS.text }]}>
-            {isRTL ? 'حاسبة الأسعار' : 'Price Calculator'}
+            {isRTL ? 'حاسبة الأسعار التقديرية' : 'Estimated Price Calculator'}
           </Text>
         </View>
         
@@ -79,36 +105,12 @@ export default function PriceCalculatorScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.content}
       >
-        {/* Brand Selection */}
+        {/* 1. Device Selection */}
         <Text style={[styles.sectionTitle, { color: COLORS.text, textAlign: isRTL ? 'right' : 'left' }]}>
-          {isRTL ? 'اختر الماركة' : 'Choose Brand'}
+          {isRTL ? '1. اختر نوع الجهاز' : '1. Choose Device Type'}
         </Text>
         <View style={[styles.grid, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-          {PRICING_DATA.brands.map((brand) => (
-            <TouchableOpacity
-              key={brand.id}
-              style={[
-                styles.card,
-                { backgroundColor: COLORS.surface },
-                selectedBrand === brand.id && { borderColor: COLORS.primary, backgroundColor: COLORS.primary + '10' }
-              ]}
-              onPress={() => setSelectedBrand(brand.id)}
-            >
-              <BrandLogo brandId={brand.id} size={40} />
-              <Text style={[
-                styles.cardText,
-                { color: selectedBrand === brand.id ? COLORS.primary : COLORS.textSecondary }
-              ]}>{brand.name}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        {/* Device Selection */}
-        <Text style={[styles.sectionTitle, { color: COLORS.text, textAlign: isRTL ? 'right' : 'left' }]}>
-          {isRTL ? 'اختر نوع الجهاز' : 'Choose Device Type'}
-        </Text>
-        <View style={[styles.grid, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-          {PRICING_DATA.devices.map((device) => (
+          {DEVICES.map((device) => (
             <TouchableOpacity
               key={device.id}
               style={[
@@ -131,31 +133,63 @@ export default function PriceCalculatorScreen() {
           ))}
         </View>
 
-        {/* Issue Selection */}
-        <Text style={[styles.sectionTitle, { color: COLORS.text, textAlign: isRTL ? 'right' : 'left' }]}>
-          {isRTL ? 'اختر نوع العطل' : 'Choose Issue Type'}
-        </Text>
-        <View style={styles.list}>
-          {PRICING_DATA.issues.map((issue) => (
-            <TouchableOpacity
-              key={issue.id}
-              style={[
-                styles.listItem,
-                { backgroundColor: COLORS.surface, borderColor: COLORS.border, flexDirection: isRTL ? 'row-reverse' : 'row' },
-                selectedIssue === issue.id && { borderColor: COLORS.primary, backgroundColor: COLORS.primary + '10' }
-              ]}
-              onPress={() => setSelectedIssue(issue.id)}
-            >
-              <Text style={[
-                styles.listItemText,
-                { color: selectedIssue === issue.id ? COLORS.primary : COLORS.text, textAlign: isRTL ? 'right' : 'left' }
-              ]}>{isRTL ? issue.nameAr : issue.nameEn}</Text>
-              {selectedIssue === issue.id && (
-                <MaterialIcons name="check-circle" size={24} color={COLORS.primary} />
-              )}
-            </TouchableOpacity>
-          ))}
-        </View>
+        {/* 2. Brand Selection (Only if device selected) */}
+        {selectedDevice && (
+          <>
+            <Text style={[styles.sectionTitle, { color: COLORS.text, textAlign: isRTL ? 'right' : 'left' }]}>
+              {isRTL ? '2. اختر الماركة' : '2. Choose Brand'}
+            </Text>
+            <View style={[styles.grid, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+              {filteredBrands.map((brand) => (
+                <TouchableOpacity
+                  key={brand.id}
+                  style={[
+                    styles.card,
+                    { backgroundColor: COLORS.surface },
+                    selectedBrand === brand.id && { borderColor: COLORS.primary, backgroundColor: COLORS.primary + '10' }
+                  ]}
+                  onPress={() => setSelectedBrand(brand.id)}
+                >
+                  <BrandLogo brandName={brand.name} size={40} />
+                  <Text style={[
+                    styles.cardText,
+                    { color: selectedBrand === brand.id ? COLORS.primary : COLORS.textSecondary }
+                  ]}>{brand.name}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </>
+        )}
+
+        {/* 3. Issue Selection (Only if brand selected) */}
+        {selectedBrand && (
+          <>
+            <Text style={[styles.sectionTitle, { color: COLORS.text, textAlign: isRTL ? 'right' : 'left' }]}>
+              {isRTL ? '3. اختر نوع العطل' : '3. Choose Issue Type'}
+            </Text>
+            <View style={styles.list}>
+              {filteredIssues.map((issue) => (
+                <TouchableOpacity
+                  key={issue.id}
+                  style={[
+                    styles.listItem,
+                    { backgroundColor: COLORS.surface, borderColor: COLORS.border, flexDirection: isRTL ? 'row-reverse' : 'row' },
+                    selectedIssue === issue.id && { borderColor: COLORS.primary, backgroundColor: COLORS.primary + '10' }
+                  ]}
+                  onPress={() => setSelectedIssue(issue.id)}
+                >
+                  <Text style={[
+                    styles.listItemText,
+                    { color: selectedIssue === issue.id ? COLORS.primary : COLORS.text, textAlign: isRTL ? 'right' : 'left' }
+                  ]}>{isRTL ? issue.nameAr : issue.nameEn}</Text>
+                  {selectedIssue === issue.id && (
+                    <MaterialIcons name="check-circle" size={24} color={COLORS.primary} />
+                  )}
+                </TouchableOpacity>
+              ))}
+            </View>
+          </>
+        )}
       </ScrollView>
 
       {/* Price Result Footer */}
@@ -175,20 +209,20 @@ export default function PriceCalculatorScreen() {
           }
         </Text>
         
-        <TouchableOpacity 
-          style={[
-            styles.bookBtn,
-            { backgroundColor: COLORS.primary, flexDirection: isRTL ? 'row-reverse' : 'row' },
-            totalPrice === 0 && { backgroundColor: COLORS.textSecondary, opacity: 0.5 }
-          ]}
-          disabled={totalPrice === 0}
-          onPress={() => router.push('/request')}
-        >
-          <Text style={styles.bookBtnText}>
-            {isRTL ? 'احجز موعد صيانة الآن' : 'Book Service Now'}
-          </Text>
-          <MaterialIcons name={isRTL ? "arrow-back" : "arrow-forward"} size={20} color="#FFF" />
-        </TouchableOpacity>
+        {totalPrice > 0 && (
+          <TouchableOpacity 
+            style={[
+              styles.bookBtn,
+              { backgroundColor: COLORS.primary, flexDirection: isRTL ? 'row-reverse' : 'row' }
+            ]}
+            onPress={() => router.push('/request')}
+          >
+            <Text style={styles.bookBtnText}>
+              {isRTL ? 'احجز موعد صيانة الآن' : 'Book Service Now'}
+            </Text>
+            <MaterialIcons name={isRTL ? "arrow-back" : "arrow-forward"} size={20} color="#FFF" />
+          </TouchableOpacity>
+        )}
       </View>
 
       <BottomNav />
@@ -272,6 +306,14 @@ const styles = StyleSheet.create({
     right: 0,
     padding: SPACING.lg,
     borderTopWidth: 1,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: -2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 3.84,
+    elevation: 5,
   },
   priceContainer: {
     justifyContent: 'space-between',
