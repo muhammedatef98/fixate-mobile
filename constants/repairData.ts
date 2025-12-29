@@ -3,7 +3,7 @@
 export interface Brand {
   id: string;
   name: string;
-  logo: any;
+  logo: any; // Can be string (URL) or require
   models: string[];
   deviceType?: string; // 'phone', 'tablet', 'laptop', 'printer', 'watch'
 }
@@ -21,14 +21,14 @@ export interface Issue {
   deviceType?: string; // To filter issues by device type
 }
 
-// All major phone brands with logos
+// All major phone brands with logos (using remote URLs to avoid missing assets)
 export const BRANDS: Brand[] = [
   // Phones
   {
     id: 'apple',
     name: 'Apple',
     deviceType: 'phone',
-    logo: require('../assets/brands/apple.png'),
+    logo: 'https://upload.wikimedia.org/wikipedia/commons/f/fa/Apple_logo_black.svg',
     models: [
       'iPhone 15 Pro Max', 'iPhone 15 Pro', 'iPhone 15 Plus', 'iPhone 15',
       'iPhone 14 Pro Max', 'iPhone 14 Pro', 'iPhone 14 Plus', 'iPhone 14',
@@ -44,7 +44,7 @@ export const BRANDS: Brand[] = [
     id: 'samsung',
     name: 'Samsung',
     deviceType: 'phone',
-    logo: require('../assets/brands/samsung.png'),
+    logo: 'https://upload.wikimedia.org/wikipedia/commons/2/24/Samsung_Logo.svg',
     models: [
       'Galaxy S24 Ultra', 'Galaxy S24+', 'Galaxy S24',
       'Galaxy S23 Ultra', 'Galaxy S23+', 'Galaxy S23',
@@ -64,7 +64,7 @@ export const BRANDS: Brand[] = [
     id: 'huawei',
     name: 'Huawei',
     deviceType: 'phone',
-    logo: require('../assets/brands/huawei.png'),
+    logo: 'https://upload.wikimedia.org/wikipedia/commons/e/e8/Huawei_Logo.svg',
     models: [
       'Mate 60 Pro', 'Mate 60', 'Mate 50 Pro', 'Mate 50',
       'Mate 40 Pro', 'Mate 40', 'Mate 30 Pro', 'Mate 30',
@@ -79,7 +79,7 @@ export const BRANDS: Brand[] = [
     id: 'xiaomi',
     name: 'Xiaomi',
     deviceType: 'phone',
-    logo: require('../assets/brands/xiaomi.png'),
+    logo: 'https://upload.wikimedia.org/wikipedia/commons/a/ae/Xiaomi_logo_%282021-%29.svg',
     models: [
       'Xiaomi 14 Pro', 'Xiaomi 14', 'Xiaomi 13 Ultra', 'Xiaomi 13 Pro', 'Xiaomi 13',
       'Xiaomi 12 Pro', 'Xiaomi 12', 'Xiaomi 11 Ultra', 'Xiaomi 11 Pro', 'Xiaomi 11',
@@ -97,7 +97,7 @@ export const BRANDS: Brand[] = [
     id: 'oppo',
     name: 'Oppo',
     deviceType: 'phone',
-    logo: require('../assets/brands/oppo.png'),
+    logo: 'https://upload.wikimedia.org/wikipedia/commons/b/b8/OPPO_Logo.svg',
     models: [
       'Find X7 Ultra', 'Find X7', 'Find X6 Pro', 'Find X6',
       'Find X5 Pro', 'Find X5', 'Find X3 Pro', 'Find X3',
@@ -112,7 +112,7 @@ export const BRANDS: Brand[] = [
     id: 'vivo',
     name: 'Vivo',
     deviceType: 'phone',
-    logo: require('../assets/brands/vivo.png'),
+    logo: 'https://upload.wikimedia.org/wikipedia/commons/e/e5/Vivo_mobile_logo.png',
     models: [
       'X100 Pro', 'X100', 'X90 Pro', 'X90', 'X80 Pro', 'X80',
       'X70 Pro+', 'X70 Pro', 'X70', 'X60 Pro', 'X60',
@@ -128,7 +128,7 @@ export const BRANDS: Brand[] = [
     id: 'oneplus',
     name: 'OnePlus',
     deviceType: 'phone',
-    logo: require('../assets/brands/oneplus.png'),
+    logo: 'https://upload.wikimedia.org/wikipedia/commons/2/2b/OnePlus_Logo.svg',
     models: [
       'OnePlus 12', 'OnePlus 11', 'OnePlus 10 Pro', 'OnePlus 10T',
       'OnePlus 9 Pro', 'OnePlus 9', 'OnePlus 8 Pro', 'OnePlus 8T', 'OnePlus 8',
@@ -142,7 +142,7 @@ export const BRANDS: Brand[] = [
     id: 'realme',
     name: 'Realme',
     deviceType: 'phone',
-    logo: require('../assets/brands/realme.png'),
+    logo: 'https://upload.wikimedia.org/wikipedia/commons/1/13/Realme_logo.svg',
     models: [
       'Realme GT 5 Pro', 'Realme GT 5', 'Realme GT 3', 'Realme GT 2 Pro', 'Realme GT 2',
       'Realme 12 Pro+', 'Realme 12 Pro', 'Realme 12', 'Realme 11 Pro+', 'Realme 11 Pro', 'Realme 11',
@@ -156,7 +156,7 @@ export const BRANDS: Brand[] = [
     id: 'nokia',
     name: 'Nokia',
     deviceType: 'phone',
-    logo: require('../assets/brands/nokia.png'),
+    logo: 'https://upload.wikimedia.org/wikipedia/commons/0/02/Nokia_wordmark.svg',
     models: [
       'Nokia G60', 'Nokia G50', 'Nokia G42', 'Nokia G22', 'Nokia G21', 'Nokia G20',
       'Nokia X30', 'Nokia X20', 'Nokia X10',
@@ -169,7 +169,7 @@ export const BRANDS: Brand[] = [
     id: 'sony',
     name: 'Sony Xperia',
     deviceType: 'phone',
-    logo: require('../assets/brands/sony.png'),
+    logo: 'https://upload.wikimedia.org/wikipedia/commons/c/c3/Sony_logo.svg',
     models: [
       'Xperia 1 V', 'Xperia 1 IV', 'Xperia 1 III', 'Xperia 1 II',
       'Xperia 5 V', 'Xperia 5 IV', 'Xperia 5 III', 'Xperia 5 II',
@@ -181,7 +181,7 @@ export const BRANDS: Brand[] = [
     id: 'motorola',
     name: 'Motorola',
     deviceType: 'phone',
-    logo: require('../assets/brands/motorola.png'),
+    logo: 'https://upload.wikimedia.org/wikipedia/commons/4/46/Motorola_new_logo.svg',
     models: [
       'Edge 40 Pro', 'Edge 40', 'Edge 30 Ultra', 'Edge 30 Pro', 'Edge 30',
       'Edge 20 Pro', 'Edge 20', 'Edge+', 'Edge',
@@ -195,7 +195,7 @@ export const BRANDS: Brand[] = [
     id: 'lenovo',
     name: 'Lenovo',
     deviceType: 'phone',
-    logo: require('../assets/brands/lenovo.png'),
+    logo: 'https://upload.wikimedia.org/wikipedia/commons/b/b8/Lenovo_logo_2015.svg',
     models: [
       'Legion Y90', 'Legion Y70', 'Legion Duel 2', 'Legion Pro',
       'K15 Pro', 'K15', 'K14 Plus', 'K14', 'K13 Pro', 'K13',
@@ -206,7 +206,7 @@ export const BRANDS: Brand[] = [
     id: 'lg',
     name: 'LG',
     deviceType: 'phone',
-    logo: require('../assets/brands/lg.png'),
+    logo: 'https://upload.wikimedia.org/wikipedia/commons/b/bf/LG_logo_%282015%29.svg',
     models: [
       'Wing', 'Velvet', 'V60 ThinQ', 'V50 ThinQ', 'V40 ThinQ',
       'G8X ThinQ', 'G8 ThinQ', 'G7 ThinQ',
@@ -220,7 +220,7 @@ export const BRANDS: Brand[] = [
     id: 'apple-tablet',
     name: 'Apple iPad',
     deviceType: 'tablet',
-    logo: require('../assets/brands/apple.png'),
+    logo: 'https://upload.wikimedia.org/wikipedia/commons/f/fa/Apple_logo_black.svg',
     models: [
       'iPad Pro 12.9" (2024)', 'iPad Pro 11" (2024)', 'iPad Pro 12.9" (2022)', 'iPad Pro 11" (2022)',
       'iPad Air (2024)', 'iPad Air (2022)', 'iPad (10th gen)', 'iPad (9th gen)',
@@ -231,7 +231,7 @@ export const BRANDS: Brand[] = [
     id: 'samsung-tablet',
     name: 'Samsung Galaxy Tab',
     deviceType: 'tablet',
-    logo: require('../assets/brands/samsung.png'),
+    logo: 'https://upload.wikimedia.org/wikipedia/commons/2/24/Samsung_Logo.svg',
     models: [
       'Galaxy Tab S9 Ultra', 'Galaxy Tab S9+', 'Galaxy Tab S9',
       'Galaxy Tab S8 Ultra', 'Galaxy Tab S8+', 'Galaxy Tab S8',
@@ -242,7 +242,7 @@ export const BRANDS: Brand[] = [
     id: 'huawei-tablet',
     name: 'Huawei MatePad',
     deviceType: 'tablet',
-    logo: require('../assets/brands/huawei.png'),
+    logo: 'https://upload.wikimedia.org/wikipedia/commons/e/e8/Huawei_Logo.svg',
     models: [
       'MatePad Pro 13.2', 'MatePad Pro 12.6', 'MatePad Pro 11',
       'MatePad 11.5', 'MatePad 11', 'MatePad SE', 'MatePad T10'
@@ -252,7 +252,7 @@ export const BRANDS: Brand[] = [
     id: 'lenovo-tablet',
     name: 'Lenovo Tab',
     deviceType: 'tablet',
-    logo: require('../assets/brands/lenovo.png'),
+    logo: 'https://upload.wikimedia.org/wikipedia/commons/b/b8/Lenovo_logo_2015.svg',
     models: [
       'Tab P12 Pro', 'Tab P11 Pro', 'Tab P11 Plus', 'Tab P11',
       'Tab M10 Plus', 'Tab M10', 'Tab M9', 'Tab M8'
@@ -262,7 +262,7 @@ export const BRANDS: Brand[] = [
     id: 'xiaomi-tablet',
     name: 'Xiaomi Pad',
     deviceType: 'tablet',
-    logo: require('../assets/brands/xiaomi.png'),
+    logo: 'https://upload.wikimedia.org/wikipedia/commons/a/ae/Xiaomi_logo_%282021-%29.svg',
     models: [
       'Xiaomi Pad 6 Pro', 'Xiaomi Pad 6', 'Xiaomi Pad 5 Pro', 'Xiaomi Pad 5',
       'Redmi Pad Pro', 'Redmi Pad SE', 'Redmi Pad'
@@ -274,7 +274,7 @@ export const BRANDS: Brand[] = [
     id: 'apple-laptop',
     name: 'Apple MacBook',
     deviceType: 'laptop',
-    logo: require('../assets/brands/apple.png'),
+    logo: 'https://upload.wikimedia.org/wikipedia/commons/f/fa/Apple_logo_black.svg',
     models: [
       'MacBook Pro 16" M3', 'MacBook Pro 14" M3', 'MacBook Air 15" M3', 'MacBook Air 13" M3',
       'MacBook Pro 16" M2', 'MacBook Pro 14" M2', 'MacBook Air 15" M2', 'MacBook Air 13" M2'
@@ -284,7 +284,7 @@ export const BRANDS: Brand[] = [
     id: 'hp',
     name: 'HP',
     deviceType: 'laptop',
-    logo: require('../assets/brands/hp.png'),
+    logo: 'https://upload.wikimedia.org/wikipedia/commons/a/ad/HP_logo_2012.svg',
     models: [
       'HP Spectre x360', 'HP Envy', 'HP Pavilion', 'HP EliteBook', 'HP ProBook',
       'HP Omen', 'HP Victus', 'HP 15s', 'HP 14s'
@@ -294,7 +294,7 @@ export const BRANDS: Brand[] = [
     id: 'dell',
     name: 'Dell',
     deviceType: 'laptop',
-    logo: require('../assets/brands/dell.png'),
+    logo: 'https://upload.wikimedia.org/wikipedia/commons/4/48/Dell_Logo.svg',
     models: [
       'Dell XPS 15', 'Dell XPS 13', 'Dell Inspiron 16', 'Dell Inspiron 15', 'Dell Inspiron 14',
       'Dell G15', 'Dell G16', 'Alienware m18', 'Alienware m16', 'Alienware x16'
@@ -304,7 +304,7 @@ export const BRANDS: Brand[] = [
     id: 'lenovo-laptop',
     name: 'Lenovo',
     deviceType: 'laptop',
-    logo: require('../assets/brands/lenovo.png'),
+    logo: 'https://upload.wikimedia.org/wikipedia/commons/b/b8/Lenovo_logo_2015.svg',
     models: [
       'ThinkPad X1 Carbon', 'ThinkPad T14', 'ThinkPad E14',
       'Yoga 9i', 'Yoga 7i', 'IdeaPad Slim 5', 'IdeaPad Slim 3',
@@ -315,7 +315,7 @@ export const BRANDS: Brand[] = [
     id: 'asus',
     name: 'Asus',
     deviceType: 'laptop',
-    logo: require('../assets/brands/asus.png'),
+    logo: 'https://upload.wikimedia.org/wikipedia/commons/2/2e/ASUS_Logo.svg',
     models: [
       'ROG Strix Scar 18', 'ROG Zephyrus G14', 'TUF Gaming F15', 'TUF Gaming A15',
       'Zenbook S 13 OLED', 'Zenbook 14 OLED', 'Vivobook Pro 15', 'Vivobook 16', 'Vivobook 15'
@@ -325,7 +325,7 @@ export const BRANDS: Brand[] = [
     id: 'acer',
     name: 'Acer',
     deviceType: 'laptop',
-    logo: require('../assets/brands/acer.png'),
+    logo: 'https://upload.wikimedia.org/wikipedia/commons/0/00/Acer_2011.svg',
     models: [
       'Predator Helios 18', 'Predator Helios 16', 'Nitro 17', 'Nitro 5',
       'Swift Go 14', 'Swift X 14', 'Aspire 5', 'Aspire 3'
@@ -335,7 +335,7 @@ export const BRANDS: Brand[] = [
     id: 'microsoft',
     name: 'Microsoft Surface',
     deviceType: 'laptop',
-    logo: require('../assets/brands/microsoft.png'),
+    logo: 'https://upload.wikimedia.org/wikipedia/commons/9/96/Microsoft_logo_%282012%29.svg',
     models: [
       'Surface Laptop Studio 2', 'Surface Laptop 5', 'Surface Laptop Go 3',
       'Surface Pro 9', 'Surface Go 4'
@@ -345,7 +345,7 @@ export const BRANDS: Brand[] = [
     id: 'msi',
     name: 'MSI',
     deviceType: 'laptop',
-    logo: require('../assets/brands/msi.png'),
+    logo: 'https://upload.wikimedia.org/wikipedia/commons/a/a2/MSI_Logo.svg',
     models: [
       'Titan 18 HX', 'Raider GE78', 'Stealth 16', 'Vector GP68',
       'Katana 15', 'Cyborg 15', 'Thin GF63', 'Modern 15', 'Modern 14'
@@ -357,7 +357,7 @@ export const BRANDS: Brand[] = [
     id: 'apple-watch',
     name: 'Apple Watch',
     deviceType: 'watch',
-    logo: require('../assets/brands/apple.png'),
+    logo: 'https://upload.wikimedia.org/wikipedia/commons/f/fa/Apple_logo_black.svg',
     models: [
       'Apple Watch Ultra 2', 'Apple Watch Ultra',
       'Apple Watch Series 9', 'Apple Watch Series 8', 'Apple Watch Series 7',
@@ -368,7 +368,7 @@ export const BRANDS: Brand[] = [
     id: 'samsung-watch',
     name: 'Samsung Galaxy Watch',
     deviceType: 'watch',
-    logo: require('../assets/brands/samsung.png'),
+    logo: 'https://upload.wikimedia.org/wikipedia/commons/2/24/Samsung_Logo.svg',
     models: [
       'Galaxy Watch 6 Classic', 'Galaxy Watch 6',
       'Galaxy Watch 5 Pro', 'Galaxy Watch 5',
@@ -379,7 +379,7 @@ export const BRANDS: Brand[] = [
     id: 'huawei-watch',
     name: 'Huawei Watch',
     deviceType: 'watch',
-    logo: require('../assets/brands/huawei.png'),
+    logo: 'https://upload.wikimedia.org/wikipedia/commons/e/e8/Huawei_Logo.svg',
     models: [
       'Watch Ultimate', 'Watch 4 Pro', 'Watch 4',
       'Watch GT 4', 'Watch GT 3 Pro', 'Watch GT 3',
@@ -501,6 +501,15 @@ export const ISSUES: Issue[] = [
     priceRange: { min: 100, max: 250 },
     deviceType: 'tablet'
   },
+  {
+    id: 'tablet-software',
+    name: 'Software Issue',
+    nameAr: 'مشكلة برمجية',
+    icon: 'code-slash-outline',
+    estimatedPrice: 100,
+    priceRange: { min: 80, max: 200 },
+    deviceType: 'tablet'
+  },
 
   // Laptop Issues
   {
@@ -508,7 +517,7 @@ export const ISSUES: Issue[] = [
     name: 'Screen Replacement',
     nameAr: 'استبدال الشاشة',
     icon: 'laptop-outline',
-    estimatedPrice: 400,
+    estimatedPrice: 450,
     priceRange: { min: 300, max: 1500 },
     deviceType: 'laptop'
   },
@@ -517,8 +526,8 @@ export const ISSUES: Issue[] = [
     name: 'Keyboard Replacement',
     nameAr: 'استبدال لوحة المفاتيح',
     icon: 'keypad-outline',
-    estimatedPrice: 150,
-    priceRange: { min: 100, max: 400 },
+    estimatedPrice: 200,
+    priceRange: { min: 150, max: 500 },
     deviceType: 'laptop'
   },
   {
@@ -526,8 +535,8 @@ export const ISSUES: Issue[] = [
     name: 'Battery Replacement',
     nameAr: 'استبدال البطارية',
     icon: 'battery-charging-outline',
-    estimatedPrice: 200,
-    priceRange: { min: 150, max: 500 },
+    estimatedPrice: 250,
+    priceRange: { min: 180, max: 600 },
     deviceType: 'laptop'
   },
   {
@@ -540,30 +549,30 @@ export const ISSUES: Issue[] = [
     deviceType: 'laptop'
   },
   {
-    id: 'laptop-fan',
-    name: 'Fan Cleaning/Replacement',
-    nameAr: 'تنظيف/استبدال المروحة',
+    id: 'laptop-overheat',
+    name: 'Overheating/Fan Cleaning',
+    nameAr: 'ارتفاع الحرارة/تنظيف المروحة',
+    icon: 'thermometer-outline',
+    estimatedPrice: 100,
+    priceRange: { min: 80, max: 200 },
+    deviceType: 'laptop'
+  },
+  {
+    id: 'laptop-software',
+    name: 'Windows/Software Issue',
+    nameAr: 'مشكلة ويندوز/برمجية',
+    icon: 'logo-windows',
+    estimatedPrice: 100,
+    priceRange: { min: 50, max: 200 },
+    deviceType: 'laptop'
+  },
+  {
+    id: 'laptop-ssd',
+    name: 'SSD/RAM Upgrade',
+    nameAr: 'ترقية SSD/RAM',
     icon: 'hardware-chip-outline',
-    estimatedPrice: 100,
-    priceRange: { min: 80, max: 250 },
-    deviceType: 'laptop'
-  },
-  {
-    id: 'laptop-os',
-    name: 'OS Installation/Format',
-    nameAr: 'تثبيت نظام/فورمات',
-    icon: 'desktop-outline',
-    estimatedPrice: 100,
-    priceRange: { min: 50, max: 150 },
-    deviceType: 'laptop'
-  },
-  {
-    id: 'laptop-upgrade',
-    name: 'RAM/SSD Upgrade',
-    nameAr: 'ترقية الرام/الهارد',
-    icon: 'save-outline',
-    estimatedPrice: 200,
-    priceRange: { min: 150, max: 1000 },
+    estimatedPrice: 300,
+    priceRange: { min: 200, max: 1000 },
     deviceType: 'laptop'
   },
 
@@ -573,8 +582,8 @@ export const ISSUES: Issue[] = [
     name: 'Screen Replacement',
     nameAr: 'استبدال الشاشة',
     icon: 'watch-outline',
-    estimatedPrice: 200,
-    priceRange: { min: 150, max: 600 },
+    estimatedPrice: 300,
+    priceRange: { min: 200, max: 800 },
     deviceType: 'watch'
   },
   {
@@ -582,35 +591,33 @@ export const ISSUES: Issue[] = [
     name: 'Battery Replacement',
     nameAr: 'استبدال البطارية',
     icon: 'battery-charging-outline',
-    estimatedPrice: 100,
-    priceRange: { min: 80, max: 200 },
+    estimatedPrice: 150,
+    priceRange: { min: 100, max: 300 },
     deviceType: 'watch'
   }
 ];
 
-export const searchBrands = (query: string): Brand[] => {
+export const searchBrands = (query: string, deviceType: string): Brand[] => {
   const lowerQuery = query.toLowerCase();
-  return BRANDS.filter(brand => 
-    brand.name.toLowerCase().includes(lowerQuery) ||
-    brand.models.some(model => model.toLowerCase().includes(lowerQuery))
+  return BRANDS.filter(
+    (brand) => 
+      brand.deviceType === deviceType && 
+      brand.name.toLowerCase().includes(lowerQuery)
   );
 };
 
 export const searchModels = (brandId: string, query: string): string[] => {
-  const brand = BRANDS.find(b => b.id === brandId);
+  const brand = BRANDS.find((b) => b.id === brandId);
   if (!brand) return [];
   const lowerQuery = query.toLowerCase();
-  return brand.models.filter(model => 
-    model.toLowerCase().includes(lowerQuery)
-  );
+  return brand.models.filter((model) => model.toLowerCase().includes(lowerQuery));
 };
 
-export const searchIssues = (query: string, deviceType?: string): Issue[] => {
+export const searchIssues = (deviceType: string, query: string): Issue[] => {
   const lowerQuery = query.toLowerCase();
-  return ISSUES.filter(issue => {
-    const matchesQuery = issue.name.toLowerCase().includes(lowerQuery) ||
-                         issue.nameAr.includes(lowerQuery);
-    const matchesType = deviceType ? issue.deviceType === deviceType : true;
-    return matchesQuery && matchesType;
-  });
+  return ISSUES.filter(
+    (issue) => 
+      issue.deviceType === deviceType && 
+      (issue.name.toLowerCase().includes(lowerQuery) || issue.nameAr.includes(lowerQuery))
+  );
 };
