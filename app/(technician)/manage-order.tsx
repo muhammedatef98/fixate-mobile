@@ -239,7 +239,7 @@ export default function ManageOrderScreen() {
         {/* Chat Button */}
         {order.status !== 'pending' && order.status !== 'cancelled' && (
           <TouchableOpacity
-            style={[styles.chatButton, { backgroundColor: '#10B981' }]}
+            style={[styles.chatButton, { backgroundColor: '#10B981' }, SHADOWS.small]}
             onPress={() => router.push({
               pathname: '/chat',
               params: { orderId: order.id, otherUserName: isRTL ? 'العميل' : 'Customer' }
@@ -350,7 +350,6 @@ const styles = StyleSheet.create({
     padding: SPACING.m,
     borderRadius: BORDER_RADIUS.m,
     marginBottom: SPACING.l,
-    ...SHADOWS.small,
   },
   chatButtonText: {
     color: '#FFFFFF',
