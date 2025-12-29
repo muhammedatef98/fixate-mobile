@@ -3,26 +3,60 @@ import { View, Text, StyleSheet, TouchableOpacity, ScrollView, SafeAreaView, Lin
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { COLORS, SPACING, SHADOWS } from '../../../constants/theme';
 import { MaterialIcons, Ionicons, FontAwesome5 } from '@expo/vector-icons';
+import { useApp } from '../../../contexts/AppContext';
+import { requests } from '../../../lib/supabase-api';
 
 const JOB_STEPS = [
-  { id: 'arrive', label: 'الوصول لموقع العميل', icon: 'location-arrow' },
-  { id: 'diagnose', label: 'فحص الجهاز وتشخيص العطل', icon: 'microscope' },
-  { id: 'repair', label: 'إتمام عملية الإصلاح', icon: 'tools' },
-  { id: 'test', label: 'اختبار الجهاز مع العميل', icon: 'clipboard-check' },
-  { id: 'payment', label: 'استلام المبلغ', icon: 'money-bill-wave' },
+  { id: 'arrive', label: 'الوصول لموقع العميل', labelEn: 'Arrive at location', icon: 'location-arrow' },
+  { id: 'diagnose', label: 'فحص الجهاز وتشخيص العطل', labelEn: 'Diagnose device', icon: 'microscope' },
+  { id: 'repair', label: 'إتمام عملية الإصلاح', labelEn: 'Complete repair', icon: 'tools' },
+  { id: 'test', label: 'اختبار الجهاز مع العميل', labelEn: 'Test with customer', icon: 'clipboard-check' },
+  { id: 'payment', label: 'استلام المبلغ', labelEn: 'Collect payment', icon: 'money-bill-wave' },
 ];
 
 export default function ActiveJobScreen() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
+  const { language } = useApp();
+  const isRTL = language === 'ar';
   
   const [status, setStatus] = useState('en_route'); // en_route, working, completed
   const [completedSteps, setCompletedSteps] = useState<string[]>([]);
   const [timer, setTimer] = useState(0);
   const [isTimerRunning, setIsTimerRunning] = useState(false);
+  const [order, setOrder] = useState<any>(null);
   
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(-20)).current;
+
+  useEffect(() => {
+    loadOrder();
+  }, []);
+
+  const loadOrder = async () => {
+    try {
+      const data = await requests.getById(id as string);
+      setOrder(data);
+      if (data.status) {
+        // Map backend status to local status
+        if (data.status === 'accepted') setStatus('en_route');
+        else if (data.status === 'in_progress') setStatus('working');
+        else if (data.status === 'completed') setStatus('completed');
+      }
+    } catch (error) {
+      console.error('Error loading order:', error);
+    }
+  };
+
+  const updateOrderStatus = async (newStatus: string) => {
+    try {
+      await requests.updateStatus(id as string, newStatus);
+      // Local state update is handled by the logic below
+    } catch (error) {
+      console.error('Error updating status:', error);
+      Alert.alert(isRTL ? 'خطأ' : 'Error', isRTL ? 'فشل تحديث الحالة' : 'Failed to update status');
+    }
+  };
 
   // Timer Logic
   useEffect(() => {
@@ -59,16 +93,20 @@ export default function ActiveJobScreen() {
   };
 
   const handleCall = () => {
-    Linking.openURL('tel:0501234567');
+    if (order?.customer_phone) {
+      Linking.openURL(`tel:${order.customer_phone}`);
+    }
   };
 
   const handleNavigate = () => {
+    // Use actual coordinates if available, otherwise fallback
+    const lat = order?.latitude || '24.7136';
+    const lng = order?.longitude || '46.6753';
     const scheme = Platform.select({ ios: 'maps:0,0?q=', android: 'geo:0,0?q=' });
-    const latLng = '24.7136,46.6753';
-    const label = 'موقع العميل';
+    const label = isRTL ? 'موقع العميل' : 'Customer Location';
     const url = Platform.select({
-      ios: `${scheme}${label}@${latLng}`,
-      android: `${scheme}${latLng}(${label})`
+      ios: `${scheme}${label}@${lat},${lng}`,
+      android: `${scheme}${lat},${lng}(${label})`
     });
     if (url) Linking.openURL(url);
   };
@@ -81,19 +119,21 @@ export default function ActiveJobScreen() {
     }
   };
 
-  const handleMainAction = () => {
+  const handleMainAction = async () => {
     if (status === 'en_route') {
       setStatus('working');
       setIsTimerRunning(true);
+      await updateOrderStatus('in_progress');
     } else if (status === 'working') {
       if (completedSteps.length < JOB_STEPS.length) {
-        Alert.alert('تنبيه', 'يرجى إكمال جميع خطوات القائمة أولاً');
+        Alert.alert(isRTL ? 'تنبيه' : 'Alert', isRTL ? 'يرجى إكمال جميع خطوات القائمة أولاً' : 'Please complete all checklist items first');
         return;
       }
       setIsTimerRunning(false);
       setStatus('completed');
-      Alert.alert('مبروك!', 'تم إكمال المهمة بنجاح', [
-        { text: 'العودة للرئيسية', onPress: () => router.back() }
+      await updateOrderStatus('completed');
+      Alert.alert(isRTL ? 'مبروك!' : 'Congratulations!', isRTL ? 'تم إكمال المهمة بنجاح' : 'Job completed successfully', [
+        { text: isRTL ? 'العودة للرئيسية' : 'Back to Home', onPress: () => router.back() }
       ]);
     }
   };
@@ -103,12 +143,16 @@ export default function ActiveJobScreen() {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <MaterialIcons name="arrow-forward" size={24} color="#FFF" />
+          <MaterialIcons name={isRTL ? "arrow-forward" : "arrow-back"} size={24} color="#FFF" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>طلب #{id}</Text>
+        <Text style={styles.headerTitle}>{isRTL ? 'طلب #' : 'Order #'}{id?.slice(0, 4)}</Text>
         <View style={styles.statusBadge}>
           <Text style={styles.statusText}>
-            {status === 'en_route' ? 'في الطريق' : status === 'working' ? 'جاري العمل' : 'مكتمل'}
+            {status === 'en_route' 
+              ? (isRTL ? 'في الطريق' : 'En Route') 
+              : status === 'working' 
+                ? (isRTL ? 'جاري العمل' : 'Working') 
+                : (isRTL ? 'مكتمل' : 'Completed')}
           </Text>
         </View>
       </View>
@@ -116,12 +160,12 @@ export default function ActiveJobScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         {/* Customer Card */}
         <View style={[styles.card, SHADOWS.small]}>
-          <View style={styles.customerHeader}>
+          <View style={[styles.customerHeader, isRTL && styles.rowReverse]}>
             <View style={styles.customerInfo}>
-              <Text style={styles.customerName}>عبدالله محمد</Text>
-              <Text style={styles.customerAddress}>الرياض، حي الملقا، شارع أنس بن مالك</Text>
+              <Text style={[styles.customerName, isRTL && styles.textRight]}>{order?.customer_name || (isRTL ? 'عميل' : 'Customer')}</Text>
+              <Text style={[styles.customerAddress, isRTL && styles.textRight]}>{order?.address || (isRTL ? 'العنوان غير متوفر' : 'Address not available')}</Text>
             </View>
-            <View style={styles.customerActions}>
+            <View style={[styles.customerActions, isRTL && styles.rowReverse]}>
               <TouchableOpacity style={styles.actionIcon} onPress={() => router.push(`/chat/${id}`)}>
                 <MaterialIcons name="chat" size={24} color={COLORS.primary} />
               </TouchableOpacity>
@@ -137,21 +181,21 @@ export default function ActiveJobScreen() {
 
         {/* Device Info */}
         <View style={[styles.card, SHADOWS.small]}>
-          <Text style={styles.sectionTitle}>تفاصيل الجهاز</Text>
-          <View style={styles.deviceRow}>
+          <Text style={[styles.sectionTitle, isRTL && styles.textRight]}>{isRTL ? 'تفاصيل الجهاز' : 'Device Details'}</Text>
+          <View style={[styles.deviceRow, isRTL && styles.rowReverse]}>
             <MaterialIcons name="phone-iphone" size={24} color={COLORS.textSecondary} />
-            <Text style={styles.deviceText}>iPhone 14 Pro Max</Text>
+            <Text style={styles.deviceText}>{order?.device_brand} {order?.device_model}</Text>
           </View>
-          <View style={styles.deviceRow}>
+          <View style={[styles.deviceRow, isRTL && styles.rowReverse]}>
             <MaterialIcons name="broken-image" size={24} color={COLORS.error} />
-            <Text style={[styles.deviceText, { color: COLORS.error }]}>كسر في الشاشة</Text>
+            <Text style={[styles.deviceText, { color: COLORS.error }]}>{order?.issue_type}</Text>
           </View>
         </View>
 
         {/* Timer Section */}
         {status !== 'en_route' && (
           <Animated.View style={[styles.timerCard, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
-            <Text style={styles.timerLabel}>وقت العمل</Text>
+            <Text style={styles.timerLabel}>{isRTL ? 'وقت العمل' : 'Work Timer'}</Text>
             <Text style={styles.timerValue}>{formatTime(timer)}</Text>
             <TouchableOpacity 
               onPress={() => setIsTimerRunning(!isTimerRunning)}
@@ -168,20 +212,22 @@ export default function ActiveJobScreen() {
 
         {/* Checklist */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>قائمة المهام</Text>
+          <Text style={[styles.sectionTitle, isRTL && styles.textRight]}>{isRTL ? 'قائمة المهام' : 'Checklist'}</Text>
           {JOB_STEPS.map((step, index) => (
             <TouchableOpacity
               key={step.id}
               style={[
                 styles.checklistItem,
-                completedSteps.includes(step.id) && styles.checkedItem
+                completedSteps.includes(step.id) && styles.checkedItem,
+                isRTL && styles.rowReverse
               ]}
               onPress={() => toggleStep(step.id)}
               disabled={status === 'en_route'}
             >
               <View style={[
                 styles.checkbox,
-                completedSteps.includes(step.id) && styles.checkedBox
+                completedSteps.includes(step.id) && styles.checkedBox,
+                isRTL ? { marginLeft: 12 } : { marginRight: 12 }
               ]}>
                 {completedSteps.includes(step.id) && (
                   <MaterialIcons name="check" size={16} color="#FFF" />
@@ -190,8 +236,9 @@ export default function ActiveJobScreen() {
               <View style={styles.stepContent}>
                 <Text style={[
                   styles.stepLabel,
-                  completedSteps.includes(step.id) && styles.checkedLabel
-                ]}>{step.label}</Text>
+                  completedSteps.includes(step.id) && styles.checkedLabel,
+                  isRTL && styles.textRight
+                ]}>{isRTL ? step.label : step.labelEn}</Text>
               </View>
               <FontAwesome5 
                 name={step.icon as any} 
@@ -208,12 +255,15 @@ export default function ActiveJobScreen() {
         <TouchableOpacity 
           style={[
             styles.mainBtn,
-            status === 'working' && completedSteps.length < JOB_STEPS.length && styles.disabledBtn
+            status === 'working' && completedSteps.length < JOB_STEPS.length && styles.disabledBtn,
+            isRTL && styles.rowReverse
           ]}
           onPress={handleMainAction}
         >
           <Text style={styles.mainBtnText}>
-            {status === 'en_route' ? 'وصلت للموقع / ابدأ العمل' : 'إنهاء المهمة'}
+            {status === 'en_route' 
+              ? (isRTL ? 'وصلت للموقع / ابدأ العمل' : 'Arrived / Start Work') 
+              : (isRTL ? 'إنهاء المهمة' : 'Complete Job')}
           </Text>
           <MaterialIcons 
             name={status === 'en_route' ? "play-circle-filled" : "check-circle"} 
@@ -272,6 +322,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+  },
+  rowReverse: {
+    flexDirection: 'row-reverse',
+  },
+  textRight: {
+    textAlign: 'right',
   },
   customerInfo: {
     flex: 1,
@@ -365,7 +421,6 @@ const styles = StyleSheet.create({
     borderColor: COLORS.textSecondary,
     justifyContent: 'center',
     alignItems: 'center',
-    marginLeft: 12,
   },
   checkedBox: {
     backgroundColor: COLORS.primary,
