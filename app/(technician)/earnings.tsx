@@ -91,7 +91,7 @@ export default function EarningsScreen() {
             {order.device_brand} {order.device_model}
           </Text>
           <Text style={[styles.earningDate, { color: COLORS.textSecondary }]}>
-            {new Date(order.updated_at).toLocaleDateString(language === 'ar' ? 'ar-SA' : 'en-US', {
+            {new Date(order.updated_at).toLocaleDateString('en-US', {
               year: 'numeric',
               month: 'short',
               day: 'numeric',

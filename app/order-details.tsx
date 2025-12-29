@@ -10,6 +10,7 @@ import {
   Image,
   Linking,
   I18nManager,
+  StatusBar,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -44,7 +45,14 @@ export default function OrderDetailsScreen() {
     
     // Subscribe to real-time updates
     const subscription = requests.subscribeToUpdates(id as string, (updatedOrder) => {
-      setOrder(updatedOrder);
+      // Preserve order_items if the update doesn't include them
+      setOrder(prev => {
+        if (!prev) return updatedOrder;
+        return {
+          ...updatedOrder,
+          order_items: prev.order_items || updatedOrder.order_items
+        };
+      });
     });
 
     return () => {
@@ -100,9 +108,20 @@ export default function OrderDetailsScreen() {
 
   const currentStepIndex = getCurrentStepIndex();
   const isCancelled = order.status === 'cancelled';
+  const orderItems = order.order_items && order.order_items.length > 0 
+    ? order.order_items 
+    : [{
+        id: 'main',
+        device_brand: order.device_brand,
+        device_model: order.device_model,
+        issue_description: order.issue_description,
+        estimated_price: order.estimated_price
+      }];
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: COLORS.background }]}>
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={COLORS.background} />
+      
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
@@ -122,7 +141,7 @@ export default function OrderDetailsScreen() {
         {/* Chat Button */}
         {order.status !== 'pending' && order.status !== 'cancelled' && (
           <TouchableOpacity
-            style={[styles.chatButton, { backgroundColor: '#10B981' }]}
+            style={[styles.chatButton, { backgroundColor: '#10B981' }, SHADOWS.small]}
             onPress={() => router.push({
               pathname: '/chat',
               params: { orderId: order.id, otherUserName: isRTL ? 'الفني' : 'Technician' }
@@ -135,35 +154,61 @@ export default function OrderDetailsScreen() {
           </TouchableOpacity>
         )}
 
-        {/* Device Info Card */}
-        <View style={[styles.card, { backgroundColor: COLORS.card }, SHADOWS.medium]}>
-          <Text style={[styles.cardTitle, { color: COLORS.text }]}>
-            {isRTL ? 'معلومات الجهاز' : 'Device Information'}
+        {/* Order Items List */}
+        <View style={styles.sectionTitleContainer}>
+          <Text style={[styles.sectionTitle, { color: COLORS.text }]}>
+            {isRTL ? 'الأجهزة المطلوبة' : 'Requested Devices'} ({orderItems.length})
           </Text>
-          <View style={styles.infoRow}>
-            <MaterialCommunityIcons name="cellphone" size={20} color={COLORS.textSecondary} />
-            <Text style={[styles.infoLabel, { color: COLORS.textSecondary }]}>
-              {isRTL ? 'الجهاز' : 'Device'}
-            </Text>
-            <Text style={[styles.infoValue, { color: COLORS.text }]}>
-              {order.device_brand} {order.device_model}
-            </Text>
+        </View>
+
+        {orderItems.map((item, index) => (
+          <View key={index} style={[styles.card, { backgroundColor: COLORS.card }, SHADOWS.medium]}>
+            <View style={styles.cardHeader}>
+              <Text style={[styles.cardTitle, { color: COLORS.text }]}>
+                {isRTL ? `جهاز ${index + 1}` : `Device ${index + 1}`}
+              </Text>
+              <View style={[styles.priceTag, { backgroundColor: COLORS.primary + '15' }]}>
+                <Text style={[styles.priceText, { color: COLORS.primary }]}>
+                  {item.estimated_price} {isRTL ? 'ر.س' : 'SAR'}
+                </Text>
+              </View>
+            </View>
+            
+            <View style={styles.divider} />
+
+            <View style={styles.infoRow}>
+              <MaterialCommunityIcons name="cellphone" size={20} color={COLORS.textSecondary} />
+              <View style={styles.infoContent}>
+                <Text style={[styles.infoLabel, { color: COLORS.textSecondary }]}>
+                  {isRTL ? 'الجهاز' : 'Device'}
+                </Text>
+                <Text style={[styles.infoValue, { color: COLORS.text }]}>
+                  {item.device_brand} {item.device_model}
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.infoRow}>
+              <MaterialCommunityIcons name="wrench" size={20} color={COLORS.textSecondary} />
+              <View style={styles.infoContent}>
+                <Text style={[styles.infoLabel, { color: COLORS.textSecondary }]}>
+                  {isRTL ? 'المشكلة' : 'Issue'}
+                </Text>
+                <Text style={[styles.infoValue, { color: COLORS.text }]}>
+                  {item.issue_description}
+                </Text>
+              </View>
+            </View>
           </View>
-          <View style={styles.infoRow}>
-            <MaterialCommunityIcons name="wrench" size={20} color={COLORS.textSecondary} />
-            <Text style={[styles.infoLabel, { color: COLORS.textSecondary }]}>
-              {isRTL ? 'المشكلة' : 'Issue'}
+        ))}
+
+        {/* Total Price Card */}
+        <View style={[styles.totalCard, { backgroundColor: COLORS.primary }, SHADOWS.medium]}>
+          <View style={styles.totalRow}>
+            <Text style={styles.totalLabel}>
+              {isRTL ? 'إجمالي السعر التقديري' : 'Total Estimated Price'}
             </Text>
-            <Text style={[styles.infoValue, { color: COLORS.text }]}>
-              {order.issue_description}
-            </Text>
-          </View>
-          <View style={styles.infoRow}>
-            <MaterialCommunityIcons name="cash" size={20} color={COLORS.textSecondary} />
-            <Text style={[styles.infoLabel, { color: COLORS.textSecondary }]}>
-              {isRTL ? 'السعر التقديري' : 'Estimated Price'}
-            </Text>
-            <Text style={[styles.infoValue, { color: COLORS.primary, fontWeight: 'bold' }]}>
+            <Text style={styles.totalValue}>
               {order.estimated_price} {isRTL ? 'ر.س' : 'SAR'}
             </Text>
           </View>
@@ -172,7 +217,7 @@ export default function OrderDetailsScreen() {
         {/* Timeline */}
         {!isCancelled && (
           <View style={[styles.card, { backgroundColor: COLORS.card }, SHADOWS.medium]}>
-            <Text style={[styles.cardTitle, { color: COLORS.text }]}>
+            <Text style={[styles.cardTitle, { color: COLORS.text, marginBottom: SPACING.md }]}>
               {isRTL ? 'حالة الطلب' : 'Order Status'}
             </Text>
             <View style={styles.timeline}>
@@ -189,12 +234,14 @@ export default function OrderDetailsScreen() {
                           styles.timelineIcon,
                           {
                             backgroundColor: isCompleted ? COLORS.primary : COLORS.border,
+                            borderColor: isCurrent ? COLORS.primary : 'transparent',
+                            borderWidth: isCurrent ? 2 : 0,
                           },
                         ]}
                       >
                         <MaterialCommunityIcons
                           name={step.icon as any}
-                          size={20}
+                          size={16}
                           color={isCompleted ? '#FFFFFF' : COLORS.textSecondary}
                         />
                       </View>
@@ -203,7 +250,7 @@ export default function OrderDetailsScreen() {
                           style={[
                             styles.timelineLine,
                             {
-                              backgroundColor: isCompleted ? COLORS.primary : COLORS.border,
+                              backgroundColor: index < currentStepIndex ? COLORS.primary : COLORS.border,
                             },
                           ]}
                         />
@@ -216,6 +263,7 @@ export default function OrderDetailsScreen() {
                           {
                             color: isCompleted ? COLORS.text : COLORS.textSecondary,
                             fontWeight: isCurrent ? 'bold' : 'normal',
+                            opacity: isCompleted ? 1 : 0.7,
                           },
                         ]}
                       >
@@ -236,7 +284,7 @@ export default function OrderDetailsScreen() {
 
         {/* Cancelled Status */}
         {isCancelled && (
-          <View style={[styles.card, { backgroundColor: '#EF444415' }, SHADOWS.medium]}>
+          <View style={[styles.card, { backgroundColor: '#EF444415', borderColor: '#EF4444', borderWidth: 1 }, SHADOWS.medium]}>
             <View style={styles.cancelledContainer}>
               <MaterialCommunityIcons name="close-circle" size={48} color="#EF4444" />
               <Text style={[styles.cancelledText, { color: '#EF4444' }]}>
@@ -251,9 +299,12 @@ export default function OrderDetailsScreen() {
           <Text style={[styles.cardTitle, { color: COLORS.text }]}>
             {isRTL ? 'الموقع' : 'Location'}
           </Text>
-          <Text style={[styles.locationText, { color: COLORS.textSecondary }]}>
-            {order.location}
-          </Text>
+          <View style={styles.locationContainer}>
+            <MaterialIcons name="location-on" size={24} color={COLORS.primary} />
+            <Text style={[styles.locationText, { color: COLORS.textSecondary }]}>
+              {order.location}
+            </Text>
+          </View>
           <TouchableOpacity
             style={[styles.mapButton, { backgroundColor: COLORS.primary }]}
             onPress={openLocation}
@@ -269,9 +320,9 @@ export default function OrderDetailsScreen() {
         {order.media_urls && order.media_urls.length > 0 && (
           <View style={[styles.card, { backgroundColor: COLORS.card }, SHADOWS.medium]}>
             <Text style={[styles.cardTitle, { color: COLORS.text }]}>
-              {isRTL ? 'الصور المرفقة' : 'Attached Images'}
+              {isRTL ? 'الصور المرفقة' : 'Attached Photos'}
             </Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.mediaScroll}>
               {order.media_urls.map((url, index) => (
                 <Image
                   key={index}
@@ -284,41 +335,7 @@ export default function OrderDetailsScreen() {
           </View>
         )}
 
-        {/* Order Info */}
-        <View style={[styles.card, { backgroundColor: COLORS.card }, SHADOWS.medium]}>
-          <Text style={[styles.cardTitle, { color: COLORS.text }]}>
-            {isRTL ? 'معلومات إضافية' : 'Additional Information'}
-          </Text>
-          <View style={styles.infoRow}>
-            <MaterialIcons name="access-time" size={20} color={COLORS.textSecondary} />
-            <Text style={[styles.infoLabel, { color: COLORS.textSecondary }]}>
-              {isRTL ? 'تاريخ الطلب' : 'Order Date'}
-            </Text>
-            <Text style={[styles.infoValue, { color: COLORS.text }]}>
-              {new Date(order.created_at).toLocaleString(isRTL ? 'ar-SA' : 'en-US')}
-            </Text>
-          </View>
-          <View style={styles.infoRow}>
-            <MaterialCommunityIcons name="update" size={20} color={COLORS.textSecondary} />
-            <Text style={[styles.infoLabel, { color: COLORS.textSecondary }]}>
-              {isRTL ? 'آخر تحديث' : 'Last Updated'}
-            </Text>
-            <Text style={[styles.infoValue, { color: COLORS.text }]}>
-              {new Date(order.updated_at).toLocaleString(isRTL ? 'ar-SA' : 'en-US')}
-            </Text>
-          </View>
-          <View style={styles.infoRow}>
-            <MaterialCommunityIcons name="truck" size={20} color={COLORS.textSecondary} />
-            <Text style={[styles.infoLabel, { color: COLORS.textSecondary }]}>
-              {isRTL ? 'نوع الخدمة' : 'Service Type'}
-            </Text>
-            <Text style={[styles.infoValue, { color: COLORS.text }]}>
-              {order.service_type === 'mobile' 
-                ? (isRTL ? 'فني متنقل' : 'Mobile Technician')
-                : (isRTL ? 'استلام وتوصيل' : 'Pickup & Delivery')}
-            </Text>
-          </View>
-        </View>
+        <View style={{ height: 40 }} />
       </ScrollView>
     </SafeAreaView>
   );
@@ -327,22 +344,6 @@ export default function OrderDetailsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-  chatButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: SPACING.m,
-    borderRadius: BORDER_RADIUS.m,
-    marginHorizontal: SPACING.l,
-    marginBottom: SPACING.m,
-    ...SHADOWS.small,
-  },
-  chatButtonText: {
-    color: '#FFFFFF',
-    fontWeight: 'bold',
-    fontSize: 16,
-    marginLeft: SPACING.s,
   },
   loadingContainer: {
     flex: 1,
@@ -353,10 +354,11 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    gap: SPACING.md,
   },
   errorText: {
-    fontSize: 16,
-    marginTop: SPACING.md,
+    fontSize: 18,
+    fontWeight: '600',
   },
   header: {
     flexDirection: 'row',
@@ -379,33 +381,95 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: SPACING.lg,
   },
+  chatButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: SPACING.md,
+    borderRadius: BORDER_RADIUS.lg,
+    marginBottom: SPACING.lg,
+    gap: SPACING.sm,
+  },
+  chatButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  sectionTitleContainer: {
+    marginBottom: SPACING.sm,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
   card: {
     padding: SPACING.lg,
     borderRadius: BORDER_RADIUS.lg,
     marginBottom: SPACING.md,
   },
+  cardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: SPACING.sm,
+  },
   cardTitle: {
     fontSize: 16,
     fontWeight: 'bold',
-    marginBottom: SPACING.md,
+  },
+  priceTag: {
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: 4,
+    borderRadius: BORDER_RADIUS.sm,
+  },
+  priceText: {
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  divider: {
+    height: 1,
+    backgroundColor: '#E5E7EB',
+    marginVertical: SPACING.sm,
   },
   infoRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     marginBottom: SPACING.md,
-    gap: SPACING.sm,
+    gap: SPACING.md,
+  },
+  infoContent: {
+    flex: 1,
   },
   infoLabel: {
-    fontSize: 14,
-    flex: 1,
+    fontSize: 12,
+    marginBottom: 2,
   },
   infoValue: {
     fontSize: 14,
-    flex: 2,
-    textAlign: I18nManager.isRTL ? 'right' : 'left',
+    fontWeight: '500',
+  },
+  totalCard: {
+    padding: SPACING.lg,
+    borderRadius: BORDER_RADIUS.lg,
+    marginBottom: SPACING.lg,
+  },
+  totalRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  totalLabel: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  totalValue: {
+    color: '#FFFFFF',
+    fontSize: 20,
+    fontWeight: 'bold',
   },
   timeline: {
-    paddingVertical: SPACING.sm,
+    marginTop: SPACING.sm,
   },
   timelineStep: {
     flexDirection: 'row',
@@ -413,27 +477,29 @@ const styles = StyleSheet.create({
   },
   timelineLeft: {
     alignItems: 'center',
-    marginRight: SPACING.md,
+    width: 40,
   },
   timelineIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     justifyContent: 'center',
     alignItems: 'center',
+    zIndex: 1,
   },
   timelineLine: {
     width: 2,
     flex: 1,
-    marginTop: SPACING.xs,
+    marginVertical: 4,
   },
   timelineRight: {
     flex: 1,
-    paddingTop: SPACING.sm,
+    paddingTop: 4,
+    paddingHorizontal: SPACING.sm,
   },
   timelineLabel: {
     fontSize: 14,
-    marginBottom: SPACING.xs,
+    marginBottom: 4,
   },
   currentBadge: {
     fontSize: 12,
@@ -441,22 +507,28 @@ const styles = StyleSheet.create({
   },
   cancelledContainer: {
     alignItems: 'center',
-    paddingVertical: SPACING.xl,
+    gap: SPACING.sm,
+    padding: SPACING.md,
   },
   cancelledText: {
     fontSize: 18,
     fontWeight: 'bold',
-    marginTop: SPACING.md,
+  },
+  locationContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+    marginVertical: SPACING.md,
   },
   locationText: {
+    flex: 1,
     fontSize: 14,
-    marginBottom: SPACING.md,
   },
   mapButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: SPACING.md,
+    padding: SPACING.md,
     borderRadius: BORDER_RADIUS.md,
     gap: SPACING.sm,
   },
@@ -465,10 +537,13 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
+  mediaScroll: {
+    marginTop: SPACING.sm,
+  },
   mediaImage: {
     width: 120,
     height: 120,
     borderRadius: BORDER_RADIUS.md,
-    marginRight: SPACING.sm,
+    marginRight: SPACING.md,
   },
 });

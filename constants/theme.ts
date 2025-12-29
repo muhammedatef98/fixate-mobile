@@ -141,18 +141,18 @@ export const BORDER_RADIUS = {
 // Light Mode Shadows
 const LIGHT_SHADOWS = {
   neuFlat: {
-    shadowColor: '#D1D5DB',
-    shadowOffset: { width: 5, height: 5 },
-    shadowOpacity: 1,
-    shadowRadius: 10,
-    elevation: 0,
+    shadowColor: '#E5E7EB',
+    shadowOffset: { width: 4, height: 4 },
+    shadowOpacity: 0.8,
+    shadowRadius: 8,
+    elevation: 2,
   },
   neuSmall: {
-    shadowColor: '#D1D5DB',
-    shadowOffset: { width: 3, height: 3 },
-    shadowOpacity: 1,
-    shadowRadius: 6,
-    elevation: 0,
+    shadowColor: '#E5E7EB',
+    shadowOffset: { width: 2, height: 2 },
+    shadowOpacity: 0.8,
+    shadowRadius: 4,
+    elevation: 1,
   },
   neuInset: {
     shadowColor: '#000000',

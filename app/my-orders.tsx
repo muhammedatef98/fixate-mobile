@@ -143,7 +143,7 @@ export default function MyOrdersScreen() {
               {order.device_brand} {order.device_model}
             </Text>
             <Text style={[styles.orderDate, { color: COLORS.textSecondary }]}>
-              {new Date(order.created_at).toLocaleDateString(isRTL ? 'ar-SA' : 'en-US', {
+              {new Date(order.created_at).toLocaleDateString('en-US', {
                 year: 'numeric',
                 month: 'short',
                 day: 'numeric',

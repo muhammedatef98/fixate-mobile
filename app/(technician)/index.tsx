@@ -193,7 +193,7 @@ export default function TechnicianDashboard() {
         <View style={styles.orderDetailItem}>
           <MaterialIcons name="access-time" size={16} color={COLORS.textSecondary} />
           <Text style={[styles.orderDetailText, { color: COLORS.textSecondary }]}>
-            {new Date(order.created_at).toLocaleDateString(language === 'ar' ? 'ar-SA' : 'en-US')}
+            {new Date(order.created_at).toLocaleDateString('en-US')}
           </Text>
         </View>
       </View>
