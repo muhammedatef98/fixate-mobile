@@ -90,6 +90,7 @@ export default function PriceCalculatorScreen() {
               key={brand.id}
               style={[
                 styles.card,
+                SHADOWS.neuSmall,
                 selectedBrand === brand.id && styles.selectedCard
               ]}
               onPress={() => setSelectedBrand(brand.id)}
@@ -115,6 +116,7 @@ export default function PriceCalculatorScreen() {
               key={device.id}
               style={[
                 styles.card,
+                SHADOWS.neuSmall,
                 selectedDevice === device.id && styles.selectedCard
               ]}
               onPress={() => setSelectedDevice(device.id)}
@@ -157,7 +159,7 @@ export default function PriceCalculatorScreen() {
       </ScrollView>
 
       {/* Price Result Footer */}
-      <View style={styles.footer}>
+      <View style={[styles.footer, SHADOWS.neuLarge]}>
         <View style={styles.priceContainer}>
           <Text style={styles.priceLabel}>
             {isRTL ? 'السعر التقديري:' : 'Estimated Price:'}
@@ -252,7 +254,6 @@ const createStyles = (COLORS: any, SHADOWS: any, isRTL: boolean) => StyleSheet.c
     alignItems: 'center',
     borderWidth: 2,
     borderColor: 'transparent',
-    ...SHADOWS.neuSmall,
   },
   selectedCard: {
     borderColor: COLORS.primary,
@@ -297,7 +298,6 @@ const createStyles = (COLORS: any, SHADOWS: any, isRTL: boolean) => StyleSheet.c
     backgroundColor: COLORS.surface,
     borderTopWidth: 1,
     borderTopColor: COLORS.border,
-    ...SHADOWS.neuLarge,
   },
   priceContainer: {
     flexDirection: isRTL ? 'row-reverse' : 'row',

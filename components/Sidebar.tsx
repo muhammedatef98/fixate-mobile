@@ -139,6 +139,7 @@ export default function Sidebar({ visible, onClose }: SidebarProps) {
         <Animated.View 
           style={[
             styles.drawer,
+            SHADOWS.large,
             {
               transform: [{ translateX: slideAnim }],
             },
@@ -150,7 +151,7 @@ export default function Sidebar({ visible, onClose }: SidebarProps) {
           >
             {/* Header with User Info */}
             <View style={styles.header}>
-              <View style={styles.avatarContainer}>
+              <View style={[styles.avatarContainer, SHADOWS.neuLarge]}>
                 <Image 
                   source={{ 
                     uri: user?.avatar_url || `https://ui-avatars.com/api/?name=${user?.name || 'User'}&background=10B981&color=fff&size=128` 
@@ -168,7 +169,7 @@ export default function Sidebar({ visible, onClose }: SidebarProps) {
               {menuItems.map((item, index) => (
                 <TouchableOpacity
                   key={index}
-                  style={styles.menuItem}
+                  style={[styles.menuItem, SHADOWS.neu]}
                   onPress={() => {
                     onClose();
                     router.push(item.route as any);
@@ -192,7 +193,7 @@ export default function Sidebar({ visible, onClose }: SidebarProps) {
               <Text style={styles.sectionTitle}>{language === 'ar' ? 'الإعدادات' : 'Settings'}</Text>
               
               {/* Language Toggle */}
-              <View style={styles.settingItem}>
+              <View style={[styles.settingItem, SHADOWS.neu]}>
                 <View style={styles.settingLeft}>
                   <View style={styles.settingIcon}>
                     <MaterialIcons name="language" size={24} color={COLORS.primary} />
@@ -201,7 +202,7 @@ export default function Sidebar({ visible, onClose }: SidebarProps) {
                 </View>
                 <View style={styles.languageButtons}>
                   <TouchableOpacity
-                    style={[styles.langButton, language === 'ar' && styles.langButtonActive]}
+                    style={[styles.langButton, SHADOWS.neuSmall, language === 'ar' && [styles.langButtonActive, SHADOWS.neuInset]]}
                     onPress={() => setLanguage('ar')}
                   >
                     <Text style={[styles.langButtonText, language === 'ar' && styles.langButtonTextActive]}>
@@ -209,7 +210,7 @@ export default function Sidebar({ visible, onClose }: SidebarProps) {
                     </Text>
                   </TouchableOpacity>
                   <TouchableOpacity
-                    style={[styles.langButton, language === 'en' && styles.langButtonActive]}
+                    style={[styles.langButton, SHADOWS.neuSmall, language === 'en' && [styles.langButtonActive, SHADOWS.neuInset]]}
                     onPress={() => setLanguage('en')}
                   >
                     <Text style={[styles.langButtonText, language === 'en' && styles.langButtonTextActive]}>
@@ -220,7 +221,7 @@ export default function Sidebar({ visible, onClose }: SidebarProps) {
               </View>
 
               {/* Dark Mode Toggle */}
-              <View style={styles.settingItem}>
+              <View style={[styles.settingItem, SHADOWS.neu]}>
                 <View style={styles.settingLeft}>
                   <View style={styles.settingIcon}>
                     <MaterialIcons 
@@ -244,7 +245,7 @@ export default function Sidebar({ visible, onClose }: SidebarProps) {
 
             {/* Logout Button */}
             <TouchableOpacity 
-              style={styles.logoutButton}
+              style={[styles.logoutButton, SHADOWS.neu]}
               onPress={handleLogout}
             >
               <MaterialIcons name="logout" size={24} color="#EF4444" />
@@ -277,7 +278,6 @@ function createStyles(COLORS: any, SHADOWS: any, isRTL: boolean) {
       bottom: 0,
       width: DRAWER_WIDTH,
       backgroundColor: COLORS.background,
-      ...SHADOWS.large,
       borderTopRightRadius: 24,
       borderBottomRightRadius: 24,
     },
@@ -297,7 +297,6 @@ function createStyles(COLORS: any, SHADOWS: any, isRTL: boolean) {
       height: 60,
       borderRadius: 30,
       backgroundColor: COLORS.background,
-      ...SHADOWS.neuLarge,
       justifyContent: 'center',
       alignItems: 'center',
       marginBottom: SPACING.sm,
@@ -338,7 +337,6 @@ function createStyles(COLORS: any, SHADOWS: any, isRTL: boolean) {
       backgroundColor: COLORS.background,
       borderRadius: BORDER_RADIUS.lg,
       marginBottom: SPACING.sm,
-      ...SHADOWS.neu,
     },
     menuItemIcon: {
       width: 36,
@@ -368,7 +366,6 @@ function createStyles(COLORS: any, SHADOWS: any, isRTL: boolean) {
       backgroundColor: COLORS.background,
       borderRadius: BORDER_RADIUS.lg,
       marginBottom: SPACING.sm,
-      ...SHADOWS.neu,
     },
     settingLeft: {
       flexDirection: 'row',
@@ -398,11 +395,9 @@ function createStyles(COLORS: any, SHADOWS: any, isRTL: boolean) {
       paddingVertical: SPACING.sm,
       borderRadius: BORDER_RADIUS.md,
       backgroundColor: COLORS.background,
-      ...SHADOWS.neuSmall,
     },
     langButtonActive: {
       backgroundColor: COLORS.primary,
-      ...SHADOWS.neuInset,
     },
     langButtonText: {
       fontSize: 14,
@@ -420,7 +415,6 @@ function createStyles(COLORS: any, SHADOWS: any, isRTL: boolean) {
       paddingVertical: SPACING.md,
       backgroundColor: COLORS.background,
       borderRadius: BORDER_RADIUS.lg,
-      ...SHADOWS.neu,
       gap: SPACING.sm,
     },
     logoutText: {

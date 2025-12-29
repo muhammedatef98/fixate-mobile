@@ -62,7 +62,7 @@ export default function RoleSelectionScreen() {
         >
           {/* Language Switcher */}
           <TouchableOpacity 
-            style={styles.languageButton}
+            style={[styles.languageButton, SHADOWS.small]}
             onPress={() => setLanguage(language === 'ar' ? 'en' : 'ar')}
           >
             <MaterialIcons name="language" size={24} color={COLORS.primary} />
@@ -95,7 +95,7 @@ export default function RoleSelectionScreen() {
           <View style={styles.cardsContainer}>
             {/* Customer Card */}
             <TouchableOpacity
-              style={styles.roleCard}
+              style={[styles.roleCard, SHADOWS.neuFlat]}
               onPress={() => handleRoleSelect('customer')}
               activeOpacity={0.8}
             >
@@ -115,7 +115,7 @@ export default function RoleSelectionScreen() {
 
             {/* Technician Card */}
             <TouchableOpacity
-              style={styles.roleCard}
+              style={[styles.roleCard, SHADOWS.neuFlat]}
               onPress={() => handleRoleSelect('technician')}
               activeOpacity={0.8}
             >
@@ -168,7 +168,6 @@ const createStyles = (COLORS: any, SHADOWS: any) => StyleSheet.create({
     borderRadius: 20,
     gap: 6,
     zIndex: 10,
-    ...SHADOWS.small,
   },
   languageText: {
     fontSize: 14,
@@ -222,7 +221,6 @@ const createStyles = (COLORS: any, SHADOWS: any) => StyleSheet.create({
     backgroundColor: COLORS.surface,
     borderRadius: BORDER_RADIUS.xl,
     gap: SPACING.md,
-    ...SHADOWS.neuFlat,
   },
   iconContainer: {
     width: 72,
