@@ -40,6 +40,8 @@ const DEVICE_TYPES = [
   { id: 'laptop', name: 'لابتوب', nameEn: 'Laptop', icon: 'laptop' },
   { id: 'watch', name: 'ساعة ذكية', nameEn: 'Smart Watch', icon: 'watch' },
   { id: 'printer', name: 'طابعة', nameEn: 'Printer', icon: 'printer' },
+  { id: 'console', name: 'ألعاب', nameEn: 'Console', icon: 'gamepad-variant' },
+  { id: 'headphones', name: 'سماعات', nameEn: 'Headphones', icon: 'headphones' },
 ];
 
 interface OrderItem {
@@ -291,382 +293,479 @@ export default function RequestScreen() {
           address: address
         },
         status: 'pending',
-        items: orderItems // Store all items
+        customer_id: user?.id,
+        created_at: new Date().toISOString(),
+        items: orderItems // Store full items list for multi-device orders
       };
 
-      await addRequest(requestData);
+      const { data, error } = await requests.create(requestData);
+
+      if (error) throw error;
+
+      addRequest(data);
       
       Alert.alert(
         language === 'ar' ? 'تم بنجاح' : 'Success',
-        language === 'ar' ? 'تم إرسال طلبك بنجاح' : 'Your request has been submitted successfully',
-        [{ text: 'OK', onPress: () => router.push('/(customer)/orders') }]
+        language === 'ar' ? 'تم إرسال طلبك بنجاح' : 'Your request has been sent successfully',
+        [{ text: 'OK', onPress: () => router.push('/(tabs)/orders') }]
       );
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error submitting request:', error);
-      Alert.alert(language === 'ar' ? 'خطأ' : 'Error', language === 'ar' ? 'حدث خطأ أثناء إرسال الطلب' : 'Error submitting request');
+      Alert.alert(language === 'ar' ? 'خطأ' : 'Error', error.message || 'Failed to submit request');
     }
   };
 
-  const renderStepContent = () => {
-    switch (currentStep) {
-      case 0: // Service Type
-        return (
-          <View style={styles.stepContainer}>
-            <Text style={styles.stepTitle}>{language === 'ar' ? 'اختر نوع الخدمة' : 'Select Service Type'}</Text>
-            {SERVICE_TYPES.map((type) => (
-              <TouchableOpacity
-                key={type.id}
-                style={[
-                  styles.optionCard,
-                  selectedServiceType === type.id && styles.selectedOptionCard
-                ]}
-                onPress={() => setSelectedServiceType(type.id)}
-              >
-                <MaterialCommunityIcons 
-                  name={type.icon as any} 
-                  size={32} 
-                  color={selectedServiceType === type.id ? COLORS.primary : COLORS.textSecondary} 
-                />
-                <View style={styles.optionTextContainer}>
-                  <Text style={[
-                    styles.optionTitle,
-                    selectedServiceType === type.id && styles.selectedOptionTitle
-                  ]}>
-                    {language === 'ar' ? type.name : type.nameEn}
-                  </Text>
-                  <Text style={styles.optionDescription}>
-                    {language === 'ar' ? type.description : type.descriptionEn}
-                  </Text>
-                </View>
-                <MaterialIcons 
-                  name={selectedServiceType === type.id ? "radio-button-checked" : "radio-button-unchecked"} 
-                  size={24} 
-                  color={selectedServiceType === type.id ? COLORS.primary : COLORS.textSecondary} 
-                />
-              </TouchableOpacity>
-            ))}
-          </View>
-        );
+  const renderStepIndicator = () => (
+    <View style={styles.stepIndicator}>
+      <View style={styles.progressBar}>
+        <Animated.View 
+          style={[
+            styles.progressFill, 
+            { 
+              width: `${((currentStep + 1) / STEPS.length) * 100}%` 
+            }
+          ]} 
+        />
+      </View>
+      <Text style={styles.stepText}>
+        {STEPS[currentStep]} ({currentStep + 1}/{STEPS.length})
+      </Text>
+    </View>
+  );
 
-      case 1: // Device Type
-        return (
-          <View style={styles.stepContainer}>
-            <Text style={styles.stepTitle}>{language === 'ar' ? 'اختر نوع الجهاز' : 'Select Device Type'}</Text>
-            <View style={styles.gridContainer}>
-              {DEVICE_TYPES.map((device) => (
-                <TouchableOpacity
-                  key={device.id}
-                  style={[
-                    styles.gridItem,
-                    selectedDeviceType === device.id && styles.selectedGridItem
-                  ]}
-                  onPress={() => setSelectedDeviceType(device.id)}
-                >
-                  <MaterialCommunityIcons 
-                    name={device.icon as any} 
-                    size={32} 
-                    color={selectedDeviceType === device.id ? COLORS.primary : COLORS.textSecondary} 
-                  />
-                  <Text style={[
-                    styles.gridLabel,
-                    selectedDeviceType === device.id && styles.selectedGridLabel
-                  ]}>
-                    {language === 'ar' ? device.name : device.nameEn}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+  const renderServiceType = () => (
+    <View style={styles.stepContent}>
+      <Text style={styles.stepTitle}>{language === 'ar' ? 'اختر نوع الخدمة' : 'Select Service Type'}</Text>
+      {SERVICE_TYPES.map((type) => (
+        <TouchableOpacity
+          key={type.id}
+          style={[
+            styles.optionCard,
+            selectedServiceType === type.id && styles.selectedOptionCard
+          ]}
+          onPress={() => {
+            setSelectedServiceType(type.id);
+            setCurrentStep(currentStep + 1);
+          }}
+        >
+          <View style={[
+            styles.iconContainer,
+            selectedServiceType === type.id && styles.selectedIconContainer
+          ]}>
+            <MaterialCommunityIcons 
+              name={type.icon as any} 
+              size={32} 
+              color={selectedServiceType === type.id ? '#fff' : COLORS.primary} 
+            />
+          </View>
+          <View style={styles.optionTextContainer}>
+            <Text style={[
+              styles.optionTitle,
+              selectedServiceType === type.id && styles.selectedOptionText
+            ]}>
+              {language === 'ar' ? type.name : type.nameEn}
+            </Text>
+            <Text style={[
+              styles.optionDescription,
+              selectedServiceType === type.id && styles.selectedOptionDescription
+            ]}>
+              {language === 'ar' ? type.description : type.descriptionEn}
+            </Text>
+          </View>
+          <Ionicons 
+            name={isRTL ? "chevron-back" : "chevron-forward"} 
+            size={24} 
+            color={selectedServiceType === type.id ? '#fff' : COLORS.gray} 
+          />
+        </TouchableOpacity>
+      ))}
+    </View>
+  );
+
+  const renderDeviceType = () => (
+    <View style={styles.stepContent}>
+      <Text style={styles.stepTitle}>{language === 'ar' ? 'اختر نوع الجهاز' : 'Select Device Type'}</Text>
+      <View style={styles.gridContainer}>
+        {DEVICE_TYPES.map((type) => (
+          <TouchableOpacity
+            key={type.id}
+            style={[
+              styles.gridCard,
+              selectedDeviceType === type.id && styles.selectedGridCard
+            ]}
+            onPress={() => {
+              setSelectedDeviceType(type.id);
+              setCurrentStep(currentStep + 1);
+            }}
+          >
+            <View style={[
+              styles.gridIconContainer,
+              selectedDeviceType === type.id && styles.selectedGridIconContainer
+            ]}>
+              <MaterialCommunityIcons 
+                name={type.icon as any} 
+                size={32} 
+                color={selectedDeviceType === type.id ? '#fff' : COLORS.primary} 
+              />
             </View>
-          </View>
-        );
+            <Text style={[
+              styles.gridTitle,
+              selectedDeviceType === type.id && styles.selectedGridTitle
+            ]}>
+              {language === 'ar' ? type.name : type.nameEn}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+    </View>
+  );
 
-      case 2: // Brand
-        return (
-          <View style={styles.stepContainer}>
-            <Text style={styles.stepTitle}>{language === 'ar' ? 'اختر الماركة' : 'Select Brand'}</Text>
-            <TextInput
-              style={styles.searchInput}
-              placeholder={language === 'ar' ? 'بحث عن ماركة...' : 'Search brand...'}
-              value={brandSearch}
-              onChangeText={setBrandSearch}
-            />
-            <ScrollView style={styles.listContainer}>
-              {filteredBrands.map((brand) => (
-                <TouchableOpacity
-                  key={brand.id}
-                  style={[
-                    styles.listItem,
-                    selectedBrand?.id === brand.id && styles.selectedListItem
-                  ]}
-                  onPress={() => setSelectedBrand(brand)}
-                >
-                  <BrandLogo brandName={brand.name} size={40} />
-                  <Text style={[
-                    styles.listItemText,
-                    selectedBrand?.id === brand.id && styles.selectedListItemText
-                  ]}>
-                    {brand.name}
-                  </Text>
-                  {selectedBrand?.id === brand.id && (
-                    <MaterialIcons name="check" size={24} color={COLORS.primary} />
-                  )}
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
-        );
+  const renderBrandSelection = () => (
+    <View style={styles.stepContent}>
+      <Text style={styles.stepTitle}>{language === 'ar' ? 'اختر الماركة' : 'Select Brand'}</Text>
+      <View style={styles.searchContainer}>
+        <Ionicons name="search" size={20} color={COLORS.gray} />
+        <TextInput
+          style={styles.searchInput}
+          placeholder={language === 'ar' ? 'ابحث عن الماركة...' : 'Search brand...'}
+          value={brandSearch}
+          onChangeText={setBrandSearch}
+          textAlign={isRTL ? 'right' : 'left'}
+        />
+      </View>
+      <ScrollView style={styles.listContainer}>
+        <View style={styles.gridContainer}>
+          {filteredBrands.map((brand) => (
+            <TouchableOpacity
+              key={brand.id}
+              style={[
+                styles.brandCard,
+                selectedBrand?.id === brand.id && styles.selectedBrandCard
+              ]}
+              onPress={() => {
+                setSelectedBrand(brand);
+                setCurrentStep(currentStep + 1);
+              }}
+            >
+              <Image 
+                source={{ uri: brand.logo }} 
+                style={styles.brandLogo} 
+                resizeMode="contain"
+              />
+              <Text style={[
+                styles.brandName,
+                selectedBrand?.id === brand.id && styles.selectedBrandName
+              ]}>
+                {language === 'ar' ? brand.nameAr : brand.name}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </ScrollView>
+    </View>
+  );
 
-      case 3: // Model
-        return (
-          <View style={styles.stepContainer}>
-            <Text style={styles.stepTitle}>{language === 'ar' ? 'اختر الموديل' : 'Select Model'}</Text>
-            <TextInput
-              style={styles.searchInput}
-              placeholder={language === 'ar' ? 'بحث عن موديل...' : 'Search model...'}
-              value={modelSearch}
-              onChangeText={setModelSearch}
+  const renderModelSelection = () => (
+    <View style={styles.stepContent}>
+      <Text style={styles.stepTitle}>{language === 'ar' ? 'اختر الموديل' : 'Select Model'}</Text>
+      <View style={styles.searchContainer}>
+        <Ionicons name="search" size={20} color={COLORS.gray} />
+        <TextInput
+          style={styles.searchInput}
+          placeholder={language === 'ar' ? 'ابحث عن الموديل...' : 'Search model...'}
+          value={modelSearch}
+          onChangeText={setModelSearch}
+          textAlign={isRTL ? 'right' : 'left'}
+        />
+      </View>
+      <ScrollView style={styles.listContainer}>
+        {filteredModels.map((model, index) => (
+          <TouchableOpacity
+            key={index}
+            style={[
+              styles.listItem,
+              selectedModel === model && styles.selectedListItem
+            ]}
+            onPress={() => {
+              setSelectedModel(model);
+              setCurrentStep(currentStep + 1);
+            }}
+          >
+            <Text style={[
+              styles.listItemText,
+              selectedModel === model && styles.selectedListItemText
+            ]}>
+              {model}
+            </Text>
+            <Ionicons 
+              name={isRTL ? "chevron-back" : "chevron-forward"} 
+              size={20} 
+              color={selectedModel === model ? '#fff' : COLORS.gray} 
             />
-            <ScrollView style={styles.listContainer}>
-              {filteredModels.map((model, index) => (
-                <TouchableOpacity
-                  key={index}
-                  style={[
-                    styles.listItem,
-                    selectedModel === model && styles.selectedListItem
-                  ]}
-                  onPress={() => setSelectedModel(model)}
-                >
-                  <Text style={[
-                    styles.listItemText,
-                    selectedModel === model && styles.selectedListItemText
-                  ]}>
-                    {model}
-                  </Text>
-                  {selectedModel === model && (
-                    <MaterialIcons name="check" size={24} color={COLORS.primary} />
-                  )}
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
-        );
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+    </View>
+  );
 
-      case 4: // Issue
-        return (
-          <View style={styles.stepContainer}>
-            <Text style={styles.stepTitle}>{language === 'ar' ? 'اختر العطل' : 'Select Issue'}</Text>
-            <TextInput
-              style={styles.searchInput}
-              placeholder={language === 'ar' ? 'بحث عن عطل...' : 'Search issue...'}
-              value={issueSearch}
-              onChangeText={setIssueSearch}
-            />
-            <ScrollView style={styles.listContainer}>
-              {filteredIssues.map((issue) => (
-                <TouchableOpacity
-                  key={issue.id}
-                  style={[
-                    styles.listItem,
-                    selectedIssue?.id === issue.id && styles.selectedListItem
-                  ]}
-                  onPress={() => setSelectedIssue(issue)}
-                >
-                  <View style={styles.issueInfoContainer}>
-                    <MaterialCommunityIcons 
-                      name={issue.icon as any} 
-                      size={24} 
-                      color={selectedIssue?.id === issue.id ? COLORS.primary : COLORS.textSecondary} 
-                      style={styles.issueIcon}
-                    />
-                    <View>
-                      <Text style={[
-                        styles.listItemText,
-                        selectedIssue?.id === issue.id && styles.selectedListItemText
-                      ]}>
-                        {language === 'ar' ? issue.nameAr : issue.name}
-                      </Text>
-                      <Text style={styles.priceRangeText}>
-                        {issue.priceRange 
-                          ? `${issue.priceRange.min} - ${issue.priceRange.max} ${language === 'ar' ? 'ريال' : 'SAR'}`
-                          : `${issue.estimatedPrice} ${language === 'ar' ? 'ريال' : 'SAR'}`
-                        }
-                      </Text>
-                    </View>
-                  </View>
-                  {selectedIssue?.id === issue.id && (
-                    <MaterialIcons name="check" size={24} color={COLORS.primary} />
-                  )}
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
-        );
-
-      case 5: // Details
-        return (
-          <View style={styles.stepContainer}>
-            <Text style={styles.stepTitle}>{language === 'ar' ? 'تفاصيل إضافية' : 'Additional Details'}</Text>
-            <TextInput
-              style={styles.textArea}
-              placeholder={language === 'ar' ? 'وصف المشكلة بالتفصيل...' : 'Describe the issue in detail...'}
-              value={issueDescription}
-              onChangeText={setIssueDescription}
-              multiline
-              numberOfLines={4}
-            />
-            
-            <Text style={styles.sectionTitle}>{language === 'ar' ? 'صور/فيديو للمشكلة' : 'Photos/Video of the issue'}</Text>
-            <View style={styles.mediaButtons}>
-              <TouchableOpacity style={styles.mediaButton} onPress={takePhoto}>
-                <MaterialIcons name="camera-alt" size={24} color={COLORS.primary} />
-                <Text style={styles.mediaButtonText}>{language === 'ar' ? 'كاميرا' : 'Camera'}</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.mediaButton} onPress={pickImage}>
-                <MaterialIcons name="photo-library" size={24} color={COLORS.primary} />
-                <Text style={styles.mediaButtonText}>{language === 'ar' ? 'معرض' : 'Gallery'}</Text>
-              </TouchableOpacity>
+  const renderIssueSelection = () => (
+    <View style={styles.stepContent}>
+      <Text style={styles.stepTitle}>{language === 'ar' ? 'اختر نوع العطل' : 'Select Issue'}</Text>
+      <View style={styles.searchContainer}>
+        <Ionicons name="search" size={20} color={COLORS.gray} />
+        <TextInput
+          style={styles.searchInput}
+          placeholder={language === 'ar' ? 'ابحث عن العطل...' : 'Search issue...'}
+          value={issueSearch}
+          onChangeText={setIssueSearch}
+          textAlign={isRTL ? 'right' : 'left'}
+        />
+      </View>
+      <ScrollView style={styles.listContainer}>
+        {filteredIssues.map((issue) => (
+          <TouchableOpacity
+            key={issue.id}
+            style={[
+              styles.issueCard,
+              selectedIssue?.id === issue.id && styles.selectedIssueCard
+            ]}
+            onPress={() => {
+              setSelectedIssue(issue);
+              setCurrentStep(currentStep + 1);
+            }}
+          >
+            <View style={styles.issueHeader}>
+              <View style={styles.issueInfo}>
+                <Text style={[
+                  styles.issueName,
+                  selectedIssue?.id === issue.id && styles.selectedIssueName
+                ]}>
+                  {language === 'ar' ? issue.nameAr : issue.name}
+                </Text>
+                <Text style={[
+                  styles.issuePrice,
+                  selectedIssue?.id === issue.id && styles.selectedIssuePrice
+                ]}>
+                  {issue.priceRange} {language === 'ar' ? 'ريال' : 'SAR'}
+                </Text>
+              </View>
+              <Ionicons 
+                name={isRTL ? "chevron-back" : "chevron-forward"} 
+                size={20} 
+                color={selectedIssue?.id === issue.id ? '#fff' : COLORS.gray} 
+              />
             </View>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+    </View>
+  );
 
-            <ScrollView horizontal style={styles.mediaPreview}>
-              {mediaFiles.map((uri, index) => (
-                <View key={index} style={styles.mediaItem}>
-                  <Image source={{ uri }} style={styles.mediaImage} />
-                  <TouchableOpacity 
-                    style={styles.removeMediaButton}
-                    onPress={() => removeMedia(index)}
-                  >
-                    <MaterialIcons name="close" size={16} color="#FFF" />
-                  </TouchableOpacity>
-                </View>
-              ))}
-            </ScrollView>
-          </View>
-        );
+  const renderDetails = () => (
+    <ScrollView style={styles.stepContent}>
+      <Text style={styles.stepTitle}>{language === 'ar' ? 'تفاصيل إضافية' : 'Additional Details'}</Text>
+      
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>{language === 'ar' ? 'وصف المشكلة' : 'Issue Description'}</Text>
+        <TextInput
+          style={[styles.input, styles.textArea]}
+          placeholder={language === 'ar' ? 'اشرح المشكلة بالتفصيل...' : 'Describe the issue in detail...'}
+          multiline
+          numberOfLines={4}
+          value={issueDescription}
+          onChangeText={setIssueDescription}
+          textAlign={isRTL ? 'right' : 'left'}
+        />
+      </View>
 
-      case 6: // Review
-        return (
-          <View style={styles.stepContainer}>
-            <Text style={styles.stepTitle}>{language === 'ar' ? 'مراجعة الطلب' : 'Review Order'}</Text>
-            <ScrollView style={styles.reviewContainer}>
-              {orderItems.map((item, index) => (
-                <View key={index} style={[styles.reviewCard, SHADOWS.small]}>
-                  <View style={styles.reviewHeader}>
-                    <Text style={styles.reviewDeviceName}>{item.brand.name} {item.model}</Text>
-                    <TouchableOpacity onPress={() => handleRemoveItem(index)}>
-                      <MaterialIcons name="delete-outline" size={24} color={COLORS.error} />
-                    </TouchableOpacity>
-                  </View>
-                  <Text style={styles.reviewDetail}>
-                    {language === 'ar' ? 'العطل:' : 'Issue:'} {language === 'ar' ? item.issue.nameAr : item.issue.name}
-                  </Text>
-                  <Text style={styles.reviewPrice}>
-                    {language === 'ar' ? 'السعر التقديري:' : 'Est. Price:'} {item.issue.priceRange?.min} - {item.issue.priceRange?.max} {language === 'ar' ? 'ريال' : 'SAR'}
-                  </Text>
-                </View>
-              ))}
-              
-              <TouchableOpacity style={styles.addMoreButton} onPress={handleAddNewItem}>
-                <MaterialIcons name="add-circle-outline" size={24} color={COLORS.primary} />
-                <Text style={styles.addMoreText}>{language === 'ar' ? 'إضافة جهاز آخر' : 'Add Another Device'}</Text>
-              </TouchableOpacity>
-            </ScrollView>
-          </View>
-        );
-
-      case 7: // Location
-        return (
-          <View style={styles.stepContainer}>
-            <Text style={styles.stepTitle}>{language === 'ar' ? 'تحديد الموقع' : 'Select Location'}</Text>
-            <View style={styles.mapContainer}>
-              {location ? (
-                <MapView
-                  provider={PROVIDER_GOOGLE}
-                  style={styles.map}
-                  initialRegion={location}
-                  onRegionChangeComplete={(region) => {
-                    setLocation({ ...location, ...region });
-                    // Reverse geocode logic here if needed
-                  }}
-                >
-                  <Marker coordinate={location} />
-                </MapView>
-              ) : (
-                <View style={styles.loadingMap}>
-                  <Text>{language === 'ar' ? 'جاري تحديد الموقع...' : 'Locating...'}</Text>
-                </View>
-              )}
-              
-              {/* Current Location Button */}
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>{language === 'ar' ? 'صور أو فيديو للمشكلة' : 'Photos or Video of the Issue'}</Text>
+        <View style={styles.mediaButtons}>
+          <TouchableOpacity style={styles.mediaButton} onPress={takePhoto}>
+            <Ionicons name="camera" size={24} color={COLORS.primary} />
+            <Text style={styles.mediaButtonText}>{language === 'ar' ? 'تصوير' : 'Camera'}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.mediaButton} onPress={pickImage}>
+            <Ionicons name="images" size={24} color={COLORS.primary} />
+            <Text style={styles.mediaButtonText}>{language === 'ar' ? 'المعرض' : 'Gallery'}</Text>
+          </TouchableOpacity>
+        </View>
+        
+        <ScrollView horizontal style={styles.mediaPreview}>
+          {mediaFiles.map((uri, index) => (
+            <View key={index} style={styles.mediaItem}>
+              <Image source={{ uri }} style={styles.mediaImage} />
               <TouchableOpacity 
-                style={styles.myLocationButton}
-                onPress={getLocation}
+                style={styles.removeMedia}
+                onPress={() => removeMedia(index)}
               >
-                <MaterialIcons name="my-location" size={24} color={COLORS.primary} />
+                <Ionicons name="close-circle" size={24} color="#ef4444" />
               </TouchableOpacity>
             </View>
-            <View style={styles.addressContainer}>
-              <Text style={styles.addressLabel}>{language === 'ar' ? 'العنوان:' : 'Address:'}</Text>
-              <Text style={styles.addressText}>{address || (language === 'ar' ? 'جاري التحميل...' : 'Loading...')}</Text>
-            </View>
+          ))}
+        </ScrollView>
+      </View>
+
+      <TouchableOpacity 
+        style={styles.nextButton}
+        onPress={handleAddItem}
+      >
+        <Text style={styles.nextButtonText}>
+          {language === 'ar' ? 'إضافة الجهاز' : 'Add Device'}
+        </Text>
+      </TouchableOpacity>
+    </ScrollView>
+  );
+
+  const renderReview = () => (
+    <ScrollView style={styles.stepContent}>
+      <Text style={styles.stepTitle}>{language === 'ar' ? 'مراجعة الطلب' : 'Review Request'}</Text>
+      
+      {orderItems.map((item, index) => (
+        <View key={index} style={styles.reviewCard}>
+          <View style={styles.reviewHeader}>
+            <Text style={styles.reviewDeviceType}>
+              {language === 'ar' 
+                ? DEVICE_TYPES.find(d => d.id === item.deviceType)?.name 
+                : DEVICE_TYPES.find(d => d.id === item.deviceType)?.nameEn}
+            </Text>
+            <TouchableOpacity onPress={() => handleRemoveItem(index)}>
+              <Ionicons name="trash-outline" size={24} color="#ef4444" />
+            </TouchableOpacity>
           </View>
-        );
-    }
-  };
+          
+          <View style={styles.reviewRow}>
+            <Text style={styles.reviewLabel}>{language === 'ar' ? 'الجهاز:' : 'Device:'}</Text>
+            <Text style={styles.reviewValue}>
+              {language === 'ar' ? item.brand.nameAr : item.brand.name} - {item.model}
+            </Text>
+          </View>
+          
+          <View style={styles.reviewRow}>
+            <Text style={styles.reviewLabel}>{language === 'ar' ? 'العطل:' : 'Issue:'}</Text>
+            <Text style={styles.reviewValue}>
+              {language === 'ar' ? item.issue.nameAr : item.issue.name}
+            </Text>
+          </View>
+          
+          <View style={styles.reviewRow}>
+            <Text style={styles.reviewLabel}>{language === 'ar' ? 'السعر المتوقع:' : 'Est. Price:'}</Text>
+            <Text style={styles.reviewPrice}>
+              {item.issue.priceRange} {language === 'ar' ? 'ريال' : 'SAR'}
+            </Text>
+          </View>
+        </View>
+      ))}
+
+      <TouchableOpacity 
+        style={styles.addMoreButton}
+        onPress={handleAddNewItem}
+      >
+        <Ionicons name="add-circle-outline" size={24} color={COLORS.primary} />
+        <Text style={styles.addMoreText}>
+          {language === 'ar' ? 'إضافة جهاز آخر' : 'Add Another Device'}
+        </Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity 
+        style={styles.nextButton}
+        onPress={() => setCurrentStep(currentStep + 1)}
+      >
+        <Text style={styles.nextButtonText}>
+          {language === 'ar' ? 'التالي' : 'Next'}
+        </Text>
+      </TouchableOpacity>
+    </ScrollView>
+  );
+
+  const renderLocation = () => (
+    <View style={styles.stepContent}>
+      <Text style={styles.stepTitle}>{language === 'ar' ? 'موقع الخدمة' : 'Service Location'}</Text>
+      
+      <View style={styles.mapContainer}>
+        {location ? (
+          <MapView
+            provider={PROVIDER_GOOGLE}
+            style={styles.map}
+            region={location}
+            onRegionChangeComplete={(region) => {
+              setLocation({ ...location, ...region });
+              // Reverse geocode to update address
+              Location.reverseGeocodeAsync({
+                latitude: region.latitude,
+                longitude: region.longitude,
+              }).then(addresses => {
+                if (addresses.length > 0) {
+                  const addr = addresses[0];
+                  setAddress(`${addr.street || ''}, ${addr.city || ''}, ${addr.region || ''}`);
+                }
+              });
+            }}
+          >
+            <Marker coordinate={location} />
+          </MapView>
+        ) : (
+          <View style={styles.loadingMap}>
+            <Text>{language === 'ar' ? 'جاري تحديد الموقع...' : 'Locating...'}</Text>
+          </View>
+        )}
+      </View>
+
+      <View style={styles.addressContainer}>
+        <Ionicons name="location" size={24} color={COLORS.primary} />
+        <Text style={styles.addressText}>{address || (language === 'ar' ? 'جاري تحديد العنوان...' : 'Locating address...')}</Text>
+      </View>
+
+      <TouchableOpacity 
+        style={styles.submitButton}
+        onPress={handleSubmit}
+      >
+        <Text style={styles.submitButtonText}>
+          {language === 'ar' ? 'إرسال الطلب' : 'Submit Request'}
+        </Text>
+      </TouchableOpacity>
+    </View>
+  );
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Custom Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <MaterialIcons name={isRTL ? "arrow-forward" : "arrow-back"} size={24} color={COLORS.text} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>{language === 'ar' ? 'طلب صيانة' : 'Repair Request'}</Text>
-        <View style={{ width: 24 }} />
-      </View>
-
-      {/* Progress Bar */}
-      <View style={styles.progressContainer}>
-        <View style={[styles.progressBar, { width: `${((currentStep + 1) / STEPS.length) * 100}%` }]} />
-      </View>
-      <Text style={styles.stepIndicator}>
-        {STEPS[currentStep]} ({currentStep + 1}/{STEPS.length})
-      </Text>
-
-      <Animated.View style={[styles.content, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
-        {renderStepContent()}
-      </Animated.View>
-
-      <View style={styles.footer}>
-        {currentStep > 0 && (
-          <TouchableOpacity 
-            style={styles.secondaryButton} 
-            onPress={() => setCurrentStep(currentStep - 1)}
-          >
-            <Text style={styles.secondaryButtonText}>{language === 'ar' ? 'السابق' : 'Back'}</Text>
-          </TouchableOpacity>
-        )}
-        
         <TouchableOpacity 
-          style={[styles.primaryButton, currentStep === 0 && { flex: 1 }]} 
+          style={styles.backButton}
           onPress={() => {
-            if (currentStep === 5) {
-              handleAddItem();
-            } else if (currentStep === STEPS.length - 1) {
-              handleSubmit();
+            if (currentStep > 0) {
+              setCurrentStep(currentStep - 1);
             } else {
-              setCurrentStep(currentStep + 1);
+              router.back();
             }
           }}
         >
-          <Text style={styles.primaryButtonText}>
-            {currentStep === 5 
-              ? (language === 'ar' ? 'إضافة للمراجعة' : 'Add to Review')
-              : currentStep === STEPS.length - 1 
-                ? (language === 'ar' ? 'إرسال الطلب' : 'Submit Request')
-                : (language === 'ar' ? 'التالي' : 'Next')
-            }
-          </Text>
+          <Ionicons name={isRTL ? "arrow-forward" : "arrow-back"} size={24} color={COLORS.text} />
         </TouchableOpacity>
+        <Text style={styles.headerTitle}>{language === 'ar' ? 'طلب صيانة' : 'Request Repair'}</Text>
+        <View style={{ width: 40 }} />
       </View>
+
+      {renderStepIndicator()}
+
+      <Animated.View 
+        style={[
+          styles.content,
+          {
+            opacity: fadeAnim,
+            transform: [{ translateY: slideAnim }]
+          }
+        ]}
+      >
+        {currentStep === 0 && renderServiceType()}
+        {currentStep === 1 && renderDeviceType()}
+        {currentStep === 2 && renderBrandSelection()}
+        {currentStep === 3 && renderModelSelection()}
+        {currentStep === 4 && renderIssueSelection()}
+        {currentStep === 5 && renderDetails()}
+        {currentStep === 6 && renderReview()}
+        {currentStep === 7 && renderLocation()}
+      </Animated.View>
     </SafeAreaView>
   );
 }
@@ -680,264 +779,381 @@ const createStyles = (COLORS: any, SHADOWS: any, isRTL: boolean) => StyleSheet.c
     flexDirection: isRTL ? 'row-reverse' : 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: SPACING.md,
-    backgroundColor: COLORS.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.md,
+    backgroundColor: COLORS.card,
+    ...SHADOWS.sm,
+    zIndex: 10,
   },
   backButton: {
-    padding: SPACING.xs,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   headerTitle: {
     fontSize: 18,
     fontWeight: 'bold',
     color: COLORS.text,
   },
-  progressContainer: {
-    height: 4,
-    backgroundColor: COLORS.border,
-    width: '100%',
+  stepIndicator: {
+    padding: SPACING.lg,
+    backgroundColor: COLORS.background,
   },
   progressBar: {
+    height: 4,
+    backgroundColor: COLORS.border,
+    borderRadius: 2,
+    marginBottom: SPACING.xs,
+    overflow: 'hidden',
+  },
+  progressFill: {
     height: '100%',
     backgroundColor: COLORS.primary,
+    borderRadius: 2,
   },
-  stepIndicator: {
-    textAlign: 'center',
-    padding: SPACING.sm,
-    color: COLORS.textSecondary,
+  stepText: {
     fontSize: 12,
+    color: COLORS.gray,
+    textAlign: isRTL ? 'left' : 'right',
   },
   content: {
     flex: 1,
-    padding: SPACING.md,
   },
-  stepContainer: {
+  stepContent: {
     flex: 1,
+    padding: SPACING.lg,
   },
   stepTitle: {
-    fontSize: 20,
+    fontSize: 24,
     fontWeight: 'bold',
     color: COLORS.text,
-    marginBottom: SPACING.lg,
+    marginBottom: SPACING.xl,
     textAlign: isRTL ? 'right' : 'left',
   },
   optionCard: {
     flexDirection: isRTL ? 'row-reverse' : 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.surface,
-    padding: SPACING.md,
-    borderRadius: BORDER_RADIUS.md,
+    backgroundColor: COLORS.card,
+    padding: SPACING.lg,
+    borderRadius: BORDER_RADIUS.lg,
     marginBottom: SPACING.md,
     borderWidth: 1,
     borderColor: COLORS.border,
-    ...SHADOWS.small,
+    ...SHADOWS.sm,
   },
   selectedOptionCard: {
+    backgroundColor: COLORS.primary,
     borderColor: COLORS.primary,
-    backgroundColor: isRTL ? COLORS.surface : COLORS.surface, // Can add tint if needed
+  },
+  iconContainer: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: COLORS.primary + '15',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: isRTL ? SPACING.md : 0,
+    marginRight: isRTL ? 0 : SPACING.md,
+  },
+  selectedIconContainer: {
+    backgroundColor: 'rgba(255,255,255,0.2)',
   },
   optionTextContainer: {
     flex: 1,
-    marginHorizontal: SPACING.md,
     alignItems: isRTL ? 'flex-end' : 'flex-start',
   },
   optionTitle: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: 'bold',
     color: COLORS.text,
     marginBottom: 4,
-    textAlign: isRTL ? 'right' : 'left',
   },
-  selectedOptionTitle: {
-    color: COLORS.primary,
+  selectedOptionText: {
+    color: '#fff',
   },
   optionDescription: {
-    fontSize: 12,
-    color: COLORS.textSecondary,
+    fontSize: 14,
+    color: COLORS.gray,
     textAlign: isRTL ? 'right' : 'left',
+  },
+  selectedOptionDescription: {
+    color: 'rgba(255,255,255,0.8)',
   },
   gridContainer: {
     flexDirection: isRTL ? 'row-reverse' : 'row',
     flexWrap: 'wrap',
+    gap: SPACING.md,
     justifyContent: 'space-between',
   },
-  gridItem: {
-    width: '48%',
-    backgroundColor: COLORS.surface,
+  gridCard: {
+    width: (width - SPACING.lg * 2 - SPACING.md) / 2,
+    backgroundColor: COLORS.card,
     padding: SPACING.lg,
-    borderRadius: BORDER_RADIUS.md,
-    marginBottom: SPACING.md,
+    borderRadius: BORDER_RADIUS.lg,
     alignItems: 'center',
-    justifyContent: 'center',
     borderWidth: 1,
     borderColor: COLORS.border,
-    ...SHADOWS.small,
+    ...SHADOWS.sm,
   },
-  selectedGridItem: {
+  selectedGridCard: {
+    backgroundColor: COLORS.primary,
     borderColor: COLORS.primary,
-    backgroundColor: COLORS.primary + '10', // 10% opacity
   },
-  gridLabel: {
-    marginTop: SPACING.sm,
-    fontSize: 14,
-    fontWeight: 'bold',
+  gridIconContainer: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: COLORS.primary + '15',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: SPACING.md,
+  },
+  selectedGridIconContainer: {
+    backgroundColor: 'rgba(255,255,255,0.2)',
+  },
+  gridTitle: {
+    fontSize: 16,
+    fontWeight: '600',
     color: COLORS.text,
     textAlign: 'center',
   },
-  selectedGridLabel: {
-    color: COLORS.primary,
+  selectedGridTitle: {
+    color: '#fff',
   },
-  searchInput: {
-    backgroundColor: COLORS.surface,
-    padding: SPACING.md,
-    borderRadius: BORDER_RADIUS.md,
-    marginBottom: SPACING.md,
-    color: COLORS.text,
+  searchContainer: {
+    flexDirection: isRTL ? 'row-reverse' : 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.card,
+    borderRadius: BORDER_RADIUS.lg,
+    paddingHorizontal: SPACING.md,
+    height: 50,
     borderWidth: 1,
     borderColor: COLORS.border,
-    textAlign: isRTL ? 'right' : 'left',
+    marginBottom: SPACING.lg,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 16,
+    color: COLORS.text,
+    marginHorizontal: SPACING.sm,
+    height: '100%',
   },
   listContainer: {
     flex: 1,
   },
+  brandCard: {
+    width: (width - SPACING.lg * 2 - SPACING.md) / 3,
+    backgroundColor: COLORS.card,
+    padding: SPACING.md,
+    borderRadius: BORDER_RADIUS.lg,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    marginBottom: SPACING.md,
+    ...SHADOWS.sm,
+  },
+  selectedBrandCard: {
+    borderColor: COLORS.primary,
+    backgroundColor: COLORS.primary + '10',
+  },
+  brandLogo: {
+    width: 48,
+    height: 48,
+    marginBottom: SPACING.sm,
+  },
+  brandName: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: COLORS.text,
+    textAlign: 'center',
+  },
+  selectedBrandName: {
+    color: COLORS.primary,
+  },
   listItem: {
     flexDirection: isRTL ? 'row-reverse' : 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.surface,
-    padding: SPACING.md,
-    borderRadius: BORDER_RADIUS.md,
+    justifyContent: 'space-between',
+    backgroundColor: COLORS.card,
+    padding: SPACING.lg,
+    borderRadius: BORDER_RADIUS.lg,
     marginBottom: SPACING.sm,
     borderWidth: 1,
     borderColor: COLORS.border,
   },
   selectedListItem: {
+    backgroundColor: COLORS.primary,
     borderColor: COLORS.primary,
-    backgroundColor: COLORS.primary + '10',
   },
   listItemText: {
-    flex: 1,
     fontSize: 16,
     color: COLORS.text,
-    marginHorizontal: SPACING.md,
-    textAlign: isRTL ? 'right' : 'left',
+    fontWeight: '500',
   },
   selectedListItemText: {
-    color: COLORS.primary,
-    fontWeight: 'bold',
+    color: '#fff',
   },
-  issueInfoContainer: {
-    flex: 1,
-    flexDirection: isRTL ? 'row-reverse' : 'row',
-    alignItems: 'center',
-  },
-  issueIcon: {
-    marginLeft: isRTL ? SPACING.md : 0,
-    marginRight: isRTL ? 0 : SPACING.md,
-  },
-  priceRangeText: {
-    fontSize: 12,
-    color: COLORS.textSecondary,
-    marginTop: 2,
-    textAlign: isRTL ? 'right' : 'left',
-  },
-  textArea: {
-    backgroundColor: COLORS.surface,
-    padding: SPACING.md,
-    borderRadius: BORDER_RADIUS.md,
-    marginBottom: SPACING.lg,
-    color: COLORS.text,
+  issueCard: {
+    backgroundColor: COLORS.card,
+    padding: SPACING.lg,
+    borderRadius: BORDER_RADIUS.lg,
+    marginBottom: SPACING.md,
     borderWidth: 1,
     borderColor: COLORS.border,
-    height: 100,
-    textAlignVertical: 'top',
-    textAlign: isRTL ? 'right' : 'left',
+    ...SHADOWS.sm,
   },
-  sectionTitle: {
+  selectedIssueCard: {
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
+  },
+  issueHeader: {
+    flexDirection: isRTL ? 'row-reverse' : 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  issueInfo: {
+    flex: 1,
+    alignItems: isRTL ? 'flex-end' : 'flex-start',
+  },
+  issueName: {
     fontSize: 16,
     fontWeight: 'bold',
     color: COLORS.text,
-    marginBottom: SPACING.md,
+    marginBottom: 4,
+  },
+  selectedIssueName: {
+    color: '#fff',
+  },
+  issuePrice: {
+    fontSize: 14,
+    color: COLORS.primary,
+    fontWeight: '600',
+  },
+  selectedIssuePrice: {
+    color: 'rgba(255,255,255,0.9)',
+  },
+  inputGroup: {
+    marginBottom: SPACING.xl,
+  },
+  label: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: COLORS.text,
+    marginBottom: SPACING.sm,
     textAlign: isRTL ? 'right' : 'left',
+  },
+  input: {
+    backgroundColor: COLORS.card,
+    borderRadius: BORDER_RADIUS.lg,
+    padding: SPACING.md,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    fontSize: 16,
+    color: COLORS.text,
+    textAlignVertical: 'top',
+  },
+  textArea: {
+    height: 120,
   },
   mediaButtons: {
     flexDirection: isRTL ? 'row-reverse' : 'row',
+    gap: SPACING.md,
     marginBottom: SPACING.md,
   },
   mediaButton: {
     flex: 1,
-    flexDirection: isRTL ? 'row-reverse' : 'row',
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: COLORS.surface,
+    backgroundColor: COLORS.card,
     padding: SPACING.md,
-    borderRadius: BORDER_RADIUS.md,
-    marginHorizontal: SPACING.xs,
+    borderRadius: BORDER_RADIUS.lg,
     borderWidth: 1,
     borderColor: COLORS.border,
+    gap: SPACING.sm,
   },
   mediaButtonText: {
-    marginLeft: isRTL ? 0 : SPACING.sm,
-    marginRight: isRTL ? SPACING.sm : 0,
+    fontSize: 14,
+    fontWeight: '600',
     color: COLORS.text,
-    fontWeight: 'bold',
   },
   mediaPreview: {
     flexDirection: isRTL ? 'row-reverse' : 'row',
-    marginBottom: SPACING.lg,
   },
   mediaItem: {
-    marginRight: isRTL ? 0 : SPACING.sm,
-    marginLeft: isRTL ? SPACING.sm : 0,
+    marginRight: isRTL ? 0 : SPACING.md,
+    marginLeft: isRTL ? SPACING.md : 0,
     position: 'relative',
   },
   mediaImage: {
-    width: 80,
-    height: 80,
-    borderRadius: BORDER_RADIUS.sm,
+    width: 100,
+    height: 100,
+    borderRadius: BORDER_RADIUS.md,
   },
-  removeMediaButton: {
+  removeMedia: {
     position: 'absolute',
-    top: -5,
-    right: -5,
-    backgroundColor: COLORS.error,
-    borderRadius: 10,
-    width: 20,
-    height: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
+    top: -8,
+    right: -8,
+    backgroundColor: '#fff',
+    borderRadius: 12,
   },
-  reviewContainer: {
-    flex: 1,
+  nextButton: {
+    backgroundColor: COLORS.primary,
+    padding: SPACING.lg,
+    borderRadius: BORDER_RADIUS.lg,
+    alignItems: 'center',
+    marginTop: SPACING.lg,
+    marginBottom: SPACING.xxl,
+    ...SHADOWS.md,
+  },
+  nextButtonText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold',
   },
   reviewCard: {
-    backgroundColor: COLORS.surface,
-    padding: SPACING.md,
-    borderRadius: BORDER_RADIUS.md,
-    marginBottom: SPACING.md,
+    backgroundColor: COLORS.card,
+    padding: SPACING.lg,
+    borderRadius: BORDER_RADIUS.lg,
+    marginBottom: SPACING.lg,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    ...SHADOWS.sm,
   },
   reviewHeader: {
     flexDirection: isRTL ? 'row-reverse' : 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    marginBottom: SPACING.md,
+    paddingBottom: SPACING.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+  },
+  reviewDeviceType: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: COLORS.primary,
+  },
+  reviewRow: {
+    flexDirection: isRTL ? 'row-reverse' : 'row',
+    justifyContent: 'space-between',
     marginBottom: SPACING.sm,
   },
-  reviewDeviceName: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: COLORS.text,
-  },
-  reviewDetail: {
+  reviewLabel: {
     fontSize: 14,
-    color: COLORS.textSecondary,
-    marginBottom: 4,
-    textAlign: isRTL ? 'right' : 'left',
+    color: COLORS.gray,
+  },
+  reviewValue: {
+    fontSize: 14,
+    color: COLORS.text,
+    fontWeight: '600',
   },
   reviewPrice: {
     fontSize: 14,
     color: COLORS.primary,
     fontWeight: 'bold',
-    textAlign: isRTL ? 'right' : 'left',
   },
   addMoreButton: {
     flexDirection: isRTL ? 'row-reverse' : 'row',
@@ -946,92 +1162,62 @@ const createStyles = (COLORS: any, SHADOWS: any, isRTL: boolean) => StyleSheet.c
     padding: SPACING.md,
     borderWidth: 1,
     borderColor: COLORS.primary,
-    borderRadius: BORDER_RADIUS.md,
+    borderRadius: BORDER_RADIUS.lg,
     borderStyle: 'dashed',
-    marginTop: SPACING.sm,
+    gap: SPACING.sm,
+    marginBottom: SPACING.lg,
   },
   addMoreText: {
+    fontSize: 16,
     color: COLORS.primary,
-    fontWeight: 'bold',
-    marginLeft: isRTL ? 0 : SPACING.sm,
-    marginRight: isRTL ? SPACING.sm : 0,
+    fontWeight: '600',
   },
   mapContainer: {
-    height: 200,
-    borderRadius: BORDER_RADIUS.md,
+    height: 300,
+    borderRadius: BORDER_RADIUS.lg,
     overflow: 'hidden',
-    marginBottom: SPACING.md,
-    position: 'relative',
+    marginBottom: SPACING.lg,
+    borderWidth: 1,
+    borderColor: COLORS.border,
   },
   map: {
     width: '100%',
     height: '100%',
   },
   loadingMap: {
-    width: '100%',
-    height: '100%',
-    backgroundColor: COLORS.surface,
-    alignItems: 'center',
+    flex: 1,
     justifyContent: 'center',
-  },
-  myLocationButton: {
-    position: 'absolute',
-    bottom: 16,
-    right: 16,
-    backgroundColor: COLORS.surface,
-    padding: 8,
-    borderRadius: 24,
-    ...SHADOWS.medium,
+    alignItems: 'center',
+    backgroundColor: COLORS.card,
   },
   addressContainer: {
-    backgroundColor: COLORS.surface,
-    padding: SPACING.md,
-    borderRadius: BORDER_RADIUS.md,
-  },
-  addressLabel: {
-    fontSize: 12,
-    color: COLORS.textSecondary,
-    marginBottom: 4,
-    textAlign: isRTL ? 'right' : 'left',
+    flexDirection: isRTL ? 'row-reverse' : 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.card,
+    padding: SPACING.lg,
+    borderRadius: BORDER_RADIUS.lg,
+    marginBottom: SPACING.xl,
+    gap: SPACING.md,
+    borderWidth: 1,
+    borderColor: COLORS.border,
   },
   addressText: {
+    flex: 1,
     fontSize: 14,
     color: COLORS.text,
     textAlign: isRTL ? 'right' : 'left',
   },
-  footer: {
-    flexDirection: isRTL ? 'row-reverse' : 'row',
-    padding: SPACING.md,
-    backgroundColor: COLORS.surface,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.border,
-  },
-  primaryButton: {
-    flex: 2,
+  submitButton: {
     backgroundColor: COLORS.primary,
-    padding: SPACING.md,
-    borderRadius: BORDER_RADIUS.md,
+    padding: SPACING.lg,
+    borderRadius: BORDER_RADIUS.lg,
     alignItems: 'center',
-    marginLeft: isRTL ? 0 : SPACING.sm,
-    marginRight: isRTL ? SPACING.sm : 0,
+    marginBottom: SPACING.xxl,
+    ...SHADOWS.md,
   },
-  primaryButtonText: {
-    color: '#FFF',
+  submitButtonText: {
+    color: '#fff',
+    fontSize: 18,
     fontWeight: 'bold',
-    fontSize: 16,
-  },
-  secondaryButton: {
-    flex: 1,
-    backgroundColor: 'transparent',
-    padding: SPACING.md,
-    borderRadius: BORDER_RADIUS.md,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-  secondaryButtonText: {
-    color: COLORS.text,
-    fontWeight: 'bold',
-    fontSize: 16,
   },
 });

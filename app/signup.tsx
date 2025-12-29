@@ -105,7 +105,7 @@ export default function SignupScreen() {
     }
   };
 
-  const styles = createStyles(isRTL);
+  const styles = createStyles(COLORS, SHADOWS, isRTL);
 
   return (
     <KeyboardAvoidingView
@@ -118,11 +118,13 @@ export default function SignupScreen() {
           style={styles.backButton}
           onPress={() => router.push('/role-selection')}
         >
-          <Ionicons name={isRTL ? "arrow-forward" : "arrow-back"} size={24} color="#6b7280" />
+          <Ionicons name={isRTL ? "arrow-forward" : "arrow-back"} size={24} color={COLORS.text} />
         </TouchableOpacity>
 
         <View style={styles.header}>
-          <Ionicons name="person-add" size={64} color="#10b981" />
+          <View style={styles.iconContainer}>
+            <Ionicons name="person-add" size={48} color={COLORS.primary} />
+          </View>
           <Text style={styles.title}>{isRTL ? 'إنشاء حساب جديد' : 'Create Account'}</Text>
           <Text style={styles.subtitle}>{isRTL ? 'انضم إلى Fixate الآن' : 'Join Fixate Now'}</Text>
         </View>
@@ -131,10 +133,11 @@ export default function SignupScreen() {
           <View style={styles.inputGroup}>
             <Text style={styles.label}>{isRTL ? 'الاسم الكامل' : 'Full Name'}</Text>
             <View style={styles.inputContainer}>
-              <Ionicons name="person" size={20} color="#6b7280" />
+              <Ionicons name="person-outline" size={20} color={COLORS.gray} />
               <TextInput
                 style={styles.input}
                 placeholder={isRTL ? "محمد أحمد" : "John Doe"}
+                placeholderTextColor={COLORS.gray}
                 value={name}
                 onChangeText={setName}
                 textAlign={isRTL ? 'right' : 'left'}
@@ -145,10 +148,11 @@ export default function SignupScreen() {
           <View style={styles.inputGroup}>
             <Text style={styles.label}>{isRTL ? 'البريد الإلكتروني' : 'Email'}</Text>
             <View style={styles.inputContainer}>
-              <Ionicons name="mail" size={20} color="#6b7280" />
+              <Ionicons name="mail-outline" size={20} color={COLORS.gray} />
               <TextInput
                 style={styles.input}
                 placeholder="example@email.com"
+                placeholderTextColor={COLORS.gray}
                 value={email}
                 onChangeText={setEmail}
                 keyboardType="email-address"
@@ -161,10 +165,11 @@ export default function SignupScreen() {
           <View style={styles.inputGroup}>
             <Text style={styles.label}>{isRTL ? 'رقم الجوال' : 'Phone Number'}</Text>
             <View style={styles.inputContainer}>
-              <Ionicons name="call" size={20} color="#6b7280" />
+              <Ionicons name="call-outline" size={20} color={COLORS.gray} />
               <TextInput
                 style={styles.input}
                 placeholder="05xxxxxxxx"
+                placeholderTextColor={COLORS.gray}
                 value={phone}
                 onChangeText={setPhone}
                 keyboardType="phone-pad"
@@ -176,10 +181,11 @@ export default function SignupScreen() {
           <View style={styles.inputGroup}>
             <Text style={styles.label}>{isRTL ? 'كلمة المرور' : 'Password'}</Text>
             <View style={styles.inputContainer}>
-              <Ionicons name="lock-closed" size={20} color="#6b7280" />
+              <Ionicons name="lock-closed-outline" size={20} color={COLORS.gray} />
               <TextInput
                 style={styles.input}
                 placeholder="••••••••"
+                placeholderTextColor={COLORS.gray}
                 value={password}
                 onChangeText={setPassword}
                 onFocus={() => setPasswordFocused(true)}
@@ -189,9 +195,9 @@ export default function SignupScreen() {
               />
               <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
                 <Ionicons
-                  name={showPassword ? 'eye-off' : 'eye'}
+                  name={showPassword ? 'eye-off-outline' : 'eye-outline'}
                   size={20}
-                  color="#6b7280"
+                  color={COLORS.gray}
                 />
               </TouchableOpacity>
             </View>
@@ -243,7 +249,7 @@ export default function SignupScreen() {
               const { error } = await supabase.auth.signInWithOAuth({ provider: 'apple' });
               if (error) Alert.alert(isRTL ? 'خطأ' : 'Error', error.message);
             }}>
-              <Ionicons name="logo-apple" size={24} color="#000" />
+              <Ionicons name="logo-apple" size={24} color={isDark ? '#fff' : '#000'} />
             </TouchableOpacity>
             <TouchableOpacity style={styles.socialButton} onPress={async () => {
               const { error } = await supabase.auth.signInWithOAuth({ provider: 'facebook' });
@@ -267,61 +273,88 @@ export default function SignupScreen() {
   );
 }
 
-const createStyles = (isRTL: boolean) => StyleSheet.create({
+const createStyles = (COLORS: any, SHADOWS: any, isRTL: boolean) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f9fafb',
+    backgroundColor: COLORS.background,
   },
   content: {
-    padding: 24,
-    paddingTop: 60,
+    padding: SPACING.xl,
+    paddingTop: Platform.OS === 'android' ? 40 : 60,
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: COLORS.card,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: SPACING.lg,
+    alignSelf: isRTL ? 'flex-end' : 'flex-start',
+    ...SHADOWS.sm,
   },
   header: {
     alignItems: 'center',
-    marginBottom: 32,
+    marginBottom: SPACING.xxl,
+  },
+  iconContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: COLORS.primary + '15', // 15% opacity
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: SPACING.lg,
   },
   title: {
     fontSize: 28,
     fontWeight: 'bold',
-    marginTop: 16,
-    marginBottom: 8,
+    color: COLORS.text,
+    marginBottom: SPACING.xs,
   },
   subtitle: {
     fontSize: 16,
-    color: '#6b7280',
+    color: COLORS.gray,
   },
   form: {
-    gap: 16,
+    gap: SPACING.lg,
   },
   inputGroup: {
-    gap: 8,
+    gap: SPACING.xs,
   },
   label: {
     fontSize: 16,
     fontWeight: '600',
+    color: COLORS.text,
     textAlign: isRTL ? 'right' : 'left',
+    marginBottom: 4,
   },
   inputContainer: {
     flexDirection: isRTL ? 'row-reverse' : 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    backgroundColor: COLORS.card,
+    borderRadius: BORDER_RADIUS.lg,
+    paddingHorizontal: SPACING.md,
+    height: 56,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
-    gap: 12,
+    borderColor: COLORS.border,
+    gap: SPACING.md,
+    ...SHADOWS.sm,
   },
   input: {
     flex: 1,
     fontSize: 16,
+    color: COLORS.text,
+    height: '100%',
   },
   signupButton: {
-    backgroundColor: '#10b981',
-    padding: 16,
-    borderRadius: 12,
+    backgroundColor: COLORS.primary,
+    height: 56,
+    borderRadius: BORDER_RADIUS.lg,
+    justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 12,
+    marginTop: SPACING.sm,
+    ...SHADOWS.md,
   },
   signupButtonText: {
     color: '#fff',
@@ -332,32 +365,25 @@ const createStyles = (isRTL: boolean) => StyleSheet.create({
     flexDirection: isRTL ? 'row-reverse' : 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    gap: 8,
-    marginTop: 16,
+    gap: SPACING.xs,
+    marginTop: SPACING.lg,
+    marginBottom: SPACING.xl,
   },
   footerText: {
     fontSize: 16,
-    color: '#6b7280',
+    color: COLORS.gray,
   },
   footerLink: {
     fontSize: 16,
-    color: '#10b981',
+    color: COLORS.primary,
     fontWeight: 'bold',
-  },
-  backButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 20,
-    paddingVertical: 8,
-    alignSelf: isRTL ? 'flex-end' : 'flex-start',
   },
   passwordStrength: {
     marginTop: 8,
   },
   strengthBar: {
     height: 4,
-    backgroundColor: '#e5e7eb',
+    backgroundColor: COLORS.border,
     borderRadius: 2,
     overflow: 'hidden',
     marginBottom: 4,
@@ -386,31 +412,33 @@ const createStyles = (isRTL: boolean) => StyleSheet.create({
   divider: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginVertical: 24,
+    marginVertical: SPACING.lg,
   },
   dividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: '#e5e7eb',
+    backgroundColor: COLORS.border,
   },
   dividerText: {
-    marginHorizontal: 16,
+    marginHorizontal: SPACING.md,
     fontSize: 14,
-    color: '#6b7280',
+    color: COLORS.gray,
+    fontWeight: '600',
   },
   socialButtons: {
     flexDirection: 'row',
     justifyContent: 'center',
-    gap: 16,
+    gap: SPACING.lg,
   },
   socialButton: {
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: '#fff',
+    backgroundColor: COLORS.card,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: COLORS.border,
     justifyContent: 'center',
     alignItems: 'center',
+    ...SHADOWS.sm,
   },
 });
