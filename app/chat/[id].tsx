@@ -17,7 +17,8 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { COLORS, SPACING, BORDER_RADIUS, SHADOWS } from '../../constants/theme';
 import { useApp } from '../../contexts/AppContext';
 import { chat, auth, requests } from '../../lib/supabase-api';
-import { format } from 'date-fns';
+// Removed date-fns dependency to fix crash
+// import { format } from 'date-fns';
 
 export default function ChatScreen() {
   const { id } = useLocalSearchParams();
@@ -112,7 +113,7 @@ export default function ChatScreen() {
             styles.timestamp,
             isMe ? styles.myTimestamp : styles.otherTimestamp
           ]}>
-            {format(new Date(item.created_at), 'HH:mm')}
+            {new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
           </Text>
         </View>
       </View>
