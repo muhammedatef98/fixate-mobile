@@ -54,6 +54,15 @@ export interface Service {
   created_at: string;
 }
 
+export interface Message {
+  id: string;
+  order_id: string;
+  sender_id: string;
+  content: string;
+  created_at: string;
+  is_read: boolean;
+}
+
 // Authentication API
 export const auth = {
   // Get current user
@@ -413,6 +422,73 @@ export const technicians = {
 };
 
 // Services API
+// Chat API
+export const chat = {
+  // Send message
+  sendMessage: async (orderId: string, content: string): Promise<Message | null> => {
+    const user = await auth.getCurrentUser();
+    if (!user) return null;
+
+    const { data, error } = await supabase
+      .from('messages')
+      .insert([{
+        order_id: orderId,
+        sender_id: user.id,
+        content: content,
+      }])
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error sending message:', error);
+      throw error;
+    }
+
+    return data;
+  },
+
+  // Get messages for an order
+  getMessages: async (orderId: string): Promise<Message[]> => {
+    const { data, error } = await supabase
+      .from('messages')
+      .select('*')
+      .eq('order_id', orderId)
+      .order('created_at', { ascending: true });
+
+    if (error) {
+      console.error('Error getting messages:', error);
+      return [];
+    }
+
+    return data || [];
+  },
+
+  // Subscribe to new messages
+  subscribeToMessages: (orderId: string, callback: (message: Message) => void) => {
+    const subscription = supabase
+      .channel(`chat-${orderId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'messages',
+          filter: `order_id=eq.${orderId}`
+        },
+        (payload) => {
+          callback(payload.new as Message);
+        }
+      )
+      .subscribe();
+
+    return {
+      unsubscribe: () => {
+        supabase.removeChannel(subscription);
+      }
+    };
+  }
+};
+
 export const services = {
   // Get all services
   getAll: async (): Promise<Service[]> => {

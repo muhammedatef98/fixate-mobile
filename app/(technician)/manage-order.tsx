@@ -236,6 +236,22 @@ export default function ManageOrderScreen() {
           </View>
         </View>
 
+        {/* Chat Button */}
+        {order.status !== 'pending' && order.status !== 'cancelled' && (
+          <TouchableOpacity
+            style={[styles.chatButton, { backgroundColor: '#10B981' }]}
+            onPress={() => router.push({
+              pathname: '/chat',
+              params: { orderId: order.id, otherUserName: isRTL ? 'العميل' : 'Customer' }
+            })}
+          >
+            <MaterialIcons name="chat" size={24} color="#FFFFFF" />
+            <Text style={styles.chatButtonText}>
+              {isRTL ? 'مراسلة العميل' : 'Chat with Customer'}
+            </Text>
+          </TouchableOpacity>
+        )}
+
         {/* Device Info */}
         <View style={[styles.card, { backgroundColor: COLORS.card }, SHADOWS.medium]}>
           <Text style={[styles.cardTitle, { color: COLORS.text }]}>
@@ -318,52 +334,6 @@ export default function ManageOrderScreen() {
             </ScrollView>
           </View>
         )}
-
-        {/* All Status Updates */}
-        <View style={[styles.card, { backgroundColor: COLORS.card }, SHADOWS.medium]}>
-          <Text style={[styles.cardTitle, { color: COLORS.text }]}>
-            {isRTL ? 'تحديث الحالة' : 'Update Status'}
-          </Text>
-          {STATUS_ACTIONS.filter(a => a.status !== 'accepted').map((action) => {
-            const isCurrentStatus = order.status === action.status;
-            const statusIndex = STATUS_ACTIONS.findIndex(a => a.status === order.status);
-            const actionIndex = STATUS_ACTIONS.findIndex(a => a.status === action.status);
-            const isPast = actionIndex < statusIndex;
-            const isDisabled = isPast || isCurrentStatus || order.status === 'pending';
-
-            return (
-              <TouchableOpacity
-                key={action.status}
-                style={[
-                  styles.statusOption,
-                  {
-                    backgroundColor: isCurrentStatus ? `${action.color}15` : COLORS.background,
-                    borderColor: isCurrentStatus ? action.color : COLORS.border,
-                  },
-                ]}
-                onPress={() => !isDisabled && handleUpdateStatus(action.status)}
-                disabled={isDisabled || updating}
-              >
-                <MaterialCommunityIcons 
-                  name={action.icon as any} 
-                  size={24} 
-                  color={isCurrentStatus ? action.color : COLORS.textSecondary} 
-                />
-                <Text
-                  style={[
-                    styles.statusOptionText,
-                    { color: isCurrentStatus ? action.color : COLORS.textSecondary },
-                  ]}
-                >
-                  {isRTL ? action.arLabel : action.enLabel}
-                </Text>
-                {isCurrentStatus && (
-                  <MaterialIcons name="check-circle" size={20} color={action.color} />
-                )}
-              </TouchableOpacity>
-            );
-          })}
-        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -373,128 +343,20 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  errorContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  errorText: {
-    fontSize: 16,
-    marginTop: SPACING.md,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.md,
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-  },
-  scrollView: {
-    flex: 1,
-    paddingHorizontal: SPACING.lg,
-  },
-  card: {
-    padding: SPACING.lg,
-    borderRadius: BORDER_RADIUS.lg,
-    marginBottom: SPACING.md,
-  },
-  cardTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: SPACING.md,
-  },
-  actionButton: {
+  chatButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: SPACING.lg,
-    borderRadius: BORDER_RADIUS.md,
-    gap: SPACING.sm,
-    marginBottom: SPACING.sm,
+    padding: SPACING.m,
+    borderRadius: BORDER_RADIUS.m,
+    marginBottom: SPACING.l,
+    ...SHADOWS.small,
   },
-  actionButtonText: {
+  chatButtonText: {
     color: '#FFFFFF',
-    fontSize: 16,
     fontWeight: 'bold',
-  },
-  infoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: SPACING.md,
-    gap: SPACING.sm,
-  },
-  infoLabel: {
-    fontSize: 14,
-    flex: 1,
-  },
-  infoValue: {
-    fontSize: 14,
-    flex: 2,
-    textAlign: I18nManager.isRTL ? 'right' : 'left',
-  },
-  locationText: {
-    fontSize: 14,
-    marginBottom: SPACING.md,
-  },
-  locationButtons: {
-    flexDirection: 'row',
-    gap: SPACING.sm,
-  },
-  locationButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: SPACING.md,
-    borderRadius: BORDER_RADIUS.md,
-    gap: SPACING.xs,
-  },
-  locationButtonText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  mediaImage: {
-    width: 120,
-    height: 120,
-    borderRadius: BORDER_RADIUS.md,
-    marginRight: SPACING.sm,
-  },
-  statusOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: SPACING.md,
-    paddingHorizontal: SPACING.lg,
-    borderRadius: BORDER_RADIUS.md,
-    borderWidth: 2,
-    marginBottom: SPACING.sm,
-    gap: SPACING.md,
-  },
-  statusOptionText: {
-    flex: 1,
-    fontSize: 14,
-    fontWeight: '600',
-  },
-});
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
+    fontSize: 16,
+    marginLeft: SPACING.s,
   },
   loadingContainer: {
     flex: 1,
