@@ -8,12 +8,15 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
+  Dimensions,
 } from 'react-native';
 import { Link, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../contexts/AppContext';
 import { getColors, getShadows, SPACING, BORDER_RADIUS } from '../constants/theme';
 import { supabase } from '../lib/supabase';
+
+const { width } = Dimensions.get('window');
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -79,7 +82,7 @@ export default function LoginScreen() {
     }
   };
 
-  const styles = createStyles(isRTL);
+  const styles = createStyles(COLORS, SHADOWS, isRTL);
 
   return (
     <KeyboardAvoidingView
@@ -92,11 +95,13 @@ export default function LoginScreen() {
           style={styles.backButton}
           onPress={() => router.push('/role-selection')}
         >
-          <Ionicons name={isRTL ? "arrow-forward" : "arrow-back"} size={24} color="#6b7280" />
+          <Ionicons name={isRTL ? "arrow-forward" : "arrow-back"} size={24} color={COLORS.text} />
         </TouchableOpacity>
 
         <View style={styles.header}>
-          <Ionicons name="log-in" size={64} color="#10b981" />
+          <View style={styles.iconContainer}>
+            <Ionicons name="log-in" size={48} color={COLORS.primary} />
+          </View>
           <Text style={styles.title}>{isRTL ? 'مرحباً بعودتك!' : 'Welcome Back!'}</Text>
           <Text style={styles.subtitle}>{isRTL ? 'سجل دخولك للمتابعة' : 'Sign in to continue'}</Text>
         </View>
@@ -105,10 +110,11 @@ export default function LoginScreen() {
           <View style={styles.inputGroup}>
             <Text style={styles.label}>{isRTL ? 'البريد الإلكتروني' : 'Email'}</Text>
             <View style={styles.inputContainer}>
-              <Ionicons name="mail" size={20} color="#6b7280" />
+              <Ionicons name="mail-outline" size={20} color={COLORS.gray} />
               <TextInput
                 style={styles.input}
                 placeholder="example@email.com"
+                placeholderTextColor={COLORS.gray}
                 value={email}
                 onChangeText={setEmail}
                 keyboardType="email-address"
@@ -121,10 +127,11 @@ export default function LoginScreen() {
           <View style={styles.inputGroup}>
             <Text style={styles.label}>{isRTL ? 'كلمة المرور' : 'Password'}</Text>
             <View style={styles.inputContainer}>
-              <Ionicons name="lock-closed" size={20} color="#6b7280" />
+              <Ionicons name="lock-closed-outline" size={20} color={COLORS.gray} />
               <TextInput
                 style={styles.input}
                 placeholder="••••••••"
+                placeholderTextColor={COLORS.gray}
                 value={password}
                 onChangeText={setPassword}
                 secureTextEntry={!showPassword}
@@ -132,13 +139,19 @@ export default function LoginScreen() {
               />
               <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
                 <Ionicons
-                  name={showPassword ? 'eye-off' : 'eye'}
+                  name={showPassword ? 'eye-off-outline' : 'eye-outline'}
                   size={20}
-                  color="#6b7280"
+                  color={COLORS.gray}
                 />
               </TouchableOpacity>
             </View>
           </View>
+
+          <TouchableOpacity style={styles.forgotPassword}>
+            <Text style={styles.forgotPasswordText}>
+              {isRTL ? 'نسيت كلمة المرور؟' : 'Forgot Password?'}
+            </Text>
+          </TouchableOpacity>
 
           <TouchableOpacity style={styles.loginButton} onPress={handleLogin}>
             <Text style={styles.loginButtonText}>{isRTL ? 'تسجيل الدخول' : 'Login'}</Text>
@@ -155,7 +168,7 @@ export default function LoginScreen() {
               <Ionicons name="logo-google" size={24} color="#DB4437" />
             </TouchableOpacity>
             <TouchableOpacity style={styles.socialButton} onPress={handleAppleLogin}>
-              <Ionicons name="logo-apple" size={24} color="#000" />
+              <Ionicons name="logo-apple" size={24} color={isDark ? '#fff' : '#000'} />
             </TouchableOpacity>
             <TouchableOpacity style={styles.socialButton} onPress={handleFacebookLogin}>
               <Ionicons name="logo-facebook" size={24} color="#1877F2" />
@@ -176,120 +189,152 @@ export default function LoginScreen() {
   );
 }
 
-const createStyles = (isRTL: boolean) => StyleSheet.create({
+const createStyles = (COLORS: any, SHADOWS: any, isRTL: boolean) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f9fafb',
+    backgroundColor: COLORS.background,
   },
   content: {
     flex: 1,
-    padding: 24,
+    padding: SPACING.xl,
     justifyContent: 'center',
+  },
+  backButton: {
+    position: 'absolute',
+    top: Platform.OS === 'android' ? 40 : 60,
+    left: isRTL ? undefined : SPACING.lg,
+    right: isRTL ? SPACING.lg : undefined,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: COLORS.card,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
+    ...SHADOWS.sm,
   },
   header: {
     alignItems: 'center',
-    marginBottom: 48,
+    marginBottom: SPACING.xxl,
+  },
+  iconContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: COLORS.primary + '15', // 15% opacity
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: SPACING.lg,
   },
   title: {
     fontSize: 32,
     fontWeight: 'bold',
-    marginTop: 16,
-    marginBottom: 8,
+    color: COLORS.text,
+    marginBottom: SPACING.xs,
   },
   subtitle: {
     fontSize: 16,
-    color: '#6b7280',
+    color: COLORS.gray,
   },
   form: {
-    gap: 20,
+    gap: SPACING.lg,
   },
   inputGroup: {
-    gap: 8,
+    gap: SPACING.xs,
   },
   label: {
     fontSize: 16,
     fontWeight: '600',
+    color: COLORS.text,
     textAlign: isRTL ? 'right' : 'left',
+    marginBottom: 4,
   },
   inputContainer: {
     flexDirection: isRTL ? 'row-reverse' : 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    backgroundColor: COLORS.card,
+    borderRadius: BORDER_RADIUS.lg,
+    paddingHorizontal: SPACING.md,
+    height: 56,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
-    gap: 12,
+    borderColor: COLORS.border,
+    gap: SPACING.md,
+    ...SHADOWS.sm,
   },
   input: {
     flex: 1,
     fontSize: 16,
+    color: COLORS.text,
+    height: '100%',
+  },
+  forgotPassword: {
+    alignItems: isRTL ? 'flex-start' : 'flex-end',
+  },
+  forgotPasswordText: {
+    color: COLORS.primary,
+    fontWeight: '600',
+    fontSize: 14,
   },
   loginButton: {
-    backgroundColor: '#10b981',
-    padding: 16,
-    borderRadius: 12,
+    backgroundColor: COLORS.primary,
+    height: 56,
+    borderRadius: BORDER_RADIUS.lg,
+    justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 12,
+    marginTop: SPACING.sm,
+    ...SHADOWS.md,
   },
   loginButtonText: {
     color: '#fff',
     fontSize: 18,
     fontWeight: 'bold',
   },
-  footer: {
-    flexDirection: isRTL ? 'row-reverse' : 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 8,
-    marginTop: 24,
-  },
-  footerText: {
-    fontSize: 16,
-    color: '#6b7280',
-  },
-  footerLink: {
-    fontSize: 16,
-    color: '#10b981',
-    fontWeight: 'bold',
-  },
-  backButton: {
-    position: 'absolute',
-    top: 48,
-    left: isRTL ? undefined : 24,
-    right: isRTL ? 24 : undefined,
-    padding: 8,
-    zIndex: 10,
-  },
   divider: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginVertical: 24,
+    marginVertical: SPACING.lg,
   },
   dividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: '#e5e7eb',
+    backgroundColor: COLORS.border,
   },
   dividerText: {
-    marginHorizontal: 16,
+    marginHorizontal: SPACING.md,
     fontSize: 14,
-    color: '#6b7280',
+    color: COLORS.gray,
+    fontWeight: '600',
   },
   socialButtons: {
     flexDirection: 'row',
     justifyContent: 'center',
-    gap: 16,
+    gap: SPACING.lg,
   },
   socialButton: {
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: '#fff',
+    backgroundColor: COLORS.card,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: COLORS.border,
     justifyContent: 'center',
     alignItems: 'center',
+    ...SHADOWS.sm,
+  },
+  footer: {
+    flexDirection: isRTL ? 'row-reverse' : 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: SPACING.xs,
+    marginTop: SPACING.xl,
+  },
+  footerText: {
+    fontSize: 16,
+    color: COLORS.gray,
+  },
+  footerLink: {
+    fontSize: 16,
+    color: COLORS.primary,
+    fontWeight: 'bold',
   },
 });
