@@ -12,6 +12,7 @@ export default function RoleSelectionScreen() {
   const { isDark, language, setLanguage } = useApp();
   const COLORS = getColors(isDark);
   const SHADOWS = getShadows(isDark);
+  const isRTL = language === 'ar';
   
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
@@ -41,7 +42,7 @@ export default function RoleSelectionScreen() {
     }
   };
 
-  const styles = createStyles(COLORS, SHADOWS);
+  const styles = createStyles(COLORS, SHADOWS, isRTL);
 
   return (
     <View style={styles.container}>
@@ -110,7 +111,11 @@ export default function RoleSelectionScreen() {
                   {language === 'ar' ? 'أبحث عن خدمات صيانة لأجهزتي' : 'Looking for repair services'}
                 </Text>
               </View>
-              <MaterialIcons name="chevron-right" size={28} color={COLORS.primary} />
+              <MaterialIcons 
+                name={isRTL ? "chevron-left" : "chevron-right"} 
+                size={28} 
+                color={COLORS.primary} 
+              />
             </TouchableOpacity>
 
             {/* Technician Card */}
@@ -130,7 +135,11 @@ export default function RoleSelectionScreen() {
                   {language === 'ar' ? 'أقدم خدمات الصيانة وأستقبل الطلبات' : 'Providing repair services'}
                 </Text>
               </View>
-              <MaterialIcons name="chevron-right" size={28} color={COLORS.info} />
+              <MaterialIcons 
+                name={isRTL ? "chevron-left" : "chevron-right"} 
+                size={28} 
+                color={COLORS.info} 
+              />
             </TouchableOpacity>
           </View>
 
@@ -151,7 +160,7 @@ export default function RoleSelectionScreen() {
   );
 }
 
-const createStyles = (COLORS: any, SHADOWS: any) => StyleSheet.create({
+const createStyles = (COLORS: any, SHADOWS: any, isRTL: boolean) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#FFFFFF',
@@ -159,8 +168,9 @@ const createStyles = (COLORS: any, SHADOWS: any) => StyleSheet.create({
   languageButton: {
     position: 'absolute',
     top: SPACING.xl,
-    right: SPACING.xl,
-    flexDirection: 'row',
+    right: isRTL ? undefined : SPACING.xl,
+    left: isRTL ? SPACING.xl : undefined,
+    flexDirection: isRTL ? 'row-reverse' : 'row',
     alignItems: 'center',
     backgroundColor: COLORS.surface,
     paddingVertical: 8,
@@ -215,7 +225,7 @@ const createStyles = (COLORS: any, SHADOWS: any) => StyleSheet.create({
     marginBottom: SPACING.xl,
   },
   roleCard: {
-    flexDirection: 'row',
+    flexDirection: isRTL ? 'row-reverse' : 'row',
     alignItems: 'center',
     padding: SPACING.lg,
     backgroundColor: COLORS.surface,
@@ -231,17 +241,20 @@ const createStyles = (COLORS: any, SHADOWS: any) => StyleSheet.create({
   },
   cardContent: {
     flex: 1,
+    alignItems: isRTL ? 'flex-end' : 'flex-start',
   },
   roleTitle: {
     fontSize: 20,
     fontWeight: 'bold',
     color: COLORS.text,
     marginBottom: 4,
+    textAlign: isRTL ? 'right' : 'left',
   },
   roleDescription: {
     fontSize: 14,
     color: COLORS.textSecondary,
     lineHeight: 20,
+    textAlign: isRTL ? 'right' : 'left',
   },
   footer: {
     fontSize: 12,

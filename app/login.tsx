@@ -17,16 +17,17 @@ import { supabase } from '../lib/supabase';
 
 export default function LoginScreen() {
   const router = useRouter();
-  const { isDark } = useApp();
+  const { isDark, language } = useApp();
   const COLORS = getColors(isDark);
   const SHADOWS = getShadows(isDark);
+  const isRTL = language === 'ar';
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
   const handleLogin = async () => {
     if (!email || !password) {
-      Alert.alert('خطأ', 'الرجاء ملء جميع الحقول');
+      Alert.alert(isRTL ? 'خطأ' : 'Error', isRTL ? 'الرجاء ملء جميع الحقول' : 'Please fill all fields');
       return;
     }
 
@@ -36,13 +37,13 @@ export default function LoginScreen() {
     });
 
     if (error) {
-      Alert.alert('خطأ', error.message);
+      Alert.alert(isRTL ? 'خطأ' : 'Error', error.message);
       return;
     }
 
-    Alert.alert('نجح', 'تم تسجيل الدخول بنجاح', [
+    Alert.alert(isRTL ? 'نجح' : 'Success', isRTL ? 'تم تسجيل الدخول بنجاح' : 'Logged in successfully', [
       {
-        text: 'حسناً',
+        text: isRTL ? 'حسناً' : 'OK',
         onPress: () => router.push('/'),
       },
     ]);
@@ -54,7 +55,7 @@ export default function LoginScreen() {
     });
 
     if (error) {
-      Alert.alert('خطأ', error.message);
+      Alert.alert(isRTL ? 'خطأ' : 'Error', error.message);
     }
   };
 
@@ -64,7 +65,7 @@ export default function LoginScreen() {
     });
 
     if (error) {
-      Alert.alert('خطأ', error.message);
+      Alert.alert(isRTL ? 'خطأ' : 'Error', error.message);
     }
   };
 
@@ -74,9 +75,11 @@ export default function LoginScreen() {
     });
 
     if (error) {
-      Alert.alert('خطأ', error.message);
+      Alert.alert(isRTL ? 'خطأ' : 'Error', error.message);
     }
   };
+
+  const styles = createStyles(isRTL);
 
   return (
     <KeyboardAvoidingView
@@ -89,19 +92,18 @@ export default function LoginScreen() {
           style={styles.backButton}
           onPress={() => router.push('/role-selection')}
         >
-          <Ionicons name="arrow-back" size={24} color="#6b7280" />
-          <Text style={styles.backText}>رجوع</Text>
+          <Ionicons name={isRTL ? "arrow-forward" : "arrow-back"} size={24} color="#6b7280" />
         </TouchableOpacity>
 
         <View style={styles.header}>
           <Ionicons name="log-in" size={64} color="#10b981" />
-          <Text style={styles.title}>مرحباً بعودتك!</Text>
-          <Text style={styles.subtitle}>سجل دخولك للمتابعة</Text>
+          <Text style={styles.title}>{isRTL ? 'مرحباً بعودتك!' : 'Welcome Back!'}</Text>
+          <Text style={styles.subtitle}>{isRTL ? 'سجل دخولك للمتابعة' : 'Sign in to continue'}</Text>
         </View>
 
         <View style={styles.form}>
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>البريد الإلكتروني</Text>
+            <Text style={styles.label}>{isRTL ? 'البريد الإلكتروني' : 'Email'}</Text>
             <View style={styles.inputContainer}>
               <Ionicons name="mail" size={20} color="#6b7280" />
               <TextInput
@@ -111,12 +113,13 @@ export default function LoginScreen() {
                 onChangeText={setEmail}
                 keyboardType="email-address"
                 autoCapitalize="none"
+                textAlign={isRTL ? 'right' : 'left'}
               />
             </View>
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>كلمة المرور</Text>
+            <Text style={styles.label}>{isRTL ? 'كلمة المرور' : 'Password'}</Text>
             <View style={styles.inputContainer}>
               <Ionicons name="lock-closed" size={20} color="#6b7280" />
               <TextInput
@@ -125,6 +128,7 @@ export default function LoginScreen() {
                 value={password}
                 onChangeText={setPassword}
                 secureTextEntry={!showPassword}
+                textAlign={isRTL ? 'right' : 'left'}
               />
               <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
                 <Ionicons
@@ -137,12 +141,12 @@ export default function LoginScreen() {
           </View>
 
           <TouchableOpacity style={styles.loginButton} onPress={handleLogin}>
-            <Text style={styles.loginButtonText}>تسجيل الدخول</Text>
+            <Text style={styles.loginButtonText}>{isRTL ? 'تسجيل الدخول' : 'Login'}</Text>
           </TouchableOpacity>
 
           <View style={styles.divider}>
             <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>أو</Text>
+            <Text style={styles.dividerText}>{isRTL ? 'أو' : 'OR'}</Text>
             <View style={styles.dividerLine} />
           </View>
 
@@ -159,10 +163,10 @@ export default function LoginScreen() {
           </View>
 
           <View style={styles.footer}>
-            <Text style={styles.footerText}>ليس لديك حساب؟</Text>
+            <Text style={styles.footerText}>{isRTL ? 'ليس لديك حساب؟' : "Don't have an account?"}</Text>
             <Link href="/signup" asChild>
               <TouchableOpacity>
-                <Text style={styles.footerLink}>إنشاء حساب</Text>
+                <Text style={styles.footerLink}>{isRTL ? 'إنشاء حساب' : 'Sign Up'}</Text>
               </TouchableOpacity>
             </Link>
           </View>
@@ -172,7 +176,7 @@ export default function LoginScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (isRTL: boolean) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f9fafb',
@@ -205,9 +209,10 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 16,
     fontWeight: '600',
+    textAlign: isRTL ? 'right' : 'left',
   },
   inputContainer: {
-    flexDirection: 'row',
+    flexDirection: isRTL ? 'row-reverse' : 'row',
     alignItems: 'center',
     backgroundColor: '#fff',
     borderRadius: 12,
@@ -234,7 +239,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   footer: {
-    flexDirection: 'row',
+    flexDirection: isRTL ? 'row-reverse' : 'row',
     justifyContent: 'center',
     alignItems: 'center',
     gap: 8,
@@ -250,16 +255,12 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   backButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 20,
-    paddingVertical: 8,
-  },
-  backText: {
-    fontSize: 16,
-    color: '#6b7280',
-    fontWeight: '600',
+    position: 'absolute',
+    top: 48,
+    left: isRTL ? undefined : 24,
+    right: isRTL ? 24 : undefined,
+    padding: 8,
+    zIndex: 10,
   },
   divider: {
     flexDirection: 'row',

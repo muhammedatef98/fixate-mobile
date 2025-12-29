@@ -19,47 +19,47 @@ import { supabase } from '../lib/supabase';
 
 export default function SignupScreen() {
   const router = useRouter();
-  const { isDark } = useApp();
+  const { isDark, language } = useApp();
   const COLORS = getColors(isDark);
   const SHADOWS = getShadows(isDark);
+  const isRTL = language === 'ar';
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [passwordFocused, setPasswordFocused] = useState(false);
-  const { language } = useApp();
   
   const passwordValidation = validatePassword(password, language);
 
   const handleSignup = async () => {
     if (!name || !email || !phone || !password) {
       Alert.alert(
-        language === 'ar' ? 'خطأ' : 'Error',
-        language === 'ar' ? 'الرجاء ملء جميع الحقول' : 'Please fill all fields'
+        isRTL ? 'خطأ' : 'Error',
+        isRTL ? 'الرجاء ملء جميع الحقول' : 'Please fill all fields'
       );
       return;
     }
     
     if (!validateEmail(email)) {
       Alert.alert(
-        language === 'ar' ? 'خطأ' : 'Error',
-        language === 'ar' ? 'البريد الإلكتروني غير صحيح' : 'Invalid email address'
+        isRTL ? 'خطأ' : 'Error',
+        isRTL ? 'البريد الإلكتروني غير صحيح' : 'Invalid email address'
       );
       return;
     }
     
     if (!validatePhone(phone)) {
       Alert.alert(
-        language === 'ar' ? 'خطأ' : 'Error',
-        language === 'ar' ? 'رقم الهاتف غير صحيح' : 'Invalid phone number'
+        isRTL ? 'خطأ' : 'Error',
+        isRTL ? 'رقم الهاتف غير صحيح' : 'Invalid phone number'
       );
       return;
     }
     
     if (!passwordValidation.isValid) {
       Alert.alert(
-        language === 'ar' ? 'كلمة مرور ضعيفة' : 'Weak Password',
+        isRTL ? 'كلمة مرور ضعيفة' : 'Weak Password',
         passwordValidation.errors.join('\n')
       );
       return;
@@ -81,29 +81,31 @@ export default function SignupScreen() {
 
       if (error) {
         Alert.alert(
-          language === 'ar' ? 'خطأ' : 'Error',
+          isRTL ? 'خطأ' : 'Error',
           error.message
         );
         return;
       }
 
       Alert.alert(
-        language === 'ar' ? 'نجح' : 'Success',
-        language === 'ar' ? 'تم إنشاء الحساب بنجاح! يرجى التحقق من بريدك الإلكتروني.' : 'Account created successfully! Please check your email.',
+        isRTL ? 'نجح' : 'Success',
+        isRTL ? 'تم إنشاء الحساب بنجاح! يرجى التحقق من بريدك الإلكتروني.' : 'Account created successfully! Please check your email.',
         [
           {
-            text: language === 'ar' ? 'حسناً' : 'OK',
+            text: isRTL ? 'حسناً' : 'OK',
             onPress: () => router.push('/login'),
           },
         ]
       );
     } catch (error: any) {
       Alert.alert(
-        language === 'ar' ? 'خطأ' : 'Error',
-        error.message || (language === 'ar' ? 'حدث خطأ أثناء إنشاء الحساب' : 'An error occurred while creating account')
+        isRTL ? 'خطأ' : 'Error',
+        error.message || (isRTL ? 'حدث خطأ أثناء إنشاء الحساب' : 'An error occurred while creating account')
       );
     }
   };
+
+  const styles = createStyles(isRTL);
 
   return (
     <KeyboardAvoidingView
@@ -116,32 +118,32 @@ export default function SignupScreen() {
           style={styles.backButton}
           onPress={() => router.push('/role-selection')}
         >
-          <Ionicons name="arrow-back" size={24} color="#6b7280" />
-          <Text style={styles.backText}>رجوع</Text>
+          <Ionicons name={isRTL ? "arrow-forward" : "arrow-back"} size={24} color="#6b7280" />
         </TouchableOpacity>
 
         <View style={styles.header}>
           <Ionicons name="person-add" size={64} color="#10b981" />
-          <Text style={styles.title}>إنشاء حساب جديد</Text>
-          <Text style={styles.subtitle}>انضم إلى Fixate الآن</Text>
+          <Text style={styles.title}>{isRTL ? 'إنشاء حساب جديد' : 'Create Account'}</Text>
+          <Text style={styles.subtitle}>{isRTL ? 'انضم إلى Fixate الآن' : 'Join Fixate Now'}</Text>
         </View>
 
         <View style={styles.form}>
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>الاسم الكامل</Text>
+            <Text style={styles.label}>{isRTL ? 'الاسم الكامل' : 'Full Name'}</Text>
             <View style={styles.inputContainer}>
               <Ionicons name="person" size={20} color="#6b7280" />
               <TextInput
                 style={styles.input}
-                placeholder="محمد أحمد"
+                placeholder={isRTL ? "محمد أحمد" : "John Doe"}
                 value={name}
                 onChangeText={setName}
+                textAlign={isRTL ? 'right' : 'left'}
               />
             </View>
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>البريد الإلكتروني</Text>
+            <Text style={styles.label}>{isRTL ? 'البريد الإلكتروني' : 'Email'}</Text>
             <View style={styles.inputContainer}>
               <Ionicons name="mail" size={20} color="#6b7280" />
               <TextInput
@@ -151,12 +153,13 @@ export default function SignupScreen() {
                 onChangeText={setEmail}
                 keyboardType="email-address"
                 autoCapitalize="none"
+                textAlign={isRTL ? 'right' : 'left'}
               />
             </View>
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>رقم الجوال</Text>
+            <Text style={styles.label}>{isRTL ? 'رقم الجوال' : 'Phone Number'}</Text>
             <View style={styles.inputContainer}>
               <Ionicons name="call" size={20} color="#6b7280" />
               <TextInput
@@ -165,12 +168,13 @@ export default function SignupScreen() {
                 value={phone}
                 onChangeText={setPhone}
                 keyboardType="phone-pad"
+                textAlign={isRTL ? 'right' : 'left'}
               />
             </View>
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>كلمة المرور</Text>
+            <Text style={styles.label}>{isRTL ? 'كلمة المرور' : 'Password'}</Text>
             <View style={styles.inputContainer}>
               <Ionicons name="lock-closed" size={20} color="#6b7280" />
               <TextInput
@@ -181,6 +185,7 @@ export default function SignupScreen() {
                 onFocus={() => setPasswordFocused(true)}
                 onBlur={() => setPasswordFocused(false)}
                 secureTextEntry={!showPassword}
+                textAlign={isRTL ? 'right' : 'left'}
               />
               <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
                 <Ionicons
@@ -203,56 +208,56 @@ export default function SignupScreen() {
                     ]} 
                   />
                 </View>
-                <Text style={[styles.strengthText, { color: getPasswordStrengthColor(passwordValidation.strength) }]}>
+                <Text style={[styles.strengthText, { color: getPasswordStrengthColor(passwordValidation.strength), textAlign: isRTL ? 'right' : 'left' }]}>
                   {getPasswordStrengthText(passwordValidation.strength, language)}
                 </Text>
               </View>
             )}
             {passwordFocused && password.length > 0 && !passwordValidation.isValid && (
-              <View style={styles.passwordHints}>
+              <View style={[styles.passwordHints, isRTL && { borderLeftWidth: 0, borderRightWidth: 3, borderRightColor: '#EF4444' }]}>
                 {passwordValidation.errors.map((error, index) => (
-                  <Text key={index} style={styles.hintText}>• {error}</Text>
+                  <Text key={index} style={[styles.hintText, { textAlign: isRTL ? 'right' : 'left' }]}>• {error}</Text>
                 ))}
               </View>
             )}
           </View>
 
           <TouchableOpacity style={styles.signupButton} onPress={handleSignup}>
-            <Text style={styles.signupButtonText}>إنشاء حساب</Text>
+            <Text style={styles.signupButtonText}>{isRTL ? 'إنشاء حساب' : 'Sign Up'}</Text>
           </TouchableOpacity>
 
           <View style={styles.divider}>
             <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>أو</Text>
+            <Text style={styles.dividerText}>{isRTL ? 'أو' : 'OR'}</Text>
             <View style={styles.dividerLine} />
           </View>
 
           <View style={styles.socialButtons}>
             <TouchableOpacity style={styles.socialButton} onPress={async () => {
               const { error } = await supabase.auth.signInWithOAuth({ provider: 'google' });
-              if (error) Alert.alert('خطأ', error.message);
+              if (error) Alert.alert(isRTL ? 'خطأ' : 'Error', error.message);
             }}>
               <Ionicons name="logo-google" size={24} color="#DB4437" />
             </TouchableOpacity>
             <TouchableOpacity style={styles.socialButton} onPress={async () => {
               const { error } = await supabase.auth.signInWithOAuth({ provider: 'apple' });
-              if (error) Alert.alert('خطأ', error.message);
+              if (error) Alert.alert(isRTL ? 'خطأ' : 'Error', error.message);
             }}>
               <Ionicons name="logo-apple" size={24} color="#000" />
             </TouchableOpacity>
             <TouchableOpacity style={styles.socialButton} onPress={async () => {
               const { error } = await supabase.auth.signInWithOAuth({ provider: 'facebook' });
-              if (error) Alert.alert('خطأ', error.message);
+              if (error) Alert.alert(isRTL ? 'خطأ' : 'Error', error.message);
             }}>
               <Ionicons name="logo-facebook" size={24} color="#1877F2" />
             </TouchableOpacity>
           </View>
 
           <View style={styles.footer}>
-            <Text style={styles.footerText}>لديك حساب بالفعل؟</Text>
+            <Text style={styles.footerText}>{isRTL ? 'لديك حساب بالفعل؟' : 'Already have an account?'}</Text>
             <Link href="/login" asChild>
               <TouchableOpacity>
-                <Text style={styles.footerLink}>تسجيل الدخول</Text>
+                <Text style={styles.footerLink}>{isRTL ? 'تسجيل الدخول' : 'Login'}</Text>
               </TouchableOpacity>
             </Link>
           </View>
@@ -262,7 +267,7 @@ export default function SignupScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (isRTL: boolean) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f9fafb',
@@ -294,9 +299,10 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 16,
     fontWeight: '600',
+    textAlign: isRTL ? 'right' : 'left',
   },
   inputContainer: {
-    flexDirection: 'row',
+    flexDirection: isRTL ? 'row-reverse' : 'row',
     alignItems: 'center',
     backgroundColor: '#fff',
     borderRadius: 12,
@@ -323,7 +329,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   footer: {
-    flexDirection: 'row',
+    flexDirection: isRTL ? 'row-reverse' : 'row',
     justifyContent: 'center',
     alignItems: 'center',
     gap: 8,
@@ -344,11 +350,7 @@ const styles = StyleSheet.create({
     gap: 8,
     marginBottom: 20,
     paddingVertical: 8,
-  },
-  backText: {
-    fontSize: 16,
-    color: '#6b7280',
-    fontWeight: '600',
+    alignSelf: isRTL ? 'flex-end' : 'flex-start',
   },
   passwordStrength: {
     marginTop: 8,
