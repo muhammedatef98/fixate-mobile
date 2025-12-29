@@ -408,7 +408,7 @@ export default function RequestScreen() {
                 key={service.id}
               style={[
                 styles.optionCard,
-                selectedServiceType === type.id && styles.selectedOptionCard,
+                selectedServiceType === service.id && styles.selectedOptionCard,
                 SHADOWS.neuFlat
               ]}
                 onPress={() => setSelectedServiceType(service.id)}
@@ -457,7 +457,7 @@ export default function RequestScreen() {
                   key={device.id}
               style={[
                 styles.gridItem,
-                selectedDeviceType === type.id && styles.selectedGridItem,
+                selectedDeviceType === device.id && styles.selectedGridItem,
                 SHADOWS.neuFlat
               ]}
                   onPress={() => setSelectedDeviceType(device.id)}
