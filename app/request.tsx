@@ -56,6 +56,7 @@ export default function RequestScreen() {
   const { language, isDark } = useApp();
   const COLORS = getColors(isDark);
   const SHADOWS = getShadows(isDark);
+  const styles = createStyles(COLORS, SHADOWS);
   const [currentStep, setCurrentStep] = useState(0);
   
   // Multi-Order State
