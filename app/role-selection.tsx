@@ -61,20 +61,15 @@ export default function RoleSelectionScreen() {
           ]}
         >
           {/* Language Switcher */}
-          <View style={styles.languageContainer}>
-            <TouchableOpacity 
-              style={[styles.langButton, language === 'ar' && styles.activeLangButton]}
-              onPress={() => setLanguage('ar')}
-            >
-              <Text style={[styles.langText, language === 'ar' && styles.activeLangText]}>عربي</Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={[styles.langButton, language === 'en' && styles.activeLangButton]}
-              onPress={() => setLanguage('en')}
-            >
-              <Text style={[styles.langText, language === 'en' && styles.activeLangText]}>English</Text>
-            </TouchableOpacity>
-          </View>
+          <TouchableOpacity 
+            style={styles.languageButton}
+            onPress={() => setLanguage(language === 'ar' ? 'en' : 'ar')}
+          >
+            <MaterialIcons name="language" size={24} color={COLORS.primary} />
+            <Text style={styles.languageText}>
+              {language === 'ar' ? 'English' : 'عربي'}
+            </Text>
+          </TouchableOpacity>
 
           {/* Logo */}
           <View style={styles.logoContainer}>
@@ -161,32 +156,24 @@ const createStyles = (COLORS: any, SHADOWS: any) => StyleSheet.create({
     flex: 1,
     backgroundColor: '#FFFFFF',
   },
-  languageContainer: {
+  languageButton: {
     position: 'absolute',
     top: SPACING.xl,
     right: SPACING.xl,
     flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: COLORS.surface,
-    borderRadius: BORDER_RADIUS.l,
-    padding: 4,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    gap: 6,
     zIndex: 10,
     ...SHADOWS.small,
   },
-  langButton: {
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: BORDER_RADIUS.m,
-  },
-  activeLangButton: {
-    backgroundColor: COLORS.primary,
-  },
-  langText: {
-    fontSize: 12,
+  languageText: {
+    fontSize: 14,
     fontWeight: '600',
-    color: COLORS.textSecondary,
-  },
-  activeLangText: {
-    color: '#FFFFFF',
+    color: COLORS.primary,
   },
   safeArea: {
     flex: 1,
