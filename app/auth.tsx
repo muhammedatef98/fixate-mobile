@@ -12,6 +12,7 @@ import {
   Platform,
   ScrollView,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { MaterialIcons, FontAwesome5 } from '@expo/vector-icons';
@@ -238,7 +239,7 @@ export default function AuthScreen() {
             )}
 
             {/* Email Input */}
-            <View style={styles.inputContainer}>
+            <View style={[styles.inputContainer, SHADOWS.neuInset]}>
               <MaterialIcons name="email" size={20} color={COLORS.textSecondary} />
               <TextInput
                 style={styles.input}
@@ -253,7 +254,7 @@ export default function AuthScreen() {
             </View>
 
             {/* Password Input */}
-            <View style={styles.inputContainer}>
+            <View style={[styles.inputContainer, SHADOWS.neuInset]}>
               <MaterialIcons name="lock" size={20} color={COLORS.textSecondary} />
               <TextInput
                 style={styles.input}
@@ -282,12 +283,22 @@ export default function AuthScreen() {
               </TouchableOpacity>
             )}
 
-            {/*              <TouchableOpacity style={[styles.authButton, SHADOWS.neuRaised]} onPress={handleAuth} disabled={loading}>           <Text style={styles.authButtonText}>
-                {isLogin 
-                  ? (language === 'ar' ? 'تسجيل الدخول' : 'Login')
-                  : (language === 'ar' ? 'إنشاء حساب' : 'Sign Up')
-                }
-              </Text>
+            {/* Auth Button */}
+            <TouchableOpacity 
+              style={[styles.authButton, SHADOWS.neuRaised]} 
+              onPress={handleAuth} 
+              disabled={loading}
+            >
+              {loading ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <Text style={styles.authButtonText}>
+                  {isLogin 
+                    ? (language === 'ar' ? 'تسجيل الدخول' : 'Login')
+                    : (language === 'ar' ? 'إنشاء حساب' : 'Sign Up')
+                  }
+                </Text>
+              )}
             </TouchableOpacity>
 
             {/* Divider */}
@@ -411,12 +422,23 @@ const createStyles = (COLORS: any, SHADOWS: any, isRTL: boolean) => StyleSheet.c
   inputContainer: {
     flexDirection: isRTL ? 'row-reverse' : 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.surface,
+    backgroundColor: COLORS.background,
     borderRadius: BORDER_RADIUS.lg,
     paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm,
+    paddingVertical: SPACING.md,
     marginBottom: SPACING.md,
     gap: SPACING.sm,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    // Ensure shadow is visible
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.05,
+    shadowRadius: 3.84,
+    elevation: 2,
   },
   input: {
     flex: 1,
