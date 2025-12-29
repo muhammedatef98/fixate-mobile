@@ -11,14 +11,13 @@ import {
   SafeAreaView,
   ActivityIndicator,
   Image,
+  ImageBackground,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
 import { COLORS, SPACING, BORDER_RADIUS, SHADOWS } from '../../constants/theme';
 import { useApp } from '../../contexts/AppContext';
 import { chat, auth, requests } from '../../lib/supabase-api';
-// Removed date-fns dependency to fix crash
-// import { format } from 'date-fns';
 
 export default function ChatScreen() {
   const { id } = useLocalSearchParams();
@@ -32,13 +31,13 @@ export default function ChatScreen() {
   const [sending, setSending] = useState(false);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [order, setOrder] = useState<any>(null);
+  const [otherPartyName, setOtherPartyName] = useState('');
   
   const flatListRef = useRef<FlatList>(null);
 
   useEffect(() => {
     loadData();
     
-    // Subscribe to new messages
     const subscription = chat.subscribeToMessages(id as string, (message) => {
       setMessages((prev) => [...prev, message]);
       setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
@@ -60,6 +59,16 @@ export default function ChatScreen() {
       setCurrentUser(user);
       setOrder(orderData);
       setMessages(msgs);
+      
+      // Determine other party name
+      // In a real app, you'd fetch the profile of the other user
+      // For now, we'll simulate it based on role
+      if (user?.user_metadata?.role === 'technician') {
+        setOtherPartyName(orderData?.customer_name || (language === 'ar' ? 'العميل' : 'Customer'));
+      } else {
+        setOtherPartyName(orderData?.technician_name || (language === 'ar' ? 'الفني' : 'Technician'));
+      }
+
       setLoading(false);
     } catch (error) {
       console.error('Error loading chat data:', error);
@@ -81,40 +90,53 @@ export default function ChatScreen() {
     }
   };
 
-  const renderMessage = ({ item }: { item: any }) => {
+  const renderMessage = ({ item, index }: { item: any, index: number }) => {
     const isMe = item.sender_id === currentUser?.id;
-    
+    const showAvatar = !isMe; // Always show avatar for other party
+    const showName = !isMe; // Show name for other party
+
     return (
       <View style={[
-        styles.messageContainer,
-        isMe ? styles.myMessageContainer : styles.otherMessageContainer
+        styles.messageRow,
+        isMe ? styles.myMessageRow : styles.otherMessageRow
       ]}>
-        {!isMe && (
-          <View style={styles.avatarContainer}>
-            <Image 
-              source={{ 
-                uri: `https://ui-avatars.com/api/?name=${isMe ? 'Me' : 'Other'}&background=random&color=fff&size=64` 
-              }} 
-              style={styles.avatar} 
-            />
-          </View>
+        {showAvatar && (
+          <Image 
+            source={{ 
+              uri: `https://ui-avatars.com/api/?name=${otherPartyName}&background=random&color=fff&size=64` 
+            }} 
+            style={styles.avatar} 
+          />
         )}
+        
         <View style={[
-          styles.messageBubble,
-          isMe ? [styles.myMessageBubble, SHADOWS.small] : [styles.otherMessageBubble, SHADOWS.small]
+          styles.bubbleContainer,
+          isMe ? styles.myBubbleContainer : styles.otherBubbleContainer
         ]}>
-          <Text style={[
-            styles.messageText,
-            isMe ? styles.myMessageText : styles.otherMessageText
+          {showName && (
+            <Text style={styles.senderName}>
+              {otherPartyName}
+            </Text>
+          )}
+          
+          <View style={[
+            styles.bubble,
+            isMe ? styles.myBubble : styles.otherBubble,
+            SHADOWS.small
           ]}>
-            {item.content}
-          </Text>
-          <Text style={[
-            styles.timestamp,
-            isMe ? styles.myTimestamp : styles.otherTimestamp
-          ]}>
-            {new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-          </Text>
+            <Text style={[
+              styles.messageText,
+              isMe ? styles.myMessageText : styles.otherMessageText
+            ]}>
+              {item.content}
+            </Text>
+            <Text style={[
+              styles.timestamp,
+              isMe ? styles.myTimestamp : styles.otherTimestamp
+            ]}>
+              {new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </Text>
+          </View>
         </View>
       </View>
     );
@@ -133,32 +155,47 @@ export default function ChatScreen() {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity 
-          style={[styles.backButton, SHADOWS.neu]}
+          style={styles.backButton}
           onPress={() => router.back()}
         >
           <MaterialIcons name={isRTL ? 'arrow-forward' : 'arrow-back'} size={24} color={COLORS.text} />
         </TouchableOpacity>
         
+        <View style={styles.headerAvatarContainer}>
+           <Image 
+            source={{ 
+              uri: `https://ui-avatars.com/api/?name=${otherPartyName}&background=random&color=fff&size=64` 
+            }} 
+            style={styles.headerAvatar} 
+          />
+        </View>
+
         <View style={styles.headerContent}>
           <Text style={styles.headerTitle}>
-            {language === 'ar' ? 'المحادثة' : 'Chat'} #{order?.id?.slice(0, 8)}
+            {otherPartyName}
           </Text>
           <Text style={styles.headerSubtitle}>
-            {order?.device_brand} {order?.device_model}
+            {order?.device_brand} {order?.device_model} • #{order?.id?.slice(0, 8)}
           </Text>
         </View>
       </View>
 
       {/* Messages List */}
-      <FlatList
-        ref={flatListRef}
-        data={messages}
-        renderItem={renderMessage}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.messagesList}
-        onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
-        onLayout={() => flatListRef.current?.scrollToEnd({ animated: true })}
-      />
+      <ImageBackground 
+        source={{ uri: 'https://i.pinimg.com/originals/8c/98/99/8c98994518b575bfd8c949e91d20548b.jpg' }} // WhatsApp-like background pattern
+        style={styles.backgroundImage}
+        imageStyle={{ opacity: 0.05 }}
+      >
+        <FlatList
+          ref={flatListRef}
+          data={messages}
+          renderItem={renderMessage}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.messagesList}
+          onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
+          onLayout={() => flatListRef.current?.scrollToEnd({ animated: true })}
+        />
+      </ImageBackground>
 
       {/* Input Area */}
       <KeyboardAvoidingView
@@ -166,6 +203,10 @@ export default function ChatScreen() {
         keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
       >
         <View style={styles.inputContainer}>
+          <TouchableOpacity style={styles.attachButton}>
+             <MaterialIcons name="add" size={24} color={COLORS.primary} />
+          </TouchableOpacity>
+          
           <TextInput
             style={styles.input}
             placeholder={language === 'ar' ? 'اكتب رسالتك...' : 'Type a message...'}
@@ -174,15 +215,16 @@ export default function ChatScreen() {
             multiline
             maxLength={500}
           />
+          
           <TouchableOpacity 
-            style={[styles.sendButton, SHADOWS.small, !newMessage.trim() && styles.sendButtonDisabled]}
+            style={[styles.sendButton, !newMessage.trim() && styles.sendButtonDisabled]}
             onPress={handleSend}
             disabled={!newMessage.trim() || sending}
           >
             {sending ? (
               <ActivityIndicator size="small" color="#FFF" />
             ) : (
-              <MaterialIcons name={isRTL ? 'send' : 'send'} size={24} color="#FFF" />
+              <MaterialIcons name={isRTL ? 'send' : 'send'} size={20} color="#FFF" />
             )}
           </TouchableOpacity>
         </View>
@@ -205,23 +247,27 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.border,
     backgroundColor: COLORS.surface,
+    elevation: 2,
+    zIndex: 10,
   },
   backButton: {
+    padding: SPACING.sm,
+  },
+  headerAvatarContainer: {
+    marginHorizontal: SPACING.sm,
+  },
+  headerAvatar: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: COLORS.background,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   headerContent: {
     flex: 1,
-    marginLeft: SPACING.md,
   },
   headerTitle: {
     fontSize: 16,
@@ -232,49 +278,69 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: COLORS.textSecondary,
   },
+  backgroundImage: {
+    flex: 1,
+    width: '100%',
+    height: '100%',
+  },
   messagesList: {
     padding: SPACING.md,
     paddingBottom: SPACING.xl,
   },
-  messageContainer: {
+  messageRow: {
     flexDirection: 'row',
     marginBottom: SPACING.md,
-    maxWidth: '80%',
+    maxWidth: '85%',
   },
-  myMessageContainer: {
+  myMessageRow: {
     alignSelf: 'flex-end',
     flexDirection: 'row-reverse',
   },
-  otherMessageContainer: {
+  otherMessageRow: {
     alignSelf: 'flex-start',
-  },
-  avatarContainer: {
-    marginRight: SPACING.sm,
-    alignSelf: 'flex-end',
   },
   avatar: {
     width: 32,
     height: 32,
     borderRadius: 16,
+    marginHorizontal: SPACING.xs,
+    alignSelf: 'flex-end', // Bottom align avatar
+    marginBottom: 4,
   },
-  messageBubble: {
-    padding: SPACING.md,
-    borderRadius: BORDER_RADIUS.lg,
-    maxWidth: '100%',
+  bubbleContainer: {
+    flex: 1,
   },
-  myMessageBubble: {
+  myBubbleContainer: {
+    alignItems: 'flex-end',
+  },
+  otherBubbleContainer: {
+    alignItems: 'flex-start',
+  },
+  senderName: {
+    fontSize: 11,
+    color: COLORS.textSecondary,
+    marginBottom: 2,
+    marginLeft: 4,
+  },
+  bubble: {
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    borderRadius: 16,
+    minWidth: 80,
+  },
+  myBubble: {
     backgroundColor: COLORS.primary,
-    borderBottomRightRadius: 4,
+    borderBottomRightRadius: 4, // Chat bubble tail effect
   },
-  otherMessageBubble: {
+  otherBubble: {
     backgroundColor: COLORS.surface,
-    borderBottomLeftRadius: 4,
+    borderBottomLeftRadius: 4, // Chat bubble tail effect
     borderWidth: 1,
     borderColor: COLORS.border,
   },
   messageText: {
-    fontSize: 14,
-    lineHeight: 20,
+    fontSize: 15,
+    lineHeight: 22,
   },
   myMessageText: {
     color: '#FFF',
@@ -296,21 +362,26 @@ const styles = StyleSheet.create({
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: SPACING.md,
+    padding: SPACING.sm,
     backgroundColor: COLORS.surface,
     borderTopWidth: 1,
     borderTopColor: COLORS.border,
   },
+  attachButton: {
+    padding: SPACING.sm,
+  },
   input: {
     flex: 1,
     backgroundColor: COLORS.background,
-    borderRadius: BORDER_RADIUS.xl,
+    borderRadius: 20,
     paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm,
+    paddingVertical: 8,
     maxHeight: 100,
     minHeight: 40,
-    marginRight: SPACING.md,
+    marginHorizontal: SPACING.sm,
     color: COLORS.text,
+    borderWidth: 1,
+    borderColor: COLORS.border,
   },
   sendButton: {
     width: 40,

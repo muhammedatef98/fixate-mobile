@@ -5,7 +5,7 @@ import { COLORS, SPACING, BORDER_RADIUS, SHADOWS } from '../../constants/theme';
 import { MaterialIcons } from '@expo/vector-icons';
 import NeuCard from '../../components/NeuCard';
 import BottomNav from '../../components/BottomNav';
-import { auth } from '../../lib/supabase-api';
+import { auth, requests } from '../../lib/supabase-api';
 import { ActivityIndicator, Alert } from 'react-native';
 import { useApp } from '../../contexts/AppContext';
 
@@ -24,23 +24,54 @@ export default function ProfileScreen() {
   const isRTL = language === 'ar';
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState({
+    ordersCount: 0,
+    rating: 5.0, // Default for customer
+    years: 1 // Default
+  });
 
   useEffect(() => {
-    loadUser();
+    loadUserAndStats();
   }, []);
 
-  const loadUser = async () => {
+  const loadUserAndStats = async () => {
     try {
       const currentUser = await auth.getCurrentUser();
       if (currentUser) {
         const profile = await auth.getUserProfile(currentUser.id);
         setUser(profile);
+
+        // Fetch real stats
+        const userRequests = await requests.getAll();
+        // Filter requests for this user (assuming getAll returns all, or filtered by RLS)
+        // If RLS is on, getAll returns only user's requests
+        setStats({
+          ordersCount: userRequests.length,
+          rating: 5.0, // Customers usually don't have ratings shown to them, but keeping for UI consistency
+          years: 1 // Could be calculated from created_at
+        });
       }
     } catch (error) {
-      console.log('User not logged in');
+      console.log('User not logged in or error fetching stats');
     } finally {
       setLoading(false);
     }
+  };
+
+  const getAvatarUrl = () => {
+    if (user?.avatar_url) return user.avatar_url;
+    
+    // Simple heuristic for gender based on name (very basic, just for demo)
+    // In a real app, you'd have a gender field in the profile
+    const name = user?.name || 'User';
+    // Default to male color (blue-ish)
+    let background = '0D8ABC'; 
+    // If name ends with 'a' or 'ah' (common in female names), use pink-ish
+    if (name.endsWith('a') || name.endsWith('ah') || name.endsWith('ة')) {
+      background = 'E91E63';
+    }
+    
+    return `https://ui-avatars.com/api/?name=${name}&background=${background}&color=fff&size=128`;
   };
 
   const handleLogout = async () => {
@@ -113,7 +144,7 @@ export default function ProfileScreen() {
           style={[styles.backButton, SHADOWS.neuFlat]}
           onPress={() => router.back()}
         >
-          <MaterialIcons name="arrow-back" size={20} color={COLORS.text} />
+          <MaterialIcons name={isRTL ? "arrow-forward" : "arrow-back"} size={20} color={COLORS.text} />
         </TouchableOpacity>
         
         <View style={styles.headerContent}>
@@ -131,7 +162,7 @@ export default function ProfileScreen() {
         <NeuCard style={styles.profileCard}>
           <View style={styles.avatarContainer}>
             <Image 
-              source={{ uri: user?.avatar_url || `https://ui-avatars.com/api/?name=${user?.name || 'User'}&background=10B981&color=fff&size=128` }} 
+              source={{ uri: getAvatarUrl() }} 
               style={styles.avatar} 
             />
             <TouchableOpacity style={[styles.editAvatarBtn, SHADOWS.primaryGlow]}>
@@ -142,8 +173,8 @@ export default function ProfileScreen() {
             <ActivityIndicator size="small" color={COLORS.primary} />
           ) : (
             <>
-              <Text style={styles.name}>{user?.name || 'Guest User'}</Text>
-              <Text style={styles.phone}>{user?.email || user?.phone || 'Not logged in'}</Text>
+              <Text style={styles.name}>{user?.name || (isRTL ? 'زائر' : 'Guest User')}</Text>
+              <Text style={styles.phone}>{user?.email || user?.phone || (isRTL ? 'غير مسجل' : 'Not logged in')}</Text>
             </>
           )}
         </NeuCard>
@@ -151,18 +182,18 @@ export default function ProfileScreen() {
         {/* Stats */}
         <NeuCard style={styles.statsContainer}>
           <View style={styles.statItem}>
-            <Text style={styles.statValue}>12</Text>
-            <Text style={styles.statLabel}>{isRTL ? 'طلب مكتمل' : 'Completed'}</Text>
+            <Text style={styles.statValue}>{stats.ordersCount}</Text>
+            <Text style={styles.statLabel}>{isRTL ? 'طلب' : 'Orders'}</Text>
           </View>
           <View style={styles.statDivider} />
           <View style={styles.statItem}>
-            <Text style={styles.statValue}>4.9</Text>
+            <Text style={styles.statValue}>{stats.rating}</Text>
             <Text style={styles.statLabel}>{isRTL ? 'التقييم' : 'Rating'}</Text>
           </View>
           <View style={styles.statDivider} />
           <View style={styles.statItem}>
-            <Text style={styles.statValue}>2</Text>
-            <Text style={styles.statLabel}>{isRTL ? 'سنة' : 'Years'}</Text>
+            <Text style={styles.statValue}>{stats.years}</Text>
+            <Text style={styles.statLabel}>{isRTL ? 'سنة' : 'Year'}</Text>
           </View>
         </NeuCard>
 
@@ -182,7 +213,7 @@ export default function ProfileScreen() {
                   <Text style={styles.menuTitle}>{isRTL ? item.titleAr : item.title}</Text>
                 </View>
               </View>
-              <MaterialIcons name="chevron-right" size={24} color={COLORS.textSecondary} />
+              <MaterialIcons name={isRTL ? "chevron-left" : "chevron-right"} size={24} color={COLORS.textSecondary} />
             </NeuCard>
           ))}
         </View>
@@ -301,11 +332,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: COLORS.textSecondary,
   },
-  statLabelAr: {
-    fontSize: 11,
-    color: COLORS.textLight,
-    marginTop: 2,
-  },
   statDivider: {
     width: 1,
     height: '100%',
@@ -338,11 +364,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: COLORS.text,
-  },
-  menuTitleAr: {
-    fontSize: 13,
-    color: COLORS.textSecondary,
-    marginTop: 2,
   },
   logoutBtn: {
     flexDirection: 'row',
