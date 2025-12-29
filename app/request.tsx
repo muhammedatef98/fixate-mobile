@@ -41,6 +41,15 @@ const DEVICE_TYPES = [
   { id: 'printer', name: 'طابعة', nameEn: 'Printer', icon: 'printer' },
 ];
 
+interface OrderItem {
+  deviceType: string;
+  brand: Brand;
+  model: string;
+  issue: Issue;
+  description: string;
+  mediaFiles: string[];
+}
+
 export default function RequestScreen() {
   const router = useRouter();
   const { addRequest } = useRequests();
@@ -49,9 +58,13 @@ export default function RequestScreen() {
   const SHADOWS = getShadows(isDark);
   const [currentStep, setCurrentStep] = useState(0);
   
-  // Selection State
-  const [selectedServiceType, setSelectedServiceType] = useState<string>('mobile'); // Default to mobile technician
-  const [selectedDeviceType, setSelectedDeviceType] = useState<string>('phone'); // Default to phone
+  // Multi-Order State
+  const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
+  const [isAddingItem, setIsAddingItem] = useState(true); // Start in adding mode
+
+  // Current Item Selection State
+  const [selectedServiceType, setSelectedServiceType] = useState<string>('mobile'); // Global for order
+  const [selectedDeviceType, setSelectedDeviceType] = useState<string>('phone');
   const [selectedBrand, setSelectedBrand] = useState<Brand | null>(null);
   const [selectedModel, setSelectedModel] = useState<string | null>(null);
   const [selectedIssue, setSelectedIssue] = useState<Issue | null>(null);
@@ -78,8 +91,8 @@ export default function RequestScreen() {
   const slideAnim = useRef(new Animated.Value(50)).current;
   
   const STEPS = language === 'ar' 
-    ? ['نوع الخدمة', 'نوع الجهاز', 'الماركة', 'الموديل', 'العطل', 'التفاصيل', 'الموقع']
-    : ['Service Type', 'Device Type', 'Brand', 'Model', 'Issue', 'Details', 'Location'];
+    ? ['نوع الخدمة', 'نوع الجهاز', 'الماركة', 'الموديل', 'العطل', 'التفاصيل', 'المراجعة', 'الموقع']
+    : ['Service Type', 'Device Type', 'Brand', 'Model', 'Issue', 'Details', 'Review', 'Location'];
 
   useEffect(() => {
     Animated.parallel([
@@ -212,9 +225,59 @@ export default function RequestScreen() {
     }
   };
 
+  const handleAddItem = () => {
+    if (!selectedBrand || !selectedModel || !selectedIssue) {
+      Alert.alert(language === 'ar' ? 'تنبيه' : 'Alert', language === 'ar' ? 'الرجاء إكمال جميع الحقول' : 'Please complete all fields');
+      return;
+    }
+
+    const newItem: OrderItem = {
+      deviceType: selectedDeviceType,
+      brand: selectedBrand,
+      model: selectedModel,
+      issue: selectedIssue,
+      description: issueDescription,
+      mediaFiles: [...mediaFiles]
+    };
+
+    setOrderItems([...orderItems, newItem]);
+    
+    // Reset fields for next item
+    setSelectedBrand(null);
+    setSelectedModel(null);
+    setSelectedIssue(null);
+    setIssueDescription('');
+    setMediaFiles([]);
+    
+    // Go to review step (Step 6)
+    setCurrentStep(6);
+  };
+
+  const handleAddNewItem = () => {
+    // Reset fields
+    setSelectedBrand(null);
+    setSelectedModel(null);
+    setSelectedIssue(null);
+    setIssueDescription('');
+    setMediaFiles([]);
+    
+    // Go back to device type selection (Step 1)
+    setCurrentStep(1);
+  };
+
+  const handleRemoveItem = (index: number) => {
+    const newItems = [...orderItems];
+    newItems.splice(index, 1);
+    setOrderItems(newItems);
+    
+    if (newItems.length === 0) {
+      setCurrentStep(1); // Go back to start if no items left
+    }
+  };
+
   const handleNext = () => {
-    // Step 0: Service Type (no validation needed, has default)
-    // Step 1: Device Type (no validation needed, has default)
+    // Step 0: Service Type
+    // Step 1: Device Type
     if (currentStep === 2 && !selectedBrand) {
       Alert.alert(language === 'ar' ? 'تنبيه' : 'Alert', language === 'ar' ? 'الرجاء اختيار الماركة' : 'Please select a brand');
       return;
@@ -225,6 +288,12 @@ export default function RequestScreen() {
     }
     if (currentStep === 4 && !selectedIssue) {
       Alert.alert(language === 'ar' ? 'تنبيه' : 'Alert', language === 'ar' ? 'الرجاء اختيار العطل' : 'Please select an issue');
+      return;
+    }
+
+    // If at details step (5), add item and go to review
+    if (currentStep === 5) {
+      handleAddItem();
       return;
     }
 
@@ -251,717 +320,492 @@ export default function RequestScreen() {
       return;
     }
 
+    if (orderItems.length === 0) {
+      Alert.alert(language === 'ar' ? 'تنبيه' : 'Alert', language === 'ar' ? 'الرجاء إضافة جهاز واحد على الأقل' : 'Please add at least one device');
+      return;
+    }
+
     try {
       const user = await auth.getCurrentUser();
       
       if (user) {
-        // Upload media files if any
-        let uploadedUrls: string[] = [];
-        if (mediaFiles.length > 0) {
-          Alert.alert(
-            language === 'ar' ? 'جاري الرفع...' : 'Uploading...',
-            language === 'ar' ? 'يتم رفع الملفات' : 'Uploading files'
-          );
-
-          for (let i = 0; i < mediaFiles.length; i++) {
-            try {
-              const uri = mediaFiles[i];
-              const fileName = `order-${Date.now()}-${i}.jpg`;
-              const url = await storage.uploadImageFromUri('orders', uri, fileName);
-              uploadedUrls.push(url);
-            } catch (uploadError) {
-              console.error('Error uploading file:', uploadError);
+        // Upload media files for all items
+        const itemsWithMedia = await Promise.all(orderItems.map(async (item, index) => {
+          let uploadedUrls: string[] = [];
+          if (item.mediaFiles.length > 0) {
+            for (let i = 0; i < item.mediaFiles.length; i++) {
+              try {
+                const uri = item.mediaFiles[i];
+                const fileName = `order-${Date.now()}-${index}-${i}.jpg`;
+                const url = await storage.uploadImageFromUri('orders', uri, fileName);
+                uploadedUrls.push(url);
+              } catch (uploadError) {
+                console.error('Error uploading file:', uploadError);
+              }
             }
           }
-        }
+          return { ...item, mediaFiles: uploadedUrls };
+        }));
 
-        // Save to Supabase
-        const serviceTypeLabel = SERVICE_TYPES.find(s => s.id === selectedServiceType);
+        // Create main order
+        // Use first item details for backward compatibility/preview
+        const firstItem = itemsWithMedia[0];
         const order = await requests.create({
           user_id: user.id,
-          service_id: selectedIssue?.id || 'unknown',
-          service_type: selectedServiceType, // 'mobile' or 'pickup'
-          device_brand: selectedBrand?.name || '',
-          device_model: selectedModel || '',
-          issue_description: `[${serviceTypeLabel?.name || ''}] ${selectedIssue?.name}: ${issueDescription}`,
-          estimated_price: selectedIssue?.estimatedPrice || 0,
-          location: address,
-          latitude: location.latitude,
-          longitude: location.longitude,
-          media_urls: uploadedUrls.length > 0 ? uploadedUrls : undefined,
+          service_id: firstItem.issue.id,
+          service_type: selectedServiceType,
+          device_brand: firstItem.brand.name,
+          device_model: firstItem.model,
+          issue_description: firstItem.description,
+          status: 'pending',
+          location: {
+            latitude: location.latitude,
+            longitude: location.longitude,
+            address: address
+          },
+          images: firstItem.mediaFiles,
+          price: firstItem.issue.priceRange.min, // Initial estimate
+          created_at: new Date().toISOString(),
+          // Store all items in metadata or separate table if needed
+          items: itemsWithMedia
         });
 
-        if (order) {
-          // Send email notification
-          try {
-            await fetch('https://api.web3forms.com/submit', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                access_key: 'd3ff12a4-e013-473f-8730-9d5760059a64',
-                subject: `🔔 حجز جديد - Fixate`,
-                from_name: 'Fixate App',
-                to: 'fixate01@gmail.com',
-                message: `
-🆕 حجز جديد!
+        // Add to context
+        addRequest(order);
 
-👤 العميل: ${user.user_metadata?.name || user.email}
-📞 الجوال: ${user.user_metadata?.phone || 'غير متوفر'}
-📧 الإيميل: ${user.email}
-
-🔧 نوع الخدمة: ${serviceTypeLabel?.name} (${serviceTypeLabel?.nameEn})
-📱 الجهاز: ${selectedBrand?.name} ${selectedModel}
-⚠️ المشكلة: ${selectedIssue?.name}
-📝 التفاصيل: ${issueDescription}
-
-📍 الموقع: ${address}
-💰 السعر التقديري: ${selectedIssue?.estimatedPrice} ريال
-
-⏰ التاريخ: ${new Date().toLocaleString('ar-SA')}
-                `.trim(),
-              }),
-            });
-          } catch (emailError) {
-            console.error('Email notification failed:', emailError);
-            // Don't block the user if email fails
-          }
-
-          Alert.alert(
-            language === 'ar' ? 'نجح!' : 'Success!',
-            language === 'ar' ? 'تم إرسال طلبك بنجاح' : 'Your request has been submitted successfully',
-            [
-              {
-                text: language === 'ar' ? 'حسناً' : 'OK',
-                onPress: () => router.replace('/(customer)'),
-              },
-            ]
-          );
-        }
-      } else {
-        // Fallback to local storage
-        const newRequest = {
-          id: Date.now().toString(),
-          brand: selectedBrand?.name || '',
-          type: DEVICE_TYPES.find(d => d.id === selectedDeviceType)?.name || '',
-          model: selectedModel || '',
-          issue: selectedIssue?.name || '',
-          description: issueDescription,
-          location: address,
-          status: 'pending',
-          date: new Date().toISOString(),
-          price: selectedIssue?.estimatedPrice || 0,
-        };
-
-        addRequest(newRequest);
-        
         Alert.alert(
-          language === 'ar' ? 'نجح!' : 'Success!',
-          language === 'ar' ? 'تم إرسال طلبك بنجاح' : 'Your request has been submitted successfully',
+          language === 'ar' ? 'تم بنجاح' : 'Success',
+          language === 'ar' ? 'تم إرسال طلبك بنجاح!' : 'Your request has been sent successfully!',
           [
             {
-              text: language === 'ar' ? 'حسناً' : 'OK',
-              onPress: () => router.replace('/(customer)'),
-            },
+              text: 'OK',
+              onPress: () => router.replace('/(customer)/orders')
+            }
           ]
         );
       }
     } catch (error) {
       console.error('Error submitting request:', error);
-      Alert.alert(language === 'ar' ? 'خطأ' : 'Error', language === 'ar' ? 'حدث خطأ أثناء إرسال الطلب' : 'An error occurred while submitting the request');
+      Alert.alert(
+        language === 'ar' ? 'خطأ' : 'Error',
+        language === 'ar' ? 'حدث خطأ أثناء إرسال الطلب' : 'Error submitting request'
+      );
     }
   };
 
-  const renderStepIndicator = () => (
-    <View style={styles.stepIndicator}>
-      {STEPS.map((step, index) => (
-        <View key={index} style={styles.stepItem}>
-          <View
-            style={[
-              styles.stepCircle,
-              index <= currentStep && styles.stepCircleActive,
-            ]}
-          >
-            {index < currentStep ? (
-              <MaterialIcons name="check" size={16} color="#FFF" />
-            ) : (
-              <Text style={styles.stepNumber}>{index + 1}</Text>
-            )}
-          </View>
-          <Text style={styles.stepLabel}>{step}</Text>
-          {index < STEPS.length - 1 && (
-            <View
-              style={[
-                styles.stepLine,
-                index < currentStep && styles.stepLineActive,
-              ]}
-            />
-          )}
-        </View>
-      ))}
-    </View>
-  );
-
-  const renderSearchBar = (placeholder: string, value: string, onChangeText: (text: string) => void) => (
-    <View style={styles.searchContainer}>
-      <MaterialIcons name="search" size={20} color={COLORS.textSecondary} />
-      <TextInput
-        style={styles.searchInput}
-        placeholder={placeholder}
-        placeholderTextColor={COLORS.textSecondary}
-        value={value}
-        onChangeText={onChangeText}
-      />
-      {value.length > 0 && (
-        <TouchableOpacity onPress={() => onChangeText('')}>
-          <MaterialIcons name="close" size={20} color={COLORS.textSecondary} />
-        </TouchableOpacity>
-      )}
-    </View>
-  );
-
-  const renderServiceTypeSelection = () => (
-    <Animated.View
-      style={[
-        styles.stepContent,
-        { opacity: fadeAnim, transform: [{ translateY: slideAnim }] },
-      ]}
-    >
-      <Text style={styles.stepTitle}>
-        {language === 'ar' ? 'اختر نوع الخدمة' : 'Select Service Type'}
-      </Text>
-      <Text style={styles.stepSubtitle}>
-        {language === 'ar' ? 'كيف تريد إصلاح جهازك؟' : 'How would you like your device repaired?'}
-      </Text>
-      <View style={styles.serviceTypesContainer}>
-        {SERVICE_TYPES.map((service) => (
-          <TouchableOpacity
-            key={service.id}
-            style={[
-              styles.serviceTypeCard,
-              selectedServiceType === service.id && styles.serviceTypeActive,
-            ]}
-            onPress={() => setSelectedServiceType(service.id)}
-          >
-            <View style={styles.serviceTypeHeader}>
-              <MaterialCommunityIcons
-                name={service.icon as any}
-                size={48}
-                color={selectedServiceType === service.id ? COLORS.primary : COLORS.textSecondary}
-              />
-              <Text style={[
-                styles.serviceTypeName,
-                selectedServiceType === service.id && styles.serviceTypeNameActive
-              ]}>
-                {language === 'ar' ? service.name : service.nameEn}
-              </Text>
-            </View>
-            <Text style={styles.serviceTypeDescription}>
-              {language === 'ar' ? service.description : service.descriptionEn}
-            </Text>
-            {selectedServiceType === service.id && (
-              <View style={styles.selectedBadge}>
-                <MaterialIcons name="check-circle" size={24} color={COLORS.primary} />
-              </View>
-            )}
-          </TouchableOpacity>
-        ))}
-      </View>
-    </Animated.View>
-  );
-
-  const renderDeviceTypeSelection = () => (
-    <Animated.View
-      style={[
-        styles.stepContent,
-        { opacity: fadeAnim, transform: [{ translateY: slideAnim }] },
-      ]}
-    >
-      <Text style={styles.stepTitle}>
-        {language === 'ar' ? 'اختر نوع الجهاز' : 'Select Device Type'}
-      </Text>
-      <Text style={styles.stepSubtitle}>
-        {language === 'ar' ? 'ما هو نوع الجهاز الذي تريد إصلاحه؟' : 'What type of device do you want to repair?'}
-      </Text>
-      <View style={styles.serviceTypesContainer}>
-        {DEVICE_TYPES.map((deviceType) => (
-          <TouchableOpacity
-            key={deviceType.id}
-            style={[
-              styles.serviceTypeCard,
-              selectedDeviceType === deviceType.id && styles.serviceTypeActive,
-            ]}
-            onPress={() => {
-              setSelectedDeviceType(deviceType.id);
-              setSelectedBrand(null);
-              setSelectedModel(null);
-            }}
-          >
-            <View style={styles.serviceTypeHeader}>
-              <MaterialCommunityIcons
-                name={deviceType.icon as any}
-                size={48}
-                color={selectedDeviceType === deviceType.id ? COLORS.primary : COLORS.textSecondary}
-              />
-              <Text style={[
-                styles.serviceTypeName,
-                selectedDeviceType === deviceType.id && styles.serviceTypeNameActive
-              ]}>
-                {language === 'ar' ? deviceType.name : deviceType.nameEn}
-              </Text>
-            </View>
-            {selectedDeviceType === deviceType.id && (
-              <View style={styles.selectedBadge}>
-                <MaterialIcons name="check-circle" size={24} color={COLORS.primary} />
-              </View>
-            )}
-          </TouchableOpacity>
-        ))}
-      </View>
-    </Animated.View>
-  );
-
-  const renderBrandSelection = () => (
-    <Animated.View
-      style={[
-        styles.stepContent,
-        { opacity: fadeAnim, transform: [{ translateY: slideAnim }] },
-      ]}
-    >
-      <Text style={styles.stepTitle}>
-        {language === 'ar' ? 'اختر الماركة' : 'Select Brand'}
-      </Text>
-      
-      {renderSearchBar(
-        language === 'ar' ? 'ابحث عن الماركة...' : 'Search for brand...',
-        brandSearch,
-        setBrandSearch
-      )}
-
-      <ScrollView
-        style={styles.optionsScroll}
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={styles.optionsGrid}>
-          {filteredBrands.map((brand) => (
-            <TouchableOpacity
-              key={brand.id}
-              style={[
-                styles.brandCard,
-                selectedBrand?.id === brand.id && styles.optionActive,
-              ]}
-              onPress={() => {
-                setSelectedBrand(brand);
-                setSelectedModel(null);
-                setFilteredModels(brand.models);
-              }}
-            >
-              <BrandLogo brandId={brand.id} size={60} />
-              <Text style={styles.brandName}>{brand.name}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      </ScrollView>
-    </Animated.View>
-  );
-
-  const renderModelSelection = () => (
-    <Animated.View
-      style={[
-        styles.stepContent,
-        { opacity: fadeAnim, transform: [{ translateY: slideAnim }] },
-      ]}
-    >
-      <Text style={styles.stepTitle}>
-        {language === 'ar' ? 'اختر الموديل' : 'Select Model'}
-      </Text>
-      
-      {renderSearchBar(
-        language === 'ar' ? 'ابحث عن الموديل...' : 'Search for model...',
-        modelSearch,
-        setModelSearch
-      )}
-
-      <ScrollView
-        style={styles.optionsScroll}
-        showsVerticalScrollIndicator={false}
-      >
-        {filteredModels.map((model, index) => (
-          <TouchableOpacity
-            key={index}
-            style={[
-              styles.listOption,
-              selectedModel === model && styles.listOptionActive,
-            ]}
-            onPress={() => setSelectedModel(model)}
-          >
-            <Text
-              style={[
-                styles.listOptionText,
-                selectedModel === model && styles.listOptionTextActive,
-              ]}
-            >
-              {model}
-            </Text>
-            {selectedModel === model && (
-              <MaterialIcons name="check-circle" size={24} color={COLORS.primary} />
-            )}
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
-    </Animated.View>
-  );
-
-  const renderIssueSelection = () => (
-    <Animated.View
-      style={[
-        styles.stepContent,
-        { opacity: fadeAnim, transform: [{ translateY: slideAnim }] },
-      ]}
-    >
-      <Text style={styles.stepTitle}>
-        {language === 'ar' ? 'ما هي المشكلة؟' : 'What is the issue?'}
-      </Text>
-      <View style={styles.priceNotice}>
-        <MaterialIcons name="info-outline" size={18} color={COLORS.primary} />
-        <Text style={styles.priceNoticeText}>
-          {language === 'ar' 
-            ? 'الأسعار تقديرية وشاملة للضريبة. السعر النهائي يتحدد بعد الفحص.' 
-            : 'Prices are estimated and include VAT. Final price determined after inspection.'}
-        </Text>
-      </View>
-      
-      {renderSearchBar(
-        language === 'ar' ? 'ابحث عن المشكلة...' : 'Search for issue...',
-        issueSearch,
-        setIssueSearch
-      )}
-
-      <ScrollView
-        style={styles.optionsScroll}
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={styles.issuesGrid}>
-          {filteredIssues.map((issue) => (
-            <TouchableOpacity
-              key={issue.id}
-              style={[
-                styles.issueCard,
-                selectedIssue?.id === issue.id && styles.optionActive,
-              ]}
-              onPress={() => setSelectedIssue(issue)}
-            >
-              <MaterialCommunityIcons
-                name={issue.icon as any}
-                size={32}
-                color={selectedIssue?.id === issue.id ? COLORS.primary : COLORS.textSecondary}
-              />
-              <Text style={styles.issueText}>
-                {language === 'ar' ? issue.nameAr : issue.name}
-              </Text>
-              <Text style={styles.issuePrice}>
-                {issue.priceRange 
-                  ? `${issue.priceRange.min}-${issue.priceRange.max}` 
-                  : issue.estimatedPrice} {language === 'ar' ? 'ر.س' : 'SAR'}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      </ScrollView>
-    </Animated.View>
-  );
-
-  const renderDetailsStep = () => (
-    <Animated.View
-      style={[
-        styles.stepContent,
-        { opacity: fadeAnim, transform: [{ translateY: slideAnim }] },
-      ]}
-    >
-      <Text style={styles.stepTitle}>
-        {language === 'ar' ? 'وصف المشكلة' : 'Describe the Issue'}
-      </Text>
-      <TextInput
-        style={styles.textArea}
-        placeholder={language === 'ar' ? 'اكتب تفاصيل المشكلة هنا...' : 'Write issue details here...'}
-        placeholderTextColor={COLORS.textSecondary}
-        multiline
-        numberOfLines={6}
-        value={issueDescription}
-        onChangeText={setIssueDescription}
-        textAlignVertical="top"
-      />
-
-      <Text style={styles.mediaLabel}>
-        {language === 'ar' ? 'إضافة صور أو فيديو (اختياري)' : 'Add Photos or Video (Optional)'}
-      </Text>
-      
-      <View style={styles.mediaButtons}>
-        <TouchableOpacity style={styles.mediaButton} onPress={takePhoto}>
-          <MaterialIcons name="camera-alt" size={24} color={COLORS.primary} />
-          <Text style={styles.mediaButtonText}>
-            {language === 'ar' ? 'التقاط صورة' : 'Take Photo'}
-          </Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity style={styles.mediaButton} onPress={pickImage}>
-          <MaterialIcons name="photo-library" size={24} color={COLORS.primary} />
-          <Text style={styles.mediaButtonText}>
-            {language === 'ar' ? 'من المعرض' : 'From Gallery'}
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      {mediaFiles.length > 0 && (
-        <ScrollView horizontal style={styles.mediaPreview} showsHorizontalScrollIndicator={false}>
-          {mediaFiles.map((uri, index) => (
-            <View key={index} style={styles.mediaItem}>
-              <Image source={{ uri }} style={styles.mediaImage} />
-              <TouchableOpacity
-                style={styles.mediaRemove}
-                onPress={() => removeMedia(index)}
-              >
-                <MaterialIcons name="close" size={16} color="#FFF" />
-              </TouchableOpacity>
-            </View>
-          ))}
-        </ScrollView>
-      )}
-      
-      <View style={styles.summaryCard}>
-        <Text style={styles.summaryTitle}>
-          {language === 'ar' ? 'ملخص الطلب' : 'Request Summary'}
-        </Text>
-        <View style={styles.summaryRow}>
-          <Text style={styles.summaryLabel}>{language === 'ar' ? 'الماركة:' : 'Brand:'}</Text>
-          <Text style={styles.summaryValue}>{selectedBrand?.name}</Text>
-        </View>
-        <View style={styles.summaryRow}>
-          <Text style={styles.summaryLabel}>{language === 'ar' ? 'نوع الجهاز:' : 'Device Type:'}</Text>
-          <Text style={styles.summaryValue}>{DEVICE_TYPES.find(d => d.id === selectedDeviceType)?.name || DEVICE_TYPES.find(d => d.id === selectedDeviceType)?.nameEn}</Text>
-        </View>
-        <View style={styles.summaryRow}>
-          <Text style={styles.summaryLabel}>{language === 'ar' ? 'الموديل:' : 'Model:'}</Text>
-          <Text style={styles.summaryValue}>{selectedModel}</Text>
-        </View>
-        <View style={styles.summaryRow}>
-          <Text style={styles.summaryLabel}>{language === 'ar' ? 'المشكلة:' : 'Issue:'}</Text>
-          <Text style={styles.summaryValue}>
-            {language === 'ar' ? selectedIssue?.nameAr : selectedIssue?.name}
-          </Text>
-        </View>
-        <View style={[styles.summaryRow, styles.summaryTotal]}>
-          <Text style={styles.summaryTotalLabel}>
-            {language === 'ar' ? 'السعر التقديري:' : 'Estimated Price:'}
-          </Text>
-          <Text style={styles.summaryTotalValue}>
-            {selectedIssue?.priceRange 
-              ? `${selectedIssue.priceRange.min}-${selectedIssue.priceRange.max}` 
-              : selectedIssue?.estimatedPrice} {language === 'ar' ? 'ر.س' : 'SAR'}
-          </Text>
-        </View>
-        <View style={styles.priceDisclaimer}>
-          <MaterialIcons name="info-outline" size={16} color={COLORS.textSecondary} />
-          <Text style={styles.disclaimerText}>
-            {language === 'ar' 
-              ? '• السعر النهائي يتحدد بعد فحص الجهاز\n• الأسعار شاملة الضريبة' 
-              : '• Final price determined after device inspection\n• Prices include VAT'}
-          </Text>
-        </View>
-      </View>
-    </Animated.View>
-  );
-
-  const renderLocationStep = () => (
-    <Animated.View
-      style={[
-        styles.stepContent,
-        { opacity: fadeAnim, transform: [{ translateY: slideAnim }] },
-      ]}
-    >
-      <Text style={styles.stepTitle}>
-        {language === 'ar' ? 'حدد موقعك' : 'Select Your Location'}
-      </Text>
-      
-      {/* Current Location Button */}
-      <TouchableOpacity
-        style={styles.currentLocationButton}
-        onPress={getLocation}
-      >
-        <MaterialIcons name="my-location" size={24} color="#FFF" />
-        <Text style={styles.currentLocationText}>
-          {language === 'ar' ? 'موقعي الحالي' : 'My Current Location'}
-        </Text>
-      </TouchableOpacity>
-
-      {/* OR Divider */}
-      <View style={styles.divider}>
-        <View style={styles.dividerLine} />
-        <Text style={styles.dividerText}>{language === 'ar' ? 'أو' : 'OR'}</Text>
-        <View style={styles.dividerLine} />
-      </View>
-
-      {/* Address Search Input */}
-      <View style={styles.searchContainer}>
-        <MaterialIcons name="search" size={20} color={COLORS.textSecondary} />
-        <TextInput
-          style={styles.searchInput}
-          placeholder={language === 'ar' ? 'ابحث عن عنوان...' : 'Search for address...'}
-          placeholderTextColor={COLORS.textSecondary}
-          value={address}
-          onChangeText={setAddress}
-        />
-      </View>
-
-      {/* Map Button */}
-      <TouchableOpacity
-        style={styles.locationButton}
-        onPress={() => setShowMap(true)}
-      >
-        <MaterialIcons name="location-on" size={24} color={COLORS.primary} />
-        <Text style={styles.locationButtonText}>
-          {language === 'ar' ? 'اختر على الخريطة' : 'Choose on Map'}
-        </Text>
-      </TouchableOpacity>
-
-      {location && (
-        <View style={styles.mapPreview}>
-          <MapView
-            style={styles.map}
-            provider={PROVIDER_GOOGLE}
-            region={location}
-            scrollEnabled={false}
-            zoomEnabled={false}
-          >
-            <Marker coordinate={location} />
-          </MapView>
-        </View>
-      )}
-
-      <Modal visible={showMap} animationType="slide">
-        <SafeAreaView style={styles.mapModal}>
-          <View style={styles.mapHeader}>
-            <TouchableOpacity onPress={() => setShowMap(false)}>
-              <MaterialIcons name="close" size={28} color={COLORS.text} />
-            </TouchableOpacity>
-            <Text style={styles.mapHeaderTitle}>
-              {language === 'ar' ? 'اختر الموقع' : 'Choose Location'}
-            </Text>
-            <TouchableOpacity onPress={() => setShowMap(false)}>
-              <Text style={styles.mapHeaderDone}>
-                {language === 'ar' ? 'تم' : 'Done'}
-              </Text>
-            </TouchableOpacity>
-          </View>
-          {location && (
-            <MapView
-              style={styles.fullMap}
-              provider={PROVIDER_GOOGLE}
-              region={location}
-              onRegionChangeComplete={async (region) => {
-                try {
-                  setLocation(region);
-                  const addresses = await Location.reverseGeocodeAsync({
-                    latitude: region.latitude,
-                    longitude: region.longitude,
-                  });
-                  if (addresses.length > 0) {
-                    const addr = addresses[0];
-                    setAddress(`${addr.street || ''}, ${addr.city || ''}, ${addr.region || ''}`);
-                  }
-                } catch (error) {
-                  console.error('Error reverse geocoding:', error);
-                  // Keep the location but set a generic address
-                  setAddress(`${region.latitude.toFixed(6)}, ${region.longitude.toFixed(6)}`);
-                }
-              }}
-            >
-              <Marker coordinate={location} />
-            </MapView>
-          )}
-        </SafeAreaView>
-      </Modal>
-    </Animated.View>
-  );
-
+  // Render Steps
   const renderStepContent = () => {
     switch (currentStep) {
-      case 0:
-        return renderServiceTypeSelection();
-      case 1:
-        return renderDeviceTypeSelection();
-      case 2:
-        return renderBrandSelection();
-      case 3:
-        return renderModelSelection();
-      case 4:
-        return renderIssueSelection();
-      case 5:
-        return renderDetailsStep();
-      case 6:
-        return renderLocationStep();
-      default:
-        return null;
+      case 0: // Service Type
+        return (
+          <View style={styles.stepContainer}>
+            <Text style={styles.stepTitle}>
+              {language === 'ar' ? 'اختر نوع الخدمة' : 'Select Service Type'}
+            </Text>
+            {SERVICE_TYPES.map((service) => (
+              <TouchableOpacity
+                key={service.id}
+                style={[
+                  styles.optionCard,
+                  selectedServiceType === service.id && styles.selectedOptionCard
+                ]}
+                onPress={() => setSelectedServiceType(service.id)}
+              >
+                <View style={[
+                  styles.iconContainer,
+                  selectedServiceType === service.id && styles.selectedIconContainer
+                ]}>
+                  <MaterialCommunityIcons 
+                    name={service.icon as any} 
+                    size={32} 
+                    color={selectedServiceType === service.id ? '#FFFFFF' : COLORS.primary} 
+                  />
+                </View>
+                <View style={styles.optionContent}>
+                  <Text style={[
+                    styles.optionTitle,
+                    selectedServiceType === service.id && styles.selectedOptionText
+                  ]}>
+                    {language === 'ar' ? service.name : service.nameEn}
+                  </Text>
+                  <Text style={[
+                    styles.optionDescription,
+                    selectedServiceType === service.id && styles.selectedOptionText
+                  ]}>
+                    {language === 'ar' ? service.description : service.descriptionEn}
+                  </Text>
+                </View>
+                {selectedServiceType === service.id && (
+                  <MaterialIcons name="check-circle" size={24} color={COLORS.primary} />
+                )}
+              </TouchableOpacity>
+            ))}
+          </View>
+        );
+
+      case 1: // Device Type
+        return (
+          <View style={styles.stepContainer}>
+            <Text style={styles.stepTitle}>
+              {language === 'ar' ? 'اختر نوع الجهاز' : 'Select Device Type'}
+            </Text>
+            <View style={styles.gridContainer}>
+              {DEVICE_TYPES.map((device) => (
+                <TouchableOpacity
+                  key={device.id}
+                  style={[
+                    styles.gridItem,
+                    selectedDeviceType === device.id && styles.selectedGridItem
+                  ]}
+                  onPress={() => setSelectedDeviceType(device.id)}
+                >
+                  <MaterialCommunityIcons 
+                    name={device.icon as any} 
+                    size={40} 
+                    color={selectedDeviceType === device.id ? '#FFFFFF' : COLORS.primary} 
+                  />
+                  <Text style={[
+                    styles.gridLabel,
+                    selectedDeviceType === device.id && styles.selectedGridLabel
+                  ]}>
+                    {language === 'ar' ? device.name : device.nameEn}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        );
+
+      case 2: // Brand
+        return (
+          <View style={styles.stepContainer}>
+            <Text style={styles.stepTitle}>
+              {language === 'ar' ? 'اختر الماركة' : 'Select Brand'}
+            </Text>
+            <TextInput
+              style={styles.searchInput}
+              placeholder={language === 'ar' ? 'بحث عن ماركة...' : 'Search brand...'}
+              placeholderTextColor={COLORS.textLight}
+              value={brandSearch}
+              onChangeText={setBrandSearch}
+              textAlign={language === 'ar' ? 'right' : 'left'}
+            />
+            <ScrollView style={styles.listContainer}>
+              {filteredBrands.map((brand) => (
+                <TouchableOpacity
+                  key={brand.id}
+                  style={[
+                    styles.listItem,
+                    selectedBrand?.id === brand.id && styles.selectedListItem
+                  ]}
+                  onPress={() => setSelectedBrand(brand)}
+                >
+                  <BrandLogo brandName={brand.name} size={40} />
+                  <Text style={[
+                    styles.listItemText,
+                    selectedBrand?.id === brand.id && styles.selectedListItemText
+                  ]}>
+                    {brand.name}
+                  </Text>
+                  {selectedBrand?.id === brand.id && (
+                    <MaterialIcons name="check" size={24} color={COLORS.primary} />
+                  )}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        );
+
+      case 3: // Model
+        return (
+          <View style={styles.stepContainer}>
+            <Text style={styles.stepTitle}>
+              {language === 'ar' ? 'اختر الموديل' : 'Select Model'}
+            </Text>
+            <TextInput
+              style={styles.searchInput}
+              placeholder={language === 'ar' ? 'بحث عن موديل...' : 'Search model...'}
+              placeholderTextColor={COLORS.textLight}
+              value={modelSearch}
+              onChangeText={setModelSearch}
+              textAlign={language === 'ar' ? 'right' : 'left'}
+            />
+            <ScrollView style={styles.listContainer}>
+              {filteredModels.map((model) => (
+                <TouchableOpacity
+                  key={model}
+                  style={[
+                    styles.listItem,
+                    selectedModel === model && styles.selectedListItem
+                  ]}
+                  onPress={() => setSelectedModel(model)}
+                >
+                  <Text style={[
+                    styles.listItemText,
+                    selectedModel === model && styles.selectedListItemText
+                  ]}>
+                    {model}
+                  </Text>
+                  {selectedModel === model && (
+                    <MaterialIcons name="check" size={24} color={COLORS.primary} />
+                  )}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        );
+
+      case 4: // Issue
+        return (
+          <View style={styles.stepContainer}>
+            <Text style={styles.stepTitle}>
+              {language === 'ar' ? 'اختر العطل' : 'Select Issue'}
+            </Text>
+            <TextInput
+              style={styles.searchInput}
+              placeholder={language === 'ar' ? 'بحث عن عطل...' : 'Search issue...'}
+              placeholderTextColor={COLORS.textLight}
+              value={issueSearch}
+              onChangeText={setIssueSearch}
+              textAlign={language === 'ar' ? 'right' : 'left'}
+            />
+            <ScrollView style={styles.listContainer}>
+              {filteredIssues.map((issue) => (
+                <TouchableOpacity
+                  key={issue.id}
+                  style={[
+                    styles.listItem,
+                    selectedIssue?.id === issue.id && styles.selectedListItem
+                  ]}
+                  onPress={() => setSelectedIssue(issue)}
+                >
+                  <View style={styles.issueInfo}>
+                    <Text style={[
+                      styles.listItemText,
+                      selectedIssue?.id === issue.id && styles.selectedListItemText
+                    ]}>
+                      {language === 'ar' ? issue.nameAr : issue.nameEn}
+                    </Text>
+                    <Text style={styles.priceRange}>
+                      {issue.priceRange.min} - {issue.priceRange.max} {language === 'ar' ? 'ريال' : 'SAR'}
+                    </Text>
+                  </View>
+                  {selectedIssue?.id === issue.id && (
+                    <MaterialIcons name="check" size={24} color={COLORS.primary} />
+                  )}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        );
+
+      case 5: // Details
+        return (
+          <View style={styles.stepContainer}>
+            <Text style={styles.stepTitle}>
+              {language === 'ar' ? 'تفاصيل إضافية' : 'Additional Details'}
+            </Text>
+            
+            <Text style={styles.label}>
+              {language === 'ar' ? 'وصف المشكلة' : 'Issue Description'}
+            </Text>
+            <TextInput
+              style={styles.textArea}
+              placeholder={language === 'ar' ? 'اشرح المشكلة بالتفصيل...' : 'Describe the issue in detail...'}
+              placeholderTextColor={COLORS.textLight}
+              value={issueDescription}
+              onChangeText={setIssueDescription}
+              multiline
+              numberOfLines={4}
+              textAlign={language === 'ar' ? 'right' : 'left'}
+            />
+
+            <Text style={styles.label}>
+              {language === 'ar' ? 'صور أو فيديو (اختياري)' : 'Photos or Video (Optional)'}
+            </Text>
+            <View style={styles.mediaButtons}>
+              <TouchableOpacity style={styles.mediaButton} onPress={takePhoto}>
+                <MaterialIcons name="camera-alt" size={24} color={COLORS.primary} />
+                <Text style={styles.mediaButtonText}>
+                  {language === 'ar' ? 'التقاط صورة' : 'Take Photo'}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.mediaButton} onPress={pickImage}>
+                <MaterialIcons name="photo-library" size={24} color={COLORS.primary} />
+                <Text style={styles.mediaButtonText}>
+                  {language === 'ar' ? 'من المعرض' : 'From Gallery'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView horizontal style={styles.mediaPreview}>
+              {mediaFiles.map((uri, index) => (
+                <View key={index} style={styles.previewItem}>
+                  <Image source={{ uri }} style={styles.previewImage} />
+                  <TouchableOpacity 
+                    style={styles.removeMedia}
+                    onPress={() => removeMedia(index)}
+                  >
+                    <MaterialIcons name="close" size={16} color="#FFFFFF" />
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </ScrollView>
+          </View>
+        );
+
+      case 6: // Review & Add More
+        return (
+          <View style={styles.stepContainer}>
+            <Text style={styles.stepTitle}>
+              {language === 'ar' ? 'مراجعة الطلب' : 'Review Order'}
+            </Text>
+            
+            <ScrollView style={styles.reviewList}>
+              {orderItems.map((item, index) => (
+                <View key={index} style={styles.reviewItem}>
+                  <View style={styles.reviewHeader}>
+                    <Text style={styles.reviewDevice}>
+                      {item.brand.name} {item.model}
+                    </Text>
+                    <TouchableOpacity onPress={() => handleRemoveItem(index)}>
+                      <MaterialIcons name="delete" size={24} color={COLORS.error} />
+                    </TouchableOpacity>
+                  </View>
+                  <Text style={styles.reviewIssue}>
+                    {language === 'ar' ? item.issue.nameAr : item.issue.nameEn}
+                  </Text>
+                  <Text style={styles.reviewPrice}>
+                    {item.issue.priceRange.min} - {item.issue.priceRange.max} {language === 'ar' ? 'ريال' : 'SAR'}
+                  </Text>
+                </View>
+              ))}
+            </ScrollView>
+
+            <TouchableOpacity 
+              style={styles.addMoreButton}
+              onPress={handleAddNewItem}
+            >
+              <MaterialIcons name="add-circle-outline" size={24} color={COLORS.primary} />
+              <Text style={styles.addMoreText}>
+                {language === 'ar' ? 'إضافة جهاز آخر' : 'Add Another Device'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        );
+
+      case 7: // Location
+        return (
+          <View style={styles.stepContainer}>
+            <Text style={styles.stepTitle}>
+              {language === 'ar' ? 'تحديد الموقع' : 'Select Location'}
+            </Text>
+            
+            <View style={styles.mapContainer}>
+              {location ? (
+                <MapView
+                  provider={PROVIDER_GOOGLE}
+                  style={styles.map}
+                  region={location}
+                  onRegionChangeComplete={(region) => {
+                    setLocation({ ...location, ...region });
+                    // Reverse geocode logic here if needed
+                  }}
+                >
+                  <Marker coordinate={location} />
+                </MapView>
+              ) : (
+                <View style={styles.loadingMap}>
+                  <Text>{language === 'ar' ? 'جاري تحديد الموقع...' : 'Locating...'}</Text>
+                </View>
+              )}
+            </View>
+
+            <View style={styles.addressContainer}>
+              <MaterialIcons name="location-on" size={24} color={COLORS.primary} />
+              <Text style={styles.addressText}>
+                {address || (language === 'ar' ? 'جاري تحديد العنوان...' : 'Locating address...')}
+              </Text>
+            </View>
+          </View>
+        );
     }
   };
-
-  const styles = createStyles(COLORS, SHADOWS);
 
   return (
     <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView
-        style={styles.container}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity onPress={handleBack} style={styles.backButton}>
+          <MaterialIcons 
+            name={language === 'ar' ? 'arrow-forward' : 'arrow-back'} 
+            size={24} 
+            color={COLORS.text} 
+          />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>
+          {language === 'ar' ? 'طلب جديد' : 'New Request'}
+        </Text>
+        <View style={{ width: 40 }} />
+      </View>
+
+      {/* Progress Bar */}
+      <View style={styles.progressContainer}>
+        {STEPS.map((_, index) => (
+          <View key={index} style={styles.progressStep}>
+            <View style={[
+              styles.progressDot,
+              index <= currentStep && styles.progressDotActive
+            ]} />
+            {index < STEPS.length - 1 && (
+              <View style={[
+                styles.progressLine,
+                index < currentStep && styles.progressLineActive
+              ]} />
+            )}
+          </View>
+        ))}
+      </View>
+
+      {/* Content */}
+      <Animated.View 
+        style={[
+          styles.content,
+          {
+            opacity: fadeAnim,
+            transform: [{ translateY: slideAnim }]
+          }
+        ]}
       >
-        <View style={styles.header}>
-          <TouchableOpacity onPress={handleBack} style={styles.backButton}>
-            <MaterialIcons name="arrow-back" size={24} color={COLORS.text} />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>
-            {language === 'ar' ? 'طلب صيانة' : 'Repair Request'}
-          </Text>
-          <View style={styles.backButton} />
-        </View>
+        {renderStepContent()}
+      </Animated.View>
 
-        {renderStepIndicator()}
-
-        <ScrollView
-          style={styles.content}
-          showsVerticalScrollIndicator={false}
+      {/* Footer */}
+      <View style={styles.footer}>
+        <TouchableOpacity 
+          style={styles.nextButton}
+          onPress={currentStep === STEPS.length - 1 ? submitRequest : handleNext}
         >
-          {renderStepContent()}
-        </ScrollView>
-
-        <View style={styles.footer}>
-          {currentStep < STEPS.length - 1 ? (
-            <TouchableOpacity
-              style={styles.nextButton}
-              onPress={handleNext}
-            >
-              <Text style={styles.nextButtonText}>
-                {language === 'ar' ? 'التالي' : 'Next'}
-              </Text>
-              <MaterialIcons name="arrow-forward" size={20} color="#FFF" />
-            </TouchableOpacity>
-          ) : (
-            <TouchableOpacity
-              style={styles.submitButton}
-              onPress={submitRequest}
-            >
-              <Text style={styles.submitButtonText}>
-                {language === 'ar' ? 'إرسال الطلب' : 'Submit Request'}
-              </Text>
-            </TouchableOpacity>
+          <Text style={styles.nextButtonText}>
+            {currentStep === STEPS.length - 1 
+              ? (language === 'ar' ? 'إرسال الطلب' : 'Submit Request')
+              : (currentStep === 5 ? (language === 'ar' ? 'إضافة ومراجعة' : 'Add & Review') : (language === 'ar' ? 'التالي' : 'Next'))
+            }
+          </Text>
+          {currentStep < STEPS.length - 1 && (
+            <MaterialIcons 
+              name={language === 'ar' ? 'arrow-back' : 'arrow-forward'} 
+              size={24} 
+              color="#FFFFFF" 
+            />
           )}
-        </View>
-      </KeyboardAvoidingView>
+        </TouchableOpacity>
+      </View>
     </SafeAreaView>
   );
 }
 
-function createStyles(COLORS: any, SHADOWS: any) {
-  return StyleSheet.create({
+const createStyles = (COLORS: any, SHADOWS: any) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
@@ -972,372 +816,187 @@ function createStyles(COLORS: any, SHADOWS: any) {
     justifyContent: 'space-between',
     paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.md,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    backgroundColor: COLORS.surface,
+    ...SHADOWS.neuFlat,
   },
   backButton: {
-    width: 40,
+    padding: SPACING.sm,
   },
   headerTitle: {
-    fontSize: 20,
-    fontWeight: '700',
+    fontSize: 18,
+    fontWeight: 'bold',
     color: COLORS.text,
   },
-  stepIndicator: {
+  progressContainer: {
     flexDirection: 'row',
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.lg,
-    backgroundColor: COLORS.surface,
-  },
-  stepItem: {
-    flex: 1,
-    alignItems: 'center',
-    position: 'relative',
-  },
-  stepCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: COLORS.border,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: SPACING.xs,
+    paddingVertical: SPACING.lg,
+    paddingHorizontal: SPACING.xl,
   },
-  stepCircleActive: {
-    backgroundColor: COLORS.primary,
+  progressStep: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
-  stepNumber: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: COLORS.textSecondary,
-  },
-  stepLabel: {
-    fontSize: 11,
-    color: COLORS.textSecondary,
-    marginTop: SPACING.xs,
-  },
-  stepLine: {
-    position: 'absolute',
-    top: 16,
-    left: '50%',
-    right: '-50%',
-    height: 2,
+  progressDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
     backgroundColor: COLORS.border,
   },
-  stepLineActive: {
+  progressDotActive: {
+    backgroundColor: COLORS.primary,
+    transform: [{ scale: 1.2 }],
+  },
+  progressLine: {
+    width: 30,
+    height: 2,
+    backgroundColor: COLORS.border,
+    marginHorizontal: 2,
+  },
+  progressLineActive: {
     backgroundColor: COLORS.primary,
   },
   content: {
     flex: 1,
   },
-  stepContent: {
+  stepContainer: {
+    flex: 1,
     padding: SPACING.lg,
   },
   stepTitle: {
     fontSize: 24,
-    fontWeight: '700',
+    fontWeight: 'bold',
     color: COLORS.text,
-    marginBottom: SPACING.lg,
-  },
-  searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.surface,
-    borderRadius: 12,
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm,
-    marginBottom: SPACING.lg,
-    ...SHADOWS.small,
-  },
-  searchInput: {
-    flex: 1,
-    marginLeft: SPACING.sm,
-    fontSize: 16,
-    color: COLORS.text,
-  },
-  optionsScroll: {
-    maxHeight: 500,
-  },
-  optionsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginHorizontal: -SPACING.xs,
-  },
-  brandCard: {
-    width: (width - SPACING.lg * 2 - SPACING.xs * 4) / 3,
-    aspectRatio: 1,
-    backgroundColor: COLORS.surface,
-    borderRadius: 12,
-    padding: SPACING.md,
-    margin: SPACING.xs,
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...SHADOWS.small,
-  },
-  optionActive: {
-    backgroundColor: COLORS.primary + '20',
-    borderWidth: 2,
-    borderColor: COLORS.primary,
-  },
-  brandLogoContainer: {
-    width: '100%',
-    height: 60,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: SPACING.xs,
-  },
-  brandLogo: {
-    width: '80%',
-    height: '100%',
-  },
-  brandName: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: COLORS.text,
-    marginTop: SPACING.xs,
+    marginBottom: SPACING.xl,
     textAlign: 'center',
   },
   optionCard: {
-    width: (width - SPACING.lg * 2 - SPACING.xs * 2) / 2,
-    aspectRatio: 1.2,
-    backgroundColor: COLORS.surface,
-    borderRadius: 12,
-    padding: SPACING.lg,
-    margin: SPACING.xs,
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...SHADOWS.small,
-  },
-  optionText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: COLORS.text,
-    marginTop: SPACING.md,
-  },
-  listOption: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     backgroundColor: COLORS.surface,
-    borderRadius: 12,
-    padding: SPACING.md,
-    marginBottom: SPACING.sm,
-    ...SHADOWS.small,
+    padding: SPACING.lg,
+    borderRadius: BORDER_RADIUS.lg,
+    marginBottom: SPACING.md,
+    ...SHADOWS.neuFlat,
   },
-  listOptionActive: {
-    backgroundColor: COLORS.primary + '20',
-    borderWidth: 2,
+  selectedOptionCard: {
     borderColor: COLORS.primary,
+    borderWidth: 2,
   },
-  listOptionText: {
-    fontSize: 16,
+  iconContainer: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: COLORS.background,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: SPACING.md,
+  },
+  selectedIconContainer: {
+    backgroundColor: COLORS.primary,
+  },
+  optionContent: {
+    flex: 1,
+  },
+  optionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
     color: COLORS.text,
+    marginBottom: 4,
   },
-  listOptionTextActive: {
-    fontWeight: '600',
+  optionDescription: {
+    fontSize: 14,
+    color: COLORS.textSecondary,
+  },
+  selectedOptionText: {
     color: COLORS.primary,
   },
-  issuesGrid: {
+  gridContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    marginHorizontal: -SPACING.xs,
+    justifyContent: 'space-between',
+    gap: SPACING.md,
   },
-  issueCard: {
-    width: (width - SPACING.lg * 2 - SPACING.xs * 4) / 2,
+  gridItem: {
+    width: (width - SPACING.lg * 3) / 2,
+    aspectRatio: 1,
     backgroundColor: COLORS.surface,
-    borderRadius: 12,
-    padding: SPACING.md,
-    margin: SPACING.xs,
+    borderRadius: BORDER_RADIUS.lg,
+    justifyContent: 'center',
     alignItems: 'center',
-    ...SHADOWS.small,
+    ...SHADOWS.neuFlat,
   },
-  issueText: {
-    fontSize: 14,
+  selectedGridItem: {
+    backgroundColor: COLORS.primary,
+  },
+  gridLabel: {
+    marginTop: SPACING.md,
+    fontSize: 16,
     fontWeight: '600',
     color: COLORS.text,
-    marginTop: SPACING.sm,
-    textAlign: 'center',
   },
-  issuePrice: {
-    fontSize: 12,
+  selectedGridLabel: {
+    color: '#FFFFFF',
+  },
+  searchInput: {
+    backgroundColor: COLORS.surface,
+    padding: SPACING.md,
+    borderRadius: BORDER_RADIUS.md,
+    marginBottom: SPACING.md,
+    color: COLORS.text,
+    ...SHADOWS.neuInner,
+  },
+  listContainer: {
+    flex: 1,
+  },
+  listItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: SPACING.md,
+    backgroundColor: COLORS.surface,
+    borderRadius: BORDER_RADIUS.md,
+    marginBottom: SPACING.sm,
+    ...SHADOWS.neuFlat,
+  },
+  selectedListItem: {
+    borderColor: COLORS.primary,
+    borderWidth: 1,
+  },
+  listItemText: {
+    flex: 1,
+    fontSize: 16,
+    color: COLORS.text,
+    marginLeft: SPACING.md,
+  },
+  selectedListItemText: {
     color: COLORS.primary,
-    marginTop: SPACING.xs,
-    fontWeight: '700',
+    fontWeight: 'bold',
+  },
+  issueInfo: {
+    flex: 1,
+    marginLeft: SPACING.md,
+  },
+  priceRange: {
+    fontSize: 14,
+    color: COLORS.textSecondary,
+    marginTop: 4,
+  },
+  label: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: COLORS.text,
+    marginBottom: SPACING.sm,
+    marginTop: SPACING.md,
   },
   textArea: {
     backgroundColor: COLORS.surface,
-    borderRadius: 12,
     padding: SPACING.md,
-    fontSize: 16,
+    borderRadius: BORDER_RADIUS.md,
+    height: 120,
+    textAlignVertical: 'top',
     color: COLORS.text,
-    minHeight: 120,
-    marginBottom: SPACING.lg,
-    ...SHADOWS.small,
-  },
-  summaryCard: {
-    backgroundColor: COLORS.surface,
-    borderRadius: 12,
-    padding: SPACING.lg,
-    ...SHADOWS.medium,
-  },
-  summaryTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: COLORS.text,
-    marginBottom: SPACING.md,
-  },
-  summaryRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: SPACING.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
-  },
-  summaryLabel: {
-    fontSize: 14,
-    color: COLORS.textSecondary,
-  },
-  summaryValue: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: COLORS.text,
-  },
-  summaryTotal: {
-    marginTop: SPACING.sm,
-    paddingTop: SPACING.md,
-    borderTopWidth: 2,
-    borderTopColor: COLORS.primary,
-    borderBottomWidth: 0,
-  },
-  summaryTotalLabel: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: COLORS.text,
-  },
-  summaryTotalValue: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: COLORS.primary,
-  },
-  currentLocationButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: COLORS.primary,
-    borderRadius: 12,
-    padding: SPACING.lg,
-    marginBottom: SPACING.md,
-    ...SHADOWS.medium,
-  },
-  currentLocationText: {
-    marginLeft: SPACING.md,
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#FFF',
-  },
-  divider: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: SPACING.lg,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: COLORS.border,
-  },
-  dividerText: {
-    marginHorizontal: SPACING.md,
-    fontSize: 14,
-    color: COLORS.textSecondary,
-  },
-  locationButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.surface,
-    borderRadius: 12,
-    padding: SPACING.md,
-    marginBottom: SPACING.lg,
-    ...SHADOWS.small,
-  },
-  locationButtonText: {
-    flex: 1,
-    marginLeft: SPACING.md,
-    fontSize: 16,
-    color: COLORS.text,
-  },
-  mapPreview: {
-    height: 200,
-    borderRadius: 12,
-    overflow: 'hidden',
-    ...SHADOWS.medium,
-  },
-  map: {
-    flex: 1,
-  },
-  mapModal: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
-  mapHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.md,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
-  },
-  mapHeaderTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: COLORS.text,
-  },
-  mapHeaderDone: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: COLORS.primary,
-  },
-  fullMap: {
-    flex: 1,
-  },
-  footer: {
-    padding: SPACING.lg,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.border,
-  },
-  nextButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: COLORS.primary,
-    borderRadius: 12,
-    paddingVertical: SPACING.md,
-    ...SHADOWS.medium,
-  },
-  nextButtonText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#FFF',
-    marginRight: SPACING.sm,
-  },
-  submitButton: {
-    backgroundColor: COLORS.primary,
-    borderRadius: 12,
-    paddingVertical: SPACING.md,
-    alignItems: 'center',
-    ...SHADOWS.medium,
-  },
-  submitButtonText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#FFF',
-  },
-  mediaLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: COLORS.text,
-    marginTop: SPACING.lg,
-    marginBottom: SPACING.sm,
+    ...SHADOWS.neuInner,
   },
   mediaButtons: {
     flexDirection: 'row',
@@ -1349,123 +1008,136 @@ function createStyles(COLORS: any, SHADOWS: any) {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: SPACING.xs,
-    paddingVertical: SPACING.md,
-    borderRadius: BORDER_RADIUS.lg,
     backgroundColor: COLORS.surface,
-    borderWidth: 1,
-    borderColor: COLORS.border,
+    padding: SPACING.md,
+    borderRadius: BORDER_RADIUS.md,
+    gap: SPACING.sm,
+    ...SHADOWS.neuFlat,
   },
   mediaButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
     color: COLORS.text,
+    fontWeight: '600',
   },
   mediaPreview: {
-    marginBottom: SPACING.md,
+    flexDirection: 'row',
+    marginTop: SPACING.md,
   },
-  mediaItem: {
+  previewItem: {
+    marginRight: SPACING.md,
     position: 'relative',
-    marginRight: SPACING.sm,
   },
-  mediaImage: {
-    width: 100,
-    height: 100,
+  previewImage: {
+    width: 80,
+    height: 80,
     borderRadius: BORDER_RADIUS.md,
   },
-  mediaRemove: {
+  removeMedia: {
     position: 'absolute',
-    top: 4,
-    right: 4,
-    width: 24,
-    height: 24,
+    top: -8,
+    right: -8,
+    backgroundColor: COLORS.error,
     borderRadius: 12,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
-    alignItems: 'center',
-    justifyContent: 'center',
+    padding: 4,
   },
-  stepSubtitle: {
+  reviewList: {
+    flex: 1,
+    marginBottom: SPACING.lg,
+  },
+  reviewItem: {
+    backgroundColor: COLORS.surface,
+    padding: SPACING.md,
+    borderRadius: BORDER_RADIUS.md,
+    marginBottom: SPACING.md,
+    ...SHADOWS.neuFlat,
+  },
+  reviewHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: SPACING.sm,
+  },
+  reviewDevice: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: COLORS.text,
+  },
+  reviewIssue: {
     fontSize: 16,
     color: COLORS.textSecondary,
-    marginTop: SPACING.xs,
-    marginBottom: SPACING.xl,
-    textAlign: 'center',
+    marginBottom: 4,
   },
-  serviceTypesContainer: {
-    gap: SPACING.md,
+  reviewPrice: {
+    fontSize: 14,
+    color: COLORS.primary,
+    fontWeight: '600',
   },
-  serviceTypeCard: {
-    backgroundColor: COLORS.surface,
-    borderRadius: BORDER_RADIUS.lg,
-    padding: SPACING.lg,
-    borderWidth: 2,
-    borderColor: COLORS.border,
-    ...SHADOWS.small,
-    position: 'relative',
-  },
-  serviceTypeActive: {
-    borderColor: COLORS.primary,
-    backgroundColor: `${COLORS.primary}10`,
-    ...SHADOWS.medium,
-  },
-  serviceTypeHeader: {
+  addMoreButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: SPACING.md,
-    gap: SPACING.md,
+    justifyContent: 'center',
+    padding: SPACING.md,
+    borderWidth: 2,
+    borderColor: COLORS.primary,
+    borderRadius: BORDER_RADIUS.lg,
+    borderStyle: 'dashed',
+    gap: SPACING.sm,
   },
-  serviceTypeName: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: COLORS.text,
-    flex: 1,
-  },
-  serviceTypeNameActive: {
+  addMoreText: {
+    fontSize: 16,
+    fontWeight: '600',
     color: COLORS.primary,
   },
-  serviceTypeDescription: {
-    fontSize: 14,
-    color: COLORS.textSecondary,
-    lineHeight: 20,
+  mapContainer: {
+    height: 300,
+    borderRadius: BORDER_RADIUS.lg,
+    overflow: 'hidden',
+    marginBottom: SPACING.lg,
+    ...SHADOWS.neuFlat,
   },
-  selectedBadge: {
-    position: 'absolute',
-    top: SPACING.md,
-    right: SPACING.md,
+  map: {
+    width: '100%',
+    height: '100%',
   },
-  priceNotice: {
+  loadingMap: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: COLORS.surface,
+  },
+  addressContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.primaryLight || COLORS.background,
+    backgroundColor: COLORS.surface,
     padding: SPACING.md,
     borderRadius: BORDER_RADIUS.md,
-    marginBottom: SPACING.md,
-    borderLeftWidth: 3,
-    borderLeftColor: COLORS.primary,
+    gap: SPACING.md,
+    ...SHADOWS.neuFlat,
   },
-  priceNoticeText: {
+  addressText: {
     flex: 1,
-    marginLeft: SPACING.sm,
-    fontSize: 13,
+    fontSize: 14,
     color: COLORS.text,
-    lineHeight: 18,
+    lineHeight: 20,
   },
-  priceDisclaimer: {
+  footer: {
+    padding: SPACING.lg,
+    backgroundColor: COLORS.surface,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.border,
+  },
+  nextButton: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    backgroundColor: COLORS.cardBackground || COLORS.background,
-    padding: SPACING.md,
-    borderRadius: BORDER_RADIUS.md,
-    marginTop: SPACING.md,
-    borderWidth: 1,
-    borderColor: COLORS.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.primary,
+    padding: SPACING.lg,
+    borderRadius: BORDER_RADIUS.lg,
+    gap: SPACING.md,
+    ...SHADOWS.neuRaised,
   },
-  disclaimerText: {
-    flex: 1,
-    marginLeft: SPACING.sm,
-    fontSize: 12,
-    color: COLORS.textSecondary,
-    lineHeight: 18,
+  nextButtonText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
   },
 });
-}

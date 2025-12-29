@@ -103,12 +103,17 @@ export const requests = {
     device_model: string;
     issue_description: string;
     estimated_price: number;
-    location: string;
+    location: any;
     latitude: number;
     longitude: number;
     media_urls?: string[];
+    status?: string;
+    price?: number;
+    created_at?: string;
+    items?: any[];
   }): Promise<Order | null> => {
-    const { data, error } = await supabase
+    // 1. Create the main order
+    const { data: order, error: orderError } = await supabase
       .from('orders')
       .insert([{
         user_id: orderData.user_id,
@@ -117,22 +122,45 @@ export const requests = {
         device_brand: orderData.device_brand,
         device_model: orderData.device_model,
         issue_description: orderData.issue_description,
-        estimated_price: orderData.estimated_price,
-        location: orderData.location,
-        latitude: orderData.latitude,
-        longitude: orderData.longitude,
-        media_urls: orderData.media_urls,
+        estimated_price: orderData.price || orderData.estimated_price,
+        location: typeof orderData.location === 'string' ? orderData.location : orderData.location.address,
+        latitude: orderData.latitude || orderData.location.latitude,
+        longitude: orderData.longitude || orderData.location.longitude,
+        media_urls: orderData.media_urls || orderData.images,
         status: 'pending',
       }])
       .select()
       .single();
 
-    if (error) {
-      console.error('Error creating order:', error);
-      throw error;
+    if (orderError) {
+      console.error('Error creating order:', orderError);
+      throw orderError;
     }
 
-    return data;
+    // 2. Create order items if present
+    if (orderData.items && orderData.items.length > 0) {
+      const itemsToInsert = orderData.items.map(item => ({
+        order_id: order.id,
+        device_type: item.deviceType,
+        device_brand: item.brand.name,
+        device_model: item.model,
+        issue_id: item.issue.id,
+        issue_description: item.description,
+        estimated_price: item.issue.priceRange.min,
+        // Store media files for this specific item if needed, or rely on main order media
+      }));
+
+      const { error: itemsError } = await supabase
+        .from('order_items')
+        .insert(itemsToInsert);
+
+      if (itemsError) {
+        console.error('Error creating order items:', itemsError);
+        // We don't throw here to avoid failing the whole order, but log it
+      }
+    }
+
+    return order;
   },
 
   // Get all orders
@@ -170,7 +198,7 @@ export const requests = {
   getById: async (id: string): Promise<Order | null> => {
     const { data, error } = await supabase
       .from('orders')
-      .select('*')
+      .select('*, order_items(*)')
       .eq('id', id)
       .single();
 
