@@ -50,21 +50,21 @@ export default function CustomerHomeScreen() {
               <MaterialIcons name="keyboard-arrow-down" size={16} color={COLORS.textSecondary} />
             </View>
           </View>
-          <TouchableOpacity style={styles.notificationBtn}>
+          <TouchableOpacity style={[styles.notificationBtn, SHADOWS.small]}>
             <Ionicons name="notifications-outline" size={24} color={COLORS.text} />
             <View style={styles.badge} />
           </TouchableOpacity>
         </View>
 
         {/* Search Bar */}
-        <TouchableOpacity style={styles.searchContainer}>
+        <TouchableOpacity style={[styles.searchContainer, SHADOWS.small]}>
           <Ionicons name="search" size={20} color={COLORS.textSecondary} />
           <Text style={styles.searchPlaceholder}>ابحث عن جهاز، عطل، أو خدمة...</Text>
         </TouchableOpacity>
 
         {/* Price Calculator Banner */}
         <TouchableOpacity 
-          style={styles.calculatorBanner}
+          style={[styles.calculatorBanner, SHADOWS.medium]}
           onPress={() => router.push('/calculator')}
         >
           <LinearGradient
@@ -88,7 +88,7 @@ export default function CustomerHomeScreen() {
         {/* Promotions Slider */}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.promoContainer}>
           {PROMOTIONS.map((promo) => (
-            <TouchableOpacity key={promo.id} style={styles.promoCard}>
+            <TouchableOpacity key={promo.id} style={[styles.promoCard, SHADOWS.medium]}>
               <Image source={{ uri: promo.image }} style={styles.promoImage} />
               <LinearGradient
                 colors={['transparent', 'rgba(0,0,0,0.8)']}
@@ -134,7 +134,7 @@ export default function CustomerHomeScreen() {
           <Text style={styles.sectionTitle}>طلباتي النشطة</Text>
         </View>
         
-        <TouchableOpacity style={styles.activeOrderCard} onPress={() => router.push('/track/123')}>
+        <TouchableOpacity style={[styles.activeOrderCard, SHADOWS.medium]} onPress={() => router.push('/track/123')}>
           <View style={styles.orderStatusLine}>
             <View style={styles.pulsingDot} />
             <Text style={styles.orderStatusText}>الفني في الطريق إليك</Text>
@@ -197,9 +197,7 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     backgroundColor: COLORS.surface,
     justifyContent: 'center',
-    alignItems: 'center',
-    ...SHADOWS.small,
-    borderWidth: 1,
+    alignItems: 'center',  }, borderWidth: 1,
     borderColor: COLORS.border,
   },
   badge: {
@@ -236,7 +234,6 @@ const styles = StyleSheet.create({
     marginHorizontal: SPACING.l,
     marginBottom: SPACING.l,
     borderRadius: 20,
-    ...SHADOWS.medium,
   },
   calculatorGradient: {
     borderRadius: 20,
@@ -289,7 +286,6 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     marginRight: SPACING.m,
     overflow: 'hidden',
-    ...SHADOWS.medium,
   },
   promoImage: {
     width: '100%',

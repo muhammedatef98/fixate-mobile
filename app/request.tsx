@@ -405,10 +405,11 @@ export default function RequestScreen() {
             {SERVICE_TYPES.map((service) => (
               <TouchableOpacity
                 key={service.id}
-                style={[
-                  styles.optionCard,
-                  selectedServiceType === service.id && styles.selectedOptionCard
-                ]}
+              style={[
+                styles.optionCard,
+                selectedServiceType === type.id && styles.selectedOptionCard,
+                SHADOWS.neuFlat
+              ]}
                 onPress={() => setSelectedServiceType(service.id)}
               >
                 <View style={[
@@ -453,10 +454,11 @@ export default function RequestScreen() {
               {DEVICE_TYPES.map((device) => (
                 <TouchableOpacity
                   key={device.id}
-                  style={[
-                    styles.gridItem,
-                    selectedDeviceType === device.id && styles.selectedGridItem
-                  ]}
+              style={[
+                styles.gridItem,
+                selectedDeviceType === type.id && styles.selectedGridItem,
+                SHADOWS.neuFlat
+              ]}
                   onPress={() => setSelectedDeviceType(device.id)}
                 >
                   <MaterialCommunityIcons 
@@ -482,8 +484,8 @@ export default function RequestScreen() {
             <Text style={styles.stepTitle}>
               {language === 'ar' ? 'اختر الماركة' : 'Select Brand'}
             </Text>
-            <TextInput
-              style={styles.searchInput}
+        <TextInput
+          style={[styles.searchInput, SHADOWS.neuInner]}
               placeholder={language === 'ar' ? 'بحث عن ماركة...' : 'Search brand...'}
               placeholderTextColor={COLORS.textLight}
               value={brandSearch}
@@ -494,10 +496,11 @@ export default function RequestScreen() {
               {filteredBrands.map((brand) => (
                 <TouchableOpacity
                   key={brand.id}
-                  style={[
-                    styles.listItem,
-                    selectedBrand?.id === brand.id && styles.selectedListItem
-                  ]}
+              style={[
+                styles.listItem,
+                selectedBrand?.id === item.id && styles.selectedListItem,
+                SHADOWS.neuFlat
+              ]}
                   onPress={() => setSelectedBrand(brand)}
                 >
                   <BrandLogo brandName={brand.name} size={40} />
@@ -534,10 +537,11 @@ export default function RequestScreen() {
               {filteredModels.map((model) => (
                 <TouchableOpacity
                   key={model}
-                  style={[
-                    styles.listItem,
-                    selectedModel === model && styles.selectedListItem
-                  ]}
+              style={[
+                styles.listItem,
+                selectedModel === item && styles.selectedListItem,
+                SHADOWS.neuFlat
+              ]}
                   onPress={() => setSelectedModel(model)}
                 >
                   <Text style={[
@@ -573,10 +577,11 @@ export default function RequestScreen() {
               {filteredIssues.map((issue) => (
                 <TouchableOpacity
                   key={issue.id}
-                  style={[
-                    styles.listItem,
-                    selectedIssue?.id === issue.id && styles.selectedListItem
-                  ]}
+              style={[
+                styles.listItem,
+                selectedIssue?.id === item.id && styles.selectedListItem,
+                SHADOWS.neuFlat
+              ]}
                   onPress={() => setSelectedIssue(issue)}
                 >
                   <View style={styles.issueInfo}>
@@ -609,8 +614,8 @@ export default function RequestScreen() {
             <Text style={styles.label}>
               {language === 'ar' ? 'وصف المشكلة' : 'Issue Description'}
             </Text>
-            <TextInput
-              style={styles.textArea}
+        <TextInput
+          style={[styles.textArea, SHADOWS.neuInner]}
               placeholder={language === 'ar' ? 'اشرح المشكلة بالتفصيل...' : 'Describe the issue in detail...'}
               placeholderTextColor={COLORS.textLight}
               value={issueDescription}
@@ -624,13 +629,13 @@ export default function RequestScreen() {
               {language === 'ar' ? 'صور أو فيديو (اختياري)' : 'Photos or Video (Optional)'}
             </Text>
             <View style={styles.mediaButtons}>
-              <TouchableOpacity style={styles.mediaButton} onPress={takePhoto}>
+              <TouchableOpacity style={[styles.mediaButton, SHADOWS.neuFlat]} onPress={takePhoto}>
                 <MaterialIcons name="camera-alt" size={24} color={COLORS.primary} />
                 <Text style={styles.mediaButtonText}>
                   {language === 'ar' ? 'التقاط صورة' : 'Take Photo'}
                 </Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.mediaButton} onPress={pickImage}>
+              <TouchableOpacity style={[styles.mediaButton, SHADOWS.neuFlat]} onPress={pickImage}>
                 <MaterialIcons name="photo-library" size={24} color={COLORS.primary} />
                 <Text style={styles.mediaButtonText}>
                   {language === 'ar' ? 'من المعرض' : 'From Gallery'}
@@ -663,7 +668,7 @@ export default function RequestScreen() {
             
             <ScrollView style={styles.reviewList}>
               {orderItems.map((item, index) => (
-                <View key={index} style={styles.reviewItem}>
+                <View key={index} style={[styles.reviewItem, SHADOWS.neuFlat]}>
                   <View style={styles.reviewHeader}>
                     <Text style={styles.reviewDevice}>
                       {item.brand.name} {item.model}
@@ -701,7 +706,7 @@ export default function RequestScreen() {
               {language === 'ar' ? 'تحديد الموقع' : 'Select Location'}
             </Text>
             
-            <View style={styles.mapContainer}>
+            <View style={[styles.mapContainer, SHADOWS.neuFlat]}>
               {location ? (
                 <MapView
                   provider={PROVIDER_GOOGLE}
@@ -721,7 +726,7 @@ export default function RequestScreen() {
               )}
             </View>
 
-            <View style={styles.addressContainer}>
+            <View style={[styles.addressContainer, SHADOWS.neuFlat]}>
               <MaterialIcons name="location-on" size={24} color={COLORS.primary} />
               <Text style={styles.addressText}>
                 {address || (language === 'ar' ? 'جاري تحديد العنوان...' : 'Locating address...')}
@@ -735,7 +740,7 @@ export default function RequestScreen() {
   return (
     <SafeAreaView style={styles.container}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, SHADOWS.neuFlat]}>
         <TouchableOpacity onPress={handleBack} style={styles.backButton}>
           <MaterialIcons 
             name={language === 'ar' ? 'arrow-forward' : 'arrow-back'} 
@@ -817,7 +822,6 @@ const createStyles = (COLORS: any, SHADOWS: any) => StyleSheet.create({
     paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.md,
     backgroundColor: COLORS.surface,
-    ...SHADOWS.neuFlat,
   },
   backButton: {
     padding: SPACING.sm,
@@ -878,7 +882,6 @@ const createStyles = (COLORS: any, SHADOWS: any) => StyleSheet.create({
     padding: SPACING.lg,
     borderRadius: BORDER_RADIUS.lg,
     marginBottom: SPACING.md,
-    ...SHADOWS.neuFlat,
   },
   selectedOptionCard: {
     borderColor: COLORS.primary,
@@ -925,7 +928,6 @@ const createStyles = (COLORS: any, SHADOWS: any) => StyleSheet.create({
     borderRadius: BORDER_RADIUS.lg,
     justifyContent: 'center',
     alignItems: 'center',
-    ...SHADOWS.neuFlat,
   },
   selectedGridItem: {
     backgroundColor: COLORS.primary,
@@ -945,7 +947,6 @@ const createStyles = (COLORS: any, SHADOWS: any) => StyleSheet.create({
     borderRadius: BORDER_RADIUS.md,
     marginBottom: SPACING.md,
     color: COLORS.text,
-    ...SHADOWS.neuInner,
   },
   listContainer: {
     flex: 1,
@@ -957,7 +958,6 @@ const createStyles = (COLORS: any, SHADOWS: any) => StyleSheet.create({
     backgroundColor: COLORS.surface,
     borderRadius: BORDER_RADIUS.md,
     marginBottom: SPACING.sm,
-    ...SHADOWS.neuFlat,
   },
   selectedListItem: {
     borderColor: COLORS.primary,
@@ -996,7 +996,6 @@ const createStyles = (COLORS: any, SHADOWS: any) => StyleSheet.create({
     height: 120,
     textAlignVertical: 'top',
     color: COLORS.text,
-    ...SHADOWS.neuInner,
   },
   mediaButtons: {
     flexDirection: 'row',
@@ -1012,7 +1011,6 @@ const createStyles = (COLORS: any, SHADOWS: any) => StyleSheet.create({
     padding: SPACING.md,
     borderRadius: BORDER_RADIUS.md,
     gap: SPACING.sm,
-    ...SHADOWS.neuFlat,
   },
   mediaButtonText: {
     color: COLORS.text,
@@ -1048,7 +1046,6 @@ const createStyles = (COLORS: any, SHADOWS: any) => StyleSheet.create({
     padding: SPACING.md,
     borderRadius: BORDER_RADIUS.md,
     marginBottom: SPACING.md,
-    ...SHADOWS.neuFlat,
   },
   reviewHeader: {
     flexDirection: 'row',
@@ -1092,7 +1089,6 @@ const createStyles = (COLORS: any, SHADOWS: any) => StyleSheet.create({
     borderRadius: BORDER_RADIUS.lg,
     overflow: 'hidden',
     marginBottom: SPACING.lg,
-    ...SHADOWS.neuFlat,
   },
   map: {
     width: '100%',
@@ -1111,7 +1107,6 @@ const createStyles = (COLORS: any, SHADOWS: any) => StyleSheet.create({
     padding: SPACING.md,
     borderRadius: BORDER_RADIUS.md,
     gap: SPACING.md,
-    ...SHADOWS.neuFlat,
   },
   addressText: {
     flex: 1,
@@ -1133,7 +1128,6 @@ const createStyles = (COLORS: any, SHADOWS: any) => StyleSheet.create({
     padding: SPACING.lg,
     borderRadius: BORDER_RADIUS.lg,
     gap: SPACING.md,
-    ...SHADOWS.neuRaised,
   },
   nextButtonText: {
     fontSize: 18,
