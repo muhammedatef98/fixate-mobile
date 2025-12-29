@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, Switch } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, Switch, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { COLORS, SPACING, SHADOWS } from '../../constants/theme';
 import { Card } from '../../components/ui/Card';
@@ -19,10 +19,17 @@ export default function TechnicianDashboard() {
   const router = useRouter();
   const { requests, updateRequestStatus } = useRequests();
   const [technicianName, setTechnicianName] = useState('فني');
-  const { user } = useApp();
+  const { user, language } = useApp();
   const [isOnline, setIsOnline] = useState(true);
+  const isRTL = language === 'ar';
 
-  const pendingRequests = requests.filter(req => req.status === 'pending');
+  // Local state to hide rejected requests temporarily
+  const [rejectedRequestIds, setRejectedRequestIds] = useState<string[]>([]);
+
+  // Filter requests: only pending and not rejected locally
+  const pendingRequests = requests.filter(req => 
+    req.status === 'pending' && !rejectedRequestIds.includes(req.id)
+  );
 
   // Setup notifications and real-time listener
   useEffect(() => {
@@ -78,16 +85,49 @@ export default function TechnicianDashboard() {
     };
   }, []);
 
+  const handleReject = (requestId: string) => {
+    Alert.alert(
+      isRTL ? 'رفض الطلب' : 'Reject Request',
+      isRTL ? 'هل أنت متأكد من رفض هذا الطلب؟ سيختفي من قائمتك.' : 'Are you sure you want to reject this request? It will be removed from your list.',
+      [
+        { text: isRTL ? 'إلغاء' : 'Cancel', style: 'cancel' },
+        { 
+          text: isRTL ? 'رفض' : 'Reject', 
+          style: 'destructive',
+          onPress: () => {
+            setRejectedRequestIds(prev => [...prev, requestId]);
+          }
+        }
+      ]
+    );
+  };
+
+  const handleAccept = async (requestId: string) => {
+    try {
+      await updateRequestStatus(requestId, 'accepted');
+      // Navigate to job details immediately after acceptance
+      router.push(`/job/${requestId}`);
+    } catch (error) {
+      Alert.alert(isRTL ? 'خطأ' : 'Error', isRTL ? 'فشل قبول الطلب. ربما قبله فني آخر.' : 'Failed to accept request. Another technician might have taken it.');
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Header */}
-        <View style={styles.header}>
-          <View>
-            <Text style={styles.greeting}>أهلاً، كابتن {technicianName} 🔧</Text>
-            <View style={styles.statusContainer}>
-              <View style={[styles.statusDot, { backgroundColor: isOnline ? '#10B981' : '#EF4444' }]} />
-              <Text style={styles.statusText}>{isOnline ? 'متاح لاستقبال الطلبات' : 'غير متاح حالياً'}</Text>
+        <View style={[styles.header, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+          <View style={{ alignItems: isRTL ? 'flex-end' : 'flex-start' }}>
+            <Text style={styles.greeting}>
+              {isRTL ? `أهلاً، كابتن ${technicianName} 🔧` : `Hello, Captain ${technicianName} 🔧`}
+            </Text>
+            <View style={[styles.statusContainer, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+              <View style={[styles.statusDot, { backgroundColor: isOnline ? '#10B981' : '#EF4444', [isRTL ? 'marginLeft' : 'marginRight']: 6 }]} />
+              <Text style={styles.statusText}>
+                {isOnline 
+                  ? (isRTL ? 'متاح لاستقبال الطلبات' : 'Online for requests') 
+                  : (isRTL ? 'غير متاح حالياً' : 'Currently offline')}
+              </Text>
             </View>
           </View>
           <Switch
@@ -99,7 +139,7 @@ export default function TechnicianDashboard() {
         </View>
 
         {/* Stats Grid */}
-        <View style={styles.statsGrid}>
+        <View style={[styles.statsGrid, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
           {STATS.map((stat, index) => (
             <View key={index} style={[styles.statCard, SHADOWS.small]}>
               <View style={[styles.statIcon, { backgroundColor: `${stat.color}15` }]}>
@@ -112,24 +152,26 @@ export default function TechnicianDashboard() {
         </View>
 
         {/* New Requests */}
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>الطلبات الجديدة ({pendingRequests.length})</Text>
+        <View style={[styles.sectionHeader, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+          <Text style={styles.sectionTitle}>
+            {isRTL ? `الطلبات الجديدة (${pendingRequests.length})` : `New Requests (${pendingRequests.length})`}
+          </Text>
           <TouchableOpacity>
-            <Text style={styles.seeAll}>عرض الكل</Text>
+            <Text style={styles.seeAll}>{isRTL ? 'عرض الكل' : 'See All'}</Text>
           </TouchableOpacity>
         </View>
 
         {pendingRequests.length > 0 ? (
           pendingRequests.map((req) => (
             <Card key={req.id} style={styles.requestCard}>
-              <View style={styles.reqHeader}>
-                <View style={styles.customerInfo}>
-                  <View style={styles.avatar}>
-                    <Text style={styles.avatarText}>ع</Text>
+              <View style={[styles.reqHeader, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                <View style={[styles.customerInfo, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                  <View style={[styles.avatar, { [isRTL ? 'marginLeft' : 'marginRight']: SPACING.s }]}>
+                    <Text style={styles.avatarText}>{req.customerName ? req.customerName.charAt(0).toUpperCase() : (isRTL ? 'ع' : 'C')}</Text>
                   </View>
-                  <View>
-                    <Text style={styles.customerName}>عميل جديد</Text>
-                    <Text style={styles.reqTime}>الآن</Text>
+                  <View style={{ alignItems: isRTL ? 'flex-end' : 'flex-start' }}>
+                    <Text style={styles.customerName}>{req.customerName || (isRTL ? 'عميل جديد' : 'New Customer')}</Text>
+                    <Text style={styles.reqTime}>{isRTL ? 'الآن' : 'Just now'}</Text>
                   </View>
                 </View>
                 <Text style={styles.price}>{req.price}</Text>
@@ -138,40 +180,40 @@ export default function TechnicianDashboard() {
               <View style={styles.divider} />
 
               <View style={styles.reqDetails}>
-                <View style={styles.detailRow}>
+                <View style={[styles.detailRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
                   <MaterialIcons name="smartphone" size={20} color={COLORS.textSecondary} />
-                  <Text style={styles.detailText}>{req.brand} {req.model} - {req.issue}</Text>
+                  <Text style={[styles.detailText, { textAlign: isRTL ? 'right' : 'left', [isRTL ? 'marginRight' : 'marginLeft']: SPACING.s }]}>
+                    {req.brand} {req.model} - {req.issue}
+                  </Text>
                 </View>
-                <View style={styles.detailRow}>
+                <View style={[styles.detailRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
                   <MaterialIcons name="location-on" size={20} color={COLORS.textSecondary} />
-                  <Text style={styles.detailText}>{req.location}</Text>
+                  <Text style={[styles.detailText, { textAlign: isRTL ? 'right' : 'left', [isRTL ? 'marginRight' : 'marginLeft']: SPACING.s }]}>
+                    {req.location}
+                  </Text>
                 </View>
                 {req.description ? (
-                  <View style={styles.detailRow}>
+                  <View style={[styles.detailRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
                     <MaterialIcons name="description" size={20} color={COLORS.textSecondary} />
-                    <Text style={styles.detailText} numberOfLines={2}>{req.description}</Text>
+                    <Text style={[styles.detailText, { textAlign: isRTL ? 'right' : 'left', [isRTL ? 'marginRight' : 'marginLeft']: SPACING.s }]} numberOfLines={2}>
+                      {req.description}
+                    </Text>
                   </View>
                 ) : null}
               </View>
 
-              <View style={styles.actions}>
-                <TouchableOpacity 
-                  style={[styles.actionBtn, styles.chatBtn]}
-                  onPress={() => router.push(`/chat/${req.id}`)}
-                >
-                  <MaterialIcons name="chat" size={20} color={COLORS.primary} />
-                </TouchableOpacity>
+              <View style={[styles.actions, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
                 <TouchableOpacity 
                   style={[styles.actionBtn, styles.rejectBtn]}
-                  onPress={() => updateRequestStatus(req.id, 'completed')} // Just to remove from list for demo
+                  onPress={() => handleReject(req.id)}
                 >
-                  <Text style={styles.rejectText}>رفض</Text>
+                  <Text style={styles.rejectText}>{isRTL ? 'رفض' : 'Reject'}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity 
                   style={[styles.actionBtn, styles.acceptBtn]}
-                  onPress={() => updateRequestStatus(req.id, 'accepted')}
+                  onPress={() => handleAccept(req.id)}
                 >
-                  <Text style={styles.acceptText}>قبول الطلب</Text>
+                  <Text style={styles.acceptText}>{isRTL ? 'قبول الطلب' : 'Accept'}</Text>
                 </TouchableOpacity>
               </View>
             </Card>
@@ -179,7 +221,9 @@ export default function TechnicianDashboard() {
         ) : (
           <View style={styles.emptyState}>
             <MaterialIcons name="notifications-off" size={48} color={COLORS.textSecondary} />
-            <Text style={styles.emptyText}>لا توجد طلبات جديدة حالياً</Text>
+            <Text style={styles.emptyText}>
+              {isRTL ? 'لا توجد طلبات جديدة حالياً' : 'No new requests at the moment'}
+            </Text>
           </View>
         )}
       </ScrollView>
@@ -193,7 +237,6 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background,
   },
   header: {
-    flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: SPACING.l,
@@ -207,7 +250,6 @@ const styles = StyleSheet.create({
     color: COLORS.text,
   },
   statusContainer: {
-    flexDirection: 'row',
     alignItems: 'center',
     marginTop: 4,
   },
@@ -215,14 +257,12 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    marginRight: 6,
   },
   statusText: {
     fontSize: 14,
     color: COLORS.textSecondary,
   },
   statsGrid: {
-    flexDirection: 'row',
     justifyContent: 'space-between',
     padding: SPACING.l,
     gap: SPACING.m,
@@ -253,7 +293,6 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
   },
   sectionHeader: {
-    flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: SPACING.l,
@@ -275,13 +314,11 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.m,
   },
   reqHeader: {
-    flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: SPACING.m,
   },
   customerInfo: {
-    flexDirection: 'row',
     alignItems: 'center',
   },
   avatar: {
@@ -291,7 +328,6 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primary,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: SPACING.s,
   },
   avatarText: {
     color: '#FFF',
@@ -321,18 +357,15 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.m,
   },
   detailRow: {
-    flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 8,
   },
   detailText: {
-    marginLeft: SPACING.s,
     color: COLORS.text,
     fontSize: 14,
     flex: 1,
   },
   actions: {
-    flexDirection: 'row',
     gap: SPACING.m,
   },
   actionBtn: {
@@ -346,12 +379,9 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primary,
     flex: 2,
   },
-  chatBtn: {
-    backgroundColor: COLORS.primaryLight,
-    flex: 0.8,
-  },
   rejectBtn: {
     backgroundColor: '#FEE2E2',
+    flex: 1,
   },
   acceptText: {
     color: '#FFF',
