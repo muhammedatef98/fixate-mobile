@@ -63,7 +63,7 @@ export default function CustomerHome() {
         {isRTL ? (
           <>
             <TouchableOpacity 
-              style={styles.menuButton}
+              style={[styles.menuButton, SHADOWS.neuFlat]}
               onPress={() => setSidebarVisible(true)}
             >
               <MaterialIcons name="menu" size={20} color={COLORS.textSecondary} />
@@ -72,7 +72,7 @@ export default function CustomerHome() {
             <Text style={styles.headerTitle}>Fixate</Text>
             
             <TouchableOpacity 
-              style={styles.languageButton}
+              style={[styles.languageButton, SHADOWS.neuFlat]}
               onPress={() => setLanguage(language === 'ar' ? 'en' : 'ar')}
             >
               <MaterialIcons name="language" size={20} color={COLORS.textSecondary} />
@@ -81,7 +81,7 @@ export default function CustomerHome() {
         ) : (
           <>
             <TouchableOpacity 
-              style={styles.languageButton}
+              style={[styles.languageButton, SHADOWS.neuFlat]}
               onPress={() => setLanguage(language === 'ar' ? 'en' : 'ar')}
             >
               <MaterialIcons name="language" size={20} color={COLORS.textSecondary} />
@@ -90,7 +90,7 @@ export default function CustomerHome() {
             <Text style={styles.headerTitle}>Fixate</Text>
             
             <TouchableOpacity 
-              style={styles.menuButton}
+              style={[styles.menuButton, SHADOWS.neuFlat]}
               onPress={() => setSidebarVisible(true)}
             >
               <MaterialIcons name="menu" size={20} color={COLORS.textSecondary} />
@@ -136,7 +136,7 @@ export default function CustomerHome() {
                   style={styles.categoryItem}
                   onPress={() => router.push('/request')}
                 >
-                  <View style={[styles.categoryIcon, { backgroundColor: category.color + '20' }]}>
+                  <View style={[styles.categoryIcon, SHADOWS.neuFlat, { backgroundColor: category.color + '20' }]}>
                     <IconComponent name={category.icon as any} size={28} color={category.color} />
                   </View>
                   <Text style={[styles.categoryLabel, { textAlign: 'center' }]}>{t[category.labelKey as keyof typeof t]}</Text>
@@ -151,7 +151,7 @@ export default function CustomerHome() {
           colors={[COLORS.primary, COLORS.primaryDark]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
-          style={styles.promoCard}
+          style={[styles.promoCard, SHADOWS.primaryGlow]}
         >
           {/* Background Blurs */}
           <View style={styles.promoBlurTop} />
@@ -163,7 +163,7 @@ export default function CustomerHome() {
             </View>
             <Text style={[styles.promoTitle, { textAlign: isRTL ? 'right' : 'left' }]}>{t.discount20}</Text>
             <Text style={[styles.promoSubtitle, { textAlign: isRTL ? 'right' : 'left' }]}>{t.firstRepair}</Text>
-            <TouchableOpacity style={styles.promoButton}>
+            <TouchableOpacity style={[styles.promoButton, SHADOWS.medium]}>
               <Text style={styles.promoButtonText}>{t.claimNow}</Text>
             </TouchableOpacity>
           </View>
@@ -193,7 +193,7 @@ export default function CustomerHome() {
                 </View>
                 <View style={[styles.serviceFooter, isRTL && { flexDirection: 'row-reverse' }]}>
                   <Text style={[styles.servicePrice, { textAlign: isRTL ? 'right' : 'left' }]}>{isRTL ? service.priceAr : service.priceEn}</Text>
-                  <View style={styles.serviceArrow}>
+                  <View style={[styles.serviceArrow, SHADOWS.neuFlat]}>
                     <MaterialIcons name={isRTL ? "arrow-back" : "arrow-forward"} size={16} color={COLORS.primary} />
                   </View>
                 </View>
@@ -240,7 +240,6 @@ const createStyles = (COLORS: any, SHADOWS: any) => StyleSheet.create({
     backgroundColor: COLORS.background,
     justifyContent: 'center',
     alignItems: 'center',
-    ...SHADOWS.neuFlat,
   },
   languageButton: {
     width: 40,
@@ -249,7 +248,6 @@ const createStyles = (COLORS: any, SHADOWS: any) => StyleSheet.create({
     backgroundColor: COLORS.background,
     justifyContent: 'center',
     alignItems: 'center',
-    ...SHADOWS.neuFlat,
   },
   headerTitle: {
     fontSize: 18,
@@ -262,7 +260,6 @@ const createStyles = (COLORS: any, SHADOWS: any) => StyleSheet.create({
     borderRadius: BORDER_RADIUS.lg,
     backgroundColor: COLORS.background,
     overflow: 'hidden',
-    ...SHADOWS.neuFlat,
   },
   avatarImage: {
     width: '100%',
@@ -322,7 +319,6 @@ const createStyles = (COLORS: any, SHADOWS: any) => StyleSheet.create({
     borderRadius: BORDER_RADIUS.xl,
     justifyContent: 'center',
     alignItems: 'center',
-    ...SHADOWS.neuFlat,
   },
   categoryLabel: {
     fontSize: 12,
@@ -337,7 +333,6 @@ const createStyles = (COLORS: any, SHADOWS: any) => StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: SPACING.lg,
     overflow: 'hidden',
-    ...SHADOWS.primaryGlow,
   },
   promoBlurTop: {
     position: 'absolute',
@@ -391,7 +386,6 @@ const createStyles = (COLORS: any, SHADOWS: any) => StyleSheet.create({
     paddingVertical: SPACING.sm,
     borderRadius: BORDER_RADIUS.lg,
     backgroundColor: COLORS.white,
-    ...SHADOWS.medium,
   },
   promoButtonText: {
     fontSize: 14,
@@ -446,6 +440,5 @@ const createStyles = (COLORS: any, SHADOWS: any) => StyleSheet.create({
     backgroundColor: COLORS.background,
     justifyContent: 'center',
     alignItems: 'center',
-    ...SHADOWS.neuFlat,
   },
 });

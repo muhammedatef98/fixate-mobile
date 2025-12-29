@@ -25,9 +25,9 @@ export default function NeuButton({
 }: NeuButtonProps) {
   const buttonStyles = [
     styles.base,
-    variant === 'primary' && styles.primary,
+    variant === 'primary' && [styles.primary, SHADOWS.primaryGlow],
     variant === 'secondary' && styles.secondary,
-    variant === 'flat' && styles.flat,
+    variant === 'flat' && [styles.flat, SHADOWS.neuFlat],
     size === 'small' && styles.small,
     size === 'medium' && styles.medium,
     size === 'large' && styles.large,
@@ -68,7 +68,6 @@ const styles = StyleSheet.create({
   // Variants
   primary: {
     backgroundColor: COLORS.primary,
-    ...SHADOWS.primaryGlow,
   },
   secondary: {
     backgroundColor: COLORS.white,
@@ -77,7 +76,6 @@ const styles = StyleSheet.create({
   },
   flat: {
     backgroundColor: COLORS.background,
-    ...SHADOWS.neuFlat,
   },
   // Sizes
   small: {

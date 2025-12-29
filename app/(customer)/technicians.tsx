@@ -63,7 +63,7 @@ export default function TechniciansScreen() {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity 
-          style={styles.backButton}
+          style={[styles.backButton, SHADOWS.neu]}
           onPress={() => router.back()}
         >
           <MaterialIcons name={isRTL ? 'arrow-forward' : 'arrow-back'} size={24} color={COLORS.text} />
@@ -146,7 +146,7 @@ export default function TechniciansScreen() {
                 )}
 
                 <TouchableOpacity 
-                  style={styles.contactButton}
+                  style={[styles.contactButton, SHADOWS.neuInset]}
                   onPress={() => {
                     // Navigate to contact or booking
                   }}
@@ -187,7 +187,6 @@ function createStyles(COLORS: any, SHADOWS: any, isRTL: boolean) {
       height: 40,
       borderRadius: 20,
       backgroundColor: COLORS.background,
-      ...SHADOWS.neu,
       justifyContent: 'center',
       alignItems: 'center',
     },
@@ -320,7 +319,6 @@ function createStyles(COLORS: any, SHADOWS: any, isRTL: boolean) {
       paddingVertical: SPACING.md,
       backgroundColor: COLORS.primary,
       borderRadius: BORDER_RADIUS.lg,
-      ...SHADOWS.neuInset,
       gap: SPACING.sm,
     },
     contactButtonText: {

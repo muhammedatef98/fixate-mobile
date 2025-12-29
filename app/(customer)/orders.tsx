@@ -103,7 +103,7 @@ export default function OrdersScreen() {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity 
-          style={styles.backButton}
+          style={[styles.backButton, SHADOWS.neu]}
           onPress={() => router.back()}
         >
           <MaterialIcons name={isRTL ? 'arrow-forward' : 'arrow-back'} size={24} color={COLORS.text} />
@@ -119,7 +119,7 @@ export default function OrdersScreen() {
       {/* Filter Tabs */}
       <View style={styles.filterContainer}>
         <TouchableOpacity
-          style={[styles.filterTab, filter === 'all' && styles.filterTabActive]}
+          style={[styles.filterTab, SHADOWS.neuSmall, filter === 'all' && [styles.filterTabActive, SHADOWS.neuInset]]}
           onPress={() => setFilter('all')}
         >
           <Text style={[styles.filterText, filter === 'all' && styles.filterTextActive]}>
@@ -127,7 +127,7 @@ export default function OrdersScreen() {
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.filterTab, filter === 'active' && styles.filterTabActive]}
+          style={[styles.filterTab, SHADOWS.neuSmall, filter === 'active' && [styles.filterTabActive, SHADOWS.neuInset]]}
           onPress={() => setFilter('active')}
         >
           <Text style={[styles.filterText, filter === 'active' && styles.filterTextActive]}>
@@ -135,7 +135,7 @@ export default function OrdersScreen() {
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.filterTab, filter === 'completed' && styles.filterTabActive]}
+          style={[styles.filterTab, SHADOWS.neuSmall, filter === 'completed' && [styles.filterTabActive, SHADOWS.neuInset]]}
           onPress={() => setFilter('completed')}
         >
           <Text style={[styles.filterText, filter === 'completed' && styles.filterTextActive]}>
@@ -220,21 +220,33 @@ export default function OrdersScreen() {
                   </ScrollView>
                 )}
 
-                <TouchableOpacity 
-                  style={styles.viewButton}
-                  onPress={() => {
-                    router.push(`/order-details?id=${order.id}`);
-                  }}
-                >
-                  <Text style={styles.viewButtonText}>
-                    {language === 'ar' ? 'عرض التفاصيل' : 'View Details'}
-                  </Text>
-                  <MaterialIcons 
-                    name={isRTL ? 'chevron-left' : 'chevron-right'} 
-                    size={20} 
-                    color={COLORS.primary} 
-                  />
-                </TouchableOpacity>
+                <View style={styles.actionButtons}>
+                  <TouchableOpacity 
+                    style={styles.chatButton}
+                    onPress={() => router.push(`/chat/${order.id}`)}
+                  >
+                    <MaterialIcons name="chat" size={20} color={COLORS.primary} />
+                    <Text style={styles.chatButtonText}>
+                      {language === 'ar' ? 'محادثة' : 'Chat'}
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity 
+                    style={styles.viewButton}
+                    onPress={() => {
+                      router.push(`/order-details?id=${order.id}`);
+                    }}
+                  >
+                    <Text style={styles.viewButtonText}>
+                      {language === 'ar' ? 'عرض التفاصيل' : 'View Details'}
+                    </Text>
+                    <MaterialIcons 
+                      name={isRTL ? 'chevron-left' : 'chevron-right'} 
+                      size={20} 
+                      color={COLORS.primary} 
+                    />
+                  </TouchableOpacity>
+                </View>
               </NeuCard>
             ))
           )}
@@ -266,7 +278,6 @@ function createStyles(COLORS: any, SHADOWS: any, isRTL: boolean) {
       height: 40,
       borderRadius: 20,
       backgroundColor: COLORS.background,
-      ...SHADOWS.neu,
       justifyContent: 'center',
       alignItems: 'center',
     },
@@ -290,12 +301,10 @@ function createStyles(COLORS: any, SHADOWS: any, isRTL: boolean) {
       paddingVertical: SPACING.sm,
       borderRadius: BORDER_RADIUS.md,
       backgroundColor: COLORS.background,
-      ...SHADOWS.neuSmall,
       alignItems: 'center',
     },
     filterTabActive: {
       backgroundColor: COLORS.primary,
-      ...SHADOWS.neuInset,
     },
     filterText: {
       fontSize: 14,
@@ -372,6 +381,26 @@ function createStyles(COLORS: any, SHADOWS: any, isRTL: boolean) {
       flex: 1,
       fontSize: 14,
       color: COLORS.text,
+    },
+    actionButtons: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginTop: SPACING.sm,
+      borderTopWidth: 1,
+      borderTopColor: COLORS.border,
+      paddingTop: SPACING.sm,
+    },
+    chatButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: SPACING.xs,
+      padding: SPACING.xs,
+    },
+    chatButtonText: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: COLORS.primary,
     },
     viewButton: {
       flexDirection: 'row',

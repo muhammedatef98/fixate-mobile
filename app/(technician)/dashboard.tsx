@@ -101,7 +101,7 @@ export default function TechnicianDashboard() {
         {/* Stats Grid */}
         <View style={styles.statsGrid}>
           {STATS.map((stat, index) => (
-            <View key={index} style={styles.statCard}>
+            <View key={index} style={[styles.statCard, SHADOWS.small]}>
               <View style={[styles.statIcon, { backgroundColor: `${stat.color}15` }]}>
                 <FontAwesome5 name={stat.icon as any} size={20} color={stat.color} />
               </View>
@@ -155,6 +155,12 @@ export default function TechnicianDashboard() {
               </View>
 
               <View style={styles.actions}>
+                <TouchableOpacity 
+                  style={[styles.actionBtn, styles.chatBtn]}
+                  onPress={() => router.push(`/chat/${req.id}`)}
+                >
+                  <MaterialIcons name="chat" size={20} color={COLORS.primary} />
+                </TouchableOpacity>
                 <TouchableOpacity 
                   style={[styles.actionBtn, styles.rejectBtn]}
                   onPress={() => updateRequestStatus(req.id, 'completed')} // Just to remove from list for demo
@@ -227,7 +233,6 @@ const styles = StyleSheet.create({
     padding: SPACING.m,
     borderRadius: 16,
     alignItems: 'center',
-    ...SHADOWS.small,
   },
   statIcon: {
     width: 40,
@@ -339,6 +344,11 @@ const styles = StyleSheet.create({
   },
   acceptBtn: {
     backgroundColor: COLORS.primary,
+    flex: 2,
+  },
+  chatBtn: {
+    backgroundColor: COLORS.primaryLight,
+    flex: 0.8,
   },
   rejectBtn: {
     backgroundColor: '#FEE2E2',

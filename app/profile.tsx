@@ -84,7 +84,7 @@ export default function ProfileScreen() {
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+          <TouchableOpacity onPress={() => router.back()} style={[styles.backBtn, SHADOWS.neuSmall]}>
             <MaterialIcons name={isRTL ? "arrow-forward" : "arrow-back"} size={24} color={COLORS.text} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>{isRTL ? 'الملف الشخصي' : 'Profile'}</Text>
@@ -110,7 +110,7 @@ export default function ProfileScreen() {
         </View>
 
         {/* Stats */}
-        <View style={styles.statsContainer}>
+        <View style={[styles.statsContainer, SHADOWS.neuSmall]}>
           <View style={styles.statItem}>
             <Text style={styles.statValue}>12</Text>
             <Text style={styles.statLabel}>{isRTL ? 'طلب مكتمل' : 'Completed'}</Text>
@@ -383,7 +383,6 @@ const createStyles = (COLORS: any, SHADOWS: any, isRTL: boolean) => StyleSheet.c
     backgroundColor: COLORS.surface,
     justifyContent: 'center',
     alignItems: 'center',
-    ...SHADOWS.neuSmall,
   },
   headerTitle: {
     fontSize: 18,
@@ -437,7 +436,6 @@ const createStyles = (COLORS: any, SHADOWS: any, isRTL: boolean) => StyleSheet.c
     padding: SPACING.lg,
     backgroundColor: COLORS.surface,
     borderRadius: 16,
-    ...SHADOWS.neuSmall,
   },
   statItem: {
     flex: 1,

@@ -115,13 +115,16 @@ export default function ActiveJobScreen() {
 
       <ScrollView contentContainerStyle={styles.content}>
         {/* Customer Card */}
-        <View style={styles.card}>
+        <View style={[styles.card, SHADOWS.small]}>
           <View style={styles.customerHeader}>
             <View style={styles.customerInfo}>
               <Text style={styles.customerName}>عبدالله محمد</Text>
               <Text style={styles.customerAddress}>الرياض، حي الملقا، شارع أنس بن مالك</Text>
             </View>
             <View style={styles.customerActions}>
+              <TouchableOpacity style={styles.actionIcon} onPress={() => router.push(`/chat/${id}`)}>
+                <MaterialIcons name="chat" size={24} color={COLORS.primary} />
+              </TouchableOpacity>
               <TouchableOpacity style={styles.actionIcon} onPress={handleCall}>
                 <Ionicons name="call" size={24} color={COLORS.primary} />
               </TouchableOpacity>
@@ -133,7 +136,7 @@ export default function ActiveJobScreen() {
         </View>
 
         {/* Device Info */}
-        <View style={styles.card}>
+        <View style={[styles.card, SHADOWS.small]}>
           <Text style={styles.sectionTitle}>تفاصيل الجهاز</Text>
           <View style={styles.deviceRow}>
             <MaterialIcons name="phone-iphone" size={24} color={COLORS.textSecondary} />
@@ -201,7 +204,7 @@ export default function ActiveJobScreen() {
       </ScrollView>
 
       {/* Bottom Action */}
-      <View style={styles.footer}>
+      <View style={[styles.footer, SHADOWS.medium]}>
         <TouchableOpacity 
           style={[
             styles.mainBtn,
@@ -264,7 +267,6 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: SPACING.l,
     marginBottom: SPACING.m,
-    ...SHADOWS.small,
   },
   customerHeader: {
     flexDirection: 'row',
@@ -390,7 +392,6 @@ const styles = StyleSheet.create({
     padding: SPACING.l,
     borderTopWidth: 1,
     borderTopColor: COLORS.border,
-    ...SHADOWS.medium,
   },
   mainBtn: {
     backgroundColor: COLORS.primary,

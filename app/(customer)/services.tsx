@@ -126,7 +126,7 @@ export default function ServicesScreen() {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity 
-          style={styles.backButton}
+          style={[styles.backButton, SHADOWS.neuFlat]}
           onPress={() => router.back()}
         >
           <MaterialIcons name="arrow-back" size={20} color={COLORS.text} />
@@ -211,7 +211,6 @@ function createStyles(COLORS: any, SHADOWS: any) {
     backgroundColor: COLORS.background,
     justifyContent: 'center',
     alignItems: 'center',
-    ...SHADOWS.neuFlat,
   },
   headerContent: {
     flex: 1,

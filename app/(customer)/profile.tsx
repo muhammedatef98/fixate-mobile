@@ -110,7 +110,7 @@ export default function ProfileScreen() {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity 
-          style={styles.backButton}
+          style={[styles.backButton, SHADOWS.neuFlat]}
           onPress={() => router.back()}
         >
           <MaterialIcons name="arrow-back" size={20} color={COLORS.text} />
@@ -134,7 +134,7 @@ export default function ProfileScreen() {
               source={{ uri: user?.avatar_url || `https://ui-avatars.com/api/?name=${user?.name || 'User'}&background=10B981&color=fff&size=128` }} 
               style={styles.avatar} 
             />
-            <TouchableOpacity style={styles.editAvatarBtn}>
+            <TouchableOpacity style={[styles.editAvatarBtn, SHADOWS.primaryGlow]}>
               <MaterialIcons name="camera-alt" size={18} color="#FFF" />
             </TouchableOpacity>
           </View>
@@ -188,7 +188,7 @@ export default function ProfileScreen() {
         </View>
 
         {/* Logout Button */}
-        <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
+        <TouchableOpacity style={[styles.logoutBtn, SHADOWS.neuFlat]} onPress={handleLogout}>
           <MaterialIcons name="logout" size={24} color="#EF4444" />
           <Text style={styles.logoutText}>{isRTL ? 'تسجيل الخروج' : 'Logout'}</Text>
         </TouchableOpacity>
@@ -224,7 +224,6 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background,
     justifyContent: 'center',
     alignItems: 'center',
-    ...SHADOWS.neuFlat,
   },
   headerContent: {
     flex: 1,
@@ -271,7 +270,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 3,
     borderColor: COLORS.background,
-    ...SHADOWS.primaryGlow,
   },
   name: {
     fontSize: 22,
@@ -357,7 +355,6 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: '#EF4444',
     marginBottom: SPACING.md,
-    ...SHADOWS.neuFlat,
   },
   logoutText: {
     fontSize: 16,

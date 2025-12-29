@@ -123,7 +123,7 @@ export default function AuthScreen() {
         >
           {/* Logo */}
           <View style={styles.logoContainer}>
-            <View style={styles.logoCircle}>
+            <View style={[styles.logoCircle, SHADOWS.neuFlat]}>
               <Image 
                 source={require('../assets/logo.png')} 
                 style={styles.logoImage}
@@ -139,9 +139,9 @@ export default function AuthScreen() {
           {/* Auth Form */}
           <View style={styles.formContainer}>
             {/* Toggle Buttons */}
-            <View style={styles.toggleContainer}>
+            <View style={[styles.toggleContainer, SHADOWS.neuFlat]}>
               <TouchableOpacity
-                style={[styles.toggleButton, isLogin && styles.toggleButtonActive]}
+                style={[styles.toggleButton, isLogin && [styles.toggleButtonActive, SHADOWS.neuPressed]]}
                 onPress={() => setIsLogin(true)}
               >
                 <Text style={[styles.toggleText, isLogin && styles.toggleTextActive]}>
@@ -161,7 +161,7 @@ export default function AuthScreen() {
             {/* Name Input (Sign Up only) */}
             {!isLogin && (
               <>
-              <View style={styles.inputContainer}>
+              <View style={[styles.inputContainer, SHADOWS.neuFlat]}>
                 <MaterialIcons name="person" size={20} color={COLORS.textSecondary} />
                 <TextInput
                   style={styles.input}
@@ -175,7 +175,7 @@ export default function AuthScreen() {
 
               {/* Phone Input (Technician only) */}
               {userRole === 'technician' && (
-                <View style={styles.inputContainer}>
+                <View style={[styles.inputContainer, SHADOWS.neuFlat]}>
                   <MaterialIcons name="phone" size={20} color={COLORS.textSecondary} />
                   <TextInput
                     style={styles.input}
@@ -191,7 +191,7 @@ export default function AuthScreen() {
 
               {/* Specialization Input (Technician only) */}
               {userRole === 'technician' && (
-                <View style={styles.inputContainer}>
+                <View style={[styles.inputContainer, SHADOWS.neuFlat]}>
                   <MaterialIcons name="build" size={20} color={COLORS.textSecondary} />
                   <TextInput
                     style={styles.input}
@@ -206,7 +206,7 @@ export default function AuthScreen() {
 
               {/* Experience Input (Technician only) */}
               {userRole === 'technician' && (
-                <View style={styles.inputContainer}>
+                <View style={[styles.inputContainer, SHADOWS.neuFlat]}>
                   <MaterialIcons name="work" size={20} color={COLORS.textSecondary} />
                   <TextInput
                     style={styles.input}
@@ -224,7 +224,7 @@ export default function AuthScreen() {
 
             {/* Remove duplicate name input */}
             {false && (
-              <View style={styles.inputContainer}>
+              <View style={[styles.inputContainer, SHADOWS.neuFlat]}>
                 <MaterialIcons name="person" size={20} color={COLORS.textSecondary} />
                 <TextInput
                   style={styles.input}
@@ -238,7 +238,7 @@ export default function AuthScreen() {
             )}
 
             {/* Email Input */}
-            <View style={styles.inputContainer}>
+            <View style={[styles.inputContainer, SHADOWS.neuFlat]}>
               <MaterialIcons name="email" size={20} color={COLORS.textSecondary} />
               <TextInput
                 style={styles.input}
@@ -253,7 +253,7 @@ export default function AuthScreen() {
             </View>
 
             {/* Password Input */}
-            <View style={styles.inputContainer}>
+            <View style={[styles.inputContainer, SHADOWS.neuFlat]}>
               <MaterialIcons name="lock" size={20} color={COLORS.textSecondary} />
               <TextInput
                 style={styles.input}
@@ -283,7 +283,7 @@ export default function AuthScreen() {
             )}
 
             {/* Auth Button */}
-            <TouchableOpacity style={styles.authButton} onPress={handleAuth}>
+            <TouchableOpacity style={[styles.authButton, SHADOWS.neuRaised]} onPress={handleAuth}>
               <Text style={styles.authButtonText}>
                 {isLogin 
                   ? (language === 'ar' ? 'تسجيل الدخول' : 'Login')
@@ -303,17 +303,17 @@ export default function AuthScreen() {
 
             {/* Social Login */}
             <View style={styles.socialContainer}>
-              <TouchableOpacity style={styles.socialButton} onPress={handleGoogleLogin}>
+              <TouchableOpacity style={[styles.socialButton, SHADOWS.neuFlat]} onPress={handleGoogleLogin}>
                 <Image 
                   source={{ uri: 'https://www.google.com/images/branding/googleg/1x/googleg_standard_color_128dp.png' }}
                   style={{ width: 24, height: 24 }}
                   resizeMode="contain"
                 />
               </TouchableOpacity>
-              <TouchableOpacity style={styles.socialButton} onPress={handleFacebookLogin}>
+              <TouchableOpacity style={[styles.socialButton, SHADOWS.neuFlat]} onPress={handleFacebookLogin}>
                 <MaterialIcons name="facebook" size={24} color="#4267B2" />
               </TouchableOpacity>
-              <TouchableOpacity style={styles.socialButton} onPress={handleAppleLogin}>
+              <TouchableOpacity style={[styles.socialButton, SHADOWS.neuFlat]} onPress={handleAppleLogin}>
                 <MaterialIcons name="apple" size={24} color={COLORS.text} />
               </TouchableOpacity>
             </View>
@@ -360,7 +360,6 @@ const createStyles = (COLORS: any, SHADOWS: any, isRTL: boolean) => StyleSheet.c
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: SPACING.lg,
-    ...SHADOWS.neuFlat,
   },
   logoImage: {
     width: 70,
@@ -385,7 +384,6 @@ const createStyles = (COLORS: any, SHADOWS: any, isRTL: boolean) => StyleSheet.c
     borderRadius: BORDER_RADIUS.lg,
     padding: 4,
     marginBottom: SPACING.xl,
-    ...SHADOWS.neuFlat,
   },
   toggleButton: {
     flex: 1,
@@ -395,7 +393,6 @@ const createStyles = (COLORS: any, SHADOWS: any, isRTL: boolean) => StyleSheet.c
   },
   toggleButtonActive: {
     backgroundColor: COLORS.primary,
-    ...SHADOWS.neuPressed,
   },
   toggleText: {
     fontSize: 16,
@@ -414,7 +411,6 @@ const createStyles = (COLORS: any, SHADOWS: any, isRTL: boolean) => StyleSheet.c
     paddingVertical: SPACING.sm,
     marginBottom: SPACING.md,
     gap: SPACING.sm,
-    ...SHADOWS.neuFlat,
   },
   input: {
     flex: 1,
@@ -437,7 +433,6 @@ const createStyles = (COLORS: any, SHADOWS: any, isRTL: boolean) => StyleSheet.c
     paddingVertical: SPACING.md,
     alignItems: 'center',
     marginBottom: SPACING.lg,
-    ...SHADOWS.neuRaised,
   },
   authButtonText: {
     fontSize: 18,
@@ -468,7 +463,6 @@ const createStyles = (COLORS: any, SHADOWS: any, isRTL: boolean) => StyleSheet.c
     paddingVertical: SPACING.md,
     marginBottom: SPACING.lg,
     gap: SPACING.sm,
-    ...SHADOWS.neuFlat,
   },
   guestButtonText: {
     fontSize: 16,
@@ -488,7 +482,6 @@ const createStyles = (COLORS: any, SHADOWS: any, isRTL: boolean) => StyleSheet.c
     backgroundColor: COLORS.surface,
     justifyContent: 'center',
     alignItems: 'center',
-    ...SHADOWS.neuFlat,
   },
   backButton: {
     flexDirection: isRTL ? 'row-reverse' : 'row',
