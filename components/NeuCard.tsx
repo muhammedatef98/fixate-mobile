@@ -17,9 +17,9 @@ export default function NeuCard({
 }: NeuCardProps) {
   const cardStyles = [
     styles.base,
-    variant === 'flat' && styles.flat,
+    variant === 'flat' && [styles.flat, SHADOWS.neuFlat],
     variant === 'pressed' && styles.pressed,
-    variant === 'elevated' && styles.elevated,
+    variant === 'elevated' && [styles.elevated, SHADOWS.medium],
     style,
   ];
 
@@ -45,7 +45,6 @@ const styles = StyleSheet.create({
     padding: SPACING.md,
   },
   flat: {
-    ...SHADOWS.neuFlat,
   },
   pressed: {
     // Inset shadow effect (simulated with border)
@@ -54,6 +53,5 @@ const styles = StyleSheet.create({
   },
   elevated: {
     backgroundColor: COLORS.white,
-    ...SHADOWS.medium,
   },
 });
