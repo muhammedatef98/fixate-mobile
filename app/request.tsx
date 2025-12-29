@@ -58,6 +58,7 @@ export default function RequestScreen() {
   const { language, isDark } = useApp();
   const { user } = useAuth();
   const isRTL = language === 'ar';
+  
   // Force light theme colors for this specific design as per screenshot
   const COLORS = {
     primary: '#10b981', // Green
@@ -67,6 +68,7 @@ export default function RequestScreen() {
     gray: '#6b7280',
     border: '#e5e7eb',
     lightGreen: '#ecfdf5',
+    error: '#ef4444',
   };
   
   const styles = createStyles(COLORS, isRTL);
@@ -77,7 +79,7 @@ export default function RequestScreen() {
   
   // Current Item Selection State
   const [selectedServiceType, setSelectedServiceType] = useState<string>('mobile');
-  const [selectedDeviceType, setSelectedDeviceType] = useState<string>('phone');
+  const [selectedDeviceType, setSelectedDeviceType] = useState<string | null>(null);
   const [selectedBrand, setSelectedBrand] = useState<Brand | null>(null);
   const [selectedModel, setSelectedModel] = useState<string | null>(null);
   const [selectedIssue, setSelectedIssue] = useState<Issue | null>(null);
@@ -97,14 +99,15 @@ export default function RequestScreen() {
   // Location State
   const [location, setLocation] = useState<any>(null);
   const [address, setAddress] = useState('');
+  const [isLocating, setIsLocating] = useState(false);
   
   // Animation
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
   
   const STEPS = language === 'ar' 
-    ? ['نوع الخدمة', 'الماركة', 'النوع', 'الموديل', 'العطل', 'التفاصيل', 'الموقع']
-    : ['Service', 'Brand', 'Type', 'Model', 'Issue', 'Details', 'Location'];
+    ? ['الخدمة', 'الجهاز', 'الماركة', 'الموديل', 'العطل', 'التفاصيل', 'الموقع']
+    : ['Service', 'Device', 'Brand', 'Model', 'Issue', 'Details', 'Location'];
 
   // Guest Check Effect
   useEffect(() => {
@@ -137,8 +140,10 @@ export default function RequestScreen() {
 
   // Search Effects
   useEffect(() => {
-    const results = searchBrands(brandSearch, selectedDeviceType);
-    setFilteredBrands(results);
+    if (selectedDeviceType) {
+      const results = searchBrands(brandSearch, selectedDeviceType);
+      setFilteredBrands(results);
+    }
   }, [brandSearch, selectedDeviceType]);
 
   useEffect(() => {
@@ -148,8 +153,10 @@ export default function RequestScreen() {
   }, [modelSearch, selectedBrand]);
 
   useEffect(() => {
-    const results = searchIssues(selectedDeviceType, issueSearch);
-    setFilteredIssues(results);
+    if (selectedDeviceType) {
+      const results = searchIssues(selectedDeviceType, issueSearch);
+      setFilteredIssues(results);
+    }
   }, [issueSearch, selectedDeviceType]);
 
   useEffect(() => {
@@ -202,10 +209,12 @@ export default function RequestScreen() {
   };
 
   const getLocation = async () => {
+    setIsLocating(true);
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
         Alert.alert(language === 'ar' ? 'تنبيه' : 'Alert', language === 'ar' ? 'نحتاج إذن الموقع' : 'We need location permission');
+        setIsLocating(false);
         return;
       }
       const currentLocation = await Location.getCurrentPositionAsync({});
@@ -225,24 +234,10 @@ export default function RequestScreen() {
       }
     } catch (error) {
       console.error('Error getting location:', error);
+      Alert.alert(language === 'ar' ? 'خطأ' : 'Error', language === 'ar' ? 'فشل تحديد الموقع' : 'Failed to get location');
+    } finally {
+      setIsLocating(false);
     }
-  };
-
-  const handleAddItem = () => {
-    if (!selectedBrand || !selectedModel || !selectedIssue) {
-      Alert.alert(language === 'ar' ? 'تنبيه' : 'Alert', language === 'ar' ? 'الرجاء إكمال جميع الحقول' : 'Please complete all fields');
-      return;
-    }
-    const newItem: OrderItem = {
-      deviceType: selectedDeviceType,
-      brand: selectedBrand,
-      model: selectedModel,
-      issue: selectedIssue,
-      description: issueDescription,
-      mediaFiles: [...mediaFiles]
-    };
-    setOrderItems([...orderItems, newItem]);
-    setCurrentStep(6); // Go to location step
   };
 
   const handleSubmit = async () => {
@@ -251,23 +246,20 @@ export default function RequestScreen() {
       return;
     }
 
+    if (!selectedDeviceType || !selectedBrand || !selectedModel || !selectedIssue) {
+      Alert.alert(language === 'ar' ? 'تنبيه' : 'Alert', language === 'ar' ? 'الرجاء إكمال جميع الحقول' : 'Please complete all fields');
+      return;
+    }
+
     try {
-      // If no items added yet (single item flow), add current selection
-      let finalItems = [...orderItems];
-      if (finalItems.length === 0) {
-        if (!selectedBrand || !selectedModel || !selectedIssue) {
-          Alert.alert(language === 'ar' ? 'تنبيه' : 'Alert', language === 'ar' ? 'الرجاء إكمال جميع الحقول' : 'Please complete all fields');
-          return;
-        }
-        finalItems = [{
-          deviceType: selectedDeviceType,
-          brand: selectedBrand,
-          model: selectedModel,
-          issue: selectedIssue,
-          description: issueDescription,
-          mediaFiles: [...mediaFiles]
-        }];
-      }
+      const finalItems = [{
+        deviceType: selectedDeviceType,
+        brand: selectedBrand,
+        model: selectedModel,
+        issue: selectedIssue,
+        description: issueDescription,
+        mediaFiles: [...mediaFiles]
+      }];
 
       // Upload media files first
       const uploadedFiles = [];
@@ -430,8 +422,9 @@ export default function RequestScreen() {
         ))}
       </View>
       <TouchableOpacity 
-        style={styles.bottomButton}
-        onPress={() => setCurrentStep(currentStep + 1)}
+        style={[styles.bottomButton, !selectedDeviceType && styles.disabledButton]}
+        onPress={() => selectedDeviceType && setCurrentStep(currentStep + 1)}
+        disabled={!selectedDeviceType}
       >
         <Text style={styles.bottomButtonText}>{language === 'ar' ? 'التالي' : 'Next'}</Text>
         <Ionicons name={isRTL ? "arrow-back" : "arrow-forward"} size={24} color="#fff" />
@@ -583,12 +576,17 @@ export default function RequestScreen() {
                   ]}>
                     {language === 'ar' ? issue.nameAr : issue.name}
                   </Text>
-                  <Text style={[
-                    styles.issuePrice,
-                    selectedIssue?.id === issue.id && styles.selectedIssuePrice
-                  ]}>
-                    {issue.priceRange ? `${issue.priceRange.min} - ${issue.priceRange.max}` : issue.estimatedPrice} {language === 'ar' ? 'ريال' : 'SAR'}
-                  </Text>
+                  <View style={styles.priceContainer}>
+                    <Text style={[
+                      styles.issuePrice,
+                      selectedIssue?.id === issue.id && styles.selectedIssuePrice
+                    ]}>
+                      {issue.priceRange ? `${issue.priceRange.min} - ${issue.priceRange.max}` : issue.estimatedPrice} {language === 'ar' ? 'ريال' : 'SAR'}
+                    </Text>
+                    <Text style={styles.priceLabel}>
+                      {language === 'ar' ? '(سعر تقديري)' : '(Est. Price)'}
+                    </Text>
+                  </View>
                 </View>
                 {selectedIssue?.id === issue.id && (
                   <Ionicons name="checkmark-circle" size={24} color={COLORS.primary} />
@@ -700,6 +698,13 @@ export default function RequestScreen() {
             <Text>{language === 'ar' ? 'جاري تحديد الموقع...' : 'Locating...'}</Text>
           </View>
         )}
+        
+        <TouchableOpacity 
+          style={styles.locateButton}
+          onPress={getLocation}
+        >
+          <Ionicons name="locate" size={24} color={COLORS.primary} />
+        </TouchableOpacity>
       </View>
 
       <View style={styles.addressContainer}>
@@ -708,10 +713,11 @@ export default function RequestScreen() {
       </View>
 
       <TouchableOpacity 
-        style={styles.bottomButton}
+        style={styles.submitButton}
         onPress={handleSubmit}
       >
-        <Text style={styles.bottomButtonText}>{language === 'ar' ? 'إرسال الطلب' : 'Submit Request'}
+        <Text style={styles.submitButtonText}>
+          {language === 'ar' ? 'إرسال الطلب' : 'Submit Request'}
         </Text>
         <Ionicons name="checkmark-circle" size={24} color="#fff" />
       </TouchableOpacity>
@@ -749,8 +755,8 @@ export default function RequestScreen() {
         ]}
       >
         {currentStep === 0 && renderServiceType()}
-        {currentStep === 1 && renderBrandSelection()}
-        {currentStep === 2 && renderDeviceType()}
+        {currentStep === 1 && renderDeviceType()}
+        {currentStep === 2 && renderBrandSelection()}
         {currentStep === 3 && renderModelSelection()}
         {currentStep === 4 && renderIssueSelection()}
         {currentStep === 5 && renderDetails()}
@@ -1070,13 +1076,22 @@ const createStyles = (COLORS: any, isRTL: boolean) => StyleSheet.create({
   selectedIssueName: {
     color: COLORS.primary,
   },
+  priceContainer: {
+    flexDirection: isRTL ? 'row-reverse' : 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
   issuePrice: {
-    fontSize: 14,
+    fontSize: 16,
     color: COLORS.primary,
-    fontWeight: '600',
+    fontWeight: 'bold',
   },
   selectedIssuePrice: {
     color: COLORS.primary,
+  },
+  priceLabel: {
+    fontSize: 12,
+    color: COLORS.gray,
   },
   inputGroup: {
     marginBottom: 24,
@@ -1150,6 +1165,7 @@ const createStyles = (COLORS: any, isRTL: boolean) => StyleSheet.create({
     marginBottom: 16,
     borderWidth: 1,
     borderColor: '#e5e7eb',
+    position: 'relative',
   },
   map: {
     width: '100%',
@@ -1160,6 +1176,22 @@ const createStyles = (COLORS: any, isRTL: boolean) => StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#fff',
+  },
+  locateButton: {
+    position: 'absolute',
+    bottom: 16,
+    right: 16,
+    backgroundColor: '#fff',
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
   },
   addressContainer: {
     flexDirection: isRTL ? 'row-reverse' : 'row',
@@ -1177,6 +1209,21 @@ const createStyles = (COLORS: any, isRTL: boolean) => StyleSheet.create({
     fontSize: 14,
     color: COLORS.text,
     textAlign: isRTL ? 'right' : 'left',
+  },
+  submitButton: {
+    backgroundColor: COLORS.primary,
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 8,
+    marginBottom: 20,
+  },
+  submitButtonText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold',
   },
   emptyState: {
     width: '100%',
