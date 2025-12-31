@@ -44,15 +44,6 @@ const DEVICE_TYPES = [
   { id: 'appliance', name: 'أجهزة منزلية', nameEn: 'Home Appliances', icon: 'home-outline', available: false },
 ];
 
-interface OrderItem {
-  deviceType: string;
-  brand: Brand;
-  model: string;
-  issue: Issue;
-  description: string;
-  mediaFiles: string[];
-}
-
 export default function RequestScreen() {
   const router = useRouter();
   const { addRequest } = useRequests();
@@ -126,8 +117,13 @@ export default function RequestScreen() {
 
     if (stepperScrollRef.current) {
       const stepWidth = 100;
+      // Correct scroll logic for RTL
+      const scrollX = isRTL 
+        ? (STEPS.length - 1 - currentStep) * stepWidth 
+        : currentStep * stepWidth;
+      
       stepperScrollRef.current.scrollTo({
-        x: isRTL ? (STEPS.length - 1 - currentStep) * stepWidth : currentStep * stepWidth,
+        x: scrollX,
         animated: true
       });
     }
@@ -158,7 +154,6 @@ export default function RequestScreen() {
     }
     setIsSubmitting(true);
     try {
-      // Logic for submission...
       setTimeout(() => {
         setIsSubmitting(false);
         Alert.alert(isRTL ? 'نجح' : 'Success', isRTL ? 'تم إرسال طلبك بنجاح' : 'Request submitted successfully');
@@ -274,7 +269,11 @@ export default function RequestScreen() {
                   onPress={() => setSelectedBrand(brand)}
                 >
                   <View style={styles.brandLogoContainer}>
-                    <Image source={brand.logo} style={styles.brandLogo} resizeMode="contain" />
+                    <Image 
+                      source={typeof brand.logo === 'string' ? { uri: brand.logo } : brand.logo} 
+                      style={styles.brandLogo} 
+                      resizeMode="contain" 
+                    />
                   </View>
                   <Text style={styles.brandNameText}>{brand.name}</Text>
                 </TouchableOpacity>
@@ -283,7 +282,7 @@ export default function RequestScreen() {
           </View>
         )}
         
-        {/* Remaining steps logic... */}
+        {/* Other steps logic... */}
       </Animated.View>
 
       <View style={styles.footer}>
@@ -315,14 +314,14 @@ const createStyles = (COLORS: any, isRTL: boolean) => StyleSheet.create({
   backButton: { padding: 8 },
   stepperContainer: { backgroundColor: '#fff', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: COLORS.border },
   stepperContent: { paddingHorizontal: 16 },
-  stepItem: { flexDirection: 'row', alignItems: 'center', marginRight: 16 },
-  stepCircle: { width: 28, height: 28, borderRadius: 14, backgroundColor: '#e5e7eb', justifyContent: 'center', alignItems: 'center', marginRight: 8 },
+  stepItem: { flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', marginHorizontal: 8 },
+  stepCircle: { width: 28, height: 28, borderRadius: 14, backgroundColor: '#e5e7eb', justifyContent: 'center', alignItems: 'center', marginHorizontal: 4 },
   activeStepCircle: { backgroundColor: COLORS.primary },
   stepNumber: { fontSize: 12, color: COLORS.gray, fontWeight: 'bold' },
   activeStepNumber: { color: '#fff' },
   stepLabel: { fontSize: 12, color: COLORS.gray },
   activeStepLabel: { color: COLORS.primary, fontWeight: 'bold' },
-  stepLine: { width: 20, height: 2, backgroundColor: '#e5e7eb', marginHorizontal: 8 },
+  stepLine: { width: 20, height: 2, backgroundColor: '#e5e7eb', marginHorizontal: 4 },
   activeStepLine: { backgroundColor: COLORS.primary },
   content: { flex: 1, padding: 16 },
   sectionTitle: { fontSize: 20, fontWeight: 'bold', color: COLORS.text, marginBottom: 16, textAlign: isRTL ? 'right' : 'left' },
@@ -331,14 +330,14 @@ const createStyles = (COLORS: any, isRTL: boolean) => StyleSheet.create({
   serviceInfo: { flex: 1, marginHorizontal: 12 },
   serviceName: { fontSize: 16, fontWeight: 'bold', color: COLORS.text, textAlign: isRTL ? 'right' : 'left' },
   serviceDesc: { fontSize: 12, color: COLORS.gray, marginTop: 4, textAlign: isRTL ? 'right' : 'left' },
-  deviceGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
+  deviceGrid: { flexDirection: isRTL ? 'row-reverse' : 'row', flexWrap: 'wrap', gap: 12 },
   deviceCard: { width: (width - 44) / 2, backgroundColor: '#fff', padding: 16, borderRadius: 12, alignItems: 'center', borderWidth: 1, borderColor: COLORS.border },
   deviceName: { marginTop: 8, fontSize: 14, fontWeight: '600', color: COLORS.text },
   comingSoonBadge: { position: 'absolute', top: 8, right: 8, backgroundColor: '#f3f4f6', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
   comingSoonText: { fontSize: 10, color: '#9ca3af' },
   searchBar: { flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', backgroundColor: '#fff', paddingHorizontal: 12, height: 48, borderRadius: 12, borderWidth: 1, borderColor: COLORS.border, marginBottom: 16 },
   searchInput: { flex: 1, marginHorizontal: 8, textAlign: isRTL ? 'right' : 'left' },
-  brandGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
+  brandGrid: { flexDirection: isRTL ? 'row-reverse' : 'row', flexWrap: 'wrap', gap: 12 },
   brandCard: { width: (width - 56) / 3, backgroundColor: '#fff', padding: 12, borderRadius: 12, alignItems: 'center', borderWidth: 1, borderColor: COLORS.border },
   brandLogoContainer: { width: 50, height: 50, justifyContent: 'center', alignItems: 'center', marginBottom: 8 },
   brandLogo: { width: 40, height: 40 },
