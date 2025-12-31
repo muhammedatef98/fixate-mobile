@@ -3,10 +3,10 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, Sta
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialIcons, MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
-import { getColors, getShadows, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../constants/theme';
 import { useApp } from '../../contexts/AppContext';
 import { translations } from '../../constants/translations';
 import Sidebar from '../../components/Sidebar';
+import BottomNav from '../../components/BottomNav';
 
 const { width } = Dimensions.get('window');
 
@@ -40,9 +40,8 @@ const POPULAR_SERVICES = [
 
 export default function CustomerHome() {
   const router = useRouter();
-  const { isDark, language, setLanguage } = useApp();
+  const { language, setLanguage } = useApp();
   const isRTL = language === 'ar';
-  const t = translations[language];
   
   const COLORS = {
     primary: '#10b981',
@@ -184,8 +183,11 @@ export default function CustomerHome() {
           </View>
         </Animated.View>
         
-        <View style={{ height: 40 }} />
+        <View style={{ height: 100 }} />
       </ScrollView>
+
+      {/* Bottom Navigation */}
+      <BottomNav />
 
       <Sidebar 
         visible={sidebarVisible} 
