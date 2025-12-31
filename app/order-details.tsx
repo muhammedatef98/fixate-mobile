@@ -39,6 +39,13 @@ export default function OrderDetailsScreen() {
 
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isCancelling, setIsCancelling] = useState(false);
+  const [cancelModalVisible, setCancelModalVisible] = useState(false);
+  const [cancelReason, setCancelReason] = useState('');
+
+  const CANCEL_REASONS = isRTL 
+    ? ['السعر مرتفع جداً', 'وجدت فني آخر بسعر أفضل', 'لم أعد بحاجة للإصلاح', 'تأخر الفني في الرد', 'أخرى']
+    : ['Price is too high', 'Found another technician', 'No longer need repair', 'Technician delayed', 'Other'];
 
   useEffect(() => {
     loadOrderDetails();
@@ -80,6 +87,26 @@ export default function OrderDetailsScreen() {
     if (order?.latitude && order?.longitude) {
       const url = `https://www.google.com/maps/search/?api=1&query=${order.latitude},${order.longitude}`;
       Linking.openURL(url);
+    }
+  };
+
+  const handleCancelOrder = async () => {
+    if (!cancelReason) {
+      Alert.alert(isRTL ? 'تنبيه' : 'Alert', isRTL ? 'الرجاء اختيار سبب الإلغاء' : 'Please select a reason');
+      return;
+    }
+
+    setIsCancelling(true);
+    try {
+      await requests.updateStatus(id as string, 'cancelled');
+      // You might want to save the reason in a separate field or table
+      Alert.alert(isRTL ? 'تم' : 'Done', isRTL ? 'تم إلغاء الطلب بنجاح' : 'Order cancelled successfully');
+      setCancelModalVisible(false);
+      loadOrderDetails();
+    } catch (error) {
+      Alert.alert(isRTL ? 'خطأ' : 'Error', isRTL ? 'فشل إلغاء الطلب' : 'Failed to cancel order');
+    } finally {
+      setIsCancelling(false);
     }
   };
 
@@ -137,7 +164,20 @@ export default function OrderDetailsScreen() {
         <View style={{ width: 40 }} />
       </View>
 
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+        <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+          {/* Cancel Button (Only for pending orders) */}
+          {order.status === 'pending' && (
+            <TouchableOpacity 
+              style={[styles.cancelOrderBtn, { borderColor: COLORS.error }]} 
+              onPress={() => setCancelModalVisible(true)}
+            >
+              <MaterialIcons name="cancel" size={20} color={COLORS.error} />
+              <Text style={[styles.cancelOrderText, { color: COLORS.error }]}>
+                {isRTL ? 'إلغاء الطلب' : 'Cancel Order'}
+              </Text>
+            </TouchableOpacity>
+          )}
+
         {/* Chat Button */}
         {order.status !== 'pending' && order.status !== 'cancelled' && (
           <TouchableOpacity
@@ -337,6 +377,50 @@ export default function OrderDetailsScreen() {
 
         <View style={{ height: 40 }} />
       </ScrollView>
+
+      {/* Cancel Modal */}
+      <Modal
+        visible={cancelModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setCancelModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: COLORS.card }]}>
+            <Text style={[styles.modalTitle, { color: COLORS.text }]}>
+              {isRTL ? 'سبب الإلغاء' : 'Reason for Cancellation'}
+            </Text>
+            {CANCEL_REASONS.map((reason, index) => (
+              <TouchableOpacity 
+                key={index} 
+                style={[styles.reasonItem, cancelReason === reason && { backgroundColor: COLORS.primary + '15' }]}
+                onPress={() => setCancelReason(reason)}
+              >
+                <Text style={[styles.reasonText, { color: cancelReason === reason ? COLORS.primary : COLORS.text }]}>
+                  {reason}
+                </Text>
+                {cancelReason === reason && <MaterialIcons name="check-circle" size={20} color={COLORS.primary} />}
+              </TouchableOpacity>
+            ))}
+            
+            <View style={styles.modalFooter}>
+              <TouchableOpacity 
+                style={[styles.modalBtn, { backgroundColor: COLORS.border }]} 
+                onPress={() => setCancelModalVisible(false)}
+              >
+                <Text style={{ color: COLORS.text }}>{isRTL ? 'تراجع' : 'Back'}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.modalBtn, { backgroundColor: COLORS.error }]} 
+                onPress={handleCancelOrder}
+                disabled={isCancelling}
+              >
+                {isCancelling ? <ActivityIndicator color="#fff" /> : <Text style={{ color: '#fff' }}>{isRTL ? 'تأكيد الإلغاء' : 'Confirm'}</Text>}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -389,14 +473,34 @@ const styles = StyleSheet.create({
     borderRadius: BORDER_RADIUS.lg,
     marginBottom: SPACING.lg,
     gap: SPACING.sm,
-  },
-  chatButtonText: {
+    chatButtonText: {
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: 'bold',
+    marginHorizontal: SPACING.sm,
   },
-  sectionTitleContainer: {
-    marginBottom: SPACING.sm,
+  cancelOrderBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginHorizontal: 16,
+    marginBottom: 16,
+  },
+  cancelOrderText: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    marginLeft: 8,
+  },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 20 },
+  modalContent: { width: '100%', borderRadius: 20, padding: 20 },
+  modalTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 20, textAlign: 'center' },
+  reasonItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 15, borderRadius: 12, marginBottom: 8 },
+  reasonText: { fontSize: 15 },
+  modalFooter: { flexDirection: 'row', gap: 12, marginTop: 20 },
+  modalBtn: { flex: 1, height: 50, borderRadius: 12, justifyContent: 'center', alignItems: 'center' }, marginBottom: SPACING.sm,
   },
   sectionTitle: {
     fontSize: 18,

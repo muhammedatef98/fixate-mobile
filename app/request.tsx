@@ -95,17 +95,22 @@ export default function RequestScreen() {
     : ['Service', 'Device', 'Brand', 'Model', 'Issue', 'Details', 'Location'];
 
   useEffect(() => {
-    if (!user) {
+    checkUser();
+  }, []);
+
+  const checkUser = async () => {
+    const currentUser = await auth.getCurrentUser();
+    if (!currentUser) {
       Alert.alert(
         isRTL ? 'تسجيل الدخول مطلوب' : 'Login Required',
         isRTL ? 'يجب عليك تسجيل الدخول لرفع طلب صيانة' : 'You must login to submit a repair request',
         [
-          { text: isRTL ? 'إلغاء' : 'Cancel', onPress: () => router.replace('/role-selection'), style: 'cancel' },
+          { text: isRTL ? 'إلغاء' : 'Cancel', onPress: () => router.replace('/(customer)'), style: 'cancel' },
           { text: isRTL ? 'تسجيل الدخول' : 'Login', onPress: () => router.replace('/login') }
         ]
       );
     }
-  }, [user]);
+  };
 
   useEffect(() => {
     fadeAnim.setValue(0);
@@ -175,6 +180,25 @@ export default function RequestScreen() {
       Alert.alert(isRTL ? 'خطأ' : 'Error', isRTL ? 'فشل تحديد الموقع' : 'Failed to get location');
     } finally {
       setIsLocating(false);
+    }
+  };
+
+  const pickImage = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert(isRTL ? 'تنبيه' : 'Alert', isRTL ? 'نحتاج إذن الوصول للصور' : 'Permission to access gallery is required');
+      return;
+    }
+
+    let result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsMultipleSelection: true,
+      quality: 0.7,
+    });
+
+    if (!result.canceled) {
+      const uris = result.assets.map(asset => asset.uri);
+      setMediaFiles([...mediaFiles, ...uris]);
     }
   };
 
@@ -428,10 +452,21 @@ export default function RequestScreen() {
               
               <Text style={[styles.sectionTitle, { marginTop: 24 }]}>{isRTL ? 'صور أو فيديو' : 'Photos or Video'}</Text>
               <View style={styles.mediaContainer}>
-                <TouchableOpacity style={styles.addMediaButton}>
+                <TouchableOpacity style={styles.addMediaButton} onPress={pickImage}>
                   <Ionicons name="camera" size={32} color={COLORS.gray} />
                   <Text style={styles.addMediaText}>{isRTL ? 'إضافة' : 'Add'}</Text>
                 </TouchableOpacity>
+                {mediaFiles.map((uri, index) => (
+                  <View key={index} style={styles.mediaWrapper}>
+                    <Image source={{ uri }} style={styles.mediaThumb} />
+                    <TouchableOpacity 
+                      style={styles.removeMediaBtn} 
+                      onPress={() => setMediaFiles(mediaFiles.filter((_, i) => i !== index))}
+                    >
+                      <Ionicons name="close-circle" size={20} color={COLORS.error} />
+                    </TouchableOpacity>
+                  </View>
+                ))}
               </View>
             </ScrollView>
           </KeyboardAvoidingView>
@@ -547,9 +582,12 @@ const createStyles = (COLORS: any, isRTL: boolean) => StyleSheet.create({
   issueName: { fontSize: 16, fontWeight: 'bold', color: COLORS.text, textAlign: isRTL ? 'right' : 'left' },
   issuePrice: { fontSize: 14, color: COLORS.primary, marginTop: 4, textAlign: isRTL ? 'right' : 'left' },
   textArea: { backgroundColor: '#fff', borderRadius: 12, padding: 16, borderWidth: 1, borderColor: COLORS.border, fontSize: 16, color: COLORS.text, textAlign: isRTL ? 'right' : 'left' },
-  mediaContainer: { flexDirection: isRTL ? 'row-reverse' : 'row', flexWrap: 'wrap', gap: 12 },
-  addMediaButton: { width: 80, height: 80, borderRadius: 12, borderStyle: 'dashed', borderWidth: 2, borderColor: COLORS.border, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' },
+  me  mediaContainer: { flexDirection: isRTL ? 'row-reverse' : 'row', flexWrap: 'wrap', gap: 12, marginTop: 12 },
+  addMediaButton: { width: 80, height: 80, borderRadius: 12, borderStyle: 'dashed', borderWidth: 2, borderColor: COLORS.border, justifyContent: 'center', alignItems: 'center' },
   addMediaText: { fontSize: 12, color: COLORS.gray, marginTop: 4 },
+  mediaWrapper: { position: 'relative' },
+  mediaThumb: { width: 80, height: 80, borderRadius: 12 },
+  removeMediaBtn: { position: 'absolute', top: -8, right: -8, backgroundColor: '#fff', borderRadius: 10 },: 4 },
   mapContainer: { flex: 1, borderRadius: 16, overflow: 'hidden', marginBottom: 16 },
   map: { flex: 1 },
   mapPlaceholder: { flex: 1, backgroundColor: '#f3f4f6', justifyContent: 'center', alignItems: 'center' },
