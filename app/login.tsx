@@ -100,7 +100,7 @@ export default function LoginScreen() {
           <View style={styles.logoSection}>
             <View style={styles.logoCircle}>
               <Image 
-                source={require('../assets/fixatee-logo.png')} 
+                source={require('../assets/fixate-logo-main.png')} 
                 style={styles.logoImage}
                 resizeMode="contain"
               />
