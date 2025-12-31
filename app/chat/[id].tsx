@@ -66,7 +66,8 @@ export default function ChatScreen() {
       setMessages(msgs);
       
       // Determine other party name
-      if (user?.user_metadata?.role === 'technician') {
+      const userRole = user?.user_metadata?.user_type || user?.user_metadata?.role;
+      if (userRole === 'technician') {
         setOtherPartyName(orderData?.customer_name || (language === 'ar' ? 'العميل' : 'Customer'));
       } else {
         setOtherPartyName(orderData?.technician_name || (language === 'ar' ? 'الفني' : 'Technician'));
