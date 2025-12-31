@@ -492,7 +492,7 @@ export default function RequestScreen() {
               >
                 <View style={styles.brandLogoContainer}>
                   <Image 
-                    source={{ uri: brand.logo }} 
+                    source={typeof brand.logo === 'string' ? { uri: brand.logo } : brand.logo} 
                     style={styles.brandLogo} 
                     resizeMode="contain"
                   />
