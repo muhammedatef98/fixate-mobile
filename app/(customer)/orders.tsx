@@ -136,7 +136,7 @@ export default function OrdersScreen() {
                       </View>
                       <View>
                         <Text style={styles.deviceName}>{order.device_brand} {order.device_model}</Text>
-                        <Text style={styles.orderDate}>{new Date(order.created_at).toLocaleDateString(isRTL ? 'ar-SA' : 'en-US')}</Text>
+                        <Text style={styles.orderDate}>{new Date(order.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })}</Text>
                       </View>
                     </View>
                     <View style={[styles.statusBadge, { backgroundColor: status.color + '15' }]}>
