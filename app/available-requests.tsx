@@ -46,7 +46,7 @@ export default function AvailableRequestsScreen() {
 
   const fetchAvailableRequests = async () => {
     try {
-      const data = await requests.getAvailable();
+      const data = await requests.getAvailableOrders();
       setRequests(data || []);
     } catch (error) {
       console.error('Error fetching requests:', error);
