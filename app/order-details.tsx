@@ -44,6 +44,15 @@ export default function OrderDetailsScreen() {
   useEffect(() => {
     checkUserType();
     loadOrderDetails();
+
+    // Subscribe to real-time updates for this specific order
+    const subscription = requests.subscribeToUpdates(id as string, (updatedOrder) => {
+      setOrder(updatedOrder);
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, [id]);
 
   const checkUserType = async () => {
