@@ -46,7 +46,7 @@ const WHY_US = [
 
 export default function CustomerHomeScreen() {
   const router = useRouter();
-  const { language, isDark } = useApp();
+  const { language, setLanguage, isDark } = useApp();
   const COLORS = getColors(isDark);
   const SHADOWS = getShadows(isDark);
   const isRTL = language === 'ar';
@@ -90,10 +90,23 @@ export default function CustomerHomeScreen() {
         <TouchableOpacity onPress={() => setSidebarVisible(true)} style={styles.iconButton}>
           <Ionicons name="menu" size={24} color={COLORS.text} />
         </TouchableOpacity>
+        
         <Text style={[styles.logo, { color: COLORS.primary }]}>Fixate</Text>
-        <TouchableOpacity style={styles.iconButton}>
-          <Ionicons name="notifications-outline" size={24} color={COLORS.text} />
-        </TouchableOpacity>
+        
+        <View style={styles.headerRight}>
+          <TouchableOpacity 
+            onPress={() => setLanguage(language === 'ar' ? 'en' : 'ar')} 
+            style={styles.iconButton}
+          >
+            <Ionicons name="language" size={22} color={COLORS.text} />
+          </TouchableOpacity>
+          <TouchableOpacity 
+            onPress={() => router.push('/notifications')} 
+            style={styles.iconButton}
+          >
+            <Ionicons name="notifications-outline" size={22} color={COLORS.text} />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView style={styles.scrollContent} showsVerticalScrollIndicator={false}>
@@ -261,7 +274,8 @@ const createStyles = (COLORS: any, isRTL: boolean, SHADOWS: any) =>
       borderBottomColor: COLORS.border,
     },
     iconButton: { padding: 8 },
-    logo: { fontSize: 24, fontWeight: 'bold' },
+    logo: { fontSize: 24, fontWeight: 'bold', position: 'absolute', left: width / 2 - 40 },
+    headerRight: { flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center' },
     scrollContent: { padding: 16 },
 
     // Hero Section
