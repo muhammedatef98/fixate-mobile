@@ -44,6 +44,8 @@ export default function OrderDetailsScreen() {
   const [cancelReason, setCancelReason] = useState('');
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   const [userType, setUserType] = useState<'customer' | 'technician'>('customer');
+  const [rating, setRating] = useState(0);
+  const [isRating, setIsRating] = useState(false);
 
   useEffect(() => {
     checkUserType();
@@ -145,6 +147,20 @@ export default function OrderDetailsScreen() {
     return null;
   };
 
+  const handleRateOrder = async (stars: number) => {
+    setRating(stars);
+    setIsRating(true);
+    try {
+      // In a real app, you'd save this to a 'reviews' table
+      Alert.alert(isRTL ? 'شكراً لك' : 'Thank You', isRTL ? 'تم استلام تقييمك بنجاح' : 'Your rating has been received');
+      // Update order status or a 'rated' flag if needed
+    } catch (error) {
+      console.error('Error rating order:', error);
+    } finally {
+      setIsRating(false);
+    }
+  };
+
   if (loading) {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: COLORS.background }]}>
@@ -200,6 +216,29 @@ export default function OrderDetailsScreen() {
       </View>
 
         <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+          {/* Rating Section (For completed orders) */}
+          {userType === 'customer' && order.status === 'completed' && (
+            <View style={[styles.ratingCard, { backgroundColor: COLORS.card }, SHADOWS.medium]}>
+              <Text style={[styles.ratingTitle, { color: COLORS.text }]}>
+                {isRTL ? 'كيف كانت تجربتك؟' : 'How was your experience?'}
+              </Text>
+              <View style={styles.starsRow}>
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <TouchableOpacity key={star} onPress={() => handleRateOrder(star)}>
+                    <MaterialIcons 
+                      name={star <= rating ? "star" : "star-border"} 
+                      size={40} 
+                      color={star <= rating ? "#F59E0B" : COLORS.border} 
+                    />
+                  </TouchableOpacity>
+                ))}
+              </View>
+              <Text style={[styles.ratingSub, { color: COLORS.textSecondary }]}>
+                {isRTL ? 'تقييمك يساعدنا على تحسين الخدمة' : 'Your rating helps us improve the service'}
+              </Text>
+            </View>
+          )}
+
           {/* Technician Action Bar */}
           {userType === 'technician' && order.status !== 'completed' && order.status !== 'cancelled' && (
             <View style={[styles.techActionBar, { backgroundColor: COLORS.primary + '10' }]}>
@@ -582,6 +621,27 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: 'bold',
     fontSize: 14,
+  },
+  ratingCard: {
+    padding: 24,
+    borderRadius: 20,
+    marginHorizontal: 16,
+    marginBottom: 16,
+    alignItems: 'center',
+  },
+  ratingTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 16,
+  },
+  starsRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 16,
+  },
+  ratingSub: {
+    fontSize: 14,
+    textAlign: 'center',
   },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 20 },
   modalContent: { width: '100%', borderRadius: 20, padding: 20 },

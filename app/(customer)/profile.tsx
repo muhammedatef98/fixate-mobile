@@ -99,8 +99,8 @@ export default function ProfileScreen() {
                 source={{ uri: `https://ui-avatars.com/api/?name=${user?.name || 'User'}&background=10b981&color=fff` }} 
                 style={styles.avatar} 
               />
-              <TouchableOpacity style={styles.editAvatarBtn}>
-                <Ionicons name="camera" size={18} color="#fff" />
+              <TouchableOpacity style={styles.editAvatarBtn} onPress={() => router.push('/edit-profile')}>
+                <Ionicons name="pencil" size={18} color="#fff" />
               </TouchableOpacity>
             </View>
             <Text style={styles.userName}>{user?.name || (isRTL ? 'مستخدم' : 'User')}</Text>
