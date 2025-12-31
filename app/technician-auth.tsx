@@ -221,7 +221,7 @@ export default function TechnicianAuthScreen() {
               <Text style={styles.dividerText}>{isRTL ? 'أو' : 'OR'}</Text>
             </View>
 
-            <View style={socialButtons}>
+            <View style={styles.socialButtons}>
               <TouchableOpacity style={styles.socialCircle}>
                 <Ionicons name="logo-google" size={24} color="#DB4437" />
               </TouchableOpacity>
