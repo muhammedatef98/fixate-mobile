@@ -55,15 +55,23 @@ export default function TechnicianAuthScreen() {
     setLoading(true);
     try {
       if (isLogin) {
-        const { data, error } = await supabase.auth.signInWithPassword({
+        // 1. Sign in with Supabase Auth
+        const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
           email,
           password,
         });
-        if (error) throw error;
+        if (authError) throw authError;
 
-        if (data.user) {
-          // Strict check for technician role
-          const userRole = data.user.user_metadata?.role;
+        if (authData.user) {
+          // 2. Direct Query to profiles table to verify role
+          const { data: profileData, error: profileError } = await supabase
+            .from('profiles')
+            .select('role')
+            .eq('id', authData.user.id)
+            .single();
+
+          const userRole = profileData?.role || authData.user.user_metadata?.role;
+
           if (userRole !== 'technician') {
             await supabase.auth.signOut();
             Alert.alert(
@@ -72,9 +80,12 @@ export default function TechnicianAuthScreen() {
             );
             return;
           }
+          
+          // Success: Redirect to technician area
           router.replace('/(technician)');
         }
       } else {
+        // Sign up logic
         const { data, error } = await supabase.auth.signUp({
           email,
           password,
@@ -88,6 +99,15 @@ export default function TechnicianAuthScreen() {
           }
         });
         if (error) throw error;
+        
+        // Also create profile entry if needed by your schema
+        await supabase.from('profiles').insert({
+          id: data.user?.id,
+          email,
+          role: 'technician',
+          name
+        });
+
         Alert.alert(isRTL ? 'نجح' : 'Success', isRTL ? 'تم إنشاء الحساب بنجاح!' : 'Account created successfully!');
         setIsLogin(true);
       }
