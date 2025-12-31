@@ -120,9 +120,15 @@ export default function SignupScreen() {
       return;
     }
 
-    Alert.alert(isRTL ? 'نجح' : 'Success', isRTL ? 'تم إنشاء الحساب بنجاح!' : 'Account created successfully!', [
-      { text: 'OK', onPress: () => router.push('/login') }
-    ]);
+    Alert.alert(
+      isRTL ? 'تحقق من بريدك' : 'Verify Your Email', 
+      isRTL 
+        ? 'تم إنشاء الحساب! أرسلنا رابط تفعيل إلى بريدك الإلكتروني. يرجى تفعيل الحساب لتتمكن من تسجيل الدخول.' 
+        : 'Account created! We sent a verification link to your email. Please verify your account to login.', 
+      [
+        { text: 'OK', onPress: () => router.push('/login') }
+      ]
+    );
   };
 
   const styles = createStyles(COLORS, isRTL, strengthAnim, getStrengthColor());
