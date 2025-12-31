@@ -43,6 +43,12 @@ export default function OrdersScreen() {
   const loadOrders = async () => {
     try {
       setLoading(true);
+      const currentUser = await auth.getCurrentUser();
+      if (!currentUser) {
+        setOrders([]);
+        setLoading(false);
+        return;
+      }
       const data = await requests.getUserOrders();
       let filteredData = data;
       if (filter === 'active') {
@@ -104,6 +110,12 @@ export default function OrdersScreen() {
           <View style={styles.emptyState}>
             <Ionicons name="receipt-outline" size={80} color={COLORS.border} />
             <Text style={styles.emptyText}>{isRTL ? 'لا توجد طلبات حالياً' : 'No orders found'}</Text>
+            <TouchableOpacity 
+              style={styles.loginPromptBtn} 
+              onPress={() => router.push('/login')}
+            >
+              <Text style={styles.loginPromptText}>{isRTL ? 'سجل الدخول لمتابعة طلباتك' : 'Login to track your orders'}</Text>
+            </TouchableOpacity>
           </View>
         ) : (
           <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
@@ -165,7 +177,9 @@ const createStyles = (COLORS: any, isRTL: boolean) => StyleSheet.create({
   activeFilterText: { color: COLORS.white },
   scrollContent: { padding: 16 },
   emptyState: { alignItems: 'center', marginTop: 80 },
-  emptyText: { fontSize: 16, color: COLORS.textSecondary, marginTop: 16 },
+  emptyText: { fontSize: 16, color: COLORS.textSecondary, marginTop: 16, marginBottom: 20 },
+  loginPromptBtn: { backgroundColor: COLORS.primary, paddingHorizontal: 20, paddingVertical: 10, borderRadius: 12 },
+  loginPromptText: { color: COLORS.white, fontWeight: 'bold', fontSize: 14 },
   orderCard: { backgroundColor: COLORS.white, borderRadius: 20, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: COLORS.border },
   orderHeader: { flexDirection: isRTL ? 'row-reverse' : 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 },
   deviceInfo: { flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 12 },
