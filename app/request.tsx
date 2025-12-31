@@ -39,9 +39,7 @@ const DEVICE_TYPES = [
   { id: 'laptop', name: 'لابتوب', nameEn: 'Laptop', icon: 'laptop', available: true },
   { id: 'watch', name: 'ساعة ذكية', nameEn: 'Smart Watch', icon: 'watch', available: true },
   { id: 'printer', name: 'طابعة', nameEn: 'Printer', icon: 'printer', available: false },
-  { id: 'console', name: 'ألعاب', nameEn: 'Console', icon: 'gamepad-variant', available: false },
   { id: 'headphones', name: 'سماعات', nameEn: 'Headphones', icon: 'headphones', available: false },
-  { id: 'camera', name: 'كاميرا', nameEn: 'Camera', icon: 'camera', available: false },
   { id: 'tv', name: 'شاشة/تلفاز', nameEn: 'TV/Monitor', icon: 'television', available: false },
   { id: 'appliance', name: 'أجهزة منزلية', nameEn: 'Home Appliances', icon: 'home-outline', available: false },
 ];
@@ -144,8 +142,10 @@ export default function RequestScreen() {
     // Auto-scroll stepper to current step
     if (stepperScrollRef.current) {
       const stepWidth = 100; // Approximate width of each step item
+      // In RTL, scroll position might need to be handled differently depending on the device
+      // But generally, we want to scroll to the current step
       stepperScrollRef.current.scrollTo({
-        x: currentStep * stepWidth,
+        x: isRTL ? (STEPS.length - 1 - currentStep) * stepWidth : currentStep * stepWidth,
         animated: true
       });
     }
@@ -490,11 +490,13 @@ export default function RequestScreen() {
                 ]}
                 onPress={() => setSelectedBrand(brand)}
               >
-                <Image 
-                  source={{ uri: brand.logo }} 
-                  style={styles.brandLogo} 
-                  resizeMode="contain"
-                />
+                <View style={styles.brandLogoContainer}>
+                  <Image 
+                    source={{ uri: brand.logo }} 
+                    style={styles.brandLogo} 
+                    resizeMode="contain"
+                  />
+                </View>
                 <Text style={[
                   styles.brandName,
                   selectedBrand?.id === brand.id && styles.selectedBrandName
@@ -1059,10 +1061,24 @@ const createStyles = (COLORS: any, isRTL: boolean) => StyleSheet.create({
     backgroundColor: COLORS.lightGreen,
     borderWidth: 2,
   },
-  brandLogo: {
-    width: 48,
-    height: 48,
+  brandLogoContainer: {
+    width: 60,
+    height: 60,
+    justifyContent: 'center',
+    alignItems: 'center',
     marginBottom: 8,
+    backgroundColor: '#fff',
+    borderRadius: 30,
+    // Add a subtle shadow to make logos pop
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  brandLogo: {
+    width: 40,
+    height: 40,
   },
   brandName: {
     fontSize: 12,
