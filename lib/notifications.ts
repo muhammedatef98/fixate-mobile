@@ -80,19 +80,27 @@ export const notificationManager = {
   // Notify all technicians in a specific city
   notifyTechniciansInCity: async (city: string, orderDetails: any) => {
     try {
-      // 1. Get all technicians in that city who have a push token
-      // Note: In a real app, you'd query a 'profiles' table. 
-      // Since we store push_token in auth metadata, we'd ideally have a synced profiles table.
+      // Note: In this project, user data is stored in auth metadata.
+      // To notify technicians, we would ideally have a 'profiles' table synced with auth.
+      // If the table doesn't exist yet, we'll log a warning instead of an error to keep the app running.
+      
       const { data: profiles, error } = await supabase
         .from('profiles')
         .select('push_token')
         .eq('city', city)
-        .eq('user_type', 'technician')
+        .eq('role', 'technician') // Changed from user_type to role to match supabase.ts
         .not('push_token', 'is', null);
 
-      if (error) throw error;
+      if (error) {
+        if (error.code === 'PGRST205') {
+          console.warn('Profiles table not found. Notifications skipped. Please create the profiles table in Supabase.');
+          return;
+        }
+        throw error;
+      }
 
-      // 2. Send notification to each token
+      if (!profiles || profiles.length === 0) return;
+
       const title = 'طلب صيانة جديد! 🛠️';
       const body = `يوجد طلب جديد في ${city}: ${orderDetails.device_brand} - ${orderDetails.device_model}`;
       
