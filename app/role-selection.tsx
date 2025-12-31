@@ -38,7 +38,7 @@ export default function RoleSelectionScreen() {
     if (role === 'technician') {
       router.push('/technician-auth');
     } else {
-      router.push(`/auth?role=${role}`);
+      router.push('/login');
     }
   };
 
