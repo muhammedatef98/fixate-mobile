@@ -25,7 +25,7 @@ export default function TermsScreen() {
 
 ## 1. المقدمة
 
-مرحباً بك في تطبيق Fixatee ("التطبيق"). باستخدامك لهذا التطبيق، فإنك توافق على الالتزام بهذه الشروط والأحكام. يرجى قراءتها بعناية قبل استخدام خدماتنا.
+مرحباً بك في تطبيق Fixate ("التطبيق"). باستخدامك لهذا التطبيق، فإنك توافق على الالتزام بهذه الشروط والأحكام. يرجى قراءتها بعناية قبل استخدام خدماتنا.
 
 ## 2. التعريفات
 
@@ -142,7 +142,7 @@ export default function TermsScreen() {
 
 ## 1. Introduction
 
-Welcome to Fixatee ("the App"). By using this App, you agree to comply with these Terms and Conditions. Please read them carefully before using our services.
+Welcome to Fixate ("the App"). By using this App, you agree to comply with these Terms and Conditions. Please read them carefully before using our services.
 
 ## 2. Definitions
 
