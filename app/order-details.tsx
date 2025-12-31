@@ -912,5 +912,5 @@ const styles = StyleSheet.create({
     height: 120,
     borderRadius: BORDER_RADIUS.md,
     marginRight: SPACING.md,
-  },
+  }
 });
