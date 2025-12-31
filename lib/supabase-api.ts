@@ -80,6 +80,40 @@ export const auth = {
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
   },
+
+  // Get user profile from metadata or database
+  getUserProfile: async (userId: string): Promise<any> => {
+    try {
+      const { data: { user }, error } = await supabase.auth.getUser();
+      if (error || !user) return null;
+      
+      return {
+        id: user.id,
+        email: user.email,
+        name: user.user_metadata?.name || user.email?.split('@')[0] || 'User',
+        phone: user.user_metadata?.phone || '',
+        user_type: user.user_metadata?.user_type || 'customer',
+      };
+    } catch (error) {
+      return null;
+    }
+  },
+
+  // Update user profile metadata
+  updateProfile: async (userId: string, updates: { name?: string; phone?: string }): Promise<any> => {
+    try {
+      const { data, error } = await supabase.auth.updateUser({
+        data: {
+          name: updates.name,
+          phone: updates.phone,
+        }
+      });
+      if (error) throw error;
+      return data.user;
+    } catch (error) {
+      throw error;
+    }
+  },
 };
 
 // Orders/Requests API
