@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, Image, Animated, StatusBar, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
-import { MaterialIcons, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../../contexts/AppContext';
 import BottomNav from '../../components/BottomNav';
 import { auth } from '../../lib/supabase-api';
@@ -56,6 +56,22 @@ export default function ProfileScreen() {
     );
   };
 
+  const handleMenuPress = (id: string) => {
+    switch (id) {
+      case 'orders':
+        router.push('/(customer)/orders');
+        break;
+      case 'help':
+        router.push('/contact');
+        break;
+      default:
+        Alert.alert(
+          isRTL ? 'قريباً' : 'Coming Soon',
+          isRTL ? 'هذه الميزة ستكون متاحة في التحديث القادم' : 'This feature will be available in the next update'
+        );
+    }
+  };
+
   const MENU_ITEMS = [
     { id: 'orders', icon: 'receipt-outline', labelAr: 'طلباتي', labelEn: 'My Orders' },
     { id: 'wallet', icon: 'wallet-outline', labelAr: 'المحفظة', labelEn: 'Wallet' },
@@ -77,7 +93,6 @@ export default function ProfileScreen() {
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
         <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
-          {/* Profile Header Card */}
           <View style={styles.profileCard}>
             <View style={styles.avatarContainer}>
               <Image 
@@ -92,10 +107,10 @@ export default function ProfileScreen() {
             <Text style={styles.userEmail}>{user?.email || (isRTL ? 'لا يوجد بريد' : 'No email')}</Text>
             
             <View style={styles.statsRow}>
-              <View style={styles.statItem}>
+              <TouchableOpacity style={styles.statItem} onPress={() => router.push('/(customer)/orders')}>
                 <Text style={styles.statValue}>12</Text>
                 <Text style={styles.statLabel}>{isRTL ? 'طلب' : 'Orders'}</Text>
-              </View>
+              </TouchableOpacity>
               <View style={styles.statDivider} />
               <View style={styles.statItem}>
                 <Text style={styles.statValue}>4.9</Text>
@@ -104,10 +119,9 @@ export default function ProfileScreen() {
             </View>
           </View>
 
-          {/* Menu Items */}
           <View style={styles.menuSection}>
             {MENU_ITEMS.map((item) => (
-              <TouchableOpacity key={item.id} style={styles.menuItem}>
+              <TouchableOpacity key={item.id} style={styles.menuItem} onPress={() => handleMenuPress(item.id)}>
                 <View style={styles.menuItemLeft}>
                   <View style={styles.menuIconContainer}>
                     <Ionicons name={item.icon as any} size={22} color={COLORS.text} />
@@ -119,7 +133,6 @@ export default function ProfileScreen() {
             ))}
           </View>
 
-          {/* Logout Button */}
           <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
             <Ionicons name="log-out-outline" size={22} color={COLORS.danger} />
             <Text style={styles.logoutText}>{isRTL ? 'تسجيل الخروج' : 'Logout'}</Text>
