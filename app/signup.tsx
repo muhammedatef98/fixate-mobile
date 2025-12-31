@@ -33,6 +33,9 @@ export default function SignupScreen() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLogin, setIsLogin] = useState(false);
+  const [userType, setUserType] = useState<'customer' | 'technician'>('customer');
+  const [specialty, setSpecialty] = useState('');
+  const [city, setCity] = useState('');
   
   // Password strength state
   const [passwordStrength, setPasswordStrength] = useState(0);
@@ -102,7 +105,13 @@ export default function SignupScreen() {
       email,
       password,
       options: {
-        data: { name, phone, user_type: 'customer' },
+        data: { 
+          name, 
+          phone, 
+          user_type: userType,
+          specialty: userType === 'technician' ? specialty : undefined,
+          city: city
+        },
       },
     });
 
@@ -157,19 +166,19 @@ export default function SignupScreen() {
 
           <View style={styles.toggleContainer}>
             <TouchableOpacity 
-              style={[styles.toggleButton, !isLogin && styles.activeToggle]} 
-              onPress={() => setIsLogin(false)}
+              style={[styles.toggleButton, userType === 'customer' && styles.activeToggle]} 
+              onPress={() => setUserType('customer')}
             >
-              <Text style={[styles.toggleText, !isLogin && styles.activeToggleText]}>
-                {isRTL ? 'إنشاء حساب' : 'Sign Up'}
+              <Text style={[styles.toggleText, userType === 'customer' && styles.activeToggleText]}>
+                {isRTL ? 'عميل' : 'Customer'}
               </Text>
             </TouchableOpacity>
             <TouchableOpacity 
-              style={[styles.toggleButton, isLogin && styles.activeToggle]} 
-              onPress={() => router.push('/login')}
+              style={[styles.toggleButton, userType === 'technician' && styles.activeToggle]} 
+              onPress={() => setUserType('technician')}
             >
-              <Text style={[styles.toggleText, isLogin && styles.activeToggleText]}>
-                {isRTL ? 'تسجيل الدخول' : 'Login'}
+              <Text style={[styles.toggleText, userType === 'technician' && styles.activeToggleText]}>
+                {isRTL ? 'فني' : 'Technician'}
               </Text>
             </TouchableOpacity>
           </View>
@@ -209,7 +218,6 @@ export default function SignupScreen() {
                 placeholderTextColor={COLORS.gray}
                 value={phone}
                 onChangeText={(text) => {
-                  // Simple phone formatting
                   const cleaned = text.replace(/\D/g, '');
                   setPhone(cleaned);
                 }}
@@ -217,6 +225,32 @@ export default function SignupScreen() {
                 textAlign={isRTL ? 'right' : 'left'}
               />
             </View>
+
+            <View style={styles.inputContainer}>
+              <MaterialCommunityIcons name="map-marker-outline" size={20} color={COLORS.gray} />
+              <TextInput
+                style={styles.input}
+                placeholder={isRTL ? 'المدينة' : 'City'}
+                placeholderTextColor={COLORS.gray}
+                value={city}
+                onChangeText={setCity}
+                textAlign={isRTL ? 'right' : 'left'}
+              />
+            </View>
+
+            {userType === 'technician' && (
+              <View style={styles.inputContainer}>
+                <MaterialCommunityIcons name="tools" size={20} color={COLORS.gray} />
+                <TextInput
+                  style={styles.input}
+                  placeholder={isRTL ? 'التخصص (مثلاً: صيانة جوالات)' : 'Specialty (e.g. Mobile Repair)'}
+                  placeholderTextColor={COLORS.gray}
+                  value={specialty}
+                  onChangeText={setSpecialty}
+                  textAlign={isRTL ? 'right' : 'left'}
+                />
+              </View>
+            )}
 
             <View style={styles.inputContainer}>
               <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
