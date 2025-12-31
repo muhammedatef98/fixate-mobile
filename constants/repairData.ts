@@ -463,6 +463,24 @@ export const ISSUES: Issue[] = [
     estimatedPrice: 0,
     deviceType: 'watch'
   },
+  
+  // Printer Issues
+  {
+    id: 'printer-paper',
+    name: 'Paper Jam',
+    nameAr: 'انحشار الورق',
+    icon: 'printer-alert',
+    estimatedPrice: 100,
+    deviceType: 'printer'
+  },
+  {
+    id: 'printer-ink',
+    name: 'Ink/Toner Issue',
+    nameAr: 'مشكلة الحبر',
+    icon: 'printer-3d-nozzle',
+    estimatedPrice: 150,
+    deviceType: 'printer'
+  },
   {
     id: 'other-printer',
     name: 'Other Issue',
@@ -470,6 +488,16 @@ export const ISSUES: Issue[] = [
     icon: 'dots-horizontal-circle-outline',
     estimatedPrice: 0,
     deviceType: 'printer'
+  },
+
+  // Headphones Issues
+  {
+    id: 'audio-one-side',
+    name: 'One Side Not Working',
+    nameAr: 'جهة واحدة لا تعمل',
+    icon: 'headphones-off',
+    estimatedPrice: 120,
+    deviceType: 'headphones'
   },
   {
     id: 'other-headphones',
@@ -479,6 +507,16 @@ export const ISSUES: Issue[] = [
     estimatedPrice: 0,
     deviceType: 'headphones'
   },
+
+  // TV Issues
+  {
+    id: 'tv-screen',
+    name: 'Broken Screen',
+    nameAr: 'كسر في الشاشة',
+    icon: 'television-off',
+    estimatedPrice: 800,
+    deviceType: 'tv'
+  },
   {
     id: 'other-tv',
     name: 'Other Issue',
@@ -486,6 +524,16 @@ export const ISSUES: Issue[] = [
     icon: 'dots-horizontal-circle-outline',
     estimatedPrice: 0,
     deviceType: 'tv'
+  },
+
+  // Appliance Issues
+  {
+    id: 'appliance-power',
+    name: 'Not Powering On',
+    nameAr: 'لا يعمل',
+    icon: 'power-plug-off',
+    estimatedPrice: 200,
+    deviceType: 'appliance'
   },
   {
     id: 'other-appliance',
