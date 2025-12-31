@@ -79,7 +79,7 @@ export const BRANDS: Brand[] = [
     id: 'xiaomi',
     name: 'Xiaomi',
     deviceType: 'phone',
-    logo: 'https://upload.wikimedia.org/wikipedia/commons/a/ae/Xiaomi_logo_%282021-%29.svg',
+    logo: require('../assets/xiaomi-logo.png'),
     models: [
       'Xiaomi 14 Pro', 'Xiaomi 14', 'Xiaomi 13 Ultra', 'Xiaomi 13 Pro', 'Xiaomi 13',
       'Xiaomi 12 Pro', 'Xiaomi 12', 'Xiaomi 11 Ultra', 'Xiaomi 11 Pro', 'Xiaomi 11',
@@ -97,7 +97,7 @@ export const BRANDS: Brand[] = [
     id: 'oppo',
     name: 'Oppo',
     deviceType: 'phone',
-    logo: 'https://upload.wikimedia.org/wikipedia/commons/b/b8/OPPO_Logo.svg',
+    logo: require('../assets/oppo-logo.png'),
     models: [
       'Find X7 Ultra', 'Find X7', 'Find X6 Pro', 'Find X6',
       'Find X5 Pro', 'Find X5', 'Find X3 Pro', 'Find X3',
@@ -112,7 +112,7 @@ export const BRANDS: Brand[] = [
     id: 'vivo',
     name: 'Vivo',
     deviceType: 'phone',
-    logo: 'https://upload.wikimedia.org/wikipedia/commons/0/0b/Vivo_logo_2019.svg',
+    logo: require('../assets/vivo-logo.png'),
     models: [
       'X100 Pro', 'X100', 'X90 Pro', 'X90', 'X80 Pro', 'X80',
       'X70 Pro+', 'X70 Pro', 'X70', 'X60 Pro', 'X60',
@@ -128,7 +128,7 @@ export const BRANDS: Brand[] = [
     id: 'oneplus',
     name: 'OnePlus',
     deviceType: 'phone',
-    logo: 'https://upload.wikimedia.org/wikipedia/commons/2/2b/OnePlus_Logo.svg',
+    logo: require('../assets/oneplus-logo.png'),
     models: [
       'OnePlus 12', 'OnePlus 11', 'OnePlus 10 Pro', 'OnePlus 10T',
       'OnePlus 9 Pro', 'OnePlus 9', 'OnePlus 8 Pro', 'OnePlus 8T', 'OnePlus 8',
@@ -142,7 +142,7 @@ export const BRANDS: Brand[] = [
     id: 'realme',
     name: 'Realme',
     deviceType: 'phone',
-    logo: 'https://upload.wikimedia.org/wikipedia/commons/1/13/Realme_logo.svg',
+    logo: require('../assets/realme-logo.png'),
     models: [
       'Realme GT 5 Pro', 'Realme GT 5', 'Realme GT 3', 'Realme GT 2 Pro', 'Realme GT 2',
       'Realme 12 Pro+', 'Realme 12 Pro', 'Realme 12', 'Realme 11 Pro+', 'Realme 11 Pro', 'Realme 11',
@@ -153,72 +153,10 @@ export const BRANDS: Brand[] = [
     ]
   },
   {
-    id: 'nokia',
-    name: 'Nokia',
-    deviceType: 'phone',
-    logo: 'https://upload.wikimedia.org/wikipedia/commons/0/02/Nokia_wordmark.svg',
-    models: [
-      'Nokia G60', 'Nokia G50', 'Nokia G42', 'Nokia G22', 'Nokia G21', 'Nokia G20',
-      'Nokia X30', 'Nokia X20', 'Nokia X10',
-      'Nokia C32', 'Nokia C31', 'Nokia C30', 'Nokia C21', 'Nokia C20',
-      'Nokia 8.3', 'Nokia 7.2', 'Nokia 6.2', 'Nokia 5.4', 'Nokia 5.3',
-      'Nokia 3.4', 'Nokia 2.4', 'Nokia 1.4'
-    ]
-  },
-  {
-    id: 'sony',
-    name: 'Sony Xperia',
-    deviceType: 'phone',
-    logo: 'https://upload.wikimedia.org/wikipedia/commons/c/c3/Sony_logo.svg',
-    models: [
-      'Xperia 1 V', 'Xperia 1 IV', 'Xperia 1 III', 'Xperia 1 II',
-      'Xperia 5 V', 'Xperia 5 IV', 'Xperia 5 III', 'Xperia 5 II',
-      'Xperia 10 V', 'Xperia 10 IV', 'Xperia 10 III', 'Xperia 10 II',
-      'Xperia Pro-I', 'Xperia Pro'
-    ]
-  },
-  {
-    id: 'motorola',
-    name: 'Motorola',
-    deviceType: 'phone',
-    logo: 'https://upload.wikimedia.org/wikipedia/commons/4/46/Motorola_new_logo.svg',
-    models: [
-      'Edge 40 Pro', 'Edge 40', 'Edge 30 Ultra', 'Edge 30 Pro', 'Edge 30',
-      'Edge 20 Pro', 'Edge 20', 'Edge+', 'Edge',
-      'Moto G84', 'Moto G73', 'Moto G72', 'Moto G62', 'Moto G52',
-      'Moto G42', 'Moto G32', 'Moto G31', 'Moto G22', 'Moto G13',
-      'Moto E40', 'Moto E32', 'Moto E22', 'Moto E13',
-      'Razr 40 Ultra', 'Razr 40', 'Razr+'
-    ]
-  },
-  {
-    id: 'lenovo',
-    name: 'Lenovo',
-    deviceType: 'phone',
-    logo: 'https://upload.wikimedia.org/wikipedia/commons/b/b8/Lenovo_logo_2015.svg',
-    models: [
-      'Legion Y90', 'Legion Y70', 'Legion Duel 2', 'Legion Pro',
-      'K15 Pro', 'K15', 'K14 Plus', 'K14', 'K13 Pro', 'K13',
-      'Z6 Pro', 'Z6', 'Z5 Pro', 'Z5'
-    ]
-  },
-  {
-    id: 'lg',
-    name: 'LG',
-    deviceType: 'phone',
-    logo: 'https://upload.wikimedia.org/wikipedia/commons/b/bf/LG_logo_%282015%29.svg',
-    models: [
-      'Wing', 'Velvet', 'V60 ThinQ', 'V50 ThinQ', 'V40 ThinQ',
-      'G8X ThinQ', 'G8 ThinQ', 'G7 ThinQ',
-      'Q92', 'Q70', 'Q60', 'Q52', 'Q51',
-      'K92', 'K71', 'K62', 'K52', 'K42', 'K41'
-    ]
-  },
-  {
     id: 'google',
     name: 'Google Pixel',
     deviceType: 'phone',
-    logo: 'https://upload.wikimedia.org/wikipedia/commons/2/2f/Google_2015_logo.svg',
+    logo: require('../assets/google-logo.png'),
     models: [
       'Pixel 8 Pro', 'Pixel 8', 'Pixel 7 Pro', 'Pixel 7', 'Pixel 7a',
       'Pixel 6 Pro', 'Pixel 6', 'Pixel 6a', 'Pixel 5', 'Pixel 4a'
@@ -228,7 +166,7 @@ export const BRANDS: Brand[] = [
     id: 'honor',
     name: 'Honor',
     deviceType: 'phone',
-    logo: 'https://upload.wikimedia.org/wikipedia/commons/d/d4/Honor_logo.svg',
+    logo: require('../assets/honor-logo.png'),
     models: [
       'Honor Magic 6 Pro', 'Honor Magic 5 Pro', 'Honor 90', 'Honor 70',
       'Honor X9b', 'Honor X8b', 'Honor X7b'
@@ -268,26 +206,6 @@ export const BRANDS: Brand[] = [
       'MatePad 11.5', 'MatePad 11', 'MatePad SE', 'MatePad T10'
     ]
   },
-  {
-    id: 'lenovo-tablet',
-    name: 'Lenovo Tab',
-    deviceType: 'tablet',
-    logo: 'https://upload.wikimedia.org/wikipedia/commons/b/b8/Lenovo_logo_2015.svg',
-    models: [
-      'Tab P12 Pro', 'Tab P11 Pro', 'Tab P11 Plus', 'Tab P11',
-      'Tab M10 Plus', 'Tab M10', 'Tab M9', 'Tab M8'
-    ]
-  },
-  {
-    id: 'xiaomi-tablet',
-    name: 'Xiaomi Pad',
-    deviceType: 'tablet',
-    logo: 'https://upload.wikimedia.org/wikipedia/commons/a/ae/Xiaomi_logo_%282021-%29.svg',
-    models: [
-      'Xiaomi Pad 6 Max', 'Xiaomi Pad 6 Pro', 'Xiaomi Pad 6',
-      'Xiaomi Pad 5 Pro', 'Xiaomi Pad 5', 'Redmi Pad SE', 'Redmi Pad'
-    ]
-  },
 
   // Laptop Brands
   {
@@ -305,7 +223,7 @@ export const BRANDS: Brand[] = [
     id: 'hp-laptop',
     name: 'HP',
     deviceType: 'laptop',
-    logo: 'https://upload.wikimedia.org/wikipedia/commons/a/ad/HP_logo_2012.svg',
+    logo: require('../assets/hp-logo.png'),
     models: [
       'Spectre x360', 'Envy x360', 'Pavilion', 'Omen', 'Victus',
       'EliteBook', 'ProBook', 'ZBook', 'HP Essentials'
@@ -315,50 +233,20 @@ export const BRANDS: Brand[] = [
     id: 'dell-laptop',
     name: 'Dell',
     deviceType: 'laptop',
-    logo: 'https://upload.wikimedia.org/wikipedia/commons/1/18/Dell_logo_2016.svg',
+    logo: require('../assets/dell-logo.png'),
     models: [
       'XPS 15', 'XPS 13', 'Inspiron', 'Vostro', 'Latitude',
       'Precision', 'Alienware', 'G-Series'
     ]
   },
   {
-    id: 'lenovo-laptop',
-    name: 'Lenovo',
-    deviceType: 'laptop',
-    logo: 'https://upload.wikimedia.org/wikipedia/commons/b/b8/Lenovo_logo_2015.svg',
-    models: [
-      'ThinkPad X1 Carbon', 'ThinkPad T-Series', 'ThinkPad L-Series',
-      'Yoga', 'IdeaPad', 'Legion', 'LOQ', 'ThinkBook'
-    ]
-  },
-  {
     id: 'asus-laptop',
     name: 'ASUS',
     deviceType: 'laptop',
-    logo: 'https://upload.wikimedia.org/wikipedia/commons/2/2e/ASUS_Logo.svg',
+    logo: require('../assets/asus-logo.png'),
     models: [
       'Zenbook Pro', 'Zenbook S', 'Zenbook', 'Vivobook Pro', 'Vivobook S',
       'Vivobook', 'ROG Zephyrus', 'ROG Strix', 'TUF Gaming'
-    ]
-  },
-  {
-    id: 'acer-laptop',
-    name: 'Acer',
-    deviceType: 'laptop',
-    logo: 'https://upload.wikimedia.org/wikipedia/commons/a/a7/Acer_Logo.svg',
-    models: [
-      'Swift Edge', 'Swift Go', 'Swift', 'Spin', 'Aspire',
-      'Predator Helios', 'Predator Triton', 'Nitro V', 'Nitro'
-    ]
-  },
-  {
-    id: 'msi-laptop',
-    name: 'MSI',
-    deviceType: 'laptop',
-    logo: 'https://upload.wikimedia.org/wikipedia/commons/a/a6/MSI_Logo.svg',
-    models: [
-      'Titan', 'Raider', 'Stealth', 'Vector', 'Pulse', 'Katana',
-      'Cyborg', 'Prestige', 'Summit', 'Modern'
     ]
   },
   {
@@ -574,34 +462,6 @@ export const ISSUES: Issue[] = [
     icon: 'dots-horizontal-circle-outline',
     estimatedPrice: 0,
     deviceType: 'watch'
-  },
-
-  // Printer Issues
-  {
-    id: 'printer-paper',
-    name: 'Paper Jam',
-    nameAr: 'انحشار الورق',
-    icon: 'printer-alert',
-    estimatedPrice: 100,
-    priceRange: { min: 50, max: 200 },
-    deviceType: 'printer'
-  },
-  {
-    id: 'printer-ink',
-    name: 'Ink/Toner Issue',
-    nameAr: 'مشكلة الحبر',
-    icon: 'printer-pos',
-    estimatedPrice: 150,
-    priceRange: { min: 80, max: 400 },
-    deviceType: 'printer'
-  },
-  {
-    id: 'other-printer',
-    name: 'Other Issue',
-    nameAr: 'أخرى',
-    icon: 'dots-horizontal-circle-outline',
-    estimatedPrice: 0,
-    deviceType: 'printer'
   }
 ];
 
