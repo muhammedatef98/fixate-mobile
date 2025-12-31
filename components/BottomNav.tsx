@@ -1,204 +1,124 @@
 import React, { useRef, useEffect } from 'react';
-import { View, TouchableOpacity, Text, StyleSheet, Animated } from 'react-native';
+import { View, TouchableOpacity, Text, StyleSheet, Animated, Dimensions, Platform } from 'react-native';
 import { useRouter, usePathname } from 'expo-router';
-import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { getColors, getShadows, SPACING, BORDER_RADIUS } from '../constants/theme';
+import { MaterialIcons, MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import { useApp } from '../contexts/AppContext';
-import { translations } from '../constants/translations';
 
-interface NavItem {
-  path: string;
-  icon: keyof typeof MaterialIcons.glyphMap | keyof typeof MaterialCommunityIcons.glyphMap;
-  labelKey: string;
-  iconSet: 'MaterialIcons' | 'MaterialCommunityIcons';
-}
+const { width } = Dimensions.get('window');
 
-const NAV_ITEMS: NavItem[] = [
-  { path: '/', icon: 'home', labelKey: 'home', iconSet: 'MaterialIcons' },
-  { path: '/services', icon: 'wrench', labelKey: 'services', iconSet: 'MaterialCommunityIcons' },
-  { path: '/calculator', icon: 'calculate', labelKey: 'calculator', iconSet: 'MaterialIcons' },
-  { path: '/profile', icon: 'person', labelKey: 'profile', iconSet: 'MaterialIcons' },
+const NAV_ITEMS = [
+  { path: '/(customer)', icon: 'home-outline', activeIcon: 'home', labelAr: 'الرئيسية', labelEn: 'Home' },
+  { path: '/services', icon: 'construct-outline', activeIcon: 'construct', labelAr: 'الخدمات', labelEn: 'Services' },
+  { path: '/calculator', icon: 'calculator-outline', activeIcon: 'calculator', labelAr: 'الحاسبة', labelEn: 'Calculator' },
+  { path: '/profile', icon: 'person-outline', activeIcon: 'person', labelAr: 'حسابي', labelEn: 'Profile' },
 ];
 
 export default function BottomNav() {
   const router = useRouter();
   const pathname = usePathname();
-  const { language, isDark } = useApp();
-  const COLORS = getColors(isDark);
-  const SHADOWS = getShadows(isDark);
+  const { language } = useApp();
   const isRTL = language === 'ar';
-  const t = translations[language];
   
-  const navItems = isRTL ? NAV_ITEMS : [...NAV_ITEMS].reverse();
-  
-  const styles = createStyles(COLORS, SHADOWS);
-  
+  const COLORS = {
+    primary: '#10b981',
+    white: '#ffffff',
+    text: '#1f2937',
+    gray: '#9ca3af',
+    background: '#f9fafb',
+  };
+
+  const navItems = isRTL ? [...NAV_ITEMS].reverse() : NAV_ITEMS;
+
   return (
     <View style={styles.container}>
-      <View style={[styles.navBar, isRTL && styles.navBarRTL]}>
+      <View style={styles.floatingBar}>
         {navItems.map((item) => {
-          const isActive = pathname === item.path || 
-            (item.path === '/' && pathname === '/index');
+          const isActive = pathname === item.path || (item.path === '/(customer)' && pathname === '/');
           
           return (
-            <NavButton
+            <TouchableOpacity 
               key={item.path}
-              item={item}
-              label={t[item.labelKey as keyof typeof t] as string}
-              isActive={isActive}
+              style={styles.navItem}
               onPress={() => router.push(item.path as any)}
-              colors={COLORS}
-              shadows={SHADOWS}
-            />
+              activeOpacity={0.7}
+            >
+              <View style={[styles.iconWrapper, isActive && styles.activeIconWrapper]}>
+                <Ionicons 
+                  name={(isActive ? item.activeIcon : item.icon) as any} 
+                  size={24} 
+                  color={isActive ? COLORS.primary : COLORS.gray} 
+                />
+                {isActive && <View style={styles.activeDot} />}
+              </View>
+              <Text style={[styles.label, isActive && styles.activeLabel]}>
+                {isRTL ? item.labelAr : item.labelEn}
+              </Text>
+            </TouchableOpacity>
           );
         })}
       </View>
-      
-      {/* Home Indicator */}
-      <View style={styles.homeIndicator} />
     </View>
   );
 }
 
-interface NavButtonProps {
-  item: NavItem;
-  label: string;
-  isActive: boolean;
-  onPress: () => void;
-  colors: any;
-  shadows: any;
-}
-
-function NavButton({ item, label, isActive, onPress, colors, shadows }: NavButtonProps) {
-  const scaleAnim = useRef(new Animated.Value(isActive ? 1 : 0)).current;
-  const translateYAnim = useRef(new Animated.Value(isActive ? -10 : 0)).current;
-
-  useEffect(() => {
-    Animated.parallel([
-      Animated.spring(scaleAnim, {
-        toValue: isActive ? 1 : 0,
-        useNativeDriver: true,
-        friction: 8,
-      }),
-      Animated.spring(translateYAnim, {
-        toValue: isActive ? -10 : 0,
-        useNativeDriver: true,
-        friction: 8,
-      }),
-    ]).start();
-  }, [isActive]);
-
-  const IconComponent = item.iconSet === 'MaterialIcons' ? MaterialIcons : MaterialCommunityIcons;
-
-  return (
-    <TouchableOpacity 
-      style={styles.navButton} 
-      onPress={onPress}
-      activeOpacity={0.7}
-    >
-      <Animated.View
-        style={[
-          styles.iconContainer,
-          isActive && [styles.iconContainerActive, { backgroundColor: colors.primary, ...shadows.primaryGlow }],
-          {
-            transform: [{ translateY: translateYAnim }],
-          },
-        ]}
-      >
-        <IconComponent
-          name={item.icon as any}
-          size={24}
-          color={isActive ? colors.white : colors.textSecondary}
-        />
-      </Animated.View>
-      
-      <Animated.View
-        style={{
-          opacity: scaleAnim,
-          transform: [{ scale: scaleAnim }],
-        }}
-      >
-        <Text style={[styles.label, { color: colors.primary }]}>{label}</Text>
-      </Animated.View>
-    </TouchableOpacity>
-  );
-}
-
-const createStyles = (COLORS: any, SHADOWS: any) => StyleSheet.create({
+const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    bottom: 0,
+    bottom: Platform.OS === 'ios' ? 30 : 20,
     left: 0,
     right: 0,
-    backgroundColor: 'transparent',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 20,
   },
-  navBar: {
+  floatingBar: {
     flexDirection: 'row',
+    backgroundColor: '#ffffff',
+    width: '100%',
+    height: 70,
+    borderRadius: 35,
+    alignItems: 'center',
     justifyContent: 'space-around',
+    paddingHorizontal: 10,
+    // Shadow for iOS
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.1,
+    shadowRadius: 20,
+    // Shadow for Android
+    elevation: 10,
+  },
+  navItem: {
     alignItems: 'center',
-    backgroundColor: COLORS.background + 'E6', // 90% opacity
-    borderTopWidth: 1,
-    borderTopColor: COLORS.border,
-    paddingTop: SPACING.sm,
-    paddingBottom: SPACING.md,
-    paddingHorizontal: SPACING.sm,
-    height: 80,
-  },
-  navBarRTL: {
-    flexDirection: 'row-reverse',
-  },
-  navButton: {
+    justifyContent: 'center',
     flex: 1,
+  },
+  iconWrapper: {
+    width: 40,
+    height: 40,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: SPACING.sm,
+    borderRadius: 20,
   },
-  iconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: BORDER_RADIUS.xl,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'transparent',
+  activeIconWrapper: {
+    backgroundColor: '#ecfdf5',
   },
-  iconContainerActive: {
-    // Dynamic styles applied inline
-  },
-  label: {
-    fontSize: 10,
-    fontWeight: 'bold',
-    marginTop: 2,
-  },
-  homeIndicator: {
+  activeDot: {
     position: 'absolute',
-    bottom: 8,
-    left: '50%',
-    marginLeft: -64,
-    width: 128,
+    bottom: -2,
+    width: 4,
     height: 4,
-    backgroundColor: COLORS.textLight,
-    borderRadius: BORDER_RADIUS.full,
-  },
-});
-
-const styles = StyleSheet.create({
-  navButton: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: SPACING.sm,
-  },
-  iconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: BORDER_RADIUS.xl,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'transparent',
+    borderRadius: 2,
+    backgroundColor: '#10b981',
   },
   label: {
     fontSize: 10,
-    fontWeight: 'bold',
+    color: '#9ca3af',
     marginTop: 2,
+    fontWeight: '500',
+  },
+  activeLabel: {
+    color: '#10b981',
+    fontWeight: 'bold',
   },
 });
