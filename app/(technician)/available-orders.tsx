@@ -54,7 +54,7 @@ export default function AvailableOrdersScreen() {
     getTechnicianLocation();
     
     // Set up real-time subscription for new orders
-    const subscription = requests.subscribeToNew((newOrder) => {
+    const subscription = requests.subscribeToOrders((newOrder) => {
       // Add new order to the list
       setOrders(prev => [newOrder, ...prev]);
       

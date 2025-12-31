@@ -65,7 +65,7 @@ export default function AvailableRequestsScreen() {
         return;
       }
 
-      await requests.acceptRequest(parseInt(requestId));
+      await requests.acceptOrder(parseInt(requestId));
 
       Alert.alert('نجح!', 'تم قبول الطلب بنجاح');
       fetchAvailableRequests();
