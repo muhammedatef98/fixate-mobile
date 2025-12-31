@@ -90,6 +90,17 @@ export const auth = {
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
   },
+
+  // Update user profile
+  updateProfile: async (userId: string, updates: { name?: string, phone?: string }) => {
+    const { error } = await supabase.auth.updateUser({
+      data: {
+        name: updates.name,
+        phone: updates.phone
+      }
+    });
+    if (error) throw error;
+  },
 };
 
 // Orders/Requests API
