@@ -49,17 +49,26 @@ export default function LoginScreen() {
 
     setLoading(true);
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
+      // 1. Sign in with Supabase Auth
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
-      if (error) throw error;
+      if (authError) throw authError;
 
-      if (data.user) {
-        // Strict check for customer role
-        const userRole = data.user.user_metadata?.role;
-        // If role is technician, deny access to customer portal
+      if (authData.user) {
+        // 2. Direct Query to profiles/users table to verify role
+        // We check both metadata and a direct query for maximum security
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', authData.user.id)
+          .single();
+
+        // If profile check fails, fallback to metadata but be strict
+        const userRole = profileData?.role || authData.user.user_metadata?.role;
+
         if (userRole === 'technician') {
           await supabase.auth.signOut();
           Alert.alert(
@@ -68,7 +77,8 @@ export default function LoginScreen() {
           );
           return;
         }
-        // Default to customer if no role is set (for old accounts) or if role is explicitly customer
+        
+        // Success: Redirect to customer area
         router.replace('/(customer)');
       }
     } catch (error: any) {
