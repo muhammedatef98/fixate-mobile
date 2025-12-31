@@ -98,7 +98,7 @@ export default function AvailableOrdersScreen() {
         }
       }
       
-      const availableOrders = await requests.getAvailable(city);
+      const availableOrders = await requests.getAvailableOrders(city);
       setOrders(availableOrders || []);
     } catch (error) {
       console.error('Error loading orders:', error);
