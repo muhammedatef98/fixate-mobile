@@ -25,7 +25,7 @@ import { requests } from '../../lib/supabase-api';
 const { width } = Dimensions.get('window');
 
 const DEVICE_CATEGORIES = [
-  { id: 1, titleEn: 'Smartphones', titleAr: 'هواتف ذكية', icon: 'smartphone', color: '#3B82F6' },
+  { id: 1, titleEn: 'Smartphones', titleAr: 'هواتف ذكية', icon: 'cellphone', color: '#3B82F6' },
   { id: 2, titleEn: 'Laptops', titleAr: 'لابتوبات', icon: 'laptop', color: '#8B5CF6' },
   { id: 3, titleEn: 'Tablets', titleAr: 'تابلت', icon: 'tablet', color: '#EC4899' },
   { id: 4, titleEn: 'Smartwatches', titleAr: 'ساعات ذكية', icon: 'watch', color: '#F59E0B' },
