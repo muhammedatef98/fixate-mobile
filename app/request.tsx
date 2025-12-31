@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, Image, Dimensions, TextInput, Animated, Alert, KeyboardAvoidingView, Platform, Modal, I18nManager, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { getColors, getShadows, SPACING, BORDER_RADIUS } from '../constants/theme';
@@ -231,7 +231,7 @@ export default function RequestScreen() {
         service_type: selectedServiceType,
       };
 
-      const result = await requests.createRequest(orderData);
+      const result = await requests.create(orderData);
       
       if (result) {
         // Extract city from address if possible and notify technicians
@@ -280,17 +280,337 @@ export default function RequestScreen() {
     return false;
   };
 
+  const handleNext = () => {
+    if (canGoNext()) {
+      if (currentStep < STEPS.length - 1) {
+        setCurrentStep(currentStep + 1);
+      } else {
+        handleSubmit();
+      }
+    }
+  };
+
+  const handleBack = () => {
+    if (currentStep > 0) {
+      setCurrentStep(currentStep - 1);
+    } else {
+      router.back();
+    }
+  };
+
+  const renderStepContent = () => {
+    switch (currentStep) {
+      case 0:
+        return (
+          <View style={styles.stepContainer}>
+            <Text style={styles.stepTitle}>{isRTL ? 'اختر نوع الخدمة' : 'Select Service Type'}</Text>
+            <View style={styles.serviceGrid}>
+              {SERVICE_TYPES.map((type) => (
+                <TouchableOpacity
+                  key={type.id}
+                  style={[
+                    styles.serviceCard,
+                    selectedServiceType === type.id && styles.selectedCard
+                  ]}
+                  onPress={() => setSelectedServiceType(type.id)}
+                >
+                  <MaterialCommunityIcons 
+                    name={type.icon as any} 
+                    size={40} 
+                    color={selectedServiceType === type.id ? COLORS.primary : COLORS.gray} 
+                  />
+                  <Text style={[
+                    styles.serviceName,
+                    selectedServiceType === type.id && styles.selectedText
+                  ]}>
+                    {isRTL ? type.name : type.nameEn}
+                  </Text>
+                  <Text style={styles.serviceDesc}>
+                    {isRTL ? type.description : type.descriptionEn}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        );
+      case 1:
+        return (
+          <View style={styles.stepContainer}>
+            <Text style={styles.stepTitle}>{isRTL ? 'ما هو نوع جهازك؟' : 'What is your device type?'}</Text>
+            <View style={styles.deviceGrid}>
+              {DEVICE_TYPES.map((type) => (
+                <TouchableOpacity
+                  key={type.id}
+                  style={[
+                    styles.deviceCard,
+                    selectedDeviceType === type.id && styles.selectedCard,
+                    !type.available && styles.disabledCard
+                  ]}
+                  onPress={() => type.available && setSelectedDeviceType(type.id)}
+                  disabled={!type.available}
+                >
+                  <MaterialCommunityIcons 
+                    name={type.icon as any} 
+                    size={32} 
+                    color={selectedDeviceType === type.id ? COLORS.primary : (type.available ? COLORS.gray : '#d1d5db')} 
+                  />
+                  <Text style={[
+                    styles.deviceName,
+                    selectedDeviceType === type.id && styles.selectedText,
+                    !type.available && { color: '#d1d5db' }
+                  ]}>
+                    {isRTL ? type.name : type.nameEn}
+                  </Text>
+                  {!type.available && (
+                    <View style={styles.comingSoonBadge}>
+                      <Text style={styles.comingSoonText}>{isRTL ? 'قريباً' : 'Soon'}</Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        );
+      case 2:
+        return (
+          <View style={styles.stepContainer}>
+            <Text style={styles.stepTitle}>{isRTL ? 'اختر الماركة' : 'Select Brand'}</Text>
+            <View style={styles.searchContainer}>
+              <Ionicons name="search" size={20} color={COLORS.gray} />
+              <TextInput
+                style={styles.searchInput}
+                placeholder={isRTL ? 'ابحث عن ماركة...' : 'Search brand...'}
+                value={brandSearch}
+                onChangeText={setBrandSearch}
+              />
+            </View>
+            <ScrollView style={styles.listContainer} showsVerticalScrollIndicator={false}>
+              <View style={styles.brandGrid}>
+                {filteredBrands.map((brand) => (
+                  <TouchableOpacity
+                    key={brand.id}
+                    style={[
+                      styles.brandCard,
+                      selectedBrand?.id === brand.id && styles.selectedCard
+                    ]}
+                    onPress={() => {
+                      setSelectedBrand(brand);
+                      setSelectedModel(null);
+                      setBrandSearch('');
+                      handleNext();
+                    }}
+                  >
+                    <Image source={{ uri: brand.logo }} style={styles.brandLogo} resizeMode="contain" />
+                    <Text style={[
+                      styles.brandName,
+                      selectedBrand?.id === brand.id && styles.selectedText
+                    ]}>
+                      {brand.name}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+              {filteredBrands.length === 0 && renderEmptyState(isRTL ? 'لا توجد نتائج' : 'No results found')}
+            </ScrollView>
+          </View>
+        );
+      case 3:
+        return (
+          <View style={styles.stepContainer}>
+            <Text style={styles.stepTitle}>{isRTL ? `موديل ${selectedBrand?.name}` : `${selectedBrand?.name} Model`}</Text>
+            <View style={styles.searchContainer}>
+              <Ionicons name="search" size={20} color={COLORS.gray} />
+              <TextInput
+                style={styles.searchInput}
+                placeholder={isRTL ? 'ابحث عن موديل...' : 'Search model...'}
+                value={modelSearch}
+                onChangeText={setModelSearch}
+              />
+            </View>
+            <ScrollView style={styles.listContainer} showsVerticalScrollIndicator={false}>
+              {filteredModels.map((model, index) => (
+                <TouchableOpacity
+                  key={index}
+                  style={[
+                    styles.listItem,
+                    selectedModel === model && styles.selectedListItem
+                  ]}
+                  onPress={() => {
+                    setSelectedModel(model);
+                    setModelSearch('');
+                    handleNext();
+                  }}
+                >
+                  <Text style={[
+                    styles.listItemText,
+                    selectedModel === model && styles.selectedListItemText
+                  ]}>
+                    {model}
+                  </Text>
+                  {selectedModel === model && <Ionicons name="checkmark-circle" size={24} color={COLORS.primary} />}
+                </TouchableOpacity>
+              ))}
+              {filteredModels.length === 0 && renderEmptyState(isRTL ? 'لا توجد نتائج' : 'No results found')}
+            </ScrollView>
+          </View>
+        );
+      case 4:
+        return (
+          <View style={styles.stepContainer}>
+            <Text style={styles.stepTitle}>{isRTL ? 'ما هي المشكلة؟' : 'What is the issue?'}</Text>
+            <View style={styles.searchContainer}>
+              <Ionicons name="search" size={20} color={COLORS.gray} />
+              <TextInput
+                style={styles.searchInput}
+                placeholder={isRTL ? 'ابحث عن العطل...' : 'Search issue...'}
+                value={issueSearch}
+                onChangeText={setIssueSearch}
+              />
+            </View>
+            <ScrollView style={styles.listContainer} showsVerticalScrollIndicator={false}>
+              {filteredIssues.map((issue) => (
+                <TouchableOpacity
+                  key={issue.id}
+                  style={[
+                    styles.listItem,
+                    selectedIssue?.id === issue.id && styles.selectedListItem
+                  ]}
+                  onPress={() => {
+                    setSelectedIssue(issue);
+                    setIssueSearch('');
+                    handleNext();
+                  }}
+                >
+                  <View style={{ flex: 1 }}>
+                    <Text style={[
+                      styles.listItemText,
+                      selectedIssue?.id === issue.id && styles.selectedListItemText
+                    ]}>
+                      {issue.name}
+                    </Text>
+                    <Text style={styles.issuePrice}>
+                      {isRTL ? 'السعر التقديري: ' : 'Est. Price: '}
+                      {issue.price} {isRTL ? 'ر.س' : 'SAR'}
+                    </Text>
+                  </View>
+                  {selectedIssue?.id === issue.id && <Ionicons name="checkmark-circle" size={24} color={COLORS.primary} />}
+                </TouchableOpacity>
+              ))}
+              {filteredIssues.length === 0 && renderEmptyState(isRTL ? 'لا توجد نتائج' : 'No results found')}
+            </ScrollView>
+          </View>
+        );
+      case 5:
+        return (
+          <KeyboardAvoidingView 
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            style={styles.stepContainer}
+          >
+            <Text style={styles.stepTitle}>{isRTL ? 'تفاصيل إضافية' : 'Additional Details'}</Text>
+            <Text style={styles.stepSubtitle}>
+              {isRTL ? 'اشرح المشكلة أكثر أو أضف صوراً (اختياري)' : 'Explain more or add photos (optional)'}
+            </Text>
+            
+            <TextInput
+              style={styles.detailsInput}
+              placeholder={isRTL ? 'اكتب هنا...' : 'Type here...'}
+              multiline
+              numberOfLines={4}
+              value={issueDescription}
+              onChangeText={setIssueDescription}
+              textAlignVertical="top"
+            />
+            
+            <Text style={styles.sectionTitle}>{isRTL ? 'الصور' : 'Photos'}</Text>
+            <View style={styles.mediaGrid}>
+              {mediaFiles.map((uri, index) => (
+                <View key={index} style={styles.mediaWrapper}>
+                  <Image source={{ uri }} style={styles.mediaItem} />
+                  <TouchableOpacity 
+                    style={styles.removeMedia}
+                    onPress={() => setMediaFiles(mediaFiles.filter((_, i) => i !== index))}
+                  >
+                    <Ionicons name="close-circle" size={20} color={COLORS.error} />
+                  </TouchableOpacity>
+                </View>
+              ))}
+              {mediaFiles.length < 5 && (
+                <TouchableOpacity style={styles.addMediaButton} onPress={pickImage}>
+                  <Ionicons name="camera-outline" size={32} color={COLORS.gray} />
+                  <Text style={styles.addMediaText}>{isRTL ? 'إضافة' : 'Add'}</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          </KeyboardAvoidingView>
+        );
+      case 6:
+        return (
+          <View style={styles.stepContainer}>
+            <Text style={styles.stepTitle}>{isRTL ? 'حدد موقعك' : 'Set Your Location'}</Text>
+            <View style={styles.mapWrapper}>
+              <MapView
+                provider={PROVIDER_GOOGLE}
+                style={styles.map}
+                initialRegion={location || {
+                  latitude: 24.7136,
+                  longitude: 46.6753,
+                  latitudeDelta: 10,
+                  longitudeDelta: 10,
+                }}
+                region={location}
+                onPress={(e) => {
+                  const coord = e.nativeEvent.coordinate;
+                  setLocation({
+                    ...coord,
+                    latitudeDelta: 0.005,
+                    longitudeDelta: 0.005,
+                  });
+                  // Reverse geocode would go here in a real app
+                }}
+              >
+                {location && <Marker coordinate={location} />}
+              </MapView>
+              
+              <TouchableOpacity 
+                style={styles.locateButton} 
+                onPress={handleLocationRequest}
+                disabled={isLocating}
+              >
+                {isLocating ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <>
+                    <Ionicons name="locate" size={20} color="#fff" />
+                    <Text style={styles.locateButtonText}>{isRTL ? 'تحديد موقعي الحالي' : 'Use Current Location'}</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </View>
+            
+            {address ? (
+              <View style={styles.addressContainer}>
+                <Ionicons name="location" size={20} color={COLORS.primary} />
+                <Text style={styles.addressText} numberOfLines={2}>{address}</Text>
+              </View>
+            ) : null}
+          </View>
+        );
+      default:
+        return null;
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => currentStep > 0 ? setCurrentStep(currentStep - 1) : router.back()} style={styles.backButton}>
-          <Ionicons name={isRTL ? "chevron-forward" : "chevron-back"} size={24} color={COLORS.text} />
+        <TouchableOpacity onPress={handleBack} style={styles.backButton}>
+          <Ionicons name={isRTL ? "chevron-forward" : "chevron-back"} size={28} color={COLORS.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{isRTL ? 'طلب صيانة' : 'Repair Request'}</Text>
         <View style={{ width: 40 }} />
       </View>
 
-      <View style={styles.stepperContainer}>
+      <View style={styles.stepperWrapper}>
         <ScrollView 
           ref={stepperScrollRef}
           horizontal 
@@ -299,251 +619,56 @@ export default function RequestScreen() {
         >
           {STEPS.map((step, index) => (
             <View key={index} style={styles.stepItem}>
-              <View style={[styles.stepCircle, currentStep >= index && styles.activeStepCircle]}>
+              <View style={[
+                styles.stepCircle,
+                currentStep === index && styles.activeStepCircle,
+                currentStep > index && styles.completedStepCircle
+              ]}>
                 {currentStep > index ? (
                   <Ionicons name="checkmark" size={16} color="#fff" />
                 ) : (
-                  <Text style={[styles.stepNumber, currentStep >= index && styles.activeStepNumber]}>{index + 1}</Text>
+                  <Text style={[
+                    styles.stepNumber,
+                    currentStep === index && styles.activeStepNumber
+                  ]}>{index + 1}</Text>
                 )}
               </View>
-              <Text style={[styles.stepLabel, currentStep >= index && styles.activeStepLabel]}>{step}</Text>
-              {index < STEPS.length - 1 && <View style={[styles.stepLine, currentStep > index && styles.activeStepLine]} />}
+              <Text style={[
+                styles.stepLabel,
+                currentStep === index && styles.activeStepLabel
+              ]}>{step}</Text>
+              {index < STEPS.length - 1 && <View style={styles.stepLine} />}
             </View>
           ))}
         </ScrollView>
       </View>
 
-      <Animated.View style={[styles.content, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
-        {currentStep === 0 && (
-          <ScrollView>
-            <Text style={styles.sectionTitle}>{isRTL ? 'اختر نوع الخدمة' : 'Select Service Type'}</Text>
-            {SERVICE_TYPES.map((type) => (
-              <TouchableOpacity 
-                key={type.id} 
-                style={[styles.serviceCard, selectedServiceType === type.id && styles.selectedCard]}
-                onPress={() => setSelectedServiceType(type.id)}
-              >
-                <MaterialCommunityIcons name={type.icon as any} size={32} color={selectedServiceType === type.id ? COLORS.primary : COLORS.gray} />
-                <View style={styles.serviceInfo}>
-                  <Text style={styles.serviceName}>{isRTL ? type.name : type.nameEn}</Text>
-                  <Text style={styles.serviceDesc}>{isRTL ? type.description : type.descriptionEn}</Text>
-                </View>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        )}
-
-        {currentStep === 1 && (
-          <ScrollView>
-            <Text style={styles.sectionTitle}>{isRTL ? 'اختر نوع الجهاز' : 'Select Device Type'}</Text>
-            <View style={styles.deviceGrid}>
-              {DEVICE_TYPES.map((device) => (
-                <TouchableOpacity 
-                  key={device.id} 
-                  style={[styles.deviceCard, selectedDeviceType === device.id && styles.selectedCard]}
-                  onPress={() => {
-                    if (device.available) {
-                      setSelectedDeviceType(device.id);
-                    } else {
-                      Alert.alert(isRTL ? 'قريباً' : 'Coming Soon', isRTL ? 'هذه الخدمة ستتوفر قريباً' : 'This service will be available soon');
-                    }
-                  }}
-                >
-                  <MaterialCommunityIcons name={device.icon as any} size={32} color={selectedDeviceType === device.id ? COLORS.primary : COLORS.gray} />
-                  <Text style={styles.deviceName}>{isRTL ? device.name : device.nameEn}</Text>
-                  {!device.available && <View style={styles.comingSoonBadge}><Text style={styles.comingSoonText}>{isRTL ? 'قريباً' : 'Soon'}</Text></View>}
-                </TouchableOpacity>
-              ))}
-            </View>
-          </ScrollView>
-        )}
-
-        {currentStep === 2 && (
-          <View style={{ flex: 1 }}>
-            <View style={styles.searchBar}>
-              <Ionicons name="search" size={20} color={COLORS.gray} />
-              <TextInput 
-                placeholder={isRTL ? 'ابحث عن الماركة...' : 'Search brand...'}
-                style={styles.searchInput}
-                value={brandSearch}
-                onChangeText={setBrandSearch}
-              />
-            </View>
-            <ScrollView contentContainerStyle={styles.brandGrid}>
-              {filteredBrands.length > 0 ? filteredBrands.map((brand) => (
-                <TouchableOpacity 
-                  key={brand.id} 
-                  style={[styles.brandCard, selectedBrand?.id === brand.id && styles.selectedCard]}
-                  onPress={() => setSelectedBrand(brand)}
-                >
-                  <View style={styles.brandLogoContainer}>
-                    <Image 
-                      source={typeof brand.logo === 'string' ? { uri: brand.logo } : brand.logo} 
-                      style={styles.brandLogo} 
-                      resizeMode="contain" 
-                    />
-                  </View>
-                  <Text style={styles.brandNameText}>{brand.name}</Text>
-                </TouchableOpacity>
-              )) : renderEmptyState(isRTL ? 'لا توجد نتائج' : 'No results found')}
-            </ScrollView>
-          </View>
-        )}
-
-        {currentStep === 3 && (
-          <View style={{ flex: 1 }}>
-            <View style={styles.searchBar}>
-              <Ionicons name="search" size={20} color={COLORS.gray} />
-              <TextInput 
-                placeholder={isRTL ? 'ابحث عن الموديل...' : 'Search model...'}
-                style={styles.searchInput}
-                value={modelSearch}
-                onChangeText={setModelSearch}
-              />
-            </View>
-            <ScrollView>
-              {filteredModels.length > 0 ? filteredModels.map((model, index) => (
-                <TouchableOpacity 
-                  key={index} 
-                  style={[styles.listItem, selectedModel === model && styles.selectedListItem]}
-                  onPress={() => setSelectedModel(model)}
-                >
-                  <Text style={[styles.listItemText, selectedModel === model && styles.selectedListItemText]}>{model}</Text>
-                  {selectedModel === model && <Ionicons name="checkmark-circle" size={24} color={COLORS.primary} />}
-                </TouchableOpacity>
-              )) : renderEmptyState(isRTL ? 'لا توجد نتائج' : 'No results found')}
-            </ScrollView>
-          </View>
-        )}
-
-        {currentStep === 4 && (
-          <View style={{ flex: 1 }}>
-            <View style={styles.searchBar}>
-              <Ionicons name="search" size={20} color={COLORS.gray} />
-              <TextInput 
-                placeholder={isRTL ? 'ابحث عن العطل...' : 'Search issue...'}
-                style={styles.searchInput}
-                value={issueSearch}
-                onChangeText={setIssueSearch}
-              />
-            </View>
-            <ScrollView>
-              {filteredIssues.length > 0 ? filteredIssues.map((issue) => (
-                <TouchableOpacity 
-                  key={issue.id} 
-                  style={[styles.issueCard, selectedIssue?.id === issue.id && styles.selectedCard]}
-                  onPress={() => setSelectedIssue(issue)}
-                >
-                  <View style={styles.issueInfo}>
-                    <Text style={styles.issueName}>{isRTL ? issue.nameAr : issue.name}</Text>
-                    <Text style={styles.issuePrice}>
-                      {issue.id === 'other' 
-                        ? (isRTL ? 'حسب العطل سيتم التقدير' : 'Price based on diagnosis')
-                        : (isRTL ? `يبدأ من ${issue.estimatedPrice} ر.س` : `Starts from ${issue.estimatedPrice} SAR`)}
-                    </Text>
-                  </View>
-                  <MaterialCommunityIcons name={issue.icon as any} size={24} color={selectedIssue?.id === issue.id ? COLORS.primary : COLORS.gray} />
-                </TouchableOpacity>
-              )) : renderEmptyState(isRTL ? 'لا توجد نتائج' : 'No results found')}
-            </ScrollView>
-          </View>
-        )}
-
-        {currentStep === 5 && (
-          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
-            <ScrollView>
-              <Text style={styles.sectionTitle}>{isRTL ? 'تفاصيل إضافية' : 'Additional Details'}</Text>
-              <TextInput
-                style={styles.textArea}
-                placeholder={isRTL ? 'اشرح العطل بالتفصيل (اختياري)...' : 'Describe the issue in detail (optional)...'}
-                multiline
-                numberOfLines={6}
-                value={issueDescription}
-                onChangeText={setIssueDescription}
-                textAlignVertical="top"
-              />
-              
-              <Text style={[styles.sectionTitle, { marginTop: 24 }]}>{isRTL ? 'صور أو فيديو' : 'Photos or Video'}</Text>
-              <View style={styles.mediaContainer}>
-                <TouchableOpacity style={styles.addMediaButton} onPress={pickImage}>
-                  <Ionicons name="camera" size={32} color={COLORS.gray} />
-                  <Text style={styles.addMediaText}>{isRTL ? 'إضافة' : 'Add'}</Text>
-                </TouchableOpacity>
-                {mediaFiles.map((uri, index) => (
-                  <View key={index} style={styles.mediaWrapper}>
-                    <Image source={{ uri }} style={styles.mediaThumb} />
-                    <TouchableOpacity 
-                      style={styles.removeMediaBtn} 
-                      onPress={() => setMediaFiles(mediaFiles.filter((_, i) => i !== index))}
-                    >
-                      <Ionicons name="close-circle" size={20} color={COLORS.error} />
-                    </TouchableOpacity>
-                  </View>
-                ))}
-              </View>
-            </ScrollView>
-          </KeyboardAvoidingView>
-        )}
-
-        {currentStep === 6 && (
-          <View style={{ flex: 1 }}>
-            <Text style={styles.sectionTitle}>{isRTL ? 'حدد موقعك' : 'Set Your Location'}</Text>
-            <View style={styles.mapContainer}>
-              {location ? (
-                <MapView
-                  provider={PROVIDER_GOOGLE}
-                  style={styles.map}
-                  initialRegion={location}
-                  onRegionChangeComplete={(region) => setLocation(region)}
-                >
-                  <Marker coordinate={location} />
-                </MapView>
-              ) : (
-                <View style={styles.mapPlaceholder}>
-                  <MaterialCommunityIcons name="map-marker-radius" size={64} color={COLORS.gray} />
-                  <Text style={styles.mapPlaceholderText}>{isRTL ? 'الخريطة ستظهر هنا' : 'Map will appear here'}</Text>
-                </View>
-              )}
-              <TouchableOpacity 
-                style={styles.locationButton} 
-                onPress={handleLocationRequest}
-                disabled={isLocating}
-              >
-                {isLocating ? (
-                  <ActivityIndicator color="#fff" />
-                ) : (
-                  <>
-                    <Ionicons name="locate" size={24} color="#fff" />
-                    <Text style={styles.locationButtonText}>{isRTL ? 'تحديد موقعي الحالي' : 'Use My Current Location'}</Text>
-                  </>
-                )}
-              </TouchableOpacity>
-            </View>
-            {address ? (
-              <View style={styles.addressContainer}>
-                <Ionicons name="location" size={20} color={COLORS.primary} />
-                <Text style={styles.addressText}>{address}</Text>
-              </View>
-            ) : null}
-          </View>
-        )}
+      <Animated.View style={[
+        styles.content,
+        { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }
+      ]}>
+        {renderStepContent()}
       </Animated.View>
 
       <View style={styles.footer}>
         <TouchableOpacity 
-          style={[styles.nextButton, (!canGoNext() || isSubmitting) && { opacity: 0.5 }]} 
-          onPress={() => {
-            if (currentStep < STEPS.length - 1) setCurrentStep(currentStep + 1);
-            else handleSubmit();
-          }}
+          style={[styles.nextButton, !canGoNext() && styles.disabledButton]}
+          onPress={handleNext}
           disabled={!canGoNext() || isSubmitting}
         >
           {isSubmitting ? (
             <ActivityIndicator color="#fff" />
           ) : (
-            <Text style={styles.nextButtonText}>
-              {currentStep === STEPS.length - 1 ? (isRTL ? 'إرسال الطلب' : 'Submit Request') : (isRTL ? 'التالي' : 'Next')}
-            </Text>
+            <>
+              <Text style={styles.nextButtonText}>
+                {currentStep === STEPS.length - 1 
+                  ? (isRTL ? 'إرسال الطلب' : 'Submit Request') 
+                  : (isRTL ? 'التالي' : 'Next')}
+              </Text>
+              {currentStep < STEPS.length - 1 && (
+                <Ionicons name={isRTL ? "arrow-back" : "arrow-forward"} size={20} color="#fff" />
+              )}
+            </>
           )}
         </TouchableOpacity>
       </View>
@@ -551,67 +676,378 @@ export default function RequestScreen() {
   );
 }
 
-const createStyles = (COLORS: any, isRTL: boolean) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.background },
-  header: { flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, backgroundColor: '#fff' },
-  headerTitle: { fontSize: 18, fontWeight: 'bold', color: COLORS.text },
-  backButton: { padding: 8 },
-  stepperContainer: { backgroundColor: '#fff', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: COLORS.border },
-  stepperContent: { paddingHorizontal: 16 },
-  stepItem: { flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', marginHorizontal: 8 },
-  stepCircle: { width: 28, height: 28, borderRadius: 14, backgroundColor: '#e5e7eb', justifyContent: 'center', alignItems: 'center', marginHorizontal: 4 },
-  activeStepCircle: { backgroundColor: COLORS.primary },
-  stepNumber: { fontSize: 12, color: COLORS.gray, fontWeight: 'bold' },
-  activeStepNumber: { color: '#fff' },
-  stepLabel: { fontSize: 12, color: COLORS.gray, marginHorizontal: 4 },
-  activeStepLabel: { color: COLORS.primary, fontWeight: 'bold' },
-  stepLine: { width: 20, height: 2, backgroundColor: '#e5e7eb', marginHorizontal: 4 },
-  activeStepLine: { backgroundColor: COLORS.primary },
-  content: { flex: 1, padding: 16 },
-  sectionTitle: { fontSize: 20, fontWeight: 'bold', color: COLORS.text, marginBottom: 16, textAlign: isRTL ? 'right' : 'left' },
-  serviceCard: { flexDirection: isRTL ? 'row-reverse' : 'row', backgroundColor: '#fff', padding: 16, borderRadius: 12, marginBottom: 12, borderWidth: 1, borderColor: COLORS.border, alignItems: 'center' },
-  selectedCard: { borderColor: COLORS.primary, backgroundColor: '#ecfdf5' },
-  serviceInfo: { flex: 1, marginHorizontal: 12 },
-  serviceName: { fontSize: 16, fontWeight: 'bold', color: COLORS.text, textAlign: isRTL ? 'right' : 'left' },
-  serviceDesc: { fontSize: 12, color: COLORS.gray, marginTop: 4, textAlign: isRTL ? 'right' : 'left' },
-  deviceGrid: { flexDirection: isRTL ? 'row-reverse' : 'row', flexWrap: 'wrap', gap: 12 },
-  deviceCard: { width: (width - 44) / 2, backgroundColor: '#fff', padding: 16, borderRadius: 12, alignItems: 'center', borderWidth: 1, borderColor: COLORS.border },
-  deviceName: { marginTop: 8, fontSize: 14, fontWeight: '600', color: COLORS.text },
-  comingSoonBadge: { position: 'absolute', top: 8, right: 8, backgroundColor: '#f3f4f6', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
-  comingSoonText: { fontSize: 10, color: '#9ca3af' },
-  searchBar: { flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', backgroundColor: '#fff', paddingHorizontal: 12, height: 48, borderRadius: 12, borderWidth: 1, borderColor: COLORS.border, marginBottom: 16 },
-  searchInput: { flex: 1, marginHorizontal: 8, textAlign: isRTL ? 'right' : 'left' },
-  brandGrid: { flexDirection: isRTL ? 'row-reverse' : 'row', flexWrap: 'wrap', gap: 12 },
-  brandCard: { width: (width - 56) / 3, backgroundColor: '#fff', padding: 12, borderRadius: 12, alignItems: 'center', borderWidth: 1, borderColor: COLORS.border },
-  brandLogoContainer: { width: 50, height: 50, justifyContent: 'center', alignItems: 'center', marginBottom: 8 },
-  brandLogo: { width: 40, height: 40 },
-  brandNameText: { fontSize: 12, fontWeight: '600', color: COLORS.text },
-  listItem: { flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, backgroundColor: '#fff', borderRadius: 12, marginBottom: 8, borderWidth: 1, borderColor: COLORS.border },
-  selectedListItem: { borderColor: COLORS.primary, backgroundColor: '#ecfdf5' },
-  listItemText: { fontSize: 16, color: COLORS.text },
-  selectedListItemText: { fontWeight: 'bold', color: COLORS.primary },
-  issueCard: { flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, backgroundColor: '#fff', borderRadius: 12, marginBottom: 12, borderWidth: 1, borderColor: COLORS.border },
-  issueInfo: { flex: 1 },
-  issueName: { fontSize: 16, fontWeight: 'bold', color: COLORS.text, textAlign: isRTL ? 'right' : 'left' },
-  issuePrice: { fontSize: 14, color: COLORS.primary, marginTop: 4, textAlign: isRTL ? 'right' : 'left' },
-  textArea: { backgroundColor: '#fff', borderRadius: 12, padding: 16, borderWidth: 1, borderColor: COLORS.border, fontSize: 16, color: COLORS.text, textAlign: isRTL ? 'right' : 'left' },
-  mediaContainer: { flexDirection: isRTL ? 'row-reverse' : 'row', flexWrap: 'wrap', gap: 12, marginTop: 12 },
-  addMediaButton: { width: 80, height: 80, borderRadius: 12, borderStyle: 'dashed', borderWidth: 2, borderColor: COLORS.border, justifyContent: 'center', alignItems: 'center' },
-  addMediaText: { fontSize: 12, color: COLORS.gray, marginTop: 4 },
-  mediaWrapper: { position: 'relative' },
-  mediaThumb: { width: 80, height: 80, borderRadius: 12 },
-  removeMediaBtn: { position: 'absolute', top: -8, right: -8, backgroundColor: '#fff', borderRadius: 10 },
-  mapContainer: { flex: 1, borderRadius: 16, overflow: 'hidden', marginBottom: 16 },
-  map: { flex: 1 },
-  mapPlaceholder: { flex: 1, backgroundColor: '#f3f4f6', justifyContent: 'center', alignItems: 'center' },
-  mapPlaceholderText: { marginTop: 12, fontSize: 16, color: COLORS.gray },
-  locationButton: { position: 'absolute', bottom: 16, left: 16, right: 16, backgroundColor: COLORS.primary, height: 48, borderRadius: 24, flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
-  locationButtonText: { color: '#fff', fontWeight: 'bold' },
-  addressContainer: { flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', padding: 12, backgroundColor: '#ecfdf5', borderRadius: 12, gap: 8 },
-  addressText: { flex: 1, fontSize: 14, color: COLORS.text, textAlign: isRTL ? 'right' : 'left' },
-  emptyState: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 40 },
-  emptyStateText: { marginTop: 12, fontSize: 16, color: COLORS.gray },
-  footer: { padding: 16, backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: COLORS.border },
-  nextButton: { backgroundColor: COLORS.primary, height: 56, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
-  nextButtonText: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
-});
+function createStyles(COLORS: any, isRTL: boolean) {
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: COLORS.background,
+    },
+    header: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      backgroundColor: '#fff',
+    },
+    backButton: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    headerTitle: {
+      fontSize: 18,
+      fontWeight: 'bold',
+      color: COLORS.text,
+    },
+    stepperWrapper: {
+      backgroundColor: '#fff',
+      paddingVertical: 12,
+      borderBottomWidth: 1,
+      borderBottomColor: COLORS.border,
+    },
+    stepperContent: {
+      paddingHorizontal: 16,
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+    },
+    stepItem: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
+      marginRight: isRTL ? 0 : 12,
+      marginLeft: isRTL ? 12 : 0,
+    },
+    stepCircle: {
+      width: 24,
+      height: 24,
+      borderRadius: 12,
+      borderWidth: 2,
+      borderColor: COLORS.border,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: '#fff',
+    },
+    activeStepCircle: {
+      borderColor: COLORS.primary,
+      backgroundColor: '#fff',
+    },
+    completedStepCircle: {
+      borderColor: COLORS.primary,
+      backgroundColor: COLORS.primary,
+    },
+    stepNumber: {
+      fontSize: 12,
+      fontWeight: 'bold',
+      color: COLORS.gray,
+    },
+    activeStepNumber: {
+      color: COLORS.primary,
+    },
+    stepLabel: {
+      fontSize: 12,
+      color: COLORS.gray,
+      marginHorizontal: 8,
+    },
+    activeStepLabel: {
+      color: COLORS.primary,
+      fontWeight: 'bold',
+    },
+    stepLine: {
+      width: 20,
+      height: 2,
+      backgroundColor: COLORS.border,
+    },
+    content: {
+      flex: 1,
+      padding: 20,
+    },
+    stepContainer: {
+      flex: 1,
+    },
+    stepTitle: {
+      fontSize: 22,
+      fontWeight: 'bold',
+      color: COLORS.text,
+      marginBottom: 8,
+      textAlign: isRTL ? 'right' : 'left',
+    },
+    stepSubtitle: {
+      fontSize: 14,
+      color: COLORS.gray,
+      marginBottom: 20,
+      textAlign: isRTL ? 'right' : 'left',
+    },
+    serviceGrid: {
+      flexDirection: 'column',
+      gap: 16,
+    },
+    serviceCard: {
+      backgroundColor: '#fff',
+      borderRadius: 16,
+      padding: 20,
+      borderWidth: 2,
+      borderColor: 'transparent',
+      ...getShadows().small,
+      alignItems: isRTL ? 'flex-end' : 'flex-start',
+    },
+    selectedCard: {
+      borderColor: COLORS.primary,
+      backgroundColor: COLORS.lightGreen,
+    },
+    serviceName: {
+      fontSize: 18,
+      fontWeight: 'bold',
+      color: COLORS.text,
+      marginTop: 12,
+      marginBottom: 4,
+    },
+    serviceDesc: {
+      fontSize: 14,
+      color: COLORS.gray,
+      textAlign: isRTL ? 'right' : 'left',
+    },
+    deviceGrid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 12,
+    },
+    deviceCard: {
+      width: (width - 52) / 2,
+      backgroundColor: '#fff',
+      borderRadius: 16,
+      padding: 16,
+      alignItems: 'center',
+      borderWidth: 2,
+      borderColor: 'transparent',
+      ...getShadows().small,
+    },
+    disabledCard: {
+      opacity: 0.6,
+      backgroundColor: '#f3f4f6',
+    },
+    deviceName: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: COLORS.text,
+      marginTop: 8,
+    },
+    comingSoonBadge: {
+      position: 'absolute',
+      top: 8,
+      right: 8,
+      backgroundColor: '#e5e7eb',
+      paddingHorizontal: 6,
+      paddingVertical: 2,
+      borderRadius: 4,
+    },
+    comingSoonText: {
+      fontSize: 10,
+      color: COLORS.gray,
+    },
+    searchContainer: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
+      backgroundColor: '#fff',
+      borderRadius: 12,
+      paddingHorizontal: 12,
+      marginBottom: 16,
+      borderWidth: 1,
+      borderColor: COLORS.border,
+    },
+    searchInput: {
+      flex: 1,
+      height: 44,
+      paddingHorizontal: 12,
+      textAlign: isRTL ? 'right' : 'left',
+    },
+    listContainer: {
+      flex: 1,
+    },
+    brandGrid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 12,
+    },
+    brandCard: {
+      width: (width - 52) / 3,
+      backgroundColor: '#fff',
+      borderRadius: 12,
+      padding: 12,
+      alignItems: 'center',
+      borderWidth: 2,
+      borderColor: 'transparent',
+      ...getShadows().small,
+    },
+    brandLogo: {
+      width: 40,
+      height: 40,
+      marginBottom: 8,
+    },
+    brandName: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: COLORS.text,
+    },
+    listItem: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
+      backgroundColor: '#fff',
+      padding: 16,
+      borderRadius: 12,
+      marginBottom: 8,
+      borderWidth: 1,
+      borderColor: COLORS.border,
+    },
+    selectedListItem: {
+      borderColor: COLORS.primary,
+      backgroundColor: COLORS.lightGreen,
+    },
+    listItemText: {
+      fontSize: 16,
+      color: COLORS.text,
+      textAlign: isRTL ? 'right' : 'left',
+    },
+    selectedListItemText: {
+      color: COLORS.primary,
+      fontWeight: 'bold',
+    },
+    issuePrice: {
+      fontSize: 12,
+      color: COLORS.gray,
+      marginTop: 4,
+      textAlign: isRTL ? 'right' : 'left',
+    },
+    detailsInput: {
+      backgroundColor: '#fff',
+      borderRadius: 12,
+      padding: 16,
+      height: 120,
+      borderWidth: 1,
+      borderColor: COLORS.border,
+      marginBottom: 20,
+      textAlign: isRTL ? 'right' : 'left',
+    },
+    sectionTitle: {
+      fontSize: 16,
+      fontWeight: 'bold',
+      color: COLORS.text,
+      marginBottom: 12,
+      textAlign: isRTL ? 'right' : 'left',
+    },
+    mediaGrid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 12,
+    },
+    mediaWrapper: {
+      position: 'relative',
+    },
+    mediaItem: {
+      width: 80,
+      height: 80,
+      borderRadius: 8,
+    },
+    removeMedia: {
+      position: 'absolute',
+      top: -8,
+      right: -8,
+      backgroundColor: '#fff',
+      borderRadius: 10,
+    },
+    addMediaButton: {
+      width: 80,
+      height: 80,
+      borderRadius: 8,
+      borderWidth: 2,
+      borderColor: COLORS.border,
+      borderStyle: 'dashed',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    addMediaText: {
+      fontSize: 12,
+      color: COLORS.gray,
+      marginTop: 4,
+    },
+    mapWrapper: {
+      flex: 1,
+      borderRadius: 16,
+      overflow: 'hidden',
+      marginBottom: 16,
+      position: 'relative',
+    },
+    map: {
+      ...StyleSheet.absoluteFillObject,
+    },
+    locateButton: {
+      position: 'absolute',
+      bottom: 16,
+      left: 16,
+      right: 16,
+      backgroundColor: COLORS.primary,
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 12,
+      borderRadius: 12,
+      ...getShadows().medium,
+    },
+    locateButtonText: {
+      color: '#fff',
+      fontWeight: 'bold',
+      marginHorizontal: 8,
+    },
+    addressContainer: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
+      backgroundColor: COLORS.lightGreen,
+      padding: 12,
+      borderRadius: 12,
+    },
+    addressText: {
+      flex: 1,
+      fontSize: 14,
+      color: COLORS.text,
+      marginHorizontal: 8,
+      textAlign: isRTL ? 'right' : 'left',
+    },
+    footer: {
+      padding: 20,
+      backgroundColor: '#fff',
+      borderTopWidth: 1,
+      borderTopColor: COLORS.border,
+    },
+    nextButton: {
+      backgroundColor: COLORS.primary,
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 16,
+      borderRadius: 12,
+      ...getShadows().medium,
+    },
+    disabledButton: {
+      backgroundColor: '#d1d5db',
+    },
+    nextButtonText: {
+      color: '#fff',
+      fontSize: 18,
+      fontWeight: 'bold',
+      marginHorizontal: 8,
+    },
+    selectedText: {
+      color: COLORS.primary,
+    },
+    emptyState: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 40,
+    },
+    emptyStateText: {
+      marginTop: 12,
+      color: COLORS.gray,
+      fontSize: 16,
+    }
+  });
+}
