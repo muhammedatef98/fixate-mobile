@@ -10,9 +10,11 @@ import {
   Alert,
   Dimensions,
   SafeAreaView,
+  Image,
+  StatusBar,
 } from 'react-native';
 import { Link, useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useApp } from '../contexts/AppContext';
 import { supabase } from '../lib/supabase';
 
@@ -25,14 +27,15 @@ export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [isLogin, setIsLogin] = useState(true);
 
-  // Pure white theme colors
   const COLORS = {
     primary: '#10b981',
-    background: '#ffffff',
-    card: '#ffffff',
+    background: '#f9fafb',
+    white: '#ffffff',
     text: '#1f2937',
-    gray: '#6b7280',
+    gray: '#9ca3af',
+    lightGray: '#f3f4f6',
     border: '#e5e7eb',
   };
 
@@ -52,108 +55,100 @@ export default function LoginScreen() {
       return;
     }
 
-    Alert.alert(isRTL ? 'نجح' : 'Success', isRTL ? 'تم تسجيل الدخول بنجاح' : 'Logged in successfully', [
-      {
-        text: isRTL ? 'حسناً' : 'OK',
-        onPress: () => router.push('/'),
-      },
-    ]);
-  };
-
-  const handleGoogleLogin = async () => {
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-    });
-
-    if (error) {
-      Alert.alert(isRTL ? 'خطأ' : 'Error', error.message);
-    }
-  };
-
-  const handleAppleLogin = async () => {
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'apple',
-    });
-
-    if (error) {
-      Alert.alert(isRTL ? 'خطأ' : 'Error', error.message);
-    }
-  };
-
-  const handleFacebookLogin = async () => {
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'facebook',
-    });
-
-    if (error) {
-      Alert.alert(isRTL ? 'خطأ' : 'Error', error.message);
-    }
+    router.push('/');
   };
 
   const styles = createStyles(COLORS, isRTL);
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
+      <StatusBar barStyle="light-content" />
+      
+      {/* Green Header Bar */}
+      <View style={styles.greenHeader}>
+        <SafeAreaView>
+          <View style={styles.headerContent}>
+            <TouchableOpacity 
+              style={styles.headerBackButton}
+              onPress={() => router.back()}
+            >
+              <Ionicons name={isRTL ? "chevron-forward" : "chevron-back"} size={24} color="#fff" />
+              <Text style={styles.headerBackText}>{isRTL ? 'رجوع' : 'Back'}</Text>
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>{isRTL ? 'تسجيل الدخول' : 'Login'}</Text>
+            <View style={{ width: 80 }} />
+          </View>
+        </SafeAreaView>
+      </View>
+
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
         <View style={styles.content}>
-          {/* Back Button */}
-          <TouchableOpacity 
-            style={styles.backButton}
-            onPress={() => router.push('/role-selection')}
-          >
-            <Ionicons name={isRTL ? "arrow-forward" : "arrow-back"} size={24} color={COLORS.text} />
-          </TouchableOpacity>
-
-          <View style={styles.header}>
-            <View style={styles.iconContainer}>
-              <Ionicons name="log-in" size={48} color={COLORS.primary} />
+          {/* Logo Section */}
+          <View style={styles.logoSection}>
+            <View style={styles.logoCircle}>
+              <MaterialCommunityIcons name="cellphone-cog" size={50} color={COLORS.primary} />
             </View>
-            <Text style={styles.title}>{isRTL ? 'مرحباً بعودتك!' : 'Welcome Back!'}</Text>
-            <Text style={styles.subtitle}>{isRTL ? 'سجل دخولك للمتابعة' : 'Sign in to continue'}</Text>
+            <Text style={styles.brandName}>Fixate</Text>
+            <Text style={styles.brandSlogan}>{isRTL ? 'شريكك الموثوق للصيانة' : 'Your Trusted Repair Partner'}</Text>
           </View>
 
+          {/* Toggle Login/Signup */}
+          <View style={styles.toggleContainer}>
+            <TouchableOpacity 
+              style={[styles.toggleButton, !isLogin && styles.activeToggle]} 
+              onPress={() => setIsLogin(false)}
+            >
+              <Text style={[styles.toggleText, !isLogin && styles.activeToggleText]}>
+                {isRTL ? 'إنشاء حساب' : 'Sign Up'}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={[styles.toggleButton, isLogin && styles.activeToggle]} 
+              onPress={() => setIsLogin(true)}
+            >
+              <Text style={[styles.toggleText, isLogin && styles.activeToggleText]}>
+                {isRTL ? 'تسجيل الدخول' : 'Login'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Form Section */}
           <View style={styles.form}>
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>{isRTL ? 'البريد الإلكتروني' : 'Email'}</Text>
-              <View style={styles.inputContainer}>
-                <Ionicons name="mail-outline" size={20} color={COLORS.gray} />
-                <TextInput
-                  style={styles.input}
-                  placeholder="example@email.com"
-                  placeholderTextColor={COLORS.gray}
-                  value={email}
-                  onChangeText={setEmail}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  textAlign={isRTL ? 'right' : 'left'}
-                />
-              </View>
+            <View style={styles.inputContainer}>
+              <MaterialCommunityIcons name="email-outline" size={20} color={COLORS.gray} />
+              <TextInput
+                style={styles.input}
+                placeholder={isRTL ? 'البريد الإلكتروني' : 'Email'}
+                placeholderTextColor={COLORS.gray}
+                value={email}
+                onChangeText={setEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                textAlign={isRTL ? 'right' : 'left'}
+              />
             </View>
 
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>{isRTL ? 'كلمة المرور' : 'Password'}</Text>
-              <View style={styles.inputContainer}>
-                <Ionicons name="lock-closed-outline" size={20} color={COLORS.gray} />
-                <TextInput
-                  style={styles.input}
-                  placeholder="••••••••"
-                  placeholderTextColor={COLORS.gray}
-                  value={password}
-                  onChangeText={setPassword}
-                  secureTextEntry={!showPassword}
-                  textAlign={isRTL ? 'right' : 'left'}
+            <View style={styles.inputContainer}>
+              <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+                <Ionicons
+                  name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                  size={20}
+                  color={COLORS.gray}
                 />
-                <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-                  <Ionicons
-                    name={showPassword ? 'eye-off-outline' : 'eye-outline'}
-                    size={20}
-                    color={COLORS.gray}
-                  />
-                </TouchableOpacity>
-              </View>
+              </TouchableOpacity>
+              <TextInput
+                style={styles.input}
+                placeholder={isRTL ? 'كلمة المرور' : 'Password'}
+                placeholderTextColor={COLORS.gray}
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry={!showPassword}
+                textAlign={isRTL ? 'right' : 'left'}
+              />
+              <MaterialCommunityIcons name="lock-outline" size={20} color={COLORS.gray} />
             </View>
 
             <TouchableOpacity style={styles.forgotPassword}>
@@ -162,40 +157,39 @@ export default function LoginScreen() {
               </Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.loginButton} onPress={handleLogin}>
-              <Text style={styles.loginButtonText}>{isRTL ? 'تسجيل الدخول' : 'Login'}</Text>
+            <TouchableOpacity style={styles.mainButton} onPress={handleLogin}>
+              <Text style={styles.mainButtonText}>
+                {isLogin ? (isRTL ? 'تسجيل الدخول' : 'Login') : (isRTL ? 'إنشاء حساب' : 'Sign Up')}
+              </Text>
             </TouchableOpacity>
 
             <View style={styles.divider}>
-              <View style={styles.dividerLine} />
               <Text style={styles.dividerText}>{isRTL ? 'أو' : 'OR'}</Text>
-              <View style={styles.dividerLine} />
             </View>
+
+            <TouchableOpacity 
+              style={styles.guestButton}
+              onPress={() => router.push('/')}
+            >
+              <Ionicons name="person-outline" size={20} color={COLORS.primary} />
+              <Text style={styles.guestButtonText}>{isRTL ? 'الاستمرار كضيف' : 'Continue as Guest'}</Text>
+            </TouchableOpacity>
 
             <View style={styles.socialButtons}>
-              <TouchableOpacity style={styles.socialButton} onPress={handleGoogleLogin}>
+              <TouchableOpacity style={styles.socialCircle}>
                 <Ionicons name="logo-google" size={24} color="#DB4437" />
               </TouchableOpacity>
-              <TouchableOpacity style={styles.socialButton} onPress={handleAppleLogin}>
-                <Ionicons name="logo-apple" size={24} color="#000" />
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.socialButton} onPress={handleFacebookLogin}>
+              <TouchableOpacity style={styles.socialCircle}>
                 <Ionicons name="logo-facebook" size={24} color="#1877F2" />
               </TouchableOpacity>
-            </View>
-
-            <View style={styles.footer}>
-              <Text style={styles.footerText}>{isRTL ? 'ليس لديك حساب؟' : "Don't have an account?"}</Text>
-              <Link href="/signup" asChild>
-                <TouchableOpacity>
-                  <Text style={styles.footerLink}>{isRTL ? 'إنشاء حساب' : 'Sign Up'}</Text>
-                </TouchableOpacity>
-              </Link>
+              <TouchableOpacity style={styles.socialCircle}>
+                <Ionicons name="logo-apple" size={24} color="#000" />
+              </TouchableOpacity>
             </View>
           </View>
         </View>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -204,78 +198,123 @@ const createStyles = (COLORS: any, isRTL: boolean) => StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.background,
   },
+  greenHeader: {
+    backgroundColor: COLORS.primary,
+    paddingBottom: 10,
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
+  },
+  headerContent: {
+    flexDirection: isRTL ? 'row-reverse' : 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    height: 50,
+  },
+  headerBackButton: {
+    flexDirection: isRTL ? 'row-reverse' : 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+  },
+  headerBackText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+    marginHorizontal: 4,
+  },
+  headerTitle: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
   content: {
     flex: 1,
-    padding: 24,
-    justifyContent: 'center',
+    paddingHorizontal: 24,
+    paddingTop: 20,
   },
-  backButton: {
-    position: 'absolute',
-    top: 20,
-    left: isRTL ? undefined : 24,
-    right: isRTL ? 24 : undefined,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#fff',
-    justifyContent: 'center',
+  logoSection: {
     alignItems: 'center',
-    zIndex: 10,
-    borderWidth: 1,
-    borderColor: COLORS.border,
+    marginBottom: 30,
   },
-  header: {
-    alignItems: 'center',
-    marginBottom: 40,
-  },
-  iconContainer: {
+  logoCircle: {
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#fff',
     justifyContent: 'center',
     alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 5,
     marginBottom: 16,
-    // Ensure no border or shadow that creates a "box" look
   },
-  title: {
-    fontSize: 32,
+  brandName: {
+    fontSize: 28,
     fontWeight: 'bold',
-    color: COLORS.text,
-    marginBottom: 8,
+    color: '#1f2937',
   },
-  subtitle: {
-    fontSize: 16,
+  brandSlogan: {
+    fontSize: 14,
     color: COLORS.gray,
+    marginTop: 4,
   },
-  form: {
-    gap: 20,
+  toggleContainer: {
+    flexDirection: isRTL ? 'row-reverse' : 'row',
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 4,
+    marginBottom: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
-  inputGroup: {
-    gap: 8,
+  toggleButton: {
+    flex: 1,
+    paddingVertical: 12,
+    alignItems: 'center',
+    borderRadius: 10,
   },
-  label: {
+  activeToggle: {
+    backgroundColor: COLORS.primary,
+  },
+  toggleText: {
     fontSize: 16,
     fontWeight: '600',
-    color: COLORS.text,
-    textAlign: isRTL ? 'right' : 'left',
+    color: COLORS.gray,
+  },
+  activeToggleText: {
+    color: '#fff',
+  },
+  form: {
+    gap: 16,
   },
   inputContainer: {
     flexDirection: isRTL ? 'row-reverse' : 'row',
     alignItems: 'center',
-    backgroundColor: '#ffffff',
+    backgroundColor: '#fff',
     borderRadius: 12,
     paddingHorizontal: 16,
     height: 56,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
     borderWidth: 1,
-    borderColor: '#f3f4f6', // Very light border
-    gap: 12,
+    borderColor: '#f3f4f6',
   },
   input: {
     flex: 1,
     fontSize: 16,
-    color: COLORS.text,
-    height: '100%',
+    color: '#1f2937',
+    marginHorizontal: 12,
   },
   forgotPassword: {
     alignItems: isRTL ? 'flex-start' : 'flex-end',
@@ -285,64 +324,71 @@ const createStyles = (COLORS: any, isRTL: boolean) => StyleSheet.create({
     fontWeight: '600',
     fontSize: 14,
   },
-  loginButton: {
+  mainButton: {
     backgroundColor: COLORS.primary,
     height: 56,
     borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: 8,
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
   },
-  loginButtonText: {
+  mainButtonText: {
     color: '#fff',
     fontSize: 18,
     fontWeight: 'bold',
   },
   divider: {
-    flexDirection: 'row',
     alignItems: 'center',
-    marginVertical: 16,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: COLORS.border,
+    marginVertical: 10,
   },
   dividerText: {
-    marginHorizontal: 16,
     fontSize: 14,
     color: COLORS.gray,
     fontWeight: '600',
+  },
+  guestButton: {
+    flexDirection: isRTL ? 'row-reverse' : 'row',
+    backgroundColor: '#fff',
+    height: 56,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#f3f4f6',
+    gap: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  guestButtonText: {
+    color: COLORS.primary,
+    fontSize: 16,
+    fontWeight: 'bold',
   },
   socialButtons: {
     flexDirection: 'row',
     justifyContent: 'center',
     gap: 20,
+    marginTop: 10,
   },
-  socialButton: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+  socialCircle: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
     backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: COLORS.border,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  footer: {
-    flexDirection: isRTL ? 'row-reverse' : 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 8,
-    marginTop: 24,
-  },
-  footerText: {
-    fontSize: 16,
-    color: COLORS.gray,
-  },
-  footerLink: {
-    fontSize: 16,
-    color: COLORS.primary,
-    fontWeight: 'bold',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
 });
