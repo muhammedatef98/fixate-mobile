@@ -62,13 +62,13 @@ export default function TechnicianAuthScreen() {
         if (error) throw error;
 
         if (data.user) {
-          // Check user role to ensure it's a technician
-          const userRole = data.user.user_metadata?.role || 'customer';
+          // Strict check for technician role
+          const userRole = data.user.user_metadata?.role;
           if (userRole !== 'technician') {
             await supabase.auth.signOut();
             Alert.alert(
               isRTL ? 'تنبيه' : 'Access Denied',
-              isRTL ? 'هذا الحساب مسجل كعميل، يرجى الدخول من بوابة العملاء' : 'This account is registered as a customer, please login from the customer portal'
+              isRTL ? 'هذا الحساب غير مسجل كفني. يرجى الدخول من بوابة العملاء.' : 'This account is not registered as a technician. Please login from the customer portal.'
             );
             return;
           }
