@@ -914,3 +914,4 @@ const styles = StyleSheet.create({
     marginRight: SPACING.md,
   }
 });
+});
