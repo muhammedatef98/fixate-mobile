@@ -229,13 +229,14 @@ const createStyles = (COLORS: any, isRTL: boolean) => StyleSheet.create({
     marginBottom: 40,
   },
   iconContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: COLORS.primary + '15',
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: '#ffffff',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
+    // Ensure no border or shadow that creates a "box" look
   },
   title: {
     fontSize: 32,
@@ -262,12 +263,12 @@ const createStyles = (COLORS: any, isRTL: boolean) => StyleSheet.create({
   inputContainer: {
     flexDirection: isRTL ? 'row-reverse' : 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: '#ffffff',
     borderRadius: 12,
     paddingHorizontal: 16,
     height: 56,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: '#f3f4f6', // Very light border
     gap: 12,
   },
   input: {
