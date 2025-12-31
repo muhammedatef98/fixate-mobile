@@ -106,7 +106,7 @@ export default function CustomerHome() {
         <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
           <View style={styles.welcomeSection}>
             <Text style={styles.welcomeText}>{isRTL ? 'أهلاً بك في' : 'Welcome to'}</Text>
-            <Text style={styles.brandText}>Fixatee</Text>
+            <Text style={styles.brandText}>Fixate</Text>
             <Text style={styles.subtitleText}>
               {isRTL ? 'أفضل خدمات الصيانة بين يديك' : 'Best repair services at your fingertips'}
             </Text>
