@@ -604,3 +604,38 @@ export const ISSUES: Issue[] = [
     deviceType: 'printer'
   }
 ];
+
+// Helper functions for searching and filtering
+export const searchBrands = (query: string, deviceType?: string): Brand[] => {
+  let filtered = BRANDS;
+  if (deviceType) {
+    filtered = filtered.filter(b => b.deviceType === deviceType);
+  }
+  if (!query) return filtered;
+  
+  const lowerQuery = query.toLowerCase();
+  return filtered.filter(b => 
+    b.name.toLowerCase().includes(lowerQuery)
+  );
+};
+
+export const searchModels = (brandId: string, query: string): string[] => {
+  const brand = BRANDS.find(b => b.id === brandId);
+  if (!brand) return [];
+  
+  if (!query) return brand.models;
+  
+  const lowerQuery = query.toLowerCase();
+  return brand.models.filter(m => m.toLowerCase().includes(lowerQuery));
+};
+
+export const searchIssues = (deviceType: string, query: string): Issue[] => {
+  const filtered = ISSUES.filter(i => i.deviceType === deviceType);
+  if (!query) return filtered;
+  
+  const lowerQuery = query.toLowerCase();
+  return filtered.filter(i => 
+    i.name.toLowerCase().includes(lowerQuery) || 
+    i.nameAr.includes(query)
+  );
+};
