@@ -183,17 +183,45 @@ export default function RequestScreen() {
       Alert.alert(isRTL ? 'تنبيه' : 'Alert', isRTL ? 'الرجاء تحديد الموقع' : 'Please select location');
       return;
     }
+    
+    const currentUser = await auth.getCurrentUser();
+    if (!currentUser) {
+      Alert.alert(isRTL ? 'خطأ' : 'Error', isRTL ? 'يجب تسجيل الدخول أولاً' : 'Please login first');
+      return;
+    }
+
     setIsSubmitting(true);
     try {
-      // Logic for submitting to Supabase would go here
-      setTimeout(() => {
+      const orderData = {
+        user_id: currentUser.id,
+        device_type: selectedDeviceType,
+        device_brand: selectedBrand?.name,
+        device_model: selectedModel,
+        issue_description: selectedIssue?.name + (issueDescription ? `: ${issueDescription}` : ''),
+        estimated_price: selectedIssue?.price || 0,
+        status: 'pending',
+        location: address || `${location.latitude}, ${location.longitude}`,
+        latitude: location.latitude,
+        longitude: location.longitude,
+        service_type: selectedServiceType,
+      };
+
+      const result = await requests.createRequest(orderData);
+      
+      if (result) {
         setIsSubmitting(false);
-        Alert.alert(isRTL ? 'نجح' : 'Success', isRTL ? 'تم إرسال طلبك بنجاح' : 'Request submitted successfully');
-        router.replace('/(customer)');
-      }, 2000);
+        Alert.alert(
+          isRTL ? 'نجح' : 'Success', 
+          isRTL ? 'تم إرسال طلبك بنجاح' : 'Request submitted successfully',
+          [{ text: 'OK', onPress: () => router.replace('/(customer)/orders') }]
+        );
+      } else {
+        throw new Error('Failed to create request');
+      }
     } catch (error) {
+      console.error('Submit error:', error);
       setIsSubmitting(false);
-      Alert.alert(isRTL ? 'خطأ' : 'Error', isRTL ? 'فشل إرسال الطلب' : 'Failed to submit request');
+      Alert.alert(isRTL ? 'خطأ' : 'Error', isRTL ? 'فشل إرسال الطلب، حاول مرة أخرى' : 'Failed to submit request, please try again');
     }
   };
 

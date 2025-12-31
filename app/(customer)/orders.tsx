@@ -40,6 +40,12 @@ export default function OrdersScreen() {
     ]).start();
   }, [filter]);
 
+  // Refresh when screen comes into focus
+  useEffect(() => {
+    const interval = setInterval(loadOrders, 5000); // Poll every 5 seconds for real-time feel
+    return () => clearInterval(interval);
+  }, []);
+
   const loadOrders = async () => {
     try {
       setLoading(true);
