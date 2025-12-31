@@ -117,10 +117,7 @@ export default function RequestScreen() {
 
     if (stepperScrollRef.current) {
       const stepWidth = 100;
-      // Correct scroll logic for RTL
-      const scrollX = isRTL 
-        ? (STEPS.length - 1 - currentStep) * stepWidth 
-        : currentStep * stepWidth;
+      const scrollX = currentStep * stepWidth;
       
       stepperScrollRef.current.scrollTo({
         x: scrollX,
@@ -147,6 +144,40 @@ export default function RequestScreen() {
     }
   }, [issueSearch, selectedDeviceType]);
 
+  const handleLocationRequest = async () => {
+    setIsLocating(true);
+    try {
+      let { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert(isRTL ? 'تنبيه' : 'Alert', isRTL ? 'يجب السماح بالوصول للموقع' : 'Location permission is required');
+        setIsLocating(false);
+        return;
+      }
+
+      let loc = await Location.getCurrentPositionAsync({});
+      setLocation({
+        latitude: loc.coords.latitude,
+        longitude: loc.coords.longitude,
+        latitudeDelta: 0.005,
+        longitudeDelta: 0.005,
+      });
+      
+      let reverseGeocode = await Location.reverseGeocodeAsync({
+        latitude: loc.coords.latitude,
+        longitude: loc.coords.longitude
+      });
+      
+      if (reverseGeocode.length > 0) {
+        const addr = reverseGeocode[0];
+        setAddress(`${addr.street || ''} ${addr.district || ''}, ${addr.city || ''}`);
+      }
+    } catch (error) {
+      Alert.alert(isRTL ? 'خطأ' : 'Error', isRTL ? 'فشل تحديد الموقع' : 'Failed to get location');
+    } finally {
+      setIsLocating(false);
+    }
+  };
+
   const handleSubmit = async () => {
     if (!location) {
       Alert.alert(isRTL ? 'تنبيه' : 'Alert', isRTL ? 'الرجاء تحديد الموقع' : 'Please select location');
@@ -154,6 +185,7 @@ export default function RequestScreen() {
     }
     setIsSubmitting(true);
     try {
+      // Logic for submitting to Supabase would go here
       setTimeout(() => {
         setIsSubmitting(false);
         Alert.alert(isRTL ? 'نجح' : 'Success', isRTL ? 'تم إرسال طلبك بنجاح' : 'Request submitted successfully');
@@ -172,10 +204,21 @@ export default function RequestScreen() {
     </View>
   );
 
+  const canGoNext = () => {
+    if (currentStep === 0) return !!selectedServiceType;
+    if (currentStep === 1) return !!selectedDeviceType;
+    if (currentStep === 2) return !!selectedBrand;
+    if (currentStep === 3) return !!selectedModel;
+    if (currentStep === 4) return !!selectedIssue;
+    if (currentStep === 5) return true; // Details are optional
+    if (currentStep === 6) return !!location;
+    return false;
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+        <TouchableOpacity onPress={() => currentStep > 0 ? setCurrentStep(currentStep - 1) : router.back()} style={styles.backButton}>
           <Ionicons name={isRTL ? "chevron-forward" : "chevron-back"} size={24} color={COLORS.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{isRTL ? 'طلب صيانة' : 'Repair Request'}</Text>
@@ -281,18 +324,143 @@ export default function RequestScreen() {
             </ScrollView>
           </View>
         )}
-        
-        {/* Other steps logic... */}
+
+        {currentStep === 3 && (
+          <View style={{ flex: 1 }}>
+            <View style={styles.searchBar}>
+              <Ionicons name="search" size={20} color={COLORS.gray} />
+              <TextInput 
+                placeholder={isRTL ? 'ابحث عن الموديل...' : 'Search model...'}
+                style={styles.searchInput}
+                value={modelSearch}
+                onChangeText={setModelSearch}
+              />
+            </View>
+            <ScrollView>
+              {filteredModels.length > 0 ? filteredModels.map((model, index) => (
+                <TouchableOpacity 
+                  key={index} 
+                  style={[styles.listItem, selectedModel === model && styles.selectedListItem]}
+                  onPress={() => setSelectedModel(model)}
+                >
+                  <Text style={[styles.listItemText, selectedModel === model && styles.selectedListItemText]}>{model}</Text>
+                  {selectedModel === model && <Ionicons name="checkmark-circle" size={24} color={COLORS.primary} />}
+                </TouchableOpacity>
+              )) : renderEmptyState(isRTL ? 'لا توجد نتائج' : 'No results found')}
+            </ScrollView>
+          </View>
+        )}
+
+        {currentStep === 4 && (
+          <View style={{ flex: 1 }}>
+            <View style={styles.searchBar}>
+              <Ionicons name="search" size={20} color={COLORS.gray} />
+              <TextInput 
+                placeholder={isRTL ? 'ابحث عن العطل...' : 'Search issue...'}
+                style={styles.searchInput}
+                value={issueSearch}
+                onChangeText={setIssueSearch}
+              />
+            </View>
+            <ScrollView>
+              {filteredIssues.length > 0 ? filteredIssues.map((issue) => (
+                <TouchableOpacity 
+                  key={issue.id} 
+                  style={[styles.issueCard, selectedIssue?.id === issue.id && styles.selectedCard]}
+                  onPress={() => setSelectedIssue(issue)}
+                >
+                  <View style={styles.issueInfo}>
+                    <Text style={styles.issueName}>{isRTL ? issue.nameAr : issue.name}</Text>
+                    <Text style={styles.issuePrice}>
+                      {issue.id === 'other' 
+                        ? (isRTL ? 'حسب العطل سيتم التقدير' : 'Price based on diagnosis')
+                        : (isRTL ? `يبدأ من ${issue.estimatedPrice} ر.س` : `Starts from ${issue.estimatedPrice} SAR`)}
+                    </Text>
+                  </View>
+                  <MaterialCommunityIcons name={issue.icon as any} size={24} color={selectedIssue?.id === issue.id ? COLORS.primary : COLORS.gray} />
+                </TouchableOpacity>
+              )) : renderEmptyState(isRTL ? 'لا توجد نتائج' : 'No results found')}
+            </ScrollView>
+          </View>
+        )}
+
+        {currentStep === 5 && (
+          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+            <ScrollView>
+              <Text style={styles.sectionTitle}>{isRTL ? 'تفاصيل إضافية' : 'Additional Details'}</Text>
+              <TextInput
+                style={styles.textArea}
+                placeholder={isRTL ? 'اشرح العطل بالتفصيل (اختياري)...' : 'Describe the issue in detail (optional)...'}
+                multiline
+                numberOfLines={6}
+                value={issueDescription}
+                onChangeText={setIssueDescription}
+                textAlignVertical="top"
+              />
+              
+              <Text style={[styles.sectionTitle, { marginTop: 24 }]}>{isRTL ? 'صور أو فيديو' : 'Photos or Video'}</Text>
+              <View style={styles.mediaContainer}>
+                <TouchableOpacity style={styles.addMediaButton}>
+                  <Ionicons name="camera" size={32} color={COLORS.gray} />
+                  <Text style={styles.addMediaText}>{isRTL ? 'إضافة' : 'Add'}</Text>
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
+          </KeyboardAvoidingView>
+        )}
+
+        {currentStep === 6 && (
+          <View style={{ flex: 1 }}>
+            <Text style={styles.sectionTitle}>{isRTL ? 'حدد موقعك' : 'Set Your Location'}</Text>
+            <View style={styles.mapContainer}>
+              {location ? (
+                <MapView
+                  provider={PROVIDER_GOOGLE}
+                  style={styles.map}
+                  initialRegion={location}
+                  onRegionChangeComplete={(region) => setLocation(region)}
+                >
+                  <Marker coordinate={location} />
+                </MapView>
+              ) : (
+                <View style={styles.mapPlaceholder}>
+                  <MaterialCommunityIcons name="map-marker-radius" size={64} color={COLORS.gray} />
+                  <Text style={styles.mapPlaceholderText}>{isRTL ? 'الخريطة ستظهر هنا' : 'Map will appear here'}</Text>
+                </View>
+              )}
+              <TouchableOpacity 
+                style={styles.locationButton} 
+                onPress={handleLocationRequest}
+                disabled={isLocating}
+              >
+                {isLocating ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <>
+                    <Ionicons name="locate" size={24} color="#fff" />
+                    <Text style={styles.locationButtonText}>{isRTL ? 'تحديد موقعي الحالي' : 'Use My Current Location'}</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </View>
+            {address ? (
+              <View style={styles.addressContainer}>
+                <Ionicons name="location" size={20} color={COLORS.primary} />
+                <Text style={styles.addressText}>{address}</Text>
+              </View>
+            ) : null}
+          </View>
+        )}
       </Animated.View>
 
       <View style={styles.footer}>
         <TouchableOpacity 
-          style={[styles.nextButton, isSubmitting && { opacity: 0.7 }]} 
+          style={[styles.nextButton, (!canGoNext() || isSubmitting) && { opacity: 0.5 }]} 
           onPress={() => {
             if (currentStep < STEPS.length - 1) setCurrentStep(currentStep + 1);
             else handleSubmit();
           }}
-          disabled={isSubmitting}
+          disabled={!canGoNext() || isSubmitting}
         >
           {isSubmitting ? (
             <ActivityIndicator color="#fff" />
@@ -319,7 +487,7 @@ const createStyles = (COLORS: any, isRTL: boolean) => StyleSheet.create({
   activeStepCircle: { backgroundColor: COLORS.primary },
   stepNumber: { fontSize: 12, color: COLORS.gray, fontWeight: 'bold' },
   activeStepNumber: { color: '#fff' },
-  stepLabel: { fontSize: 12, color: COLORS.gray },
+  stepLabel: { fontSize: 12, color: COLORS.gray, marginHorizontal: 4 },
   activeStepLabel: { color: COLORS.primary, fontWeight: 'bold' },
   stepLine: { width: 20, height: 2, backgroundColor: '#e5e7eb', marginHorizontal: 4 },
   activeStepLine: { backgroundColor: COLORS.primary },
@@ -342,6 +510,26 @@ const createStyles = (COLORS: any, isRTL: boolean) => StyleSheet.create({
   brandLogoContainer: { width: 50, height: 50, justifyContent: 'center', alignItems: 'center', marginBottom: 8 },
   brandLogo: { width: 40, height: 40 },
   brandNameText: { fontSize: 12, fontWeight: '600', color: COLORS.text },
+  listItem: { flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, backgroundColor: '#fff', borderRadius: 12, marginBottom: 8, borderWidth: 1, borderColor: COLORS.border },
+  selectedListItem: { borderColor: COLORS.primary, backgroundColor: '#ecfdf5' },
+  listItemText: { fontSize: 16, color: COLORS.text },
+  selectedListItemText: { fontWeight: 'bold', color: COLORS.primary },
+  issueCard: { flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, backgroundColor: '#fff', borderRadius: 12, marginBottom: 12, borderWidth: 1, borderColor: COLORS.border },
+  issueInfo: { flex: 1 },
+  issueName: { fontSize: 16, fontWeight: 'bold', color: COLORS.text, textAlign: isRTL ? 'right' : 'left' },
+  issuePrice: { fontSize: 14, color: COLORS.primary, marginTop: 4, textAlign: isRTL ? 'right' : 'left' },
+  textArea: { backgroundColor: '#fff', borderRadius: 12, padding: 16, borderWidth: 1, borderColor: COLORS.border, fontSize: 16, color: COLORS.text, textAlign: isRTL ? 'right' : 'left' },
+  mediaContainer: { flexDirection: isRTL ? 'row-reverse' : 'row', flexWrap: 'wrap', gap: 12 },
+  addMediaButton: { width: 80, height: 80, borderRadius: 12, borderStyle: 'dashed', borderWidth: 2, borderColor: COLORS.border, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' },
+  addMediaText: { fontSize: 12, color: COLORS.gray, marginTop: 4 },
+  mapContainer: { flex: 1, borderRadius: 16, overflow: 'hidden', marginBottom: 16 },
+  map: { flex: 1 },
+  mapPlaceholder: { flex: 1, backgroundColor: '#f3f4f6', justifyContent: 'center', alignItems: 'center' },
+  mapPlaceholderText: { marginTop: 12, fontSize: 16, color: COLORS.gray },
+  locationButton: { position: 'absolute', bottom: 16, left: 16, right: 16, backgroundColor: COLORS.primary, height: 48, borderRadius: 24, flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  locationButtonText: { color: '#fff', fontWeight: 'bold' },
+  addressContainer: { flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', padding: 12, backgroundColor: '#ecfdf5', borderRadius: 12, gap: 8 },
+  addressText: { flex: 1, fontSize: 14, color: COLORS.text, textAlign: isRTL ? 'right' : 'left' },
   emptyState: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 40 },
   emptyStateText: { marginTop: 12, fontSize: 16, color: COLORS.gray },
   footer: { padding: 16, backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: COLORS.border },
