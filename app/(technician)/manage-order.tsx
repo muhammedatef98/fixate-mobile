@@ -241,8 +241,8 @@ export default function ManageOrderScreen() {
           <TouchableOpacity
             style={[styles.chatButton, { backgroundColor: '#10B981' }, SHADOWS.small]}
             onPress={() => router.push({
-              pathname: '/chat',
-              params: { orderId: order.id, otherUserName: isRTL ? 'العميل' : 'Customer' }
+              pathname: `/chat/${order.id}`,
+              params: { otherUserName: isRTL ? 'العميل' : 'Customer' }
             })}
           >
             <MaterialIcons name="chat" size={24} color="#FFFFFF" />
