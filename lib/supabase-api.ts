@@ -335,7 +335,7 @@ export const requests = {
     try {
       const user = await auth.getCurrentUser();
       if (!user) {
-        console.error('No authenticated user found');
+        // Return empty array silently for guests
         return [];
       }
       return await requests.getUserRequests(user.id);
