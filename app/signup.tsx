@@ -102,7 +102,11 @@ export default function SignupScreen() {
           {/* Logo Section */}
           <View style={styles.logoSection}>
             <View style={styles.logoCircle}>
-              <MaterialCommunityIcons name="cellphone-cog" size={50} color={COLORS.primary} />
+              <Image 
+                source={require('../assets/fixatee-logo.png')} 
+                style={styles.logoImage}
+                resizeMode="contain"
+              />
             </View>
             <Text style={styles.brandName}>Fixate</Text>
             <Text style={styles.brandSlogan}>{isRTL ? 'شريكك الموثوق للصيانة' : 'Your Trusted Repair Partner'}</Text>
@@ -274,6 +278,11 @@ const createStyles = (COLORS: any, isRTL: boolean) => StyleSheet.create({
     shadowRadius: 8,
     elevation: 5,
     marginBottom: 16,
+    overflow: 'hidden',
+  },
+  logoImage: {
+    width: 80,
+    height: 80,
   },
   brandName: {
     fontSize: 28,
