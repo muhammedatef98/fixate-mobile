@@ -104,7 +104,7 @@ export default function SignupScreen() {
           <View style={styles.logoSection}>
             <View style={styles.logoCircle}>
               <Image 
-                source={require('../assets/fixatee-logo.png')} 
+                source={require('../assets/fixate-logo-main.png')} 
                 style={styles.logoImage}
                 resizeMode="contain"
               />
@@ -202,7 +202,7 @@ export default function SignupScreen() {
               <Text style={styles.dividerText}>{isRTL ? 'أو' : 'OR'}</Text>
             </View>
 
-            <View style={styles.socialButtons}>
+            <View style={socialButtons}>
               <TouchableOpacity style={styles.socialCircle}>
                 <Ionicons name="logo-google" size={24} color="#DB4437" />
               </TouchableOpacity>
