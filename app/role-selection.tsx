@@ -36,9 +36,9 @@ export default function RoleSelectionScreen() {
   const handleRoleSelect = (role: 'customer' | 'technician') => {
     // Navigate to appropriate auth page
     if (role === 'technician') {
-      router.push('/technician-auth');
+      router.replace('/technician-auth');
     } else {
-      router.push('/login');
+      router.replace('/login');
     }
   };
 
