@@ -95,38 +95,26 @@ export const auth = {
 // Orders/Requests API
 export const requests = {
   // Create new order
-  create: async (orderData: {
-    user_id: string;
-    service_id: string;
-    service_type: string;
-    device_brand: string;
-    device_model: string;
-    issue_description: string;
-    estimated_price: number;
-    location: any;
-    latitude: number;
-    longitude: number;
-    media_urls?: string[];
-    status?: string;
-    price?: number;
-    created_at?: string;
-    items?: any[];
-  }): Promise<Order | null> => {
+  create: async (orderData: any): Promise<Order | null> => {
+    return await requests.createRequest(orderData);
+  },
+
+  createRequest: async (orderData: any): Promise<Order | null> => {
     // 1. Create the main order
     const { data: order, error: orderError } = await supabase
       .from('orders')
       .insert([{
         user_id: orderData.user_id,
-        service_id: orderData.service_id,
+        service_id: orderData.service_id || 'general',
         service_type: orderData.service_type,
         device_brand: orderData.device_brand,
         device_model: orderData.device_model,
         issue_description: orderData.issue_description,
         estimated_price: orderData.price || orderData.estimated_price,
-        location: typeof orderData.location === 'string' ? orderData.location : orderData.location.address,
-        latitude: orderData.latitude || orderData.location.latitude,
-        longitude: orderData.longitude || orderData.location.longitude,
-        media_urls: orderData.media_urls || orderData.images,
+        location: typeof orderData.location === 'string' ? orderData.location : (orderData.location?.address || 'Location'),
+        latitude: orderData.latitude || orderData.location?.latitude || 0,
+        longitude: orderData.longitude || orderData.location?.longitude || 0,
+        media_urls: orderData.media_urls || orderData.images || [],
         status: 'pending',
       }])
       .select()
