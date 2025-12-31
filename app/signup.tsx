@@ -84,7 +84,7 @@ export default function SignupScreen() {
           <View style={styles.headerContent}>
             <TouchableOpacity 
               style={styles.headerBackButton}
-              onPress={() => router.back()}
+              onPress={() => router.canGoBack() ? router.back() : router.replace('/login')}
             >
               <Ionicons name={isRTL ? "chevron-forward" : "chevron-back"} size={24} color="#fff" />
               <Text style={styles.headerBackText}>{isRTL ? 'رجوع' : 'Back'}</Text>
