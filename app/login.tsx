@@ -12,8 +12,9 @@ import {
   SafeAreaView,
   StatusBar,
   Image,
+  ActivityIndicator,
 } from 'react-native';
-import { Link, useRouter } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useApp } from '../contexts/AppContext';
 import { supabase } from '../lib/supabase';
@@ -28,6 +29,7 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLogin, setIsLogin] = useState(true);
+  const [loading, setLoading] = useState(false);
 
   const COLORS = {
     primary: '#10b981',
@@ -45,26 +47,32 @@ export default function LoginScreen() {
       return;
     }
 
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
 
-    if (error) {
-      Alert.alert(isRTL ? 'خطأ' : 'Error', error.message);
-      return;
-    }
+      if (error) throw error;
 
-    if (data.user) {
-      // Check user role to redirect correctly
-      const userRole = data.user.user_metadata?.role || 'customer';
-      if (userRole === 'technician') {
-        router.replace('/(technician)');
-      } else {
-        router.replace('/(tabs)');
+      if (data.user) {
+        // Check user role to ensure it's a customer
+        const userRole = data.user.user_metadata?.role || 'customer';
+        if (userRole === 'technician') {
+          await supabase.auth.signOut();
+          Alert.alert(
+            isRTL ? 'تنبيه' : 'Access Denied',
+            isRTL ? 'هذا الحساب مسجل كفني، يرجى الدخول من بوابة الفنيين' : 'This account is registered as a technician, please login from the technician portal'
+          );
+          return;
+        }
+        router.replace('/(customer)');
       }
-    } else {
-      router.replace('/(tabs)');
+    } catch (error: any) {
+      Alert.alert(isRTL ? 'خطأ' : 'Error', error.message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -169,8 +177,12 @@ export default function LoginScreen() {
               <Text style={styles.forgotPasswordText}>{isRTL ? 'نسيت كلمة المرور؟' : 'Forgot Password?'}</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.mainButton} onPress={handleLogin}>
-              <Text style={styles.mainButtonText}>{isRTL ? 'تسجيل الدخول' : 'Login'}</Text>
+            <TouchableOpacity style={styles.mainButton} onPress={handleLogin} disabled={loading}>
+              {loading ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.mainButtonText}>{isRTL ? 'تسجيل الدخول' : 'Login'}</Text>
+              )}
             </TouchableOpacity>
 
             <View style={styles.divider}>
