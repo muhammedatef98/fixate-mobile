@@ -126,7 +126,7 @@ function RootLayoutContent() {
           name="technician-auth" 
           options={{ 
             title: 'تسجيل دخول الفني',
-            headerShown: true 
+            headerShown: false 
           }} 
         />
       </Stack>
