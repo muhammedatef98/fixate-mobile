@@ -34,13 +34,16 @@ const SERVICE_TYPES = [
 ];
 
 const DEVICE_TYPES = [
-  { id: 'phone', name: 'جوال', nameEn: 'Phone', icon: 'cellphone' },
-  { id: 'tablet', name: 'تابلت', nameEn: 'Tablet', icon: 'tablet' },
-  { id: 'laptop', name: 'لابتوب', nameEn: 'Laptop', icon: 'laptop' },
-  { id: 'watch', name: 'ساعة ذكية', nameEn: 'Smart Watch', icon: 'watch' },
-  { id: 'printer', name: 'طابعة', nameEn: 'Printer', icon: 'printer' },
-  { id: 'console', name: 'ألعاب', nameEn: 'Console', icon: 'gamepad-variant' },
-  { id: 'headphones', name: 'سماعات', nameEn: 'Headphones', icon: 'headphones' },
+  { id: 'phone', name: 'جوال', nameEn: 'Phone', icon: 'cellphone', available: true },
+  { id: 'tablet', name: 'تابلت', nameEn: 'Tablet', icon: 'tablet', available: true },
+  { id: 'laptop', name: 'لابتوب', nameEn: 'Laptop', icon: 'laptop', available: true },
+  { id: 'watch', name: 'ساعة ذكية', nameEn: 'Smart Watch', icon: 'watch', available: true },
+  { id: 'printer', name: 'طابعة', nameEn: 'Printer', icon: 'printer', available: false },
+  { id: 'console', name: 'ألعاب', nameEn: 'Console', icon: 'gamepad-variant', available: false },
+  { id: 'headphones', name: 'سماعات', nameEn: 'Headphones', icon: 'headphones', available: false },
+  { id: 'camera', name: 'كاميرا', nameEn: 'Camera', icon: 'camera', available: false },
+  { id: 'tv', name: 'شاشة/تلفاز', nameEn: 'TV/Monitor', icon: 'television', available: false },
+  { id: 'appliance', name: 'أجهزة منزلية', nameEn: 'Home Appliances', icon: 'home-outline', available: false },
 ];
 
 interface OrderItem {
@@ -73,6 +76,7 @@ export default function RequestScreen() {
   
   const styles = createStyles(COLORS, isRTL);
   const [currentStep, setCurrentStep] = useState(0);
+  const stepperScrollRef = useRef<ScrollView>(null);
   
   // Multi-Order State
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
@@ -136,6 +140,15 @@ export default function RequestScreen() {
         useNativeDriver: true,
       }),
     ]).start();
+
+    // Auto-scroll stepper to current step
+    if (stepperScrollRef.current) {
+      const stepWidth = 100; // Approximate width of each step item
+      stepperScrollRef.current.scrollTo({
+        x: currentStep * stepWidth,
+        animated: true
+      });
+    }
   }, [currentStep]);
 
   // Search Effects
@@ -309,7 +322,12 @@ export default function RequestScreen() {
 
   const renderStepIndicator = () => (
     <View style={styles.stepperContainer}>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.stepperContent}>
+      <ScrollView 
+        ref={stepperScrollRef}
+        horizontal 
+        showsHorizontalScrollIndicator={false} 
+        contentContainerStyle={styles.stepperContent}
+      >
         {STEPS.map((step, index) => (
           <View key={index} style={styles.stepItem}>
             <View style={[
@@ -405,19 +423,34 @@ export default function RequestScreen() {
               styles.gridCard,
               selectedDeviceType === type.id && styles.selectedGridCard
             ]}
-            onPress={() => setSelectedDeviceType(type.id)}
+            onPress={() => {
+              if (type.available) {
+                setSelectedDeviceType(type.id);
+              } else {
+                Alert.alert(
+                  language === 'ar' ? 'قريباً' : 'Coming Soon',
+                  language === 'ar' ? 'هذه الخدمة ستكون متاحة قريباً جداً، نحن نعمل على توفير أفضل الفنيين لك.' : 'This service will be available very soon. We are working on providing the best technicians for you.'
+                );
+              }
+            }}
           >
             <MaterialCommunityIcons 
               name={type.icon as any} 
               size={32} 
-              color={selectedDeviceType === type.id ? COLORS.primary : COLORS.gray} 
+              color={selectedDeviceType === type.id ? COLORS.primary : (type.available ? COLORS.gray : '#d1d5db')} 
             />
             <Text style={[
               styles.gridTitle,
-              selectedDeviceType === type.id && styles.selectedGridTitle
+              selectedDeviceType === type.id && styles.selectedGridTitle,
+              !type.available && { color: '#d1d5db' }
             ]}>
               {language === 'ar' ? type.name : type.nameEn}
             </Text>
+            {!type.available && (
+              <View style={styles.comingSoonBadge}>
+                <Text style={styles.comingSoonText}>{language === 'ar' ? 'قريباً' : 'Soon'}</Text>
+              </View>
+            )}
           </TouchableOpacity>
         ))}
       </View>
@@ -975,6 +1008,20 @@ const createStyles = (COLORS: any, isRTL: boolean) => StyleSheet.create({
   },
   selectedGridTitle: {
     color: COLORS.primary,
+  },
+  comingSoonBadge: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    backgroundColor: '#f3f4f6',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  comingSoonText: {
+    fontSize: 10,
+    color: '#9ca3af',
+    fontWeight: 'bold',
   },
   searchContainer: {
     flexDirection: isRTL ? 'row-reverse' : 'row',
