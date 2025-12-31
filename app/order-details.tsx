@@ -913,5 +913,5 @@ const styles = StyleSheet.create({
     borderRadius: BORDER_RADIUS.md,
     marginRight: SPACING.md,
   }
-});
+  }
 });
