@@ -21,7 +21,9 @@ import type { Message } from '../lib/supabase-api';
 
 export default function ChatScreen() {
   const router = useRouter();
-  const { orderId, otherUserName } = useLocalSearchParams();
+  const params = useLocalSearchParams();
+  const orderId = params.id || params.orderId;
+  const { otherUserName } = params;
   const { language, isDark } = useApp();
   const COLORS = getColors(isDark);
   const isRTL = language === 'ar';

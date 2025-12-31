@@ -24,7 +24,9 @@ const ORDER_TIMELINE = [
   { status: 'accepted', arLabel: 'تم القبول', enLabel: 'Accepted', icon: 'check-circle' },
   { status: 'picking_up', arLabel: 'جاري الاستلام', enLabel: 'Picking Up', icon: 'car' },
   { status: 'diagnosing', arLabel: 'جاري الفحص', enLabel: 'Diagnosing', icon: 'magnify' },
+  { status: 'waiting_parts', arLabel: 'انتظار قطع غيار', enLabel: 'Waiting for Parts', icon: 'clock-outline' },
   { status: 'repairing', arLabel: 'جاري الإصلاح', enLabel: 'Repairing', icon: 'tools' },
+  { status: 'testing', arLabel: 'اختبار الجودة', enLabel: 'Quality Testing', icon: 'flask' },
   { status: 'delivering', arLabel: 'جاري التوصيل', enLabel: 'Delivering', icon: 'truck-delivery' },
   { status: 'completed', arLabel: 'مكتمل', enLabel: 'Completed', icon: 'check-all' },
 ];
@@ -246,17 +248,17 @@ export default function OrderDetailsScreen() {
 
         {/* Action Buttons */}
         <View style={styles.actionContainer}>
-          {userType === 'customer' && order.status !== 'completed' && order.status !== 'cancelled' && (
+          {order.status !== 'pending' && order.status !== 'completed' && order.status !== 'cancelled' && (
             <TouchableOpacity
               style={[styles.actionButton, { backgroundColor: COLORS.primary }, SHADOWS.small]}
               onPress={() => router.push({
-                pathname: '/chat',
-                params: { orderId: order.id, otherUserName: isRTL ? 'الفني' : 'Technician' }
+                pathname: `/chat/${order.id}`,
+                params: { otherUserName: isRTL ? 'الفني' : 'Technician' }
               })}
             >
               <MaterialIcons name="chat" size={20} color="#fff" />
               <Text style={styles.actionButtonText}>
-                {isRTL ? 'مراسلة الفني' : 'Chat'}
+                {isRTL ? 'مراسلة الفني' : 'Chat with Technician'}
               </Text>
             </TouchableOpacity>
           )}
