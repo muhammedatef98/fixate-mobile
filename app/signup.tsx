@@ -86,8 +86,18 @@ export default function SignupScreen() {
   };
 
   const handleSignup = async () => {
-    if (!name || !email || !phone || !password) {
+    if (!name.trim() || !email.trim() || !phone.trim() || !password.trim()) {
       Alert.alert(isRTL ? 'خطأ' : 'Error', isRTL ? 'الرجاء ملء جميع الحقول' : 'Please fill all fields');
+      return;
+    }
+    
+    if (name.trim().length < 3) {
+      Alert.alert(isRTL ? 'خطأ' : 'Error', isRTL ? 'الاسم يجب أن يكون 3 أحرف على الأقل' : 'Name must be at least 3 characters');
+      return;
+    }
+    
+    if (phone.trim().length < 9) {
+      Alert.alert(isRTL ? 'خطأ' : 'Error', isRTL ? 'رقم الجوال غير صحيح' : 'Invalid phone number');
       return;
     }
     
