@@ -27,9 +27,11 @@ export const notificationManager = {
         console.log('Failed to get push token for push notification!');
         return;
       }
-      token = (await Notifications.getExpoPushTokenAsync({
-        projectId: 'your-project-id', // Replace with your actual Expo project ID
-      })).data;
+      try {
+        token = (await Notifications.getExpoPushTokenAsync()).data;
+      } catch (e) {
+        console.log('Error getting push token:', e);
+      }
     } else {
       console.log('Must use physical device for Push Notifications');
     }
