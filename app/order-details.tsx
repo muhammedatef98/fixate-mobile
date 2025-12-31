@@ -249,18 +249,32 @@ export default function OrderDetailsScreen() {
         {/* Action Buttons */}
         <View style={styles.actionContainer}>
           {order.status !== 'pending' && order.status !== 'completed' && order.status !== 'cancelled' && (
-            <TouchableOpacity
-              style={[styles.actionButton, { backgroundColor: COLORS.primary }, SHADOWS.small]}
-              onPress={() => router.push({
-                pathname: `/chat/${order.id}`,
-                params: { otherUserName: isRTL ? 'الفني' : 'Technician' }
-              })}
-            >
-              <MaterialIcons name="chat" size={20} color="#fff" />
-              <Text style={styles.actionButtonText}>
-                {isRTL ? 'مراسلة الفني' : 'Chat with Technician'}
-              </Text>
-            </TouchableOpacity>
+            <View style={styles.buttonRow}>
+              <TouchableOpacity
+                style={[styles.actionButton, { backgroundColor: COLORS.primary, flex: 1, marginRight: 8 }, SHADOWS.small]}
+                onPress={() => router.push({
+                  pathname: `/chat/${order.id}`,
+                  params: { otherUserName: isRTL ? 'الفني' : 'Technician' }
+                })}
+              >
+                <MaterialIcons name="chat" size={20} color="#fff" />
+                <Text style={styles.actionButtonText}>
+                  {isRTL ? 'مراسلة الفني' : 'Chat'}
+                </Text>
+              </TouchableOpacity>
+
+              {order.technician_phone && (
+                <TouchableOpacity
+                  style={[styles.actionButton, { backgroundColor: '#10B981', flex: 1 }, SHADOWS.small]}
+                  onPress={() => Linking.openURL(`tel:${order.technician_phone}`)}
+                >
+                  <MaterialIcons name="phone" size={20} color="#fff" />
+                  <Text style={styles.actionButtonText}>
+                    {isRTL ? 'اتصال' : 'Call'}
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
           )}
 
           {userType === 'customer' && order.status === 'pending' && (
@@ -423,10 +437,14 @@ const styles = StyleSheet.create({
   priceAmount: { fontSize: 20, fontWeight: 'bold' },
 
   actionContainer: {
-    flexDirection: 'row',
-    gap: 12,
     paddingHorizontal: 16,
     marginBottom: 16,
+    gap: 12,
+  },
+  buttonRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   actionButton: {
     flex: 1,

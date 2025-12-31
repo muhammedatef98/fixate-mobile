@@ -27,6 +27,8 @@ export interface Order {
   status: 'pending' | 'accepted' | 'picking_up' | 'diagnosing' | 'repairing' | 'delivering' | 'completed' | 'cancelled';
   technician_id?: string;
   customer_city?: string;
+  customer_phone?: string;
+  technician_phone?: string;
   created_at: string;
   updated_at: string;
 }
@@ -120,10 +122,12 @@ export const auth = {
 export const requests = {
   // Create new order
   create: async (orderData: any): Promise<Order | null> => {
+    const user = await auth.getCurrentUser();
     const { data: order, error: orderError } = await supabase
       .from('orders')
       .insert([{
         user_id: orderData.user_id,
+        customer_phone: user?.user_metadata?.phone || '',
         service_id: orderData.service_id || 'general',
         service_type: orderData.service_type,
         device_brand: orderData.device_brand,
@@ -194,6 +198,7 @@ export const requests = {
       .update({ 
         status: 'accepted', 
         technician_id: user.id,
+        technician_phone: user.user_metadata?.phone || '',
         updated_at: new Date().toISOString() 
       })
       .eq('id', orderId)

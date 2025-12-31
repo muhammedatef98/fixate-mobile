@@ -236,20 +236,34 @@ export default function ManageOrderScreen() {
           </View>
         </View>
 
-        {/* Chat Button */}
+        {/* Action Buttons */}
         {order.status !== 'pending' && order.status !== 'cancelled' && (
-          <TouchableOpacity
-            style={[styles.chatButton, { backgroundColor: '#10B981' }, SHADOWS.small]}
-            onPress={() => router.push({
-              pathname: `/chat/${order.id}`,
-              params: { otherUserName: isRTL ? 'العميل' : 'Customer' }
-            })}
-          >
-            <MaterialIcons name="chat" size={24} color="#FFFFFF" />
-            <Text style={styles.chatButtonText}>
-              {isRTL ? 'مراسلة العميل' : 'Chat with Customer'}
-            </Text>
-          </TouchableOpacity>
+          <View style={styles.actionButtonRow}>
+            <TouchableOpacity
+              style={[styles.chatButton, { backgroundColor: COLORS.primary, flex: 1, marginRight: 8 }, SHADOWS.small]}
+              onPress={() => router.push({
+                pathname: `/chat/${order.id}`,
+                params: { otherUserName: isRTL ? 'العميل' : 'Customer' }
+              })}
+            >
+              <MaterialIcons name="chat" size={24} color="#FFFFFF" />
+              <Text style={styles.chatButtonText}>
+                {isRTL ? 'مراسلة العميل' : 'Chat'}
+              </Text>
+            </TouchableOpacity>
+
+            {order.customer_phone && (
+              <TouchableOpacity
+                style={[styles.chatButton, { backgroundColor: '#10B981', flex: 1 }, SHADOWS.small]}
+                onPress={() => Linking.openURL(`tel:${order.customer_phone}`)}
+              >
+                <MaterialIcons name="phone" size={24} color="#FFFFFF" />
+                <Text style={styles.chatButtonText}>
+                  {isRTL ? 'اتصال' : 'Call'}
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
         )}
 
         {/* Device Info */}
@@ -349,6 +363,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     padding: SPACING.m,
     borderRadius: BORDER_RADIUS.m,
+  },
+  actionButtonRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     marginBottom: SPACING.l,
   },
   chatButtonText: {
