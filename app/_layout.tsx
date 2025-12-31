@@ -20,11 +20,21 @@ function RootLayoutContent() {
   useEffect(() => {
     if (loading) return;
 
-    const inAuthGroup = segments[0] === 'login' || segments[0] === 'signup' || segments[0] === 'onboarding' || segments[0] === 'index';
+    const isAuthPage = segments[0] === 'login' || segments[0] === 'signup' || segments[0] === 'technician-auth';
+    const isPublicPage = segments[0] === 'onboarding' || segments[0] === 'role-selection' || segments[0] === 'index' || segments[0] === undefined;
 
-    if (user && inAuthGroup) {
-      // If user is logged in and trying to access auth pages, redirect to role selection
-      router.replace('/role-selection');
+    if (user) {
+      // If user is logged in and on a public/auth page, they can stay on role-selection or go to their home
+      // But we don't force redirect away from role-selection anymore to allow choice
+      if (isAuthPage) {
+        router.replace('/role-selection');
+      }
+    } else {
+      // If user is NOT logged in and trying to access protected pages (customer/technician)
+      const isProtectedRoute = segments[0] === '(customer)' || segments[0] === '(technician)' || segments[0] === 'request';
+      if (isProtectedRoute) {
+        router.replace('/role-selection');
+      }
     }
   }, [user, segments, loading]);
   
