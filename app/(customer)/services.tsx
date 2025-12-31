@@ -1,141 +1,105 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, StatusBar } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, StatusBar, Animated, Dimensions, Image } from 'react-native';
 import { useRouter } from 'expo-router';
-import { getColors, getShadows, SPACING, BORDER_RADIUS } from '../../constants/theme';
-import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
-import NeuCard from '../../components/NeuCard';
-import BottomNav from '../../components/BottomNav';
-import { services } from '../../lib/supabase-api';
-import { ActivityIndicator } from 'react-native';
+import { MaterialIcons, MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import { useApp } from '../../contexts/AppContext';
+import BottomNav from '../../components/BottomNav';
+
+const { width } = Dimensions.get('window');
+
+const SERVICES = [
+  { 
+    id: 'phone', 
+    nameAr: 'صيانة الجوالات', 
+    nameEn: 'Phone Repairs',
+    icon: 'cellphone', 
+    color: '#10b981', 
+    descriptionAr: 'إصلاح الشاشات، البطاريات، والمشاكل التقنية',
+    descriptionEn: 'Screen, battery, and technical issue repairs',
+  },
+  { 
+    id: 'laptop', 
+    nameAr: 'صيانة اللابتوب', 
+    nameEn: 'Laptop Repairs',
+    icon: 'laptop', 
+    color: '#3b82f6', 
+    descriptionAr: 'حل مشاكل الأجهزة والبرمجيات والترقية',
+    descriptionEn: 'Hardware, software, and upgrade solutions',
+  },
+  { 
+    id: 'tablet', 
+    nameAr: 'صيانة التابلت', 
+    nameEn: 'Tablet Repairs',
+    icon: 'tablet', 
+    color: '#8b5cf6', 
+    descriptionAr: 'إصلاح شامل لجميع أنواع الأجهزة اللوحية',
+    descriptionEn: 'Comprehensive repair for all tablet types',
+  },
+  { 
+    id: 'watch', 
+    nameAr: 'صيانة الساعات الذكية', 
+    nameEn: 'Smart Watch Repairs',
+    icon: 'watch', 
+    color: '#f59e0b', 
+    descriptionAr: 'إصلاح وتحديث الساعات الذكية والحساسات',
+    descriptionEn: 'Smart watch repair, updates, and sensors',
+  },
+  { 
+    id: 'printer', 
+    nameAr: 'صيانة الطابعات', 
+    nameEn: 'Printer Repairs',
+    icon: 'printer', 
+    color: '#6366f1', 
+    descriptionAr: 'حل مشاكل الطباعة والصيانة الدورية',
+    descriptionEn: 'Printing issues and regular maintenance',
+  },
+  { 
+    id: 'smarthome', 
+    nameAr: 'الأجهزة المنزلية', 
+    nameEn: 'Home Appliances',
+    icon: 'home-automation', 
+    color: '#ec4899', 
+    descriptionAr: 'تركيب وصيانة الأجهزة الذكية والمنزلية',
+    descriptionEn: 'Smart and home device installation',
+  },
+];
 
 export default function ServicesScreen() {
   const router = useRouter();
-  const { language, isDark } = useApp();
-  const COLORS = getColors(isDark);
-  const SHADOWS = getShadows(isDark);
+  const { language } = useApp();
   const isRTL = language === 'ar';
-
-  const SERVICES = [
-    { 
-      id: 'phone', 
-      name: 'صيانة الجوالات', 
-      nameEn: 'Phone Repairs',
-      icon: 'cellphone', 
-      color: COLORS.primary, 
-      bg: COLORS.primaryLight,
-      description: 'إصلاح الشاشات، البطاريات، والمشاكل التقنية',
-      descriptionEn: 'Screen, battery, and technical issue repairs',
-      iconSet: 'MaterialCommunityIcons'
-    },
-    { 
-      id: 'laptop', 
-      name: 'صيانة اللابتوب', 
-      nameEn: 'Laptop Repairs',
-      icon: 'laptop', 
-      color: COLORS.blue, 
-      bg: '#EFF6FF',
-      description: 'حل مشاكل الأجهزة والبرمجيات',
-      descriptionEn: 'Hardware and software problem solving',
-      iconSet: 'MaterialCommunityIcons'
-    },
-    { 
-      id: 'tablet', 
-      name: 'صيانة التابلت', 
-      nameEn: 'Tablet Repairs',
-      icon: 'tablet', 
-      color: COLORS.purple, 
-      bg: '#F5F3FF',
-      description: 'إصلاح شامل لجميع أنواع الأجهزة اللوحية',
-      descriptionEn: 'Comprehensive repair for all tablet types',
-      iconSet: 'MaterialCommunityIcons'
-    },
-    { 
-      id: 'smarthome', 
-      name: 'الأجهزة المنزلية الذكية', 
-      nameEn: 'Smart Home Devices',
-      icon: 'home-automation', 
-      color: COLORS.orange, 
-      bg: '#FFFBEB',
-      description: 'تركيب وصيانة الأجهزة الذكية',
-      descriptionEn: 'Smart device installation and maintenance',
-      iconSet: 'MaterialCommunityIcons'
-    },
-    { 
-      id: 'watch', 
-      name: 'صيانة الساعات الذكية', 
-      nameEn: 'Smart Watch Repairs',
-      icon: 'watch', 
-      color: COLORS.pink, 
-      bg: '#FDF2F8',
-      description: 'إصلاح وتحديث الساعات الذكية',
-      descriptionEn: 'Smart watch repair and updates',
-      iconSet: 'MaterialCommunityIcons'
-    },
-    { 
-      id: 'printer', 
-      name: 'صيانة الطابعات', 
-      nameEn: 'Printer Repairs',
-      icon: 'printer', 
-      color: '#6366F1', 
-      bg: '#EEF2FF',
-      description: 'حل مشاكل الطباعة والصيانة الدورية',
-      descriptionEn: 'Printing issues and regular maintenance',
-      iconSet: 'MaterialCommunityIcons'
-    },
-  ];
-  const [services, setServices] = useState(SERVICES);
-  const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    loadServices();
-  }, []);
-
-  const loadServices = async () => {
-    try {
-      setLoading(true);
-      const data = await services.getAll();
-      // Map Supabase services to app format
-      if (data && data.length > 0) {
-        const mappedServices = data.map((service: any, index: number) => ({
-          id: service.id,
-          name: service.name,
-          nameEn: service.name,
-          icon: service.icon || 'tools',
-          color: SERVICES[index % SERVICES.length].color,
-          bg: SERVICES[index % SERVICES.length].bg,
-          description: service.description || '',
-          iconSet: 'MaterialCommunityIcons',
-          priceRange: service.price_range,
-        }));
-        setServices(mappedServices);
-      }
-    } catch (error) {
-      console.log('Using local services data');
-    } finally {
-      setLoading(false);
-    }
+  
+  const COLORS = {
+    primary: '#10b981',
+    background: '#f9fafb',
+    card: '#ffffff',
+    text: '#1f2937',
+    textSecondary: '#6b7280',
+    border: '#e5e7eb',
+    white: '#ffffff',
   };
 
-  const styles = createStyles(COLORS, SHADOWS);
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(20)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, { toValue: 1, duration: 600, useNativeDriver: true }),
+      Animated.timing(slideAnim, { toValue: 0, duration: 600, useNativeDriver: true }),
+    ]).start();
+  }, []);
+
+  const styles = createStyles(COLORS, isRTL);
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
+      <StatusBar barStyle="dark-content" backgroundColor={COLORS.white} />
       
-      {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity 
-          style={[styles.backButton, SHADOWS.neuFlat]}
-          onPress={() => router.back()}
-        >
-          <MaterialIcons name="arrow-back" size={20} color={COLORS.text} />
+        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+          <Ionicons name={isRTL ? "chevron-forward" : "chevron-back"} size={24} color={COLORS.text} />
         </TouchableOpacity>
-        
-        <View style={styles.headerContent}>
-          <Text style={styles.headerTitle}>{isRTL ? 'خدماتنا' : 'Our Services'}</Text>
-        </View>
-        
+        <Text style={styles.headerTitle}>{isRTL ? 'خدماتنا' : 'Our Services'}</Text>
         <View style={{ width: 40 }} />
       </View>
 
@@ -143,167 +107,98 @@ export default function ServicesScreen() {
         showsVerticalScrollIndicator={false} 
         contentContainerStyle={styles.scrollContent}
       >
-        {SERVICES.map((service) => {
-          const IconComponent = service.iconSet === 'MaterialIcons' ? MaterialIcons : MaterialCommunityIcons;
-          
-          return (
-            <NeuCard 
-              key={service.id} 
-              style={styles.serviceCard}
-              onPress={() => router.push('/request')}
-            >
-              <View style={[styles.iconContainer, { backgroundColor: service.bg }]}>
-                <IconComponent name={service.icon as any} size={40} color={service.color} />
-              </View>
-              <View style={styles.serviceInfo}>
-                <Text style={styles.serviceName}>{isRTL ? service.name : service.nameEn}</Text>
-                <Text style={styles.serviceDescription}>{isRTL ? service.description : service.descriptionEn}</Text>
-              </View>
-              <MaterialIcons name="arrow-forward-ios" size={20} color={COLORS.textSecondary} />
-            </NeuCard>
-          );
-        })}
+        <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
+          <Text style={styles.sectionSubtitle}>
+            {isRTL ? 'نقدم حلول صيانة متكاملة لكافة أجهزتك' : 'We provide complete repair solutions for all your devices'}
+          </Text>
 
-        {/* Contact Support Card */}
-        <NeuCard 
-          style={styles.supportCard}
-          onPress={() => router.push('/contact')}
-        >
-          <View style={styles.supportContent}>
-            <View style={styles.supportIconContainer}>
-              <MaterialIcons name="support-agent" size={32} color={COLORS.primary} />
-            </View>
-            <View style={styles.supportText}>
-              <Text style={styles.supportTitle}>{isRTL ? 'تحتاج مساعدة؟' : 'Need Help?'}</Text>
-              <Text style={styles.supportSubtitle}>{isRTL ? 'تواصل مع فريق الدعم' : 'Contact support team'}</Text>
-            </View>
+          <View style={styles.servicesGrid}>
+            {SERVICES.map((service) => (
+              <TouchableOpacity 
+                key={service.id} 
+                style={styles.serviceCard}
+                onPress={() => router.push('/request')}
+              >
+                <View style={[styles.iconContainer, { backgroundColor: service.color + '15' }]}>
+                  <MaterialCommunityIcons name={service.icon as any} size={32} color={service.color} />
+                </View>
+                <View style={styles.serviceInfo}>
+                  <Text style={styles.serviceName}>{isRTL ? service.nameAr : service.nameEn}</Text>
+                  <Text style={styles.serviceDescription} numberOfLines={2}>
+                    {isRTL ? service.descriptionAr : service.descriptionEn}
+                  </Text>
+                </View>
+                <Ionicons name={isRTL ? "chevron-back" : "chevron-forward"} size={20} color={COLORS.border} />
+              </TouchableOpacity>
+            ))}
           </View>
-          <MaterialIcons name="arrow-forward-ios" size={20} color={COLORS.primary} />
-        </NeuCard>
 
-        {/* Bottom Spacing */}
+          {/* Help Card */}
+          <TouchableOpacity style={styles.helpCard}>
+            <LinearGradient
+              colors={[COLORS.primary, '#059669']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.helpGradient}
+            >
+              <View style={styles.helpInfo}>
+                <Text style={styles.helpTitle}>{isRTL ? 'لم تجد ما تبحث عنه؟' : 'Didn\'t find what you need?'}</Text>
+                <Text style={styles.helpSubtitle}>{isRTL ? 'تواصل معنا مباشرة للمساعدة' : 'Contact us directly for help'}</Text>
+              </View>
+              <View style={styles.helpButton}>
+                <Ionicons name="chatbubble-ellipses" size={24} color={COLORS.primary} />
+              </View>
+            </LinearGradient>
+          </TouchableOpacity>
+        </Animated.View>
+
         <View style={{ height: 100 }} />
       </ScrollView>
 
-      {/* Bottom Navigation */}
       <BottomNav />
     </SafeAreaView>
   );
 }
 
-function createStyles(COLORS: any, SHADOWS: any) {
-  return StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
+const createStyles = (COLORS: any, isRTL: boolean) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: COLORS.background },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.md,
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: BORDER_RADIUS.lg,
-    backgroundColor: COLORS.background,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  headerContent: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: COLORS.text,
-  },
-  headerSubtitle: {
-    fontSize: 12,
-    color: COLORS.textSecondary,
-    marginTop: 2,
-  },
-  scrollContent: {
-    padding: SPACING.lg,
-  },
-  serviceCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: SPACING.md,
-    marginBottom: SPACING.md,
-  },
-  iconContainer: {
-    width: 70,
-    height: 70,
-    borderRadius: BORDER_RADIUS.xl,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: SPACING.md,
-  },
-  serviceInfo: {
-    flex: 1,
-    marginRight: SPACING.sm,
-  },
-  serviceName: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: COLORS.text,
-    marginBottom: 2,
-  },
-  serviceNameAr: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: COLORS.textSecondary,
-    marginBottom: 4,
-  },
-  serviceDescription: {
-    fontSize: 12,
-    color: COLORS.textLight,
-  },
-  supportCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: SPACING.md,
-    marginTop: SPACING.md,
-    borderWidth: 2,
-    borderColor: COLORS.primary,
-  },
-  supportContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  supportIconContainer: {
-    width: 60,
+    flexDirection: isRTL ? 'row-reverse' : 'row',
     height: 60,
-    borderRadius: BORDER_RADIUS.lg,
-    backgroundColor: COLORS.primaryLight,
-    justifyContent: 'center',
     alignItems: 'center',
-    marginRight: SPACING.md,
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    backgroundColor: COLORS.white,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
   },
-  supportText: {
-    flex: 1,
+  backButton: { padding: 4 },
+  headerTitle: { fontSize: 18, fontWeight: 'bold', color: COLORS.text },
+  scrollContent: { padding: 16 },
+  sectionSubtitle: { fontSize: 14, color: COLORS.textSecondary, marginBottom: 24, textAlign: isRTL ? 'right' : 'left' },
+  servicesGrid: { gap: 12 },
+  serviceCard: {
+    flexDirection: isRTL ? 'row-reverse' : 'row',
+    backgroundColor: COLORS.white,
+    borderRadius: 20,
+    padding: 16,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
-  supportTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: COLORS.text,
-  },
-  supportTitleAr: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: COLORS.textSecondary,
-    marginTop: 2,
-  },
-  supportSubtitle: {
-    fontSize: 12,
-    color: COLORS.textLight,
-    marginTop: 4,
-  },
+  iconContainer: { width: 60, height: 60, borderRadius: 16, justifyContent: 'center', alignItems: 'center' },
+  serviceInfo: { flex: 1, marginHorizontal: 16, alignItems: isRTL ? 'flex-end' : 'flex-start' },
+  serviceName: { fontSize: 16, fontWeight: 'bold', color: COLORS.text },
+  serviceDescription: { fontSize: 13, color: COLORS.textSecondary, marginTop: 4, textAlign: isRTL ? 'right' : 'left' },
+  helpCard: { marginTop: 24, borderRadius: 20, overflow: 'hidden', elevation: 4, shadowColor: COLORS.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8 },
+  helpGradient: { flexDirection: isRTL ? 'row-reverse' : 'row', padding: 20, alignItems: 'center' },
+  helpInfo: { flex: 1, alignItems: isRTL ? 'flex-end' : 'flex-start' },
+  helpTitle: { color: COLORS.white, fontSize: 16, fontWeight: 'bold' },
+  helpSubtitle: { color: 'rgba(255,255,255,0.8)', fontSize: 13, marginTop: 4 },
+  helpButton: { width: 48, height: 48, borderRadius: 24, backgroundColor: COLORS.white, justifyContent: 'center', alignItems: 'center' },
 });
-}

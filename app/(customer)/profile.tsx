@@ -1,391 +1,160 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, Image } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, Image, Animated, StatusBar, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
-import { COLORS, SPACING, BORDER_RADIUS, SHADOWS } from '../../constants/theme';
-import { MaterialIcons } from '@expo/vector-icons';
-import NeuCard from '../../components/NeuCard';
-import BottomNav from '../../components/BottomNav';
-import { auth, requests } from '../../lib/supabase-api';
-import { ActivityIndicator, Alert } from 'react-native';
+import { MaterialIcons, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useApp } from '../../contexts/AppContext';
-
-const MENU_ITEMS = [
-  { id: 'orders', title: 'My Orders', titleAr: 'طلباتي', icon: 'receipt-long' },
-  { id: 'account', title: 'Edit Profile', titleAr: 'تعديل الملف الشخصي', icon: 'person-outline' },
-  { id: 'wallet', title: 'Wallet & Payment', titleAr: 'المحفظة وطرق الدفع', icon: 'account-balance-wallet' },
-  { id: 'notifications', title: 'Notifications', titleAr: 'الإشعارات', icon: 'notifications-none' },
-  { id: 'support', title: 'Support & Help', titleAr: 'الدعم والمساعدة', icon: 'headset-mic' },
-  { id: 'about', title: 'About App', titleAr: 'عن التطبيق', icon: 'info-outline' },
-];
+import BottomNav from '../../components/BottomNav';
+import { auth } from '../../lib/supabase-api';
 
 export default function ProfileScreen() {
   const router = useRouter();
   const { language } = useApp();
   const isRTL = language === 'ar';
+  
+  const COLORS = {
+    primary: '#10b981',
+    background: '#f9fafb',
+    card: '#ffffff',
+    text: '#1f2937',
+    textSecondary: '#6b7280',
+    border: '#e5e7eb',
+    white: '#ffffff',
+    danger: '#ef4444',
+  };
+
   const [user, setUser] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState({
-    ordersCount: 0,
-    rating: 5.0, // Default for customer
-    years: 1 // Default
-  });
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(20)).current;
 
   useEffect(() => {
-    loadUserAndStats();
+    loadUser();
+    Animated.parallel([
+      Animated.timing(fadeAnim, { toValue: 1, duration: 600, useNativeDriver: true }),
+      Animated.timing(slideAnim, { toValue: 0, duration: 600, useNativeDriver: true }),
+    ]).start();
   }, []);
 
-  const loadUserAndStats = async () => {
-    try {
-      const currentUser = await auth.getCurrentUser();
-      if (currentUser) {
-        const profile = await auth.getUserProfile(currentUser.id);
-        setUser(profile);
-
-        // Fetch real stats
-        const userRequests = await requests.getAll();
-        // Filter requests for this user (assuming getAll returns all, or filtered by RLS)
-        // If RLS is on, getAll returns only user's requests
-        setStats({
-          ordersCount: userRequests.length,
-          rating: 5.0, // Customers usually don't have ratings shown to them, but keeping for UI consistency
-          years: 1 // Could be calculated from created_at
-        });
-      }
-    } catch (error) {
-      console.log('User not logged in or error fetching stats');
-    } finally {
-      setLoading(false);
+  const loadUser = async () => {
+    const currentUser = await auth.getCurrentUser();
+    if (currentUser) {
+      const profile = await auth.getUserProfile(currentUser.id);
+      setUser(profile);
     }
   };
 
-  const getAvatarUrl = () => {
-    if (user?.avatar_url) return user.avatar_url;
-    
-    // Simple heuristic for gender based on name (very basic, just for demo)
-    // In a real app, you'd have a gender field in the profile
-    const name = user?.name || 'User';
-    // Default to male color (blue-ish)
-    let background = '0D8ABC'; 
-    // If name ends with 'a' or 'ah' (common in female names), use pink-ish
-    if (name.endsWith('a') || name.endsWith('ah') || name.endsWith('ة')) {
-      background = 'E91E63';
-    }
-    
-    return `https://ui-avatars.com/api/?name=${name}&background=${background}&color=fff&size=128`;
-  };
-
-  const handleLogout = async () => {
+  const handleLogout = () => {
     Alert.alert(
       isRTL ? 'تسجيل الخروج' : 'Logout',
       isRTL ? 'هل أنت متأكد من تسجيل الخروج؟' : 'Are you sure you want to logout?',
       [
-        {
-          text: isRTL ? 'إلغاء' : 'Cancel',
-          style: 'cancel',
-        },
-        {
-          text: isRTL ? 'تسجيل الخروج' : 'Logout',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await auth.signOut();
-              router.replace('/role-selection');
-            } catch (error: any) {
-              Alert.alert('Error', error.message);
-            }
-          },
-        },
+        { text: isRTL ? 'إلغاء' : 'Cancel', style: 'cancel' },
+        { text: isRTL ? 'خروج' : 'Logout', style: 'destructive', onPress: async () => {
+          await auth.signOut();
+          router.replace('/role-selection');
+        }}
       ]
     );
   };
 
-  const handleMenuPress = (itemId: string) => {
-    switch (itemId) {
-      case 'orders':
-        router.push('/(customer)/orders');
-        break;
-      case 'account':
-        Alert.alert(
-          isRTL ? 'تعديل الملف الشخصي' : 'Edit Profile',
-          isRTL ? 'هذه الميزة قريباً!' : 'Coming soon!'
-        );
-        break;
-      case 'wallet':
-        Alert.alert(
-          isRTL ? 'المحفظة' : 'Wallet',
-          isRTL ? 'هذه الميزة قريباً!' : 'Coming soon!'
-        );
-        break;
-      case 'notifications':
-        Alert.alert(
-          isRTL ? 'الإشعارات' : 'Notifications',
-          isRTL ? 'هذه الميزة قريباً!' : 'Coming soon!'
-        );
-        break;
-      case 'support':
-        router.push('/contact');
-        break;
-      case 'about':
-        Alert.alert(
-          'Fixate',
-          isRTL 
-            ? 'تطبيق Fixate هو منصة شاملة لخدمات الصيانة والإصلاح. نربط العملاء بأفضل الفنيين المعتمدين لإصلاح الأجهزة الإلكترونية.\n\nالإصدار: 1.0.0' 
-            : 'Fixate is a comprehensive platform for maintenance and repair services. We connect customers with the best certified technicians to repair electronic devices.\n\nVersion: 1.0.0'
-        );
-        break;
-    }
-  };
+  const MENU_ITEMS = [
+    { id: 'orders', icon: 'receipt-outline', labelAr: 'طلباتي', labelEn: 'My Orders' },
+    { id: 'wallet', icon: 'wallet-outline', labelAr: 'المحفظة', labelEn: 'Wallet' },
+    { id: 'address', icon: 'location-outline', labelAr: 'عناويني', labelEn: 'Addresses' },
+    { id: 'notifications', icon: 'notifications-outline', labelAr: 'الإشعارات', labelEn: 'Notifications' },
+    { id: 'settings', icon: 'settings-outline', labelAr: 'الإعدادات', labelEn: 'Settings' },
+    { id: 'help', icon: 'help-circle-outline', labelAr: 'المساعدة والدعم', labelEn: 'Help & Support' },
+  ];
+
+  const styles = createStyles(COLORS, isRTL);
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
+      <StatusBar barStyle="dark-content" backgroundColor={COLORS.white} />
+      
       <View style={styles.header}>
-        <TouchableOpacity 
-          style={[styles.backButton, SHADOWS.neuFlat]}
-          onPress={() => router.back()}
-        >
-          <MaterialIcons name={isRTL ? "arrow-forward" : "arrow-back"} size={20} color={COLORS.text} />
-        </TouchableOpacity>
-        
-        <View style={styles.headerContent}>
-          <Text style={styles.headerTitle}>{isRTL ? 'الملف الشخصي' : 'Profile'}</Text>
-        </View>
-        
-        <View style={{ width: 40 }} />
+        <Text style={styles.headerTitle}>{isRTL ? 'الملف الشخصي' : 'Profile'}</Text>
       </View>
 
-      <ScrollView 
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
-      >
-        {/* Profile Info */}
-        <NeuCard style={styles.profileCard}>
-          <View style={styles.avatarContainer}>
-            <Image 
-              source={{ uri: getAvatarUrl() }} 
-              style={styles.avatar} 
-            />
-            <TouchableOpacity style={[styles.editAvatarBtn, SHADOWS.primaryGlow]}>
-              <MaterialIcons name="camera-alt" size={18} color="#FFF" />
-            </TouchableOpacity>
-          </View>
-          {loading ? (
-            <ActivityIndicator size="small" color={COLORS.primary} />
-          ) : (
-            <>
-              <Text style={styles.name}>{user?.name || (isRTL ? 'زائر' : 'Guest User')}</Text>
-              <Text style={styles.phone}>{user?.email || user?.phone || (isRTL ? 'غير مسجل' : 'Not logged in')}</Text>
-            </>
-          )}
-        </NeuCard>
-
-        {/* Stats */}
-        <NeuCard style={styles.statsContainer}>
-          <View style={styles.statItem}>
-            <Text style={styles.statValue}>{stats.ordersCount}</Text>
-            <Text style={styles.statLabel}>{isRTL ? 'طلب' : 'Orders'}</Text>
-          </View>
-          <View style={styles.statDivider} />
-          <View style={styles.statItem}>
-            <Text style={styles.statValue}>{stats.rating}</Text>
-            <Text style={styles.statLabel}>{isRTL ? 'التقييم' : 'Rating'}</Text>
-          </View>
-          <View style={styles.statDivider} />
-          <View style={styles.statItem}>
-            <Text style={styles.statValue}>{stats.years}</Text>
-            <Text style={styles.statLabel}>{isRTL ? 'سنة' : 'Year'}</Text>
-          </View>
-        </NeuCard>
-
-        {/* Menu Items */}
-        <View style={styles.menuContainer}>
-          {MENU_ITEMS.map((item) => (
-            <NeuCard 
-              key={item.id} 
-              style={styles.menuItem}
-              onPress={() => handleMenuPress(item.id)}
-            >
-              <View style={styles.menuItemLeft}>
-                <View style={styles.menuIcon}>
-                  <MaterialIcons name={item.icon as any} size={24} color={COLORS.primary} />
-                </View>
-                <View>
-                  <Text style={styles.menuTitle}>{isRTL ? item.titleAr : item.title}</Text>
-                </View>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+        <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
+          {/* Profile Header Card */}
+          <View style={styles.profileCard}>
+            <View style={styles.avatarContainer}>
+              <Image 
+                source={{ uri: `https://ui-avatars.com/api/?name=${user?.name || 'User'}&background=10b981&color=fff` }} 
+                style={styles.avatar} 
+              />
+              <TouchableOpacity style={styles.editAvatarBtn}>
+                <Ionicons name="camera" size={18} color="#fff" />
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.userName}>{user?.name || (isRTL ? 'مستخدم' : 'User')}</Text>
+            <Text style={styles.userEmail}>{user?.email || (isRTL ? 'لا يوجد بريد' : 'No email')}</Text>
+            
+            <View style={styles.statsRow}>
+              <View style={styles.statItem}>
+                <Text style={styles.statValue}>12</Text>
+                <Text style={styles.statLabel}>{isRTL ? 'طلب' : 'Orders'}</Text>
               </View>
-              <MaterialIcons name={isRTL ? "chevron-left" : "chevron-right"} size={24} color={COLORS.textSecondary} />
-            </NeuCard>
-          ))}
-        </View>
+              <View style={styles.statDivider} />
+              <View style={styles.statItem}>
+                <Text style={styles.statValue}>4.9</Text>
+                <Text style={styles.statLabel}>{isRTL ? 'تقييم' : 'Rating'}</Text>
+              </View>
+            </View>
+          </View>
 
-        {/* Logout Button */}
-        <TouchableOpacity style={[styles.logoutBtn, SHADOWS.neuFlat]} onPress={handleLogout}>
-          <MaterialIcons name="logout" size={24} color="#EF4444" />
-          <Text style={styles.logoutText}>{isRTL ? 'تسجيل الخروج' : 'Logout'}</Text>
-        </TouchableOpacity>
+          {/* Menu Items */}
+          <View style={styles.menuSection}>
+            {MENU_ITEMS.map((item) => (
+              <TouchableOpacity key={item.id} style={styles.menuItem}>
+                <View style={styles.menuItemLeft}>
+                  <View style={styles.menuIconContainer}>
+                    <Ionicons name={item.icon as any} size={22} color={COLORS.text} />
+                  </View>
+                  <Text style={styles.menuLabel}>{isRTL ? item.labelAr : item.labelEn}</Text>
+                </View>
+                <Ionicons name={isRTL ? "chevron-back" : "chevron-forward"} size={18} color={COLORS.border} />
+              </TouchableOpacity>
+            ))}
+          </View>
 
-        <Text style={styles.version}>Version 1.0.0</Text>
-
-        {/* Bottom Spacing */}
+          {/* Logout Button */}
+          <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+            <Ionicons name="log-out-outline" size={22} color={COLORS.danger} />
+            <Text style={styles.logoutText}>{isRTL ? 'تسجيل الخروج' : 'Logout'}</Text>
+          </TouchableOpacity>
+        </Animated.View>
+        
         <View style={{ height: 100 }} />
       </ScrollView>
 
-      {/* Bottom Navigation */}
       <BottomNav />
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.md,
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: BORDER_RADIUS.lg,
-    backgroundColor: COLORS.background,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  headerContent: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: COLORS.text,
-  },
-  headerSubtitle: {
-    fontSize: 12,
-    color: COLORS.textSecondary,
-    marginTop: 2,
-  },
-  scrollContent: {
-    padding: SPACING.lg,
-  },
-  profileCard: {
-    alignItems: 'center',
-    padding: SPACING.xl,
-    marginBottom: SPACING.lg,
-  },
-  avatarContainer: {
-    position: 'relative',
-    marginBottom: SPACING.md,
-  },
-  avatar: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    borderWidth: 4,
-    borderColor: COLORS.primary,
-  },
-  editAvatarBtn: {
-    position: 'absolute',
-    bottom: 0,
-    right: 0,
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: COLORS.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 3,
-    borderColor: COLORS.background,
-  },
-  name: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: COLORS.text,
-    marginBottom: 4,
-  },
-  phone: {
-    fontSize: 14,
-    color: COLORS.textSecondary,
-  },
-  statsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    padding: SPACING.lg,
-    marginBottom: SPACING.lg,
-  },
-  statItem: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  statValue: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: COLORS.primary,
-    marginBottom: 4,
-  },
-  statLabel: {
-    fontSize: 12,
-    color: COLORS.textSecondary,
-  },
-  statDivider: {
-    width: 1,
-    height: '100%',
-    backgroundColor: COLORS.border,
-  },
-  menuContainer: {
-    gap: SPACING.md,
-    marginBottom: SPACING.lg,
-  },
-  menuItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: SPACING.md,
-  },
-  menuItemLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.md,
-  },
-  menuIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: BORDER_RADIUS.lg,
-    backgroundColor: COLORS.primaryLight,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  menuTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: COLORS.text,
-  },
-  logoutBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: SPACING.sm,
-    padding: SPACING.lg,
-    backgroundColor: COLORS.background,
-    borderRadius: BORDER_RADIUS.xl,
-    borderWidth: 2,
-    borderColor: '#EF4444',
-    marginBottom: SPACING.md,
-  },
-  logoutText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#EF4444',
-  },
-  version: {
-    textAlign: 'center',
-    fontSize: 12,
-    color: COLORS.textLight,
-    marginBottom: SPACING.lg,
-  },
+const createStyles = (COLORS: any, isRTL: boolean) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: COLORS.background },
+  header: { height: 60, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.white, borderBottomWidth: 1, borderBottomColor: COLORS.border },
+  headerTitle: { fontSize: 18, fontWeight: 'bold', color: COLORS.text },
+  scrollContent: { padding: 16 },
+  profileCard: { backgroundColor: COLORS.white, borderRadius: 24, padding: 24, alignItems: 'center', marginBottom: 24, borderWidth: 1, borderColor: COLORS.border },
+  avatarContainer: { position: 'relative', marginBottom: 16 },
+  avatar: { width: 100, height: 100, borderRadius: 50, borderWidth: 4, borderColor: '#ecfdf5' },
+  editAvatarBtn: { position: 'absolute', bottom: 0, right: 0, width: 32, height: 32, borderRadius: 16, backgroundColor: COLORS.primary, justifyContent: 'center', alignItems: 'center', borderWidth: 3, borderColor: COLORS.white },
+  userName: { fontSize: 22, fontWeight: 'bold', color: COLORS.text },
+  userEmail: { fontSize: 14, color: COLORS.textSecondary, marginTop: 4 },
+  statsRow: { flexDirection: isRTL ? 'row-reverse' : 'row', marginTop: 24, width: '100%', justifyContent: 'space-around', paddingTop: 20, borderTopWidth: 1, borderTopColor: COLORS.border },
+  statItem: { alignItems: 'center' },
+  statValue: { fontSize: 20, fontWeight: 'bold', color: COLORS.primary },
+  statLabel: { fontSize: 12, color: COLORS.textSecondary, marginTop: 4 },
+  statDivider: { width: 1, height: 30, backgroundColor: COLORS.border },
+  menuSection: { backgroundColor: COLORS.white, borderRadius: 24, padding: 8, marginBottom: 24, borderWidth: 1, borderColor: COLORS.border },
+  menuItem: { flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, borderBottomWidth: 1, borderBottomColor: '#f9fafb' },
+  menuItemLeft: { flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 16 },
+  menuIconContainer: { width: 40, height: 40, borderRadius: 12, backgroundColor: '#f9fafb', justifyContent: 'center', alignItems: 'center' },
+  menuLabel: { fontSize: 16, fontWeight: '600', color: COLORS.text },
+  logoutButton: { flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', justifyContent: 'center', gap: 12, padding: 16, backgroundColor: '#fef2f2', borderRadius: 20, marginBottom: 24 },
+  logoutText: { fontSize: 16, fontWeight: 'bold', color: COLORS.danger },
 });
