@@ -462,6 +462,38 @@ export const ISSUES: Issue[] = [
     icon: 'dots-horizontal-circle-outline',
     estimatedPrice: 0,
     deviceType: 'watch'
+  },
+  {
+    id: 'other-printer',
+    name: 'Other Issue',
+    nameAr: 'أخرى',
+    icon: 'dots-horizontal-circle-outline',
+    estimatedPrice: 0,
+    deviceType: 'printer'
+  },
+  {
+    id: 'other-headphones',
+    name: 'Other Issue',
+    nameAr: 'أخرى',
+    icon: 'dots-horizontal-circle-outline',
+    estimatedPrice: 0,
+    deviceType: 'headphones'
+  },
+  {
+    id: 'other-tv',
+    name: 'Other Issue',
+    nameAr: 'أخرى',
+    icon: 'dots-horizontal-circle-outline',
+    estimatedPrice: 0,
+    deviceType: 'tv'
+  },
+  {
+    id: 'other-appliance',
+    name: 'Other Issue',
+    nameAr: 'أخرى',
+    icon: 'dots-horizontal-circle-outline',
+    estimatedPrice: 0,
+    deviceType: 'appliance'
   }
 ];
 
@@ -490,7 +522,11 @@ export const searchModels = (brandId: string, query: string): string[] => {
 };
 
 export const searchIssues = (deviceType: string, query: string): Issue[] => {
-  const filtered = ISSUES.filter(i => i.deviceType === deviceType);
+  // Map tablet to phone issues as they are similar
+  const effectiveType = deviceType === 'tablet' ? 'phone' : deviceType;
+  
+  const filtered = ISSUES.filter(i => i.deviceType === effectiveType);
+  
   if (!query) return filtered;
   
   const lowerQuery = query.toLowerCase();
