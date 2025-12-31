@@ -45,7 +45,7 @@ export default function LoginScreen() {
       return;
     }
 
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
@@ -55,7 +55,17 @@ export default function LoginScreen() {
       return;
     }
 
-    router.replace('/(tabs)');
+    if (data.user) {
+      // Check user role to redirect correctly
+      const userRole = data.user.user_metadata?.role || 'customer';
+      if (userRole === 'technician') {
+        router.replace('/(technician)');
+      } else {
+        router.replace('/(tabs)');
+      }
+    } else {
+      router.replace('/(tabs)');
+    }
   };
 
   const styles = createStyles(COLORS, isRTL);
