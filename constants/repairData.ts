@@ -112,7 +112,7 @@ export const BRANDS: Brand[] = [
     id: 'vivo',
     name: 'Vivo',
     deviceType: 'phone',
-    logo: 'https://upload.wikimedia.org/wikipedia/commons/e/e5/Vivo_mobile_logo.png',
+    logo: 'https://upload.wikimedia.org/wikipedia/commons/0/0b/Vivo_logo_2019.svg',
     models: [
       'X100 Pro', 'X100', 'X90 Pro', 'X90', 'X80 Pro', 'X80',
       'X70 Pro+', 'X70 Pro', 'X70', 'X60 Pro', 'X60',
@@ -212,6 +212,26 @@ export const BRANDS: Brand[] = [
       'G8X ThinQ', 'G8 ThinQ', 'G7 ThinQ',
       'Q92', 'Q70', 'Q60', 'Q52', 'Q51',
       'K92', 'K71', 'K62', 'K52', 'K42', 'K41'
+    ]
+  },
+  {
+    id: 'google',
+    name: 'Google Pixel',
+    deviceType: 'phone',
+    logo: 'https://upload.wikimedia.org/wikipedia/commons/2/2f/Google_2015_logo.svg',
+    models: [
+      'Pixel 8 Pro', 'Pixel 8', 'Pixel 7 Pro', 'Pixel 7', 'Pixel 7a',
+      'Pixel 6 Pro', 'Pixel 6', 'Pixel 6a', 'Pixel 5', 'Pixel 4a'
+    ]
+  },
+  {
+    id: 'honor',
+    name: 'Honor',
+    deviceType: 'phone',
+    logo: 'https://upload.wikimedia.org/wikipedia/commons/d/d4/Honor_logo.svg',
+    models: [
+      'Honor Magic 6 Pro', 'Honor Magic 5 Pro', 'Honor 90', 'Honor 70',
+      'Honor X9b', 'Honor X8b', 'Honor X7b'
     ]
   },
   
