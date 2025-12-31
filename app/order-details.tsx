@@ -46,6 +46,7 @@ export default function OrderDetailsScreen() {
   const [userType, setUserType] = useState<'customer' | 'technician'>('customer');
   const [rating, setRating] = useState(0);
   const [isRating, setIsRating] = useState(false);
+  const [showStatusPicker, setShowStatusPicker] = useState(false);
 
   useEffect(() => {
     checkUserType();
@@ -242,28 +243,48 @@ export default function OrderDetailsScreen() {
           {/* Technician Action Bar */}
           {userType === 'technician' && order.status !== 'completed' && order.status !== 'cancelled' && (
             <View style={[styles.techActionBar, { backgroundColor: COLORS.primary + '10' }]}>
-              <Text style={[styles.techActionTitle, { color: COLORS.text }]}>
-                {isRTL ? 'تحديث حالة الطلب' : 'Update Order Status'}
-              </Text>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.techActionTitle, { color: COLORS.text }]}>
+                  {isRTL ? 'سير العمل' : 'Workflow Control'}
+                </Text>
+                <Text style={{ fontSize: 12, color: COLORS.textSecondary }}>
+                  {isRTL ? 'اختر المرحلة الحالية للطلب' : 'Select current order stage'}
+                </Text>
+              </View>
               <TouchableOpacity 
                 style={[styles.techActionBtn, { backgroundColor: COLORS.primary }]}
-                onPress={() => {
-                  const next = getNextStatus(order.status);
-                  if (next) handleUpdateStatus(next);
-                }}
-                disabled={isUpdatingStatus}
+                onPress={() => setShowStatusPicker(true)}
               >
-                {isUpdatingStatus ? (
-                  <ActivityIndicator color="#fff" />
-                ) : (
-                  <>
-                    <Text style={styles.techActionBtnText}>
-                      {isRTL ? 'الخطوة التالية' : 'Next Step'}
-                    </Text>
-                    <MaterialIcons name="skip-next" size={20} color="#fff" />
-                  </>
-                )}
+                <Text style={styles.techActionBtnText}>
+                  {isRTL ? 'تغيير الحالة' : 'Change Status'}
+                </Text>
+                <MaterialIcons name="edit" size={18} color="#fff" />
               </TouchableOpacity>
+            </View>
+          )}
+
+          {/* Customer Info (For Technicians) */}
+          {userType === 'technician' && (
+            <View style={[styles.card, { backgroundColor: COLORS.card }, SHADOWS.medium]}>
+              <Text style={[styles.cardTitle, { color: COLORS.text, marginBottom: 16 }]}>
+                {isRTL ? 'بيانات العميل' : 'Customer Details'}
+              </Text>
+              <View style={styles.infoRow}>
+                <MaterialIcons name="person" size={20} color={COLORS.primary} />
+                <View style={styles.infoContent}>
+                  <Text style={[styles.infoLabel, { color: COLORS.textSecondary }]}>{isRTL ? 'الاسم' : 'Name'}</Text>
+                  <Text style={[styles.infoValue, { color: COLORS.text }]}>{order.user_id ? 'محمد أحمد' : 'عميل'}</Text>
+                </View>
+              </View>
+              <View style={styles.infoRow}>
+                <MaterialIcons name="phone" size={20} color={COLORS.primary} />
+                <View style={styles.infoContent}>
+                  <Text style={[styles.infoLabel, { color: COLORS.textSecondary }]}>{isRTL ? 'رقم الجوال' : 'Phone'}</Text>
+                  <TouchableOpacity onPress={() => Linking.openURL('tel:0500000000')}>
+                    <Text style={[styles.infoValue, { color: COLORS.primary, textDecorationLine: 'underline' }]}>0500000000</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
             </View>
           )}
 
@@ -479,6 +500,48 @@ export default function OrderDetailsScreen() {
 
         <View style={{ height: 40 }} />
       </ScrollView>
+
+      {/* Status Picker Modal */}
+      <Modal
+        visible={showStatusPicker}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowStatusPicker(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: COLORS.card }]}>
+            <Text style={[styles.modalTitle, { color: COLORS.text }]}>
+              {isRTL ? 'تحديث حالة الطلب' : 'Update Status'}
+            </Text>
+            <ScrollView style={{ maxHeight: 400 }}>
+              {ORDER_TIMELINE.map((step) => (
+                <TouchableOpacity 
+                  key={step.status} 
+                  style={[styles.reasonItem, order.status === step.status && { backgroundColor: COLORS.primary + '15' }]}
+                  onPress={() => {
+                    handleUpdateStatus(step.status as any);
+                    setShowStatusPicker(false);
+                  }}
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                    <MaterialCommunityIcons name={step.icon as any} size={24} color={order.status === step.status ? COLORS.primary : COLORS.textSecondary} />
+                    <Text style={[styles.reasonText, { color: order.status === step.status ? COLORS.primary : COLORS.text }]}>
+                      {isRTL ? step.arLabel : step.enLabel}
+                    </Text>
+                  </View>
+                  {order.status === step.status && <MaterialIcons name="check-circle" size={20} color={COLORS.primary} />}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+            <TouchableOpacity 
+              style={[styles.modalBtn, { backgroundColor: COLORS.border, marginTop: 16 }]} 
+              onPress={() => setShowStatusPicker(false)}
+            >
+              <Text style={{ color: COLORS.text }}>{isRTL ? 'إلغاء' : 'Cancel'}</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
 
       {/* Cancel Modal */}
       <Modal
