@@ -587,7 +587,7 @@ const createStyles = (COLORS: any, isRTL: boolean) => StyleSheet.create({
   addMediaText: { fontSize: 12, color: COLORS.gray, marginTop: 4 },
   mediaWrapper: { position: 'relative' },
   mediaThumb: { width: 80, height: 80, borderRadius: 12 },
-  removeMediaBtn: { position: 'absolute', top: -8, right: -8, backgroundColor: '#fff', borderRadius: 10 },: 4 },
+  removeMediaBtn: { position: 'absolute', top: -8, right: -8, backgroundColor: '#fff', borderRadius: 10 },
   mapContainer: { flex: 1, borderRadius: 16, overflow: 'hidden', marginBottom: 16 },
   map: { flex: 1 },
   mapPlaceholder: { flex: 1, backgroundColor: '#f3f4f6', justifyContent: 'center', alignItems: 'center' },
