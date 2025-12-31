@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, Sta
 import { useRouter } from 'expo-router';
 import { MaterialIcons, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useApp } from '../../contexts/AppContext';
-import { requests } from '../../lib/supabase-api';
+import { requests, auth } from '../../lib/supabase-api';
 import BottomNav from '../../components/BottomNav';
 
 export default function OrdersScreen() {
