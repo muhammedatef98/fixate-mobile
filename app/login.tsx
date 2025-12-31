@@ -68,6 +68,19 @@ export default function LoginScreen() {
       if (authError) throw authError;
 
       if (authData.user) {
+        // Check if email is confirmed
+        if (!authData.user.email_confirmed_at) {
+          await supabase.auth.signOut();
+          Alert.alert(
+            isRTL ? 'تفعيل الحساب' : 'Account Verification',
+            isRTL 
+              ? 'يرجى تفعيل حسابك من خلال الرابط المرسل إلى بريدك الإلكتروني أولاً.' 
+              : 'Please verify your account via the link sent to your email first.'
+          );
+          setLoading(false);
+          return;
+        }
+
         const { data: profileData } = await supabase
           .from('profiles')
           .select('role')
