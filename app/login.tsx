@@ -10,8 +10,8 @@ import {
   Alert,
   Dimensions,
   SafeAreaView,
-  Image,
   StatusBar,
+  Image,
 } from 'react-native';
 import { Link, useRouter } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -41,7 +41,7 @@ export default function LoginScreen() {
 
   const handleLogin = async () => {
     if (!email || !password) {
-      Alert.alert(isRTL ? 'خطأ' : 'Error', isRTL ? 'الرجاء ملء جميع الحقول' : 'Please fill all fields');
+      Alert.alert(isRTL ? 'خطأ' : 'Error', isRTL ? 'الرجاء إدخال البريد الإلكتروني وكلمة المرور' : 'Please enter email and password');
       return;
     }
 
@@ -55,7 +55,7 @@ export default function LoginScreen() {
       return;
     }
 
-    router.push('/');
+    router.replace('/(tabs)');
   };
 
   const styles = createStyles(COLORS, isRTL);
@@ -103,7 +103,7 @@ export default function LoginScreen() {
           <View style={styles.toggleContainer}>
             <TouchableOpacity 
               style={[styles.toggleButton, !isLogin && styles.activeToggle]} 
-              onPress={() => setIsLogin(false)}
+              onPress={() => router.push('/signup')}
             >
               <Text style={[styles.toggleText, !isLogin && styles.activeToggleText]}>
                 {isRTL ? 'إنشاء حساب' : 'Sign Up'}
@@ -156,26 +156,19 @@ export default function LoginScreen() {
             </View>
 
             <TouchableOpacity style={styles.forgotPassword}>
-              <Text style={styles.forgotPasswordText}>
-                {isRTL ? 'نسيت كلمة المرور؟' : 'Forgot Password?'}
-              </Text>
+              <Text style={styles.forgotPasswordText}>{isRTL ? 'نسيت كلمة المرور؟' : 'Forgot Password?'}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.mainButton} onPress={handleLogin}>
-              <Text style={styles.mainButtonText}>
-                {isLogin ? (isRTL ? 'تسجيل الدخول' : 'Login') : (isRTL ? 'إنشاء حساب' : 'Sign Up')}
-              </Text>
+              <Text style={styles.mainButtonText}>{isRTL ? 'تسجيل الدخول' : 'Login'}</Text>
             </TouchableOpacity>
 
             <View style={styles.divider}>
               <Text style={styles.dividerText}>{isRTL ? 'أو' : 'OR'}</Text>
             </View>
 
-            <TouchableOpacity 
-              style={styles.guestButton}
-              onPress={() => router.push('/')}
-            >
-              <Ionicons name="person-outline" size={20} color={COLORS.primary} />
+            <TouchableOpacity style={styles.guestButton} onPress={() => router.replace('/(tabs)')}>
+              <MaterialCommunityIcons name="account-outline" size={20} color={COLORS.primary} />
               <Text style={styles.guestButtonText}>{isRTL ? 'الاستمرار كضيف' : 'Continue as Guest'}</Text>
             </TouchableOpacity>
 
@@ -326,12 +319,12 @@ const createStyles = (COLORS: any, isRTL: boolean) => StyleSheet.create({
     marginHorizontal: 12,
   },
   forgotPassword: {
-    alignItems: isRTL ? 'flex-start' : 'flex-end',
+    alignSelf: isRTL ? 'flex-start' : 'flex-end',
   },
   forgotPasswordText: {
     color: COLORS.primary,
-    fontWeight: '600',
     fontSize: 14,
+    fontWeight: '600',
   },
   mainButton: {
     backgroundColor: COLORS.primary,
@@ -362,19 +355,14 @@ const createStyles = (COLORS: any, isRTL: boolean) => StyleSheet.create({
   },
   guestButton: {
     flexDirection: isRTL ? 'row-reverse' : 'row',
-    backgroundColor: '#fff',
     height: 56,
     borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: '#fff',
     borderWidth: 1,
-    borderColor: '#f3f4f6',
+    borderColor: COLORS.border,
     gap: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
   },
   guestButtonText: {
     color: COLORS.primary,
