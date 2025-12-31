@@ -118,8 +118,8 @@ export default function RequestScreen() {
         language === 'ar' ? 'تسجيل الدخول مطلوب' : 'Login Required',
         language === 'ar' ? 'يجب عليك تسجيل الدخول لرفع طلب صيانة' : 'You must login to submit a repair request',
         [
-          { text: language === 'ar' ? 'إلغاء' : 'Cancel', onPress: () => router.back(), style: 'cancel' },
-          { text: language === 'ar' ? 'تسجيل الدخول' : 'Login', onPress: () => router.push('/login') }
+          { text: language === 'ar' ? 'إلغاء' : 'Cancel', onPress: () => router.replace('/role-selection'), style: 'cancel' },
+          { text: language === 'ar' ? 'تسجيل الدخول' : 'Login', onPress: () => router.replace('/login') }
         ]
       );
     }
