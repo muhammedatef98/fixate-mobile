@@ -545,44 +545,77 @@ export default function OrderDetailsScreen() {
         </View>
       </Modal>
 
-      {/* Cancel Modal */}
+      {/* Cancel Modal (Bottom Sheet Style) */}
       <Modal
         visible={cancelModalVisible}
         transparent
-        animationType="fade"
+        animationType="slide"
         onRequestClose={() => setCancelModalVisible(false)}
       >
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor: COLORS.card }]}>
-            <Text style={[styles.modalTitle, { color: COLORS.text }]}>
-              {isRTL ? 'سبب الإلغاء' : 'Reason for Cancellation'}
-            </Text>
-            {CANCEL_REASONS.map((reason, index) => (
-              <TouchableOpacity 
-                key={index} 
-                style={[styles.reasonItem, cancelReason === reason && { backgroundColor: COLORS.primary + '15' }]}
-                onPress={() => setCancelReason(reason)}
-              >
-                <Text style={[styles.reasonText, { color: cancelReason === reason ? COLORS.primary : COLORS.text }]}>
-                  {reason}
-                </Text>
-                {cancelReason === reason && <MaterialIcons name="check-circle" size={20} color={COLORS.primary} />}
-              </TouchableOpacity>
-            ))}
+        <View style={styles.bottomSheetOverlay}>
+          <TouchableOpacity 
+            style={styles.bottomSheetBackdrop} 
+            activeOpacity={1} 
+            onPress={() => setCancelModalVisible(false)} 
+          />
+          <View style={[styles.bottomSheetContent, { backgroundColor: COLORS.card }]}>
+            <View style={[styles.bottomSheetHandle, { backgroundColor: COLORS.border }]} />
             
-            <View style={styles.modalFooter}>
+            <Text style={[styles.bottomSheetTitle, { color: COLORS.text }]}>
+              {isRTL ? 'لماذا تود إلغاء الطلب؟' : 'Why do you want to cancel?'}
+            </Text>
+            <Text style={[styles.bottomSheetSub, { color: COLORS.textSecondary }]}>
+              {isRTL ? 'يساعدنا معرفة السبب على تحسين خدمتنا' : 'Knowing the reason helps us improve our service'}
+            </Text>
+
+            <View style={styles.reasonsGrid}>
+              {CANCEL_REASONS.map((reason, index) => (
+                <TouchableOpacity 
+                  key={index} 
+                  style={[
+                    styles.reasonChip, 
+                    { backgroundColor: COLORS.background, borderColor: COLORS.border },
+                    cancelReason === reason && { backgroundColor: COLORS.error + '10', borderColor: COLORS.error }
+                  ]}
+                  onPress={() => setCancelReason(reason)}
+                >
+                  <MaterialCommunityIcons 
+                    name={cancelReason === reason ? "check-circle" : "circle-outline"} 
+                    size={20} 
+                    color={cancelReason === reason ? COLORS.error : COLORS.textSecondary} 
+                  />
+                  <Text style={[
+                    styles.reasonChipText, 
+                    { color: COLORS.text },
+                    cancelReason === reason && { color: COLORS.error, fontWeight: 'bold' }
+                  ]}>
+                    {reason}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            
+            <View style={styles.bottomSheetFooter}>
               <TouchableOpacity 
-                style={[styles.modalBtn, { backgroundColor: COLORS.border }]} 
-                onPress={() => setCancelModalVisible(false)}
-              >
-                <Text style={{ color: COLORS.text }}>{isRTL ? 'تراجع' : 'Back'}</Text>
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={[styles.modalBtn, { backgroundColor: COLORS.error }]} 
+                style={[styles.cancelActionBtn, { backgroundColor: COLORS.error }]} 
                 onPress={handleCancelOrder}
                 disabled={isCancelling}
               >
-                {isCancelling ? <ActivityIndicator color="#fff" /> : <Text style={{ color: '#fff' }}>{isRTL ? 'تأكيد الإلغاء' : 'Confirm'}</Text>}
+                {isCancelling ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <>
+                    <MaterialIcons name="close" size={20} color="#fff" />
+                    <Text style={styles.cancelActionBtnText}>{isRTL ? 'تأكيد الإلغاء' : 'Confirm Cancellation'}</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={[styles.backActionBtn, { borderColor: COLORS.border }]} 
+                onPress={() => setCancelModalVisible(false)}
+              >
+                <Text style={[styles.backActionBtnText, { color: COLORS.textSecondary }]}>{isRTL ? 'تراجع' : 'Go Back'}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -714,8 +747,24 @@ const styles = StyleSheet.create({
   reasonItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 15, borderRadius: 12, marginBottom: 8 },
   reasonText: { fontSize: 15 },
   modalFooter: { flexDirection: 'row', gap: 12, marginTop: 20 },
-  modalBtn: { flex: 1, height: 50, borderRadius: 12, justifyContent: 'center', alignItems: 'center' }, marginBottom: SPACING.sm,
-  },
+  modalBtn: { flex: 1, height: 50, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
+  
+  // Bottom Sheet Styles
+  bottomSheetOverlay: { flex: 1, justifyContent: 'flex-end' },
+  bottomSheetBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.6)' },
+  bottomSheetContent: { borderTopLeftRadius: 30, borderTopRightRadius: 30, padding: 24, paddingBottom: 40 },
+  bottomSheetHandle: { width: 40, height: 5, borderRadius: 3, alignSelf: 'center', marginBottom: 20 },
+  bottomSheetTitle: { fontSize: 22, fontWeight: 'bold', textAlign: 'center', marginBottom: 8 },
+  bottomSheetSub: { fontSize: 14, textAlign: 'center', marginBottom: 24 },
+  reasonsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 30, justifyContent: 'center' },
+  reasonChip: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, borderRadius: 15, borderWidth: 1, gap: 8, minWidth: '45%' },
+  reasonChipText: { fontSize: 14 },
+  bottomSheetFooter: { gap: 12 },
+  cancelActionBtn: { height: 56, borderRadius: 16, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8 },
+  cancelActionBtnText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
+  backActionBtn: { height: 56, borderRadius: 16, justifyContent: 'center', alignItems: 'center', borderWidth: 1 },
+  backActionBtnText: { fontSize: 16, fontWeight: '600' },
+  
   sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
