@@ -7,7 +7,8 @@ import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import * as Location from 'expo-location';
 import * as ImagePicker from 'expo-image-picker';
 import { useRequests } from '../contexts/RequestContext';
-import { requests, storage, auth } from '../lib/supabase-api';
+import { requests, auth } from '../lib/supabase-api';
+import { notificationManager } from '../lib/notifications';
 import { BRANDS, searchBrands, searchModels, searchIssues, Brand, Issue } from '../constants/repairData';
 import { useApp } from '../contexts/AppContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -233,6 +234,18 @@ export default function RequestScreen() {
       const result = await requests.createRequest(orderData);
       
       if (result) {
+        // Extract city from address if possible and notify technicians
+        const cityMatch = address?.match(/,\s*([^,]+)$/);
+        const city = cityMatch ? cityMatch[1].trim() : null;
+        
+        if (city) {
+          notificationManager.notifyTechniciansInCity(city, {
+            id: result.id,
+            device_brand: orderData.device_brand,
+            device_model: orderData.device_model
+          });
+        }
+
         setIsSubmitting(false);
         Alert.alert(
           isRTL ? 'نجح' : 'Success', 

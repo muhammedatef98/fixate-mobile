@@ -27,6 +27,20 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const isDark = theme === 'dark';
 
+  useEffect(() => {
+    setupNotifications();
+  }, []);
+
+  const setupNotifications = async () => {
+    const user = await auth.getCurrentUser();
+    if (user) {
+      const token = await notificationManager.registerForPushNotificationsAsync();
+      if (token) {
+        await notificationManager.saveTokenToProfile(user.id, token);
+      }
+    }
+  };
+
   return (
     <AppContext.Provider
       value={{
