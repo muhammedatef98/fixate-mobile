@@ -581,11 +581,16 @@ export default function RequestScreen() {
                       styles.issuePrice,
                       selectedIssue?.id === issue.id && styles.selectedIssuePrice
                     ]}>
-                      {issue.priceRange ? `${issue.priceRange.min} - ${issue.priceRange.max}` : issue.estimatedPrice} {language === 'ar' ? 'ريال' : 'SAR'}
+                      {issue.id.startsWith('other') 
+                        ? (language === 'ar' ? 'حسب العطل سيتم التقدير' : 'Price will be estimated based on issue')
+                        : (issue.priceRange ? `${issue.priceRange.min} - ${issue.priceRange.max} ${language === 'ar' ? 'ريال' : 'SAR'}` : `${issue.estimatedPrice} ${language === 'ar' ? 'ريال' : 'SAR'}`)
+                      }
                     </Text>
-                    <Text style={styles.priceLabel}>
-                      {language === 'ar' ? '(سعر تقديري)' : '(Est. Price)'}
-                    </Text>
+                    {!issue.id.startsWith('other') && (
+                      <Text style={styles.priceLabel}>
+                        {language === 'ar' ? '(سعر تقديري)' : '(Est. Price)'}
+                      </Text>
+                    )}
                   </View>
                 </View>
                 {selectedIssue?.id === issue.id && (
@@ -793,6 +798,7 @@ const createStyles = (COLORS: any, isRTL: boolean) => StyleSheet.create({
   stepperContainer: {
     paddingVertical: 16,
     backgroundColor: COLORS.background,
+    zIndex: 10,
   },
   stepperContent: {
     paddingHorizontal: 20,
@@ -942,8 +948,8 @@ const createStyles = (COLORS: any, isRTL: boolean) => StyleSheet.create({
   gridContainer: {
     flexDirection: isRTL ? 'row-reverse' : 'row',
     flexWrap: 'wrap',
-    gap: 12,
-    justifyContent: 'space-between',
+    gap: 8,
+    justifyContent: 'flex-start',
   },
   gridCard: {
     width: (width - 52) / 2,
@@ -992,14 +998,14 @@ const createStyles = (COLORS: any, isRTL: boolean) => StyleSheet.create({
     flex: 1,
   },
   brandCard: {
-    width: (width - 52) / 3,
+    width: (width - 56) / 3,
     backgroundColor: '#fff',
     padding: 12,
     borderRadius: 12,
     alignItems: 'center',
     borderWidth: 1,
     borderColor: '#e5e7eb',
-    marginBottom: 12,
+    marginBottom: 8,
   },
   selectedBrandCard: {
     borderColor: COLORS.primary,
