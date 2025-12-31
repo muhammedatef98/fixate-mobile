@@ -20,25 +20,11 @@ function RootLayoutContent() {
   useEffect(() => {
     if (loading) return;
 
-    const inAuthGroup = segments[0] === 'login' || segments[0] === 'signup' || segments[0] === 'role-selection' || segments[0] === 'onboarding' || segments[0] === 'index';
+    const inAuthGroup = segments[0] === 'login' || segments[0] === 'signup' || segments[0] === 'onboarding' || segments[0] === 'index';
 
     if (user && inAuthGroup) {
-      // If user is logged in and trying to access auth pages, redirect to their home
-      // We need to check the role to redirect to the correct home
-      const checkRoleAndRedirect = async () => {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('role')
-          .eq('id', user.id)
-          .single();
-        
-        if (profile?.role === 'technician') {
-          router.replace('/(technician)');
-        } else {
-          router.replace('/(customer)');
-        }
-      };
-      checkRoleAndRedirect();
+      // If user is logged in and trying to access auth pages, redirect to role selection
+      router.replace('/role-selection');
     }
   }, [user, segments, loading]);
   
