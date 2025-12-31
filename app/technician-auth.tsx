@@ -18,7 +18,7 @@ import {
 import { useRouter } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useApp } from '../contexts/AppContext';
-import { auth } from '../lib/supabase';
+import { supabase } from '../lib/supabase';
 
 const { width } = Dimensions.get('window');
 
@@ -55,11 +55,38 @@ export default function TechnicianAuthScreen() {
     setLoading(true);
     try {
       if (isLogin) {
-        const { error } = await auth.signIn(email, password);
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
         if (error) throw error;
-        router.replace('/(technician)');
+
+        if (data.user) {
+          // Check user role to ensure it's a technician
+          const userRole = data.user.user_metadata?.role || 'customer';
+          if (userRole !== 'technician') {
+            await supabase.auth.signOut();
+            Alert.alert(
+              isRTL ? 'تنبيه' : 'Access Denied',
+              isRTL ? 'هذا الحساب مسجل كعميل، يرجى الدخول من بوابة العملاء' : 'This account is registered as a customer, please login from the customer portal'
+            );
+            return;
+          }
+          router.replace('/(technician)');
+        }
       } else {
-        const { error } = await auth.signUp(email, password, name, 'technician');
+        const { data, error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            data: {
+              name,
+              role: 'technician',
+              phone,
+              specialization
+            }
+          }
+        });
         if (error) throw error;
         Alert.alert(isRTL ? 'نجح' : 'Success', isRTL ? 'تم إنشاء الحساب بنجاح!' : 'Account created successfully!');
         setIsLogin(true);
