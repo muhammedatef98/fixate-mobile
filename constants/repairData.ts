@@ -21,7 +21,7 @@ export interface Issue {
   deviceType?: string; // To filter issues by device type
 }
 
-// All major phone brands with logos (using remote URLs to avoid missing assets)
+// All major brands with SVG logos where possible
 export const BRANDS: Brand[] = [
   // Phones
   {
@@ -276,28 +276,31 @@ export const BRANDS: Brand[] = [
     deviceType: 'laptop',
     logo: 'https://upload.wikimedia.org/wikipedia/commons/f/fa/Apple_logo_black.svg',
     models: [
-      'MacBook Pro 16" M3', 'MacBook Pro 14" M3', 'MacBook Air 15" M3', 'MacBook Air 13" M3',
-      'MacBook Pro 16" M2', 'MacBook Pro 14" M2', 'MacBook Air 15" M2', 'MacBook Air 13" M2'
+      'MacBook Pro 16" (M3)', 'MacBook Pro 14" (M3)', 'MacBook Pro 13" (M2)',
+      'MacBook Air 15" (M3)', 'MacBook Air 13" (M3)', 'MacBook Air 13" (M2)', 'MacBook Air (M1)'
     ]
   },
   {
-    id: 'hp',
+    id: 'dell-laptop',
+    name: 'Dell',
+    deviceType: 'laptop',
+    logo: 'https://upload.wikimedia.org/wikipedia/commons/1/18/Dell_logo_2016.svg',
+    models: [
+      'XPS 15', 'XPS 13', 'XPS 17',
+      'Inspiron 16', 'Inspiron 15', 'Inspiron 14',
+      'Latitude 7440', 'Latitude 5440', 'Latitude 3540',
+      'Alienware m18', 'Alienware x16', 'Alienware m16'
+    ]
+  },
+  {
+    id: 'hp-laptop',
     name: 'HP',
     deviceType: 'laptop',
     logo: 'https://upload.wikimedia.org/wikipedia/commons/a/ad/HP_logo_2012.svg',
     models: [
-      'HP Spectre x360', 'HP Envy', 'HP Pavilion', 'HP EliteBook', 'HP ProBook',
-      'HP Omen', 'HP Victus', 'HP 15s', 'HP 14s'
-    ]
-  },
-  {
-    id: 'dell',
-    name: 'Dell',
-    deviceType: 'laptop',
-    logo: 'https://upload.wikimedia.org/wikipedia/commons/4/48/Dell_Logo.svg',
-    models: [
-      'Dell XPS 15', 'Dell XPS 13', 'Dell Inspiron 16', 'Dell Inspiron 15', 'Dell Inspiron 14',
-      'Dell G15', 'Dell G16', 'Alienware m18', 'Alienware m16', 'Alienware x16'
+      'Spectre x360', 'Envy x360', 'Pavilion 15',
+      'EliteBook 840', 'ProBook 450',
+      'OMEN 16', 'Victus 15'
     ]
   },
   {
@@ -307,88 +310,32 @@ export const BRANDS: Brand[] = [
     logo: 'https://upload.wikimedia.org/wikipedia/commons/b/b8/Lenovo_logo_2015.svg',
     models: [
       'ThinkPad X1 Carbon', 'ThinkPad T14', 'ThinkPad E14',
-      'Yoga 9i', 'Yoga 7i', 'IdeaPad Slim 5', 'IdeaPad Slim 3',
-      'Legion Pro 7i', 'Legion Pro 5i', 'LOQ 15'
+      'Yoga 9i', 'Yoga 7i', 'IdeaPad 5', 'IdeaPad 3',
+      'Legion Pro 7i', 'Legion 5i', 'Legion Slim 7'
     ]
   },
   {
-    id: 'asus',
-    name: 'Asus',
+    id: 'asus-laptop',
+    name: 'ASUS',
     deviceType: 'laptop',
     logo: 'https://upload.wikimedia.org/wikipedia/commons/2/2e/ASUS_Logo.svg',
     models: [
-      'ROG Strix Scar 18', 'ROG Zephyrus G14', 'TUF Gaming F15', 'TUF Gaming A15',
-      'Zenbook S 13 OLED', 'Zenbook 14 OLED', 'Vivobook Pro 15', 'Vivobook 16', 'Vivobook 15'
+      'Zenbook 14', 'Zenbook Pro 16', 'Vivobook 15', 'Vivobook S 14',
+      'ROG Zephyrus G14', 'ROG Strix G16', 'TUF Gaming F15'
     ]
   },
   {
-    id: 'acer',
+    id: 'acer-laptop',
     name: 'Acer',
     deviceType: 'laptop',
-    logo: 'https://upload.wikimedia.org/wikipedia/commons/0/00/Acer_2011.svg',
+    logo: 'https://upload.wikimedia.org/wikipedia/commons/a/a7/Acer_Logo.svg',
     models: [
-      'Predator Helios 18', 'Predator Helios 16', 'Nitro 17', 'Nitro 5',
-      'Swift Go 14', 'Swift X 14', 'Aspire 5', 'Aspire 3'
-    ]
-  },
-  {
-    id: 'microsoft',
-    name: 'Microsoft Surface',
-    deviceType: 'laptop',
-    logo: 'https://upload.wikimedia.org/wikipedia/commons/9/96/Microsoft_logo_%282012%29.svg',
-    models: [
-      'Surface Laptop Studio 2', 'Surface Laptop 5', 'Surface Laptop Go 3',
-      'Surface Pro 9', 'Surface Go 4'
-    ]
-  },
-  {
-    id: 'msi',
-    name: 'MSI',
-    deviceType: 'laptop',
-    logo: 'https://upload.wikimedia.org/wikipedia/commons/a/a2/MSI_Logo.svg',
-    models: [
-      'Titan 18 HX', 'Raider GE78', 'Stealth 16', 'Vector GP68',
-      'Katana 15', 'Cyborg 15', 'Thin GF63', 'Modern 15', 'Modern 14'
-    ]
-  },
-
-  // Smartwatch Brands
-  {
-    id: 'apple-watch',
-    name: 'Apple Watch',
-    deviceType: 'watch',
-    logo: 'https://upload.wikimedia.org/wikipedia/commons/f/fa/Apple_logo_black.svg',
-    models: [
-      'Apple Watch Ultra 2', 'Apple Watch Ultra',
-      'Apple Watch Series 9', 'Apple Watch Series 8', 'Apple Watch Series 7',
-      'Apple Watch SE (2nd gen)', 'Apple Watch SE (1st gen)'
-    ]
-  },
-  {
-    id: 'samsung-watch',
-    name: 'Samsung Galaxy Watch',
-    deviceType: 'watch',
-    logo: 'https://upload.wikimedia.org/wikipedia/commons/2/24/Samsung_Logo.svg',
-    models: [
-      'Galaxy Watch 6 Classic', 'Galaxy Watch 6',
-      'Galaxy Watch 5 Pro', 'Galaxy Watch 5',
-      'Galaxy Watch 4 Classic', 'Galaxy Watch 4'
-    ]
-  },
-  {
-    id: 'huawei-watch',
-    name: 'Huawei Watch',
-    deviceType: 'watch',
-    logo: 'https://upload.wikimedia.org/wikipedia/commons/e/e8/Huawei_Logo.svg',
-    models: [
-      'Watch Ultimate', 'Watch 4 Pro', 'Watch 4',
-      'Watch GT 4', 'Watch GT 3 Pro', 'Watch GT 3',
-      'Watch Fit 3', 'Watch Fit 2'
+      'Swift Go', 'Swift Edge', 'Aspire 5', 'Aspire 3',
+      'Predator Helios 16', 'Nitro 5'
     ]
   }
 ];
 
-// Comprehensive list of issues for all device types
 export const ISSUES: Issue[] = [
   // Phone Issues
   {
@@ -472,6 +419,15 @@ export const ISSUES: Issue[] = [
     priceRange: { min: 50, max: 150 },
     deviceType: 'phone'
   },
+  {
+    id: 'other-phone',
+    name: 'Other',
+    nameAr: 'أخرى',
+    icon: 'help-circle-outline',
+    estimatedPrice: 0,
+    priceRange: { min: 0, max: 0 },
+    deviceType: 'phone'
+  },
 
   // Tablet Issues
   {
@@ -508,6 +464,15 @@ export const ISSUES: Issue[] = [
     icon: 'code-slash-outline',
     estimatedPrice: 100,
     priceRange: { min: 80, max: 200 },
+    deviceType: 'tablet'
+  },
+  {
+    id: 'other-tablet',
+    name: 'Other',
+    nameAr: 'أخرى',
+    icon: 'help-circle-outline',
+    estimatedPrice: 0,
+    priceRange: { min: 0, max: 0 },
     deviceType: 'tablet'
   },
 
@@ -575,6 +540,15 @@ export const ISSUES: Issue[] = [
     priceRange: { min: 200, max: 1000 },
     deviceType: 'laptop'
   },
+  {
+    id: 'other-laptop',
+    name: 'Other',
+    nameAr: 'أخرى',
+    icon: 'help-circle-outline',
+    estimatedPrice: 0,
+    priceRange: { min: 0, max: 0 },
+    deviceType: 'laptop'
+  },
 
   // Watch Issues
   {
@@ -593,6 +567,15 @@ export const ISSUES: Issue[] = [
     icon: 'battery-charging-outline',
     estimatedPrice: 150,
     priceRange: { min: 100, max: 300 },
+    deviceType: 'watch'
+  },
+  {
+    id: 'other-watch',
+    name: 'Other',
+    nameAr: 'أخرى',
+    icon: 'help-circle-outline',
+    estimatedPrice: 0,
+    priceRange: { min: 0, max: 0 },
     deviceType: 'watch'
   }
 ];
