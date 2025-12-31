@@ -1,5 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { ColorSchemeName, useColorScheme } from 'react-native';
+import { notificationManager } from '../lib/notifications';
+import { auth } from '../lib/supabase-api';
 
 type Language = 'en' | 'ar';
 type Theme = 'light' | 'dark';
