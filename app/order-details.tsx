@@ -11,12 +11,14 @@ import {
   Linking,
   I18nManager,
   StatusBar,
+  Modal,
+  Alert,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { getColors, getShadows, SPACING, BORDER_RADIUS } from '../constants/theme';
 import { useApp } from '../contexts/AppContext';
-import { requests } from '../lib/supabase-api';
+import { requests, auth } from '../lib/supabase-api';
 import type { Order } from '../lib/supabase-api';
 
 const ORDER_TIMELINE = [
