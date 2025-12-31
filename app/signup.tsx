@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -13,12 +13,13 @@ import {
   ScrollView,
   StatusBar,
   Image,
+  Animated,
 } from 'react-native';
-import { Link, useRouter } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useApp } from '../contexts/AppContext';
 import { supabase } from '../lib/supabase';
-import { validatePassword, validateEmail, validatePhone } from '../utils/validation';
+import { validateEmail } from '../utils/validation';
 
 const { width } = Dimensions.get('window');
 
@@ -32,6 +33,10 @@ export default function SignupScreen() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLogin, setIsLogin] = useState(false);
+  
+  // Password strength state
+  const [passwordStrength, setPasswordStrength] = useState(0);
+  const strengthAnim = useRef(new Animated.Value(0)).current;
 
   const COLORS = {
     primary: '#10b981',
@@ -41,6 +46,40 @@ export default function SignupScreen() {
     gray: '#9ca3af',
     lightGray: '#f3f4f6',
     border: '#e5e7eb',
+    error: '#ef4444',
+    warning: '#f59e0b',
+    success: '#10b981',
+  };
+
+  useEffect(() => {
+    // Calculate password strength
+    let strength = 0;
+    if (password.length > 0) {
+      if (password.length >= 6) strength += 1;
+      if (/[A-Z]/.test(password)) strength += 1;
+      if (/[0-9]/.test(password)) strength += 1;
+      if (/[^A-Za-z0-9]/.test(password)) strength += 1;
+    }
+    setPasswordStrength(strength);
+    
+    Animated.timing(strengthAnim, {
+      toValue: strength,
+      duration: 300,
+      useNativeDriver: false,
+    }).start();
+  }, [password]);
+
+  const getStrengthColor = () => {
+    if (passwordStrength <= 1) return COLORS.error;
+    if (passwordStrength <= 2) return COLORS.warning;
+    return COLORS.success;
+  };
+
+  const getStrengthText = () => {
+    if (password.length === 0) return '';
+    if (passwordStrength <= 1) return isRTL ? 'ضعيفة' : 'Weak';
+    if (passwordStrength <= 2) return isRTL ? 'متوسطة' : 'Medium';
+    return isRTL ? 'قوية' : 'Strong';
   };
 
   const handleSignup = async () => {
@@ -51,6 +90,11 @@ export default function SignupScreen() {
     
     if (!validateEmail(email)) {
       Alert.alert(isRTL ? 'خطأ' : 'Error', isRTL ? 'البريد الإلكتروني غير صحيح' : 'Invalid email address');
+      return;
+    }
+
+    if (password.length < 6) {
+      Alert.alert(isRTL ? 'خطأ' : 'Error', isRTL ? 'كلمة المرور يجب أن تكون 6 أحرف على الأقل' : 'Password must be at least 6 characters');
       return;
     }
 
@@ -72,13 +116,12 @@ export default function SignupScreen() {
     ]);
   };
 
-  const styles = createStyles(COLORS, isRTL);
+  const styles = createStyles(COLORS, isRTL, strengthAnim, getStrengthColor());
 
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" />
       
-      {/* Green Header Bar */}
       <View style={styles.greenHeader}>
         <SafeAreaView>
           <View style={styles.headerContent}>
@@ -100,7 +143,6 @@ export default function SignupScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
         <ScrollView contentContainerStyle={styles.scrollContent}>
-          {/* Logo Section */}
           <View style={styles.logoSection}>
             <View style={styles.logoCircle}>
               <Image 
@@ -113,7 +155,6 @@ export default function SignupScreen() {
             <Text style={styles.brandSlogan}>{isRTL ? 'شريكك الموثوق للصيانة' : 'Your Trusted Repair Partner'}</Text>
           </View>
 
-          {/* Toggle Login/Signup */}
           <View style={styles.toggleContainer}>
             <TouchableOpacity 
               style={[styles.toggleButton, !isLogin && styles.activeToggle]} 
@@ -133,7 +174,6 @@ export default function SignupScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* Form Section */}
           <View style={styles.form}>
             <View style={styles.inputContainer}>
               <MaterialCommunityIcons name="account-outline" size={20} color={COLORS.gray} />
@@ -168,7 +208,11 @@ export default function SignupScreen() {
                 placeholder={isRTL ? 'رقم الجوال' : 'Phone Number'}
                 placeholderTextColor={COLORS.gray}
                 value={phone}
-                onChangeText={setPhone}
+                onChangeText={(text) => {
+                  // Simple phone formatting
+                  const cleaned = text.replace(/\D/g, '');
+                  setPhone(cleaned);
+                }}
                 keyboardType="phone-pad"
                 textAlign={isRTL ? 'right' : 'left'}
               />
@@ -193,6 +237,28 @@ export default function SignupScreen() {
               />
               <MaterialCommunityIcons name="lock-outline" size={20} color={COLORS.gray} />
             </View>
+            
+            {password.length > 0 && (
+              <View style={styles.strengthContainer}>
+                <View style={styles.strengthBarBackground}>
+                  <Animated.View 
+                    style={[
+                      styles.strengthBarActive, 
+                      { 
+                        width: strengthAnim.interpolate({
+                          inputRange: [0, 4],
+                          outputRange: ['0%', '100%']
+                        }),
+                        backgroundColor: getStrengthColor()
+                      }
+                    ]} 
+                  />
+                </View>
+                <Text style={[styles.strengthText, { color: getStrengthColor() }]}>
+                  {getStrengthText()}
+                </Text>
+              </View>
+            )}
 
             <TouchableOpacity style={styles.mainButton} onPress={handleSignup}>
               <Text style={styles.mainButtonText}>{isRTL ? 'إنشاء حساب' : 'Sign Up'}</Text>
@@ -220,7 +286,7 @@ export default function SignupScreen() {
   );
 }
 
-const createStyles = (COLORS: any, isRTL: boolean) => StyleSheet.create({
+const createStyles = (COLORS: any, isRTL: boolean, strengthAnim: any, strengthColor: string) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
@@ -347,6 +413,27 @@ const createStyles = (COLORS: any, isRTL: boolean) => StyleSheet.create({
     fontSize: 16,
     color: '#1f2937',
     marginHorizontal: 12,
+  },
+  strengthContainer: {
+    marginTop: -8,
+    marginBottom: 8,
+    paddingHorizontal: 4,
+  },
+  strengthBarBackground: {
+    height: 4,
+    backgroundColor: '#e5e7eb',
+    borderRadius: 2,
+    overflow: 'hidden',
+    marginBottom: 4,
+  },
+  strengthBarActive: {
+    height: '100%',
+    borderRadius: 2,
+  },
+  strengthText: {
+    fontSize: 12,
+    fontWeight: '600',
+    textAlign: isRTL ? 'right' : 'left',
   },
   mainButton: {
     backgroundColor: COLORS.primary,
