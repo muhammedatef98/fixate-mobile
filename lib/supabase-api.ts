@@ -1,6 +1,4 @@
 import { supabase } from './supabase';
-import { File } from 'expo-file-system/next';
-import { decode } from 'base64-arraybuffer';
 
 // Database Types (matching Supabase schema)
 export interface User {
@@ -28,6 +26,7 @@ export interface Order {
   media_urls?: string[];
   status: 'pending' | 'accepted' | 'picking_up' | 'diagnosing' | 'repairing' | 'delivering' | 'completed' | 'cancelled';
   technician_id?: string;
+  customer_city?: string;
   created_at: string;
   updated_at: string;
 }
@@ -69,36 +68,16 @@ export const auth = {
   getCurrentUser: async (): Promise<User | null> => {
     try {
       const { data: { user }, error } = await supabase.auth.getUser();
-      if (error) {
-        // Silently return null if no session
-        return null;
-      }
+      if (error) return null;
       return user;
     } catch (error) {
-      // Handle any exceptions (like AuthSessionMissingError)
       return null;
     }
-  },
-
-  // Get user profile
-  getUserProfile: async (): Promise<User | null> => {
-    return await auth.getCurrentUser();
   },
 
   // Sign out
   signOut: async () => {
     const { error } = await supabase.auth.signOut();
-    if (error) throw error;
-  },
-
-  // Update user profile
-  updateProfile: async (userId: string, updates: { name?: string, phone?: string }) => {
-    const { error } = await supabase.auth.updateUser({
-      data: {
-        name: updates.name,
-        phone: updates.phone
-      }
-    });
     if (error) throw error;
   },
 };
@@ -107,11 +86,6 @@ export const auth = {
 export const requests = {
   // Create new order
   create: async (orderData: any): Promise<Order | null> => {
-    return await requests.createRequest(orderData);
-  },
-
-  createRequest: async (orderData: any): Promise<Order | null> => {
-    // 1. Create the main order
     const { data: order, error: orderError } = await supabase
       .from('orders')
       .insert([{
@@ -131,81 +105,68 @@ export const requests = {
       .select()
       .single();
 
-    if (orderError) {
-      console.error('Error creating order:', orderError);
-      throw orderError;
-    }
-
-    // 2. Create order items if present
-    if (orderData.items && orderData.items.length > 0) {
-      const itemsToInsert = orderData.items.map(item => ({
-        order_id: order.id,
-        device_type: item.deviceType,
-        device_brand: item.brand.name,
-        device_model: item.model,
-        issue_id: item.issue.id,
-        issue_description: item.description,
-        estimated_price: item.issue.priceRange.min,
-        // Store media files for this specific item if needed, or rely on main order media
-      }));
-
-      const { error: itemsError } = await supabase
-        .from('order_items')
-        .insert(itemsToInsert);
-
-      if (itemsError) {
-        console.error('Error creating order items:', itemsError);
-        // We don't throw here to avoid failing the whole order, but log it
-      }
-    }
-
+    if (orderError) throw orderError;
     return order;
-  },
-
-  // Get all orders
-  getAll: async (): Promise<Order[]> => {
-    const { data, error } = await supabase
-      .from('orders')
-      .select('*')
-      .order('created_at', { ascending: false });
-
-    if (error) {
-      console.error('Error getting all orders:', error);
-      return [];
-    }
-
-    return data || [];
-  },
-
-  // Get user orders
-  getUserRequests: async (userId: string): Promise<Order[]> => {
-    const { data, error } = await supabase
-      .from('orders')
-      .select('*')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false });
-
-    if (error) {
-      console.error('Error getting user orders:', error);
-      return [];
-    }
-
-    return data || [];
   },
 
   // Get order by ID
   getById: async (id: string): Promise<Order | null> => {
     const { data, error } = await supabase
       .from('orders')
-      .select('*, order_items(*)')
+      .select('*')
       .eq('id', id)
       .single();
+    if (error) return null;
+    return data;
+  },
 
-    if (error) {
-      console.error('Error getting order:', error);
-      return null;
+  // Get available orders (for technicians)
+  getAvailableOrders: async (city?: string): Promise<Order[]> => {
+    let query = supabase
+      .from('orders')
+      .select('*')
+      .eq('status', 'pending');
+    
+    if (city) {
+      query = query.ilike('location', `%${city}%`);
     }
 
+    const { data, error } = await query.order('created_at', { ascending: false });
+    if (error) return [];
+    return data || [];
+  },
+
+  // Get technician's orders
+  getMyOrders: async (): Promise<Order[]> => {
+    const user = await auth.getCurrentUser();
+    if (!user) return [];
+
+    const { data, error } = await supabase
+      .from('orders')
+      .select('*')
+      .eq('technician_id', user.id)
+      .order('created_at', { ascending: false });
+    if (error) return [];
+    return data || [];
+  },
+
+  // Accept order
+  acceptOrder: async (orderId: string): Promise<Order | null> => {
+    const user = await auth.getCurrentUser();
+    if (!user) throw new Error('Not authenticated');
+
+    const { data, error } = await supabase
+      .from('orders')
+      .update({ 
+        status: 'accepted', 
+        technician_id: user.id,
+        updated_at: new Date().toISOString() 
+      })
+      .eq('id', orderId)
+      .select()
+      .single();
+
+    if (error) throw error;
     return data;
   },
 
@@ -217,87 +178,23 @@ export const requests = {
       .eq('id', id)
       .select()
       .single();
-
-    if (error) {
-      console.error('Error updating order status:', error);
-      throw error;
-    }
-
+    if (error) throw error;
     return data;
   },
 
-  // Get available orders (for technicians)
-  getAvailable: async (city?: string): Promise<Order[]> => {
-    let query = supabase
-      .from('orders')
-      .select('*')
-      .eq('status', 'pending');
-    
-    if (city) {
-      query = query.ilike('location', `%${city}%`);
-    }
-
-    const { data, error } = await query.order('created_at', { ascending: false });
-
-    if (error) {
-      console.error('Error getting available orders:', error);
-      return [];
-    }
-
-    return data || [];
-  },
-
-  // Accept order (for technicians)
-  acceptRequest: async (orderId: string, technicianId: string): Promise<Order | null> => {
-    const { data, error } = await supabase
-      .from('orders')
-      .update({ 
-        status: 'accepted', 
-        technician_id: technicianId,
-        updated_at: new Date().toISOString() 
-      })
-      .eq('id', orderId)
-      .select()
-      .single();
-
-    if (error) {
-      console.error('Error accepting order:', error);
-      throw error;
-    }
-
-    return data;
-  },
-
-  // Get technician's orders
-  getTechnicianRequests: async (technicianId: string): Promise<Order[]> => {
-    const { data, error } = await supabase
-      .from('orders')
-      .select('*')
-      .eq('technician_id', technicianId)
-      .order('created_at', { ascending: false });
-
-    if (error) {
-      console.error('Error getting technician orders:', error);
-      return [];
-    }
-
-    return data || [];
-  },
-
-  // Subscribe to new orders (real-time)
-  subscribeToNew: (callback: (order: Order) => void) => {
+  // Subscribe to orders (real-time)
+  subscribeToOrders: (callback: () => void) => {
     const subscription = supabase
-      .channel('orders-new')
+      .channel('orders-all-changes')
       .on(
         'postgres_changes',
         {
-          event: 'INSERT',
+          event: '*',
           schema: 'public',
-          table: 'orders',
-          filter: 'status=eq.pending'
+          table: 'orders'
         },
-        (payload) => {
-          callback(payload.new as Order);
+        () => {
+          callback();
         }
       )
       .subscribe();
@@ -308,155 +205,10 @@ export const requests = {
       }
     };
   },
-
-  // Subscribe to order updates (real-time)
-  subscribeToUpdates: (orderId: string, callback: (order: Order) => void) => {
-    const subscription = supabase
-      .channel(`order-${orderId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'orders',
-          filter: `id=eq.${orderId}`
-        },
-        (payload) => {
-          callback(payload.new as Order);
-        }
-      )
-      .subscribe();
-
-    return {
-      unsubscribe: () => {
-        supabase.removeChannel(subscription);
-      }
-    };
-  },
-
-  // Get user orders (gets current user automatically)
-  getUserOrders: async (): Promise<Order[]> => {
-    try {
-      const user = await auth.getCurrentUser();
-      if (!user) {
-        // Return empty array silently for guests
-        return [];
-      }
-      return await requests.getUserRequests(user.id);
-    } catch (error) {
-      console.error('Error getting user orders:', error);
-      return [];
-    }
-  },
-
-  // Assign order to technician
-  assignToTechnician: async (orderId: string, technicianId: string): Promise<boolean> => {
-    try {
-      const { error } = await supabase
-        .from('orders')
-        .update({ 
-          status: 'accepted', 
-          technician_id: technicianId,
-          updated_at: new Date().toISOString() 
-        })
-        .eq('id', orderId);
-
-      if (error) {
-        console.error('Error assigning order to technician:', error);
-        return false;
-      }
-
-      return true;
-    } catch (error) {
-      console.error('Error in assignToTechnician:', error);
-      return false;
-    }
-  },
-
-  // Update order
-  update: async (orderId: string, updates: Partial<Order>): Promise<Order | null> => {
-    const { data, error } = await supabase
-      .from('orders')
-      .update({ ...updates, updated_at: new Date().toISOString() })
-      .eq('id', orderId)
-      .select()
-      .single();
-
-    if (error) {
-      console.error('Error updating order:', error);
-      throw error;
-    }
-
-    return data;
-  },
 };
 
-// Technicians API
-export const technicians = {
-  // Get all available technicians
-  getAvailable: async (): Promise<Technician[]> => {
-    const { data, error } = await supabase
-      .from('technicians')
-      .select('*')
-      .eq('is_available', true);
-
-    if (error) {
-      console.error('Error getting available technicians:', error);
-      return [];
-    }
-
-    return data || [];
-  },
-
-  // Get technician by user ID
-  getByUserId: async (userId: string): Promise<Technician | null> => {
-    const { data, error } = await supabase
-      .from('technicians')
-      .select('*')
-      .eq('user_id', userId)
-      .single();
-
-    if (error) {
-      console.error('Error getting technician:', error);
-      return null;
-    }
-
-    return data;
-  },
-
-  // Create technician profile
-  create: async (technicianData: {
-    user_id: string;
-    phone: string;
-    specialty: string;
-    years_of_experience: number;
-  }): Promise<Technician | null> => {
-    const { data, error } = await supabase
-      .from('technicians')
-      .insert([{
-        user_id: technicianData.user_id,
-        phone: technicianData.phone,
-        specialty: technicianData.specialty,
-        years_of_experience: technicianData.years_of_experience,
-        is_available: true,
-        completed_jobs: 0,
-      }])
-      .select()
-      .single();
-
-    if (error) {
-      console.error('Error creating technician:', error);
-      throw error;
-    }
-
-    return data;
-  },
-};
-
-// Services API
 // Chat API
 export const chat = {
-  // Send message
   sendMessage: async (orderId: string, content: string): Promise<Message | null> => {
     const user = await auth.getCurrentUser();
     if (!user) return null;
@@ -471,31 +223,20 @@ export const chat = {
       .select()
       .single();
 
-    if (error) {
-      console.error('Error sending message:', error);
-      throw error;
-    }
-
+    if (error) throw error;
     return data;
   },
 
-  // Get messages for an order
   getMessages: async (orderId: string): Promise<Message[]> => {
     const { data, error } = await supabase
       .from('messages')
       .select('*')
       .eq('order_id', orderId)
       .order('created_at', { ascending: true });
-
-    if (error) {
-      console.error('Error getting messages:', error);
-      return [];
-    }
-
+    if (error) return [];
     return data || [];
   },
 
-  // Subscribe to new messages
   subscribeToMessages: (orderId: string, callback: (message: Message) => void) => {
     const subscription = supabase
       .channel(`chat-${orderId}`)
@@ -521,116 +262,8 @@ export const chat = {
   }
 };
 
-export const services = {
-  // Get all services
-  getAll: async (): Promise<Service[]> => {
-    const { data, error } = await supabase
-      .from('services')
-      .select('*')
-      .order('created_at', { ascending: false });
-
-    if (error) {
-      console.error('Error getting services:', error);
-      return [];
-    }
-
-    return data || [];
-  },
-
-  // Get service by ID
-  getById: async (id: string): Promise<Service | null> => {
-    const { data, error } = await supabase
-      .from('services')
-      .select('*')
-      .eq('id', id)
-      .single();
-
-    if (error) {
-      console.error('Error getting service:', error);
-      return null;
-    }
-
-    return data;
-  },
-
-  // Get services by category
-  getByCategory: async (category: string): Promise<Service[]> => {
-    const { data, error } = await supabase
-      .from('services')
-      .select('*')
-      .eq('category', category)
-      .order('created_at', { ascending: false });
-
-    if (error) {
-      console.error('Error getting services by category:', error);
-      return [];
-    }
-
-    return data || [];
-  },
-};
-
-// Storage API
-export const storage = {
-  // Upload image from URI
-  uploadImageFromUri: async (bucket: string, uri: string, fileName: string): Promise<string> => {
-    try {
-      // Use new File API
-      const file = new File(uri);
-      const arrayBuffer = await file.arrayBuffer();
-
-      // Upload to Supabase Storage
-      const { data, error } = await supabase.storage
-        .from(bucket)
-        .upload(fileName, arrayBuffer, {
-          contentType: 'image/jpeg',
-          upsert: false,
-        });
-
-      if (error) {
-        console.error('Error uploading image:', error);
-        throw error;
-      }
-
-      // Get public URL
-      const { data: urlData } = supabase.storage
-        .from(bucket)
-        .getPublicUrl(data.path);
-
-      return urlData.publicUrl;
-    } catch (error) {
-      console.error('Error in uploadImageFromUri:', error);
-      throw error;
-    }
-  },
-
-  // Upload image (alternative method)
-  uploadImage: async (bucket: string, file: File, fileName: string): Promise<string> => {
-    const { data, error } = await supabase.storage
-      .from(bucket)
-      .upload(fileName, file, {
-        contentType: file.type,
-        upsert: false,
-      });
-
-    if (error) {
-      console.error('Error uploading image:', error);
-      throw error;
-    }
-
-    // Get public URL
-    const { data: urlData } = supabase.storage
-      .from(bucket)
-      .getPublicUrl(data.path);
-
-    return urlData.publicUrl;
-  },
-};
-
 export default {
   auth,
   requests,
-  technicians,
-  services,
-  storage,
+  chat,
 };
