@@ -101,7 +101,11 @@ export default function TechnicianAuthScreen() {
           {/* Logo Section */}
           <View style={styles.logoSection}>
             <View style={styles.logoCircle}>
-              <MaterialCommunityIcons name="wrench-cog" size={50} color={COLORS.primary} />
+              <Image 
+                source={require('../assets/fixatee-logo.png')} 
+                style={styles.logoImage}
+                resizeMode="contain"
+              />
             </View>
             <Text style={styles.brandName}>Fixate</Text>
             <Text style={styles.brandSlogan}>{isRTL ? 'انضم لفريق الفنيين المعتمدين' : 'Join our certified technicians team'}</Text>
@@ -293,6 +297,11 @@ const createStyles = (COLORS: any, isRTL: boolean) => StyleSheet.create({
     shadowRadius: 8,
     elevation: 5,
     marginBottom: 16,
+    overflow: 'hidden',
+  },
+  logoImage: {
+    width: 80,
+    height: 80,
   },
   brandName: {
     fontSize: 28,
