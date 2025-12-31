@@ -212,10 +212,7 @@ export default function OrderDetailsScreen() {
             color={COLORS.text} 
           />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: COLORS.text }]}>
-          {isRTL ? 'تفاصيل الطلب' : 'Order Details'}
-        </Text>
-        <View style={{ width: 40 }} />
+        <View style={{ flex: 1 }} />
       </View>
 
         <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
