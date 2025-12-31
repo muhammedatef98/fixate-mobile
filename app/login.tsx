@@ -57,8 +57,9 @@ export default function LoginScreen() {
       if (error) throw error;
 
       if (data.user) {
-        // Check user role to ensure it's a customer
-        const userRole = data.user.user_metadata?.role || 'customer';
+        // Strict check for customer role
+        const userRole = data.user.user_metadata?.role;
+        // If role is technician, deny access to customer portal
         if (userRole === 'technician') {
           await supabase.auth.signOut();
           Alert.alert(
@@ -67,6 +68,7 @@ export default function LoginScreen() {
           );
           return;
         }
+        // Default to customer if no role is set (for old accounts) or if role is explicitly customer
         router.replace('/(customer)');
       }
     } catch (error: any) {
