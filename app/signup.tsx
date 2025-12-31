@@ -12,6 +12,7 @@ import {
   SafeAreaView,
   ScrollView,
   StatusBar,
+  Image,
 } from 'react-native';
 import { Link, useRouter } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
