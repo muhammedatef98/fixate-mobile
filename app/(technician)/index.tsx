@@ -434,14 +434,16 @@ const createStyles = (COLORS: any, SHADOWS: any, isRTL: boolean) =>
     orderHeader: {
       flexDirection: isRTL ? 'row-reverse' : 'row',
       justifyContent: 'space-between',
-      alignItems: 'center',
+      alignItems: 'flex-start',
       marginBottom: SPACING.md,
+      gap: SPACING.sm,
     },
     deviceInfo: {
       flexDirection: isRTL ? 'row-reverse' : 'row',
       alignItems: 'center',
       gap: SPACING.md,
       flex: 1,
+      flexShrink: 1,
     },
     deviceIconContainer: {
       width: 44,
@@ -450,14 +452,14 @@ const createStyles = (COLORS: any, SHADOWS: any, isRTL: boolean) =>
       justifyContent: 'center',
       alignItems: 'center',
     },
-    deviceName: { fontSize: 16, fontWeight: 'bold' },
+    deviceName: { fontSize: 16, fontWeight: 'bold', flexWrap: 'wrap' },
     orderId: { fontSize: 12, marginTop: 2 },
 
-    priceBadge: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10 },
+    priceBadge: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10, minWidth: 80, alignItems: 'center' },
     priceText: { fontWeight: 'bold', fontSize: 14 },
 
-    statusBadge: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10 },
-    statusText: { fontWeight: 'bold', fontSize: 13 },
+    statusBadge: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10, minWidth: 90, alignItems: 'center' },
+    statusText: { fontWeight: 'bold', fontSize: 12 },
 
     divider: { height: 1, marginVertical: SPACING.md },
 
