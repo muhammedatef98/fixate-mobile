@@ -70,8 +70,15 @@ export default function TechnicianHomeScreen() {
 
   const handleAcceptOrder = async (orderId: string) => {
     try {
+      const user = await auth.getCurrentUser();
+      if (!user) return;
       await requests.acceptOrder(orderId);
       loadOrders();
+      // Navigate to manage order screen
+      router.push({
+        pathname: '/(technician)/manage-order',
+        params: { id: orderId }
+      });
     } catch (error) {
       console.error('Error accepting order:', error);
     }

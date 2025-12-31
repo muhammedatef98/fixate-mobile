@@ -104,9 +104,12 @@ export default function TechnicianDashboard() {
 
   const handleAccept = async (requestId: string) => {
     try {
-      await updateRequestStatus(requestId, 'accepted');
-      // Navigate to job details immediately after acceptance
-      router.push(`/job/${requestId}`);
+      await requests.acceptOrder(requestId);
+      // Navigate to manage order screen
+      router.push({
+        pathname: '/(technician)/manage-order',
+        params: { id: requestId }
+      });
     } catch (error) {
       Alert.alert(isRTL ? 'خطأ' : 'Error', isRTL ? 'فشل قبول الطلب. ربما قبله فني آخر.' : 'Failed to accept request. Another technician might have taken it.');
     }

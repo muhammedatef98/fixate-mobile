@@ -118,15 +118,18 @@ export default function AvailableOrdersScreen() {
       const user = await auth.getCurrentUser();
       if (!user) return;
 
-      const success = await requests.assignToTechnician(orderId, user.id);
+      await requests.acceptOrder(orderId);
       
-      if (success) {
-        Alert.alert(
-          language === 'ar' ? 'نجح!' : 'Success!',
-          language === 'ar' ? 'تم قبول الطلب بنجاح' : 'Order accepted successfully'
-        );
-        loadOrders(); // Refresh list
-      }
+      Alert.alert(
+        language === 'ar' ? 'نجح!' : 'Success!',
+        language === 'ar' ? 'تم قبول الطلب بنجاح' : 'Order accepted successfully'
+      );
+      
+      // Navigate to manage order screen
+      router.push({
+        pathname: '/(technician)/manage-order',
+        params: { id: orderId }
+      });
     } catch (error) {
       console.error('Error accepting order:', error);
       Alert.alert(

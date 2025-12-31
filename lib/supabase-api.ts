@@ -217,7 +217,7 @@ export const requests = {
   },
 
   // Subscribe to orders (real-time)
-  subscribeToOrders: (callback: () => void) => {
+  subscribeToOrders: (callback: (payload: any) => void) => {
     const subscription = supabase
       .channel('orders-all-changes')
       .on(
@@ -227,8 +227,33 @@ export const requests = {
           schema: 'public',
           table: 'orders'
         },
-        () => {
-          callback();
+        (payload) => {
+          callback(payload);
+        }
+      )
+      .subscribe();
+
+    return {
+      unsubscribe: () => {
+        supabase.removeChannel(subscription);
+      }
+    };
+  },
+
+  // Subscribe to specific order updates
+  subscribeToUpdates: (orderId: string, callback: (order: Order) => void) => {
+    const subscription = supabase
+      .channel(`order-${orderId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'orders',
+          filter: `id=eq.${orderId}`
+        },
+        (payload) => {
+          callback(payload.new as Order);
         }
       )
       .subscribe();

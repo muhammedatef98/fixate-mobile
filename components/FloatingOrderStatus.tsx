@@ -20,9 +20,15 @@ export default function FloatingOrderStatus() {
 
   useEffect(() => {
     checkActiveOrder();
-    // Poll for updates every 30 seconds (or use realtime subscription in a real app)
-    const interval = setInterval(checkActiveOrder, 30000);
-    return () => clearInterval(interval);
+    
+    // Subscribe to real-time updates for orders
+    const subscription = requests.subscribeToOrders(() => {
+      checkActiveOrder();
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
   useEffect(() => {
