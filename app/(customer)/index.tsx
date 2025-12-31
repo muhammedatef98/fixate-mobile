@@ -1,215 +1,192 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, StatusBar, Image } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, StatusBar, Image, Animated, Dimensions, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { MaterialIcons, MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import { getColors, getShadows, SPACING, BORDER_RADIUS, TYPOGRAPHY } from '../../constants/theme';
 import { useApp } from '../../contexts/AppContext';
 import { translations } from '../../constants/translations';
-import NeuSearchBar from '../../components/NeuSearchBar';
-import NeuCard from '../../components/NeuCard';
-import NeuButton from '../../components/NeuButton';
-import BottomNav from '../../components/BottomNav';
 import Sidebar from '../../components/Sidebar';
 
+const { width } = Dimensions.get('window');
 
+const CATEGORIES = [
+  { id: 'phone', icon: 'cellphone', labelAr: 'جوالات', labelEn: 'Phones', color: '#10b981' },
+  { id: 'laptop', icon: 'laptop', labelAr: 'لابتوب', labelEn: 'Laptops', color: '#3b82f6' },
+  { id: 'tablet', icon: 'tablet', labelAr: 'تابلت', labelEn: 'Tablets', color: '#8b5cf6' },
+  { id: 'watch', icon: 'watch', labelAr: 'ساعات', labelEn: 'Watches', color: '#f59e0b' },
+];
 
-const getPopularServices = (language: 'ar' | 'en') => [
+const POPULAR_SERVICES = [
   {
-    id: 'screen',
-    titleKey: 'screenReplacement',
-    priceAr: '150 ر.س',
-    priceEn: 'SAR 150',
-    rating: 4.8,
-    image: 'https://images.unsplash.com/photo-1601784551446-20c9e07cdbdb?w=800&q=80', // Phone screen repair
+    id: '1',
+    titleAr: 'إصلاح شاشة آيفون',
+    titleEn: 'iPhone Screen Repair',
+    priceAr: 'من 250 ر.س',
+    priceEn: 'From 250 SAR',
+    rating: 4.9,
+    image: 'https://images.unsplash.com/photo-1601784551446-20c9e07cdbdb?w=400&q=80',
   },
   {
-    id: 'battery',
-    titleKey: 'batteryReplacement',
-    priceAr: '100 ر.س',
-    priceEn: 'SAR 100',
-    rating: 4.9,
-    image: 'https://images.unsplash.com/photo-1609091839311-d5365f9ff1c5?w=800&q=80', // Battery
+    id: '2',
+    titleAr: 'تبديل بطارية سامسونج',
+    titleEn: 'Samsung Battery Replacement',
+    priceAr: 'من 150 ر.س',
+    priceEn: 'From 150 SAR',
+    rating: 4.8,
+    image: 'https://images.unsplash.com/photo-1609091839311-d5365f9ff1c5?w=400&q=80',
   },
 ];
 
 export default function CustomerHome() {
   const router = useRouter();
   const { isDark, language, setLanguage } = useApp();
-  const COLORS = getColors(isDark);
-  const SHADOWS = getShadows(isDark);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [sidebarVisible, setSidebarVisible] = useState(false);
   const isRTL = language === 'ar';
   const t = translations[language];
+  
+  const COLORS = {
+    primary: '#10b981',
+    secondary: '#059669',
+    background: '#f9fafb',
+    card: '#ffffff',
+    text: '#1f2937',
+    textSecondary: '#6b7280',
+    border: '#e5e7eb',
+    white: '#ffffff',
+  };
 
-  const CATEGORIES = [
-    { id: 'phones', icon: 'smartphone', labelKey: 'phones', color: COLORS.blue, iconSet: 'MaterialIcons' },
-    { id: 'laptops', icon: 'laptop', labelKey: 'laptops', color: COLORS.purple, iconSet: 'MaterialIcons' },
-    { id: 'tablets', icon: 'tablet', labelKey: 'tablets', color: COLORS.pink, iconSet: 'MaterialIcons' },
-    { id: 'other', icon: 'shield-check', labelKey: 'other', color: COLORS.orange, iconSet: 'MaterialCommunityIcons' },
-  ];
+  const [sidebarVisible, setSidebarVisible] = useState(false);
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(20)).current;
 
-  const POPULAR_SERVICES = getPopularServices(language);
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, { toValue: 1, duration: 600, useNativeDriver: true }),
+      Animated.timing(slideAnim, { toValue: 0, duration: 600, useNativeDriver: true }),
+    ]).start();
+  }, []);
 
-  const styles = createStyles(COLORS, SHADOWS);
+  const styles = createStyles(COLORS, isRTL);
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
+      <StatusBar barStyle="dark-content" backgroundColor={COLORS.white} />
       
-      {/* App Header */}
-      <View style={[styles.header, isRTL && styles.headerRTL]}>
-        {isRTL ? (
-          <>
-            <TouchableOpacity 
-              style={[styles.menuButton, SHADOWS.neuFlat]}
-              onPress={() => setSidebarVisible(true)}
-            >
-              <MaterialIcons name="menu" size={20} color={COLORS.textSecondary} />
-            </TouchableOpacity>
-            
-            <Text style={styles.headerTitle}>Fixate</Text>
-            
-            <TouchableOpacity 
-              style={[styles.languageButton, SHADOWS.neuFlat]}
-              onPress={() => setLanguage(language === 'ar' ? 'en' : 'ar')}
-            >
-              <MaterialIcons name="language" size={20} color={COLORS.textSecondary} />
-            </TouchableOpacity>
-          </>
-        ) : (
-          <>
-            <TouchableOpacity 
-              style={[styles.languageButton, SHADOWS.neuFlat]}
-              onPress={() => setLanguage(language === 'ar' ? 'en' : 'ar')}
-            >
-              <MaterialIcons name="language" size={20} color={COLORS.textSecondary} />
-            </TouchableOpacity>
-            
-            <Text style={styles.headerTitle}>Fixate</Text>
-            
-            <TouchableOpacity 
-              style={[styles.menuButton, SHADOWS.neuFlat]}
-              onPress={() => setSidebarVisible(true)}
-            >
-              <MaterialIcons name="menu" size={20} color={COLORS.textSecondary} />
-            </TouchableOpacity>
-          </>
-        )}
+      {/* Custom Header */}
+      <View style={styles.header}>
+        <View style={styles.headerLeft}>
+          <TouchableOpacity 
+            style={styles.iconButton}
+            onPress={() => setSidebarVisible(true)}
+          >
+            <MaterialIcons name="menu" size={28} color={COLORS.text} />
+          </TouchableOpacity>
+        </View>
+        
+        <Image 
+          source={require('../../assets/fixate-logo-main.png')} 
+          style={styles.logo} 
+          resizeMode="contain" 
+        />
+        
+        <View style={styles.headerRight}>
+          <TouchableOpacity 
+            style={styles.iconButton}
+            onPress={() => setLanguage(language === 'ar' ? 'en' : 'ar')}
+          >
+            <MaterialIcons name="language" size={24} color={COLORS.text} />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView 
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
-        {/* Hero Section */}
-        <View style={styles.heroSection}>
-          <Text style={[styles.heroTitle, { textAlign: isRTL ? 'right' : 'left', writingDirection: isRTL ? 'rtl' : 'ltr' }]}>
-            {t.whatNeedsFixing}{'\n'}
-            <Text style={styles.heroTitleHighlight}>{t.fixingToday}</Text>
-          </Text>
-          
-          <NeuSearchBar
-            placeholder={t.searchPlaceholder}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            style={styles.searchBar}
-          />
-        </View>
-
-        {/* Categories */}
-        <View style={styles.section}>
-          <View style={[styles.sectionHeader, isRTL && { flexDirection: 'row-reverse' }]}>
-            <Text style={[styles.sectionTitle, { textAlign: isRTL ? 'right' : 'left' }]}>{t.categories}</Text>
-            <TouchableOpacity onPress={() => router.push('/services')}>
-              <Text style={[styles.seeAll, { textAlign: isRTL ? 'left' : 'right' }]}>{t.seeAll}</Text>
-            </TouchableOpacity>
+        {/* Welcome Section */}
+        <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
+          <View style={styles.welcomeSection}>
+            <Text style={styles.welcomeText}>{isRTL ? 'أهلاً بك في' : 'Welcome to'}</Text>
+            <Text style={styles.brandText}>Fixatee</Text>
+            <Text style={styles.subtitleText}>
+              {isRTL ? 'أفضل خدمات الصيانة بين يديك' : 'Best repair services at your fingertips'}
+            </Text>
           </View>
-          
-          <View style={styles.categoriesGrid}>
-            {CATEGORIES.map((category) => {
-              const IconComponent = category.iconSet === 'MaterialIcons' ? MaterialIcons : MaterialCommunityIcons;
-              return (
-                <TouchableOpacity 
-                  key={category.id} 
-                  style={styles.categoryItem}
-                  onPress={() => router.push('/request')}
-                >
-                  <View style={[styles.categoryIcon, SHADOWS.neuFlat, { backgroundColor: category.color + '20' }]}>
-                    <IconComponent name={category.icon as any} size={28} color={category.color} />
-                  </View>
-                  <Text style={[styles.categoryLabel, { textAlign: 'center' }]}>{t[category.labelKey as keyof typeof t]}</Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        </View>
 
-        {/* Promo Card */}
-        <LinearGradient
-          colors={[COLORS.primary, COLORS.primaryDark]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={[styles.promoCard, SHADOWS.primaryGlow]}
-        >
-          {/* Background Blurs */}
-          <View style={styles.promoBlurTop} />
-          <View style={styles.promoBlurBottom} />
-          
-          <View style={[styles.promoContent, isRTL && { alignItems: 'flex-end' }]}>
-            <View style={styles.promoBadge}>
-              <Text style={styles.promoBadgeText}>{t.specialOffer}</Text>
-            </View>
-            <Text style={[styles.promoTitle, { textAlign: isRTL ? 'right' : 'left' }]}>{t.discount20}</Text>
-            <Text style={[styles.promoSubtitle, { textAlign: isRTL ? 'right' : 'left' }]}>{t.firstRepair}</Text>
-            <TouchableOpacity style={[styles.promoButton, SHADOWS.medium]}>
-              <Text style={styles.promoButtonText}>{t.claimNow}</Text>
-            </TouchableOpacity>
-          </View>
-          
-          {/* Promo image placeholder - add your own image */}
-        </LinearGradient>
-
-        {/* Popular Services */}
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { textAlign: isRTL ? 'right' : 'left' }]}>{t.popularServices}</Text>
-          
-          {POPULAR_SERVICES.map((service) => (
-            <NeuCard 
-              key={service.id} 
-              style={styles.serviceCard}
-              onPress={() => router.push('/request')}
+          {/* Promo Banner */}
+          <TouchableOpacity activeOpacity={0.9}>
+            <LinearGradient
+              colors={[COLORS.primary, COLORS.secondary]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.promoBanner}
             >
-              <Image
-                source={{ uri: service.image }}
-                style={styles.serviceImage}
-              />
-              <View style={styles.serviceInfo}>
-                <Text style={[styles.serviceTitle, { textAlign: isRTL ? 'right' : 'left' }]}>{t[service.titleKey as keyof typeof t]}</Text>
-                <View style={[styles.serviceRating, isRTL && { flexDirection: 'row-reverse' }]}>
-                  <MaterialIcons name="star" size={14} color="#F59E0B" />
-                  <Text style={styles.ratingText}>{service.rating}</Text>
-                </View>
-                <View style={[styles.serviceFooter, isRTL && { flexDirection: 'row-reverse' }]}>
-                  <Text style={[styles.servicePrice, { textAlign: isRTL ? 'right' : 'left' }]}>{isRTL ? service.priceAr : service.priceEn}</Text>
-                  <View style={[styles.serviceArrow, SHADOWS.neuFlat]}>
-                    <MaterialIcons name={isRTL ? "arrow-back" : "arrow-forward"} size={16} color={COLORS.primary} />
-                  </View>
+              <View style={styles.promoContent}>
+                <Text style={styles.promoTitle}>{isRTL ? 'خصم 20% على أول طلب' : '20% Off First Order'}</Text>
+                <Text style={styles.promoSubtitle}>{isRTL ? 'استخدم كود: FIX20' : 'Use Code: FIX20'}</Text>
+                <View style={styles.promoButton}>
+                  <Text style={styles.promoButtonText}>{isRTL ? 'اطلب الآن' : 'Order Now'}</Text>
                 </View>
               </View>
-            </NeuCard>
-          ))}
-        </View>
+              <MaterialCommunityIcons name="brightness-percent" size={80} color="rgba(255,255,255,0.2)" style={styles.promoIcon} />
+            </LinearGradient>
+          </TouchableOpacity>
 
-        {/* Bottom Spacing for Nav */}
-        <View style={{ height: 100 }} />
+          {/* Categories Section */}
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>{isRTL ? 'ماذا تريد أن تصلح؟' : 'What needs fixing?'}</Text>
+            </View>
+            <View style={styles.categoriesGrid}>
+              {CATEGORIES.map((cat) => (
+                <TouchableOpacity 
+                  key={cat.id} 
+                  style={styles.categoryCard}
+                  onPress={() => router.push('/request')}
+                >
+                  <View style={[styles.categoryIconContainer, { backgroundColor: cat.color + '15' }]}>
+                    <MaterialCommunityIcons name={cat.icon as any} size={32} color={cat.color} />
+                  </View>
+                  <Text style={styles.categoryLabel}>{isRTL ? cat.labelAr : cat.labelEn}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+          {/* Popular Services */}
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>{isRTL ? 'خدمات شائعة' : 'Popular Services'}</Text>
+              <TouchableOpacity>
+                <Text style={styles.seeAllText}>{isRTL ? 'عرض الكل' : 'See All'}</Text>
+              </TouchableOpacity>
+            </View>
+            {POPULAR_SERVICES.map((service) => (
+              <TouchableOpacity 
+                key={service.id} 
+                style={styles.serviceCard}
+                onPress={() => router.push('/request')}
+              >
+                <Image source={{ uri: service.image }} style={styles.serviceImage} />
+                <View style={styles.serviceInfo}>
+                  <Text style={styles.serviceTitle}>{isRTL ? service.titleAr : service.titleEn}</Text>
+                  <View style={styles.serviceMeta}>
+                    <View style={styles.ratingContainer}>
+                      <Ionicons name="star" size={14} color="#f59e0b" />
+                      <Text style={styles.ratingText}>{service.rating}</Text>
+                    </View>
+                    <Text style={styles.servicePrice}>{isRTL ? service.priceAr : service.priceEn}</Text>
+                  </View>
+                </View>
+                <Ionicons name={isRTL ? "chevron-back" : "chevron-forward"} size={20} color={COLORS.textSecondary} />
+              </TouchableOpacity>
+            ))}
+          </View>
+        </Animated.View>
+        
+        <View style={{ height: 40 }} />
       </ScrollView>
 
-      {/* Bottom Navigation */}
-      <BottomNav />
-      
-      {/* Sidebar */}
       <Sidebar 
         visible={sidebarVisible} 
         onClose={() => setSidebarVisible(false)} 
@@ -218,227 +195,77 @@ export default function CustomerHome() {
   );
 }
 
-const createStyles = (COLORS: any, SHADOWS: any) => StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
+const createStyles = (COLORS: any, isRTL: boolean) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: COLORS.background },
   header: {
-    flexDirection: 'row',
+    flexDirection: isRTL ? 'row-reverse' : 'row',
+    height: 60,
+    alignItems: 'center',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.md,
-  },
-  headerRTL: {
-    flexDirection: 'row-reverse',
-  },
-  menuButton: {
-    width: 40,
-    height: 40,
-    borderRadius: BORDER_RADIUS.lg,
-    backgroundColor: COLORS.background,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  languageButton: {
-    width: 40,
-    height: 40,
-    borderRadius: BORDER_RADIUS.lg,
-    backgroundColor: COLORS.background,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: COLORS.text,
-  },
-  avatar: {
-    width: 40,
-    height: 40,
-    borderRadius: BORDER_RADIUS.lg,
-    backgroundColor: COLORS.background,
-    overflow: 'hidden',
-  },
-  avatarImage: {
-    width: '100%',
-    height: '100%',
-  },
-  scrollContent: {
-    paddingHorizontal: SPACING.lg,
-  },
-  heroSection: {
-    marginTop: SPACING.md,
-    marginBottom: SPACING.xl,
-  },
-  heroTitle: {
-    ...TYPOGRAPHY.h1,
-    color: COLORS.text,
-    lineHeight: 40,
-    marginBottom: SPACING.lg,
-  },
-  heroTitleHighlight: {
-    color: COLORS.primary,
-  },
-  searchBar: {
-    marginTop: SPACING.md,
-  },
-  section: {
-    marginBottom: SPACING.xl,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: SPACING.md,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: COLORS.text,
-  },
-  seeAll: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: COLORS.primary,
-  },
-  categoriesGrid: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: SPACING.sm,
-  },
-  categoryItem: {
-    flex: 1,
-    alignItems: 'center',
-    gap: SPACING.sm,
-  },
-  categoryIcon: {
-    width: 64,
-    height: 64,
-    borderRadius: BORDER_RADIUS.xl,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  categoryLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: COLORS.textSecondary,
-  },
-  promoCard: {
-    height: 192,
-    borderRadius: BORDER_RADIUS.xxl,
-    marginBottom: SPACING.xl,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: SPACING.lg,
-    overflow: 'hidden',
-  },
-  promoBlurTop: {
-    position: 'absolute',
-    right: -20,
-    top: -20,
-    width: 160,
-    height: 160,
-    borderRadius: 80,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-  },
-  promoBlurBottom: {
-    position: 'absolute',
-    left: -20,
-    bottom: -20,
-    width: 128,
-    height: 128,
-    borderRadius: 64,
-    backgroundColor: 'rgba(0, 0, 0, 0.1)',
-  },
-  promoContent: {
-    flex: 1,
-    zIndex: 10,
-  },
-  promoBadge: {
-    alignSelf: 'flex-start',
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.xs,
-    borderRadius: BORDER_RADIUS.full,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    marginBottom: SPACING.md,
-  },
-  promoBadgeText: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: COLORS.white,
-  },
-  promoTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: COLORS.white,
-    marginBottom: SPACING.sm,
-  },
-  promoSubtitle: {
-    fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.8)',
-    marginBottom: SPACING.md,
-  },
-  promoButton: {
-    alignSelf: 'flex-start',
-    paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.sm,
-    borderRadius: BORDER_RADIUS.lg,
+    paddingHorizontal: 16,
     backgroundColor: COLORS.white,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
   },
-  promoButtonText: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: COLORS.primary,
+  headerLeft: { width: 40 },
+  headerRight: { width: 40 },
+  logo: { width: 100, height: 40 },
+  iconButton: { padding: 4 },
+  scrollContent: { padding: 16 },
+  welcomeSection: { marginBottom: 24, alignItems: isRTL ? 'flex-end' : 'flex-start' },
+  welcomeText: { fontSize: 16, color: COLORS.textSecondary },
+  brandText: { fontSize: 32, fontWeight: 'bold', color: COLORS.primary, marginTop: -4 },
+  subtitleText: { fontSize: 14, color: COLORS.textSecondary, marginTop: 4 },
+  promoBanner: {
+    borderRadius: 20,
+    padding: 20,
+    flexDirection: isRTL ? 'row-reverse' : 'row',
+    alignItems: 'center',
+    overflow: 'hidden',
+    marginBottom: 24,
+    elevation: 4,
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
   },
-
+  promoContent: { flex: 1, alignItems: isRTL ? 'flex-end' : 'flex-start' },
+  promoTitle: { color: COLORS.white, fontSize: 20, fontWeight: 'bold' },
+  promoSubtitle: { color: 'rgba(255,255,255,0.8)', fontSize: 14, marginTop: 4 },
+  promoButton: { backgroundColor: COLORS.white, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 12, marginTop: 12 },
+  promoButtonText: { color: COLORS.primary, fontWeight: 'bold', fontSize: 14 },
+  promoIcon: { position: 'absolute', right: isRTL ? undefined : -10, left: isRTL ? -10 : undefined, bottom: -10 },
+  section: { marginBottom: 24 },
+  sectionHeader: { flexDirection: isRTL ? 'row-reverse' : 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
+  sectionTitle: { fontSize: 18, fontWeight: 'bold', color: COLORS.text },
+  seeAllText: { fontSize: 14, color: COLORS.primary, fontWeight: '600' },
+  categoriesGrid: { flexDirection: isRTL ? 'row-reverse' : 'row', flexWrap: 'wrap', gap: 12 },
+  categoryCard: {
+    width: (width - 32 - 36) / 4,
+    backgroundColor: COLORS.white,
+    borderRadius: 16,
+    padding: 12,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  categoryIconContainer: { width: 50, height: 50, borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginBottom: 8 },
+  categoryLabel: { fontSize: 12, fontWeight: '600', color: COLORS.text, textAlign: 'center' },
   serviceCard: {
-    flexDirection: 'row',
-    padding: SPACING.md,
-    marginBottom: SPACING.md,
-    gap: SPACING.md,
-  },
-  serviceImage: {
-    width: 80,
-    height: 80,
-    borderRadius: BORDER_RADIUS.xl,
-  },
-  serviceInfo: {
-    flex: 1,
-    justifyContent: 'space-between',
-  },
-  serviceTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: COLORS.text,
-  },
-  serviceRating: {
-    flexDirection: 'row',
+    flexDirection: isRTL ? 'row-reverse' : 'row',
+    backgroundColor: COLORS.white,
+    borderRadius: 16,
+    padding: 12,
     alignItems: 'center',
-    gap: 4,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: COLORS.border,
   },
-  ratingText: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: COLORS.textSecondary,
-  },
-  serviceFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  servicePrice: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: COLORS.primary,
-  },
-  serviceArrow: {
-    width: 32,
-    height: 32,
-    borderRadius: BORDER_RADIUS.lg,
-    backgroundColor: COLORS.background,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
+  serviceImage: { width: 60, height: 60, borderRadius: 12 },
+  serviceInfo: { flex: 1, marginHorizontal: 12, alignItems: isRTL ? 'flex-end' : 'flex-start' },
+  serviceTitle: { fontSize: 15, fontWeight: 'bold', color: COLORS.text },
+  serviceMeta: { flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', marginTop: 4, gap: 12 },
+  ratingContainer: { flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 4 },
+  ratingText: { fontSize: 12, color: COLORS.textSecondary, fontWeight: '600' },
+  servicePrice: { fontSize: 13, color: COLORS.primary, fontWeight: 'bold' },
 });
