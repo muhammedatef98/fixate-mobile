@@ -84,7 +84,20 @@ export default function AvailableOrdersScreen() {
   const loadOrders = async () => {
     try {
       setLoading(true);
-      const availableOrders = await requests.getAvailable();
+      // Get technician's city from location or profile
+      // For now, we'll try to extract city from the current location address
+      let city = '';
+      if (technicianLocation) {
+        const reverseGeocode = await Location.reverseGeocodeAsync({
+          latitude: technicianLocation.lat,
+          longitude: technicianLocation.lon
+        });
+        if (reverseGeocode.length > 0) {
+          city = reverseGeocode[0].city || '';
+        }
+      }
+      
+      const availableOrders = await requests.getAvailable(city);
       setOrders(availableOrders || []);
     } catch (error) {
       console.error('Error loading orders:', error);
