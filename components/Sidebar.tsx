@@ -1,26 +1,26 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  Modal,
   TouchableOpacity,
+  Modal,
   Animated,
-  Dimensions,
-  Switch,
   ScrollView,
+  Switch,
+  Dimensions,
   Alert,
   Image,
 } from 'react-native';
-import { MaterialIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { getColors, getShadows, SPACING, BORDER_RADIUS } from '../constants/theme';
+import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useApp } from '../contexts/AppContext';
+import { getColors, getShadows, SPACING, BORDER_RADIUS } from '../constants/theme';
 import { translations } from '../constants/translations';
 import api from '../lib/supabase-api';
 
 const { width } = Dimensions.get('window');
-const DRAWER_WIDTH = width * 0.65; // Reduced from 80% to 65%
+const DRAWER_WIDTH = 280;
 
 interface SidebarProps {
   visible: boolean;
@@ -33,31 +33,30 @@ export default function Sidebar({ visible, onClose }: SidebarProps) {
   const COLORS = getColors(isDark);
   const SHADOWS = getShadows(isDark);
   const isRTL = language === 'ar';
-  const [slideAnim] = useState(new Animated.Value(-DRAWER_WIDTH));
+
+  const slideAnim = useRef(new Animated.Value(-DRAWER_WIDTH)).current;
   const [user, setUser] = useState<any>(null);
-  
   const t = translations[language];
 
-  React.useEffect(() => {
+  useEffect(() => {
     loadUser();
   }, []);
 
-  React.useEffect(() => {
-    const hiddenPosition = -DRAWER_WIDTH;
+  useEffect(() => {
     if (visible) {
-      Animated.spring(slideAnim, {
+      Animated.timing(slideAnim, {
         toValue: 0,
+        duration: 300,
         useNativeDriver: true,
-        friction: 8,
       }).start();
     } else {
-      Animated.spring(slideAnim, {
-        toValue: hiddenPosition,
+      Animated.timing(slideAnim, {
+        toValue: -DRAWER_WIDTH,
+        duration: 300,
         useNativeDriver: true,
-        friction: 8,
       }).start();
     }
-  }, [visible, isRTL]);
+  }, [visible]);
 
   const loadUser = async () => {
     try {
@@ -67,7 +66,7 @@ export default function Sidebar({ visible, onClose }: SidebarProps) {
         setUser(profile);
       }
     } catch (error) {
-      logger.debug('User not logged in');
+      console.debug('User not logged in');
     }
   };
 
@@ -89,7 +88,7 @@ export default function Sidebar({ visible, onClose }: SidebarProps) {
               onClose();
               router.replace('/role-selection');
             } catch (error) {
-              logger.debug('Logout error:', error);
+              console.debug('Logout error:', error);
             }
           },
         },
@@ -98,91 +97,117 @@ export default function Sidebar({ visible, onClose }: SidebarProps) {
   };
 
   const menuItems = [
-    { 
-      icon: 'home', 
+    {
+      icon: 'home',
       label: language === 'ar' ? 'الرئيسية' : 'Home',
       route: '/(customer)',
+      color: '#10B981',
     },
-    { 
-      icon: 'build', 
-      label: language === 'ar' ? 'الخدمات' : 'Services',
-      route: '/(customer)/services',
+    {
+      icon: 'shopping-cart',
+      label: language === 'ar' ? 'طلباتي' : 'My Orders',
+      route: '/(customer)/orders',
+      color: '#3B82F6',
     },
-    { 
-      icon: 'calculate', 
-      label: language === 'ar' ? 'الحاسبة' : 'Calculator',
-      route: '/(customer)/calculator',
+    {
+      icon: 'history',
+      label: language === 'ar' ? 'السجل' : 'History',
+      route: '/(customer)/history',
+      color: '#8B5CF6',
     },
-    { 
-      icon: 'person', 
-      label: language === 'ar' ? 'حسابي' : 'Profile',
+    {
+      icon: 'heart',
+      label: language === 'ar' ? 'المفضلة' : 'Favorites',
+      route: '/(customer)/favorites',
+      color: '#EC4899',
+    },
+  ];
+
+  const settingItems = [
+    {
+      icon: 'account-circle',
+      label: language === 'ar' ? 'الملف الشخصي' : 'Profile',
       route: '/(customer)/profile',
+      color: '#F59E0B',
+    },
+    {
+      icon: 'bell',
+      label: language === 'ar' ? 'الإشعارات' : 'Notifications',
+      route: '/(customer)/notifications',
+      color: '#06B6D4',
+    },
+    {
+      icon: 'lock',
+      label: language === 'ar' ? 'الخصوصية' : 'Privacy',
+      route: '/(customer)/privacy',
+      color: '#6366F1',
     },
   ];
 
   const styles = createStyles(COLORS, SHADOWS, isRTL);
 
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="none"
-      onRequestClose={onClose}
-    >
+    <Modal visible={visible} transparent animationType="none" onRequestClose={onClose}>
       <View style={styles.overlay}>
-        <TouchableOpacity 
-          style={styles.backdrop} 
-          activeOpacity={1}
-          onPress={onClose}
-        />
-        
-        <Animated.View 
+        <TouchableOpacity style={styles.backdrop} activeOpacity={1} onPress={onClose} />
+
+        <Animated.View
           style={[
             styles.drawer,
-            SHADOWS.large,
             {
-              transform: [{ translateX: slideAnim }],
+              transform: [
+                {
+                  translateX: isRTL
+                    ? slideAnim.interpolate({
+                        inputRange: [-DRAWER_WIDTH, 0],
+                        outputRange: [DRAWER_WIDTH, 0],
+                      })
+                    : slideAnim,
+                },
+              ],
             },
           ]}
         >
-          <ScrollView 
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={styles.scrollContent}
-          >
-            {/* Header with User Info */}
-            <View style={styles.header}>
-              <View style={[styles.avatarContainer, SHADOWS.neuLarge]}>
-                <Image 
-                  source={{ 
-                    uri: user?.avatar_url || `https://ui-avatars.com/api/?name=${user?.name || 'User'}&background=10B981&color=fff&size=128` 
-                  }} 
-                  style={styles.avatar} 
-                />
+          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+            {/* Header with Gradient Background */}
+            <View style={[styles.header, { backgroundColor: COLORS.primary + '15' }]}>
+              <View style={[styles.avatarContainer, { backgroundColor: COLORS.primary }]}>
+                {user?.avatar_url ? (
+                  <Image source={{ uri: user.avatar_url }} style={styles.avatar} />
+                ) : (
+                  <MaterialIcons name="account-circle" size={50} color="#fff" />
+                )}
               </View>
-              <Text style={styles.userName}>{user?.name || (language === 'ar' ? 'ضيف' : 'Guest')}</Text>
-              <Text style={styles.userEmail}>{user?.email || (language === 'ar' ? 'غير مسجل' : 'Not logged in')}</Text>
+              <Text style={[styles.userName, { color: COLORS.text }]}>
+                {user?.name || (language === 'ar' ? 'ضيف' : 'Guest')}
+              </Text>
+              <Text style={[styles.userEmail, { color: COLORS.textSecondary }]}>
+                {language === 'ar' ? 'العميل المميز' : 'Premium Member'}
+              </Text>
             </View>
 
             {/* Menu Items */}
             <View style={styles.menuSection}>
-              <Text style={styles.sectionTitle}>{language === 'ar' ? 'القائمة' : 'Menu'}</Text>
+              <Text style={[styles.sectionTitle, { color: COLORS.textSecondary }]}>
+                {language === 'ar' ? 'الرئيسية' : 'MAIN'}
+              </Text>
               {menuItems.map((item, index) => (
                 <TouchableOpacity
                   key={index}
-                  style={[styles.menuItem, SHADOWS.neu]}
+                  style={[styles.menuItem, { backgroundColor: COLORS.card }, SHADOWS.small]}
                   onPress={() => {
                     onClose();
                     router.push(item.route as any);
                   }}
                 >
-                  <View style={styles.menuItemIcon}>
-                    <MaterialIcons name={item.icon as any} size={24} color={COLORS.primary} />
+                  <View style={[styles.menuItemIcon, { backgroundColor: item.color + '20' }]}>
+                    <MaterialCommunityIcons name={item.icon} size={20} color={item.color} />
                   </View>
-                  <Text style={styles.menuItemText}>{item.label}</Text>
-                  <MaterialIcons 
-                    name={isRTL ? 'chevron-left' : 'chevron-right'} 
-                    size={24} 
-                    color={COLORS.textSecondary} 
+                  <Text style={[styles.menuItemText, { color: COLORS.text }]}>{item.label}</Text>
+                  <MaterialIcons
+                    name={isRTL ? 'chevron-left' : 'chevron-right'}
+                    size={20}
+                    color={COLORS.textSecondary}
                   />
                 </TouchableOpacity>
               ))}
@@ -190,70 +215,125 @@ export default function Sidebar({ visible, onClose }: SidebarProps) {
 
             {/* Settings Section */}
             <View style={styles.settingsSection}>
-              <Text style={styles.sectionTitle}>{language === 'ar' ? 'الإعدادات' : 'Settings'}</Text>
-              
-              {/* Language Toggle */}
-              <View style={[styles.settingItem, SHADOWS.neu]}>
-                <View style={styles.settingLeft}>
-                  <View style={styles.settingIcon}>
-                    <MaterialIcons name="language" size={24} color={COLORS.primary} />
+              <Text style={[styles.sectionTitle, { color: COLORS.textSecondary }]}>
+                {language === 'ar' ? 'الإعدادات' : 'SETTINGS'}
+              </Text>
+              {settingItems.map((item, index) => (
+                <TouchableOpacity
+                  key={index}
+                  style={[styles.settingItem, { backgroundColor: COLORS.card }, SHADOWS.small]}
+                  onPress={() => {
+                    onClose();
+                    router.push(item.route as any);
+                  }}
+                >
+                  <View style={styles.settingLeft}>
+                    <View style={[styles.settingIcon, { backgroundColor: item.color + '20' }]}>
+                      <MaterialCommunityIcons name={item.icon} size={20} color={item.color} />
+                    </View>
+                    <Text style={[styles.settingText, { color: COLORS.text }]}>{item.label}</Text>
                   </View>
-                  <Text style={styles.settingText}>{language === 'ar' ? 'اللغة' : 'Language'}</Text>
-                </View>
-                <View style={styles.languageButtons}>
-                  <TouchableOpacity
-                    style={[styles.langButton, SHADOWS.neuSmall, language === 'ar' && [styles.langButtonActive, SHADOWS.neuInset]]}
-                    onPress={() => setLanguage('ar')}
-                  >
-                    <Text style={[styles.langButtonText, language === 'ar' && styles.langButtonTextActive]}>
-                      عربي
-                    </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[styles.langButton, SHADOWS.neuSmall, language === 'en' && [styles.langButtonActive, SHADOWS.neuInset]]}
-                    onPress={() => setLanguage('en')}
-                  >
-                    <Text style={[styles.langButtonText, language === 'en' && styles.langButtonTextActive]}>
-                      EN
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
+                  <MaterialIcons
+                    name={isRTL ? 'chevron-left' : 'chevron-right'}
+                    size={20}
+                    color={COLORS.textSecondary}
+                  />
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            {/* Appearance Section */}
+            <View style={styles.settingsSection}>
+              <Text style={[styles.sectionTitle, { color: COLORS.textSecondary }]}>
+                {language === 'ar' ? 'المظهر' : 'APPEARANCE'}
+              </Text>
 
               {/* Dark Mode Toggle */}
-              <View style={[styles.settingItem, SHADOWS.neu]}>
+              <View style={[styles.settingItem, { backgroundColor: COLORS.card }, SHADOWS.small]}>
                 <View style={styles.settingLeft}>
-                  <View style={styles.settingIcon}>
-                    <MaterialIcons 
-                      name={isDark ? 'dark-mode' : 'light-mode'} 
-                      size={24} 
-                      color={COLORS.primary} 
+                  <View
+                    style={[
+                      styles.settingIcon,
+                      { backgroundColor: isDark ? '#7C3AED' : '#FCD34D' },
+                    ]}
+                  >
+                    <MaterialCommunityIcons
+                      name={isDark ? 'moon-waning-crescent' : 'white-balance-sunny'}
+                      size={20}
+                      color="#fff"
                     />
                   </View>
-                  <Text style={styles.settingText}>
+                  <Text style={[styles.settingText, { color: COLORS.text }]}>
                     {language === 'ar' ? 'الوضع الداكن' : 'Dark Mode'}
                   </Text>
                 </View>
                 <Switch
                   value={isDark}
                   onValueChange={toggleTheme}
-                  trackColor={{ false: COLORS.border, true: COLORS.primaryLight }}
-                  thumbColor={isDark ? COLORS.primary : COLORS.background}
+                  trackColor={{ false: COLORS.border, true: COLORS.primary + '40' }}
+                  thumbColor={isDark ? COLORS.primary : '#FCD34D'}
                 />
               </View>
             </View>
 
+            {/* Language Section */}
+            <View style={styles.settingsSection}>
+              <Text style={[styles.sectionTitle, { color: COLORS.textSecondary }]}>
+                {language === 'ar' ? 'اللغة' : 'LANGUAGE'}
+              </Text>
+              <View style={[styles.languageContainer, { backgroundColor: COLORS.card }, SHADOWS.small]}>
+                <TouchableOpacity
+                  style={[
+                    styles.langButton,
+                    language === 'en' && [styles.langButtonActive, { backgroundColor: COLORS.primary }],
+                  ]}
+                  onPress={() => setLanguage('en')}
+                >
+                  <Text
+                    style={[
+                      styles.langButtonText,
+                      language === 'en' && styles.langButtonTextActive,
+                      language === 'en' && { color: '#fff' },
+                    ]}
+                  >
+                    English
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.langButton,
+                    language === 'ar' && [styles.langButtonActive, { backgroundColor: COLORS.primary }],
+                  ]}
+                  onPress={() => setLanguage('ar')}
+                >
+                  <Text
+                    style={[
+                      styles.langButtonText,
+                      language === 'ar' && styles.langButtonTextActive,
+                      language === 'ar' && { color: '#fff' },
+                    ]}
+                  >
+                    العربية
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
             {/* Logout Button */}
-            <TouchableOpacity 
-              style={[styles.logoutButton, SHADOWS.neu]}
-              onPress={handleLogout}
-            >
-              <MaterialIcons name="logout" size={24} color="#EF4444" />
-              <Text style={styles.logoutText}>{t.logout}</Text>
-            </TouchableOpacity>
+            <View style={styles.logoutSection}>
+              <TouchableOpacity
+                style={[styles.logoutButton, { backgroundColor: '#EF4444' + '15' }, SHADOWS.small]}
+                onPress={handleLogout}
+              >
+                <MaterialIcons name="logout" size={24} color="#EF4444" />
+                <Text style={[styles.logoutText, { color: '#EF4444' }]}>
+                  {language === 'ar' ? 'تسجيل الخروج' : 'Logout'}
+                </Text>
+              </TouchableOpacity>
+            </View>
 
             {/* App Version */}
-            <Text style={styles.version}>Fixatee v1.0.0</Text>
+            <Text style={[styles.version, { color: COLORS.textSecondary }]}>Fixate v1.0.0</Text>
           </ScrollView>
         </Animated.View>
       </View>
@@ -284,149 +364,153 @@ function createStyles(COLORS: any, SHADOWS: any, isRTL: boolean) {
     scrollContent: {
       paddingVertical: SPACING.lg,
     },
+
+    // Header
     header: {
       alignItems: 'center',
       paddingHorizontal: SPACING.md,
-      paddingBottom: SPACING.md,
-      borderBottomWidth: 1,
-      borderBottomColor: COLORS.border,
-      marginBottom: SPACING.md,
+      paddingVertical: SPACING.lg,
+      marginHorizontal: SPACING.md,
+      marginBottom: SPACING.lg,
+      borderRadius: BORDER_RADIUS.lg,
     },
     avatarContainer: {
-      width: 60,
-      height: 60,
-      borderRadius: 30,
-      backgroundColor: COLORS.background,
+      width: 70,
+      height: 70,
+      borderRadius: 35,
       justifyContent: 'center',
       alignItems: 'center',
-      marginBottom: SPACING.sm,
+      marginBottom: SPACING.md,
     },
     avatar: {
-      width: 54,
-      height: 54,
-      borderRadius: 27,
+      width: 70,
+      height: 70,
+      borderRadius: 35,
     },
     userName: {
       fontSize: 16,
       fontWeight: '700',
-      color: COLORS.text,
-      marginTop: SPACING.xs,
+      marginTop: SPACING.sm,
     },
     userEmail: {
       fontSize: 12,
-      color: COLORS.textSecondary,
-      marginTop: 2,
+      marginTop: 4,
     },
+
+    // Menu Section
     menuSection: {
-      paddingHorizontal: SPACING.lg,
+      paddingHorizontal: SPACING.md,
       marginBottom: SPACING.lg,
     },
     sectionTitle: {
-      fontSize: 12,
-      fontWeight: '600',
-      color: COLORS.textSecondary,
+      fontSize: 11,
+      fontWeight: '700',
       textTransform: 'uppercase',
       marginBottom: SPACING.md,
       letterSpacing: 1,
+      paddingHorizontal: SPACING.sm,
     },
     menuItem: {
-      flexDirection: 'row',
+      flexDirection: isRTL ? 'row-reverse' : 'row',
       alignItems: 'center',
       paddingVertical: SPACING.md,
       paddingHorizontal: SPACING.md,
-      backgroundColor: COLORS.background,
       borderRadius: BORDER_RADIUS.lg,
       marginBottom: SPACING.sm,
     },
     menuItemIcon: {
-      width: 36,
-      height: 36,
-      borderRadius: 18,
-      backgroundColor: COLORS.primaryLight,
+      width: 40,
+      height: 40,
+      borderRadius: 12,
       justifyContent: 'center',
       alignItems: 'center',
-      marginRight: SPACING.sm,
+      marginRight: isRTL ? 0 : SPACING.md,
+      marginLeft: isRTL ? SPACING.md : 0,
     },
     menuItemText: {
       flex: 1,
-      fontSize: 16,
+      fontSize: 15,
       fontWeight: '600',
-      color: COLORS.text,
     },
+
+    // Settings Section
     settingsSection: {
-      paddingHorizontal: SPACING.lg,
+      paddingHorizontal: SPACING.md,
       marginBottom: SPACING.lg,
     },
     settingItem: {
-      flexDirection: 'row',
+      flexDirection: isRTL ? 'row-reverse' : 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
       paddingVertical: SPACING.md,
       paddingHorizontal: SPACING.md,
-      backgroundColor: COLORS.background,
       borderRadius: BORDER_RADIUS.lg,
       marginBottom: SPACING.sm,
     },
     settingLeft: {
-      flexDirection: 'row',
+      flexDirection: isRTL ? 'row-reverse' : 'row',
       alignItems: 'center',
       flex: 1,
     },
     settingIcon: {
-      width: 36,
-      height: 36,
-      borderRadius: 18,
-      backgroundColor: COLORS.primaryLight,
+      width: 40,
+      height: 40,
+      borderRadius: 12,
       justifyContent: 'center',
       alignItems: 'center',
-      marginRight: SPACING.sm,
+      marginRight: isRTL ? 0 : SPACING.md,
+      marginLeft: isRTL ? SPACING.md : 0,
     },
     settingText: {
-      fontSize: 16,
+      fontSize: 15,
       fontWeight: '600',
-      color: COLORS.text,
     },
-    languageButtons: {
-      flexDirection: 'row',
+
+    // Language Container
+    languageContainer: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      borderRadius: BORDER_RADIUS.lg,
+      padding: SPACING.sm,
       gap: SPACING.sm,
     },
     langButton: {
-      paddingHorizontal: SPACING.md,
-      paddingVertical: SPACING.sm,
+      flex: 1,
+      paddingVertical: SPACING.md,
       borderRadius: BORDER_RADIUS.md,
-      backgroundColor: COLORS.background,
+      alignItems: 'center',
     },
-    langButtonActive: {
-      backgroundColor: COLORS.primary,
-    },
+    langButtonActive: {},
     langButtonText: {
-      fontSize: 14,
+      fontSize: 13,
       fontWeight: '600',
-      color: COLORS.textSecondary,
     },
-    langButtonTextActive: {
-      color: '#FFFFFF',
+    langButtonTextActive: {},
+
+    // Logout Section
+    logoutSection: {
+      paddingHorizontal: SPACING.md,
+      marginBottom: SPACING.lg,
+      marginTop: SPACING.lg,
     },
     logoutButton: {
-      flexDirection: 'row',
+      flexDirection: isRTL ? 'row-reverse' : 'row',
       alignItems: 'center',
       justifyContent: 'center',
-      marginHorizontal: SPACING.lg,
       paddingVertical: SPACING.md,
-      backgroundColor: COLORS.background,
       borderRadius: BORDER_RADIUS.lg,
       gap: SPACING.sm,
     },
     logoutText: {
-      fontSize: 16,
+      fontSize: 15,
       fontWeight: '600',
-      color: '#EF4444',
     },
+
+    // Version
     version: {
       textAlign: 'center',
       fontSize: 12,
-      color: COLORS.textSecondary,
       marginTop: SPACING.lg,
+      marginBottom: SPACING.lg,
     },
   });
 }
