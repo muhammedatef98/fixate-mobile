@@ -46,10 +46,10 @@ export default function TechnicianDashboard() {
   }, []);
 
   const STAT_CARDS = [
-    { id: 'earnings', titleAr: 'أرباح اليوم', titleEn: 'Today Earnings', value: `${stats.todayEarnings} ر.س`, icon: 'wallet-outline', color: COLORS.primary },
-    { id: 'pending', titleAr: 'طلبات جديدة', titleEn: 'New Orders', value: stats.pendingOrders.toString(), icon: 'notifications-outline', color: COLORS.warning },
-    { id: 'completed', titleAr: 'مكتملة اليوم', titleEn: 'Completed', value: stats.completedToday.toString(), icon: 'checkmark-done-outline', color: COLORS.info },
-    { id: 'rating', titleAr: 'التقييم', titleEn: 'Rating', value: stats.rating.toString(), icon: 'star-outline', color: '#f59e0b' },
+    { id: 'earnings', titleAr: 'أرباح اليوم', titleEn: 'Today Earnings', value: `${stats.todayEarnings} ر.س`, icon: 'wallet', color: COLORS.primary },
+    { id: 'pending', titleAr: 'طلبات جديدة', titleEn: 'New Orders', value: stats.pendingOrders.toString(), icon: 'notifications', color: COLORS.warning },
+    { id: 'completed', titleAr: 'مكتملة اليوم', titleEn: 'Completed', value: stats.completedToday.toString(), icon: 'checkmark-done', color: COLORS.info },
+    { id: 'rating', titleAr: 'التقييم', titleEn: 'Rating', value: stats.rating.toString(), icon: 'star', color: '#f59e0b' },
   ];
 
   const styles = createStyles(COLORS, isRTL);
@@ -175,7 +175,7 @@ const createStyles = (COLORS: any, isRTL: boolean) => StyleSheet.create({
   scrollContent: { padding: 16 },
   statsGrid: { flexDirection: isRTL ? 'row-reverse' : 'row', flexWrap: 'wrap', gap: 12, marginBottom: 24 },
   statCard: { width: (width - 32 - 12) / 2, backgroundColor: COLORS.white, borderRadius: 20, padding: 16, borderWidth: 1, borderColor: COLORS.border },
-  statIconContainer: { width: 44, height: 44, borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginBottom: 12 },
+  statIconContainer: { width: 44, height: 44, borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginBottom: 12, backgroundColor: '#f3f4f6' },
   statValue: { fontSize: 18, fontWeight: 'bold', color: COLORS.text },
   statLabel: { fontSize: 12, color: COLORS.textSecondary, marginTop: 2 },
   section: { marginBottom: 24 },
