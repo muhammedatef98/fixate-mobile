@@ -72,7 +72,7 @@ export default function ManageOrderScreen() {
       if (!user) return;
 
       setUpdating(true);
-      await requests.acceptRequest(id as string, user.id);
+      await requests.acceptOrder(id as string, user.id);
       Alert.alert(
         isRTL ? 'نجح' : 'Success',
         isRTL ? 'تم قبول الطلب بنجاح' : 'Order accepted successfully'

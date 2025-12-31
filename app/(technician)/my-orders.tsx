@@ -31,7 +31,7 @@ export default function MyOrdersScreen() {
       const user = await auth.getCurrentUser();
       if (!user) return;
 
-      const allOrders = await requests.getAll();
+      const allOrders = await requests.getMyOrders();
       const myOrders = allOrders.filter((o: any) => 
         o.technician_id === user.id && o.status === selectedTab
       );

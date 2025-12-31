@@ -67,7 +67,7 @@ export default function CustomerHomeScreen() {
 
   const loadActiveOrders = async () => {
     try {
-      const orders = await requests.getAll();
+      const orders = await requests.getUserOrders();
       const active = orders.filter((o: any) => o.status !== 'completed' && o.status !== 'cancelled');
       setActiveOrders(active.slice(0, 1));
     } catch (error) {

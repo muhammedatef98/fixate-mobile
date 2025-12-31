@@ -267,3 +267,18 @@ export default {
   requests,
   chat,
 };
+
+// Helper function for getting user orders
+requests.getUserOrders = async (): Promise<Order[]> => {
+  const user = await auth.getCurrentUser();
+  if (!user) return [];
+  
+  const { data, error } = await supabase
+    .from('orders')
+    .select('*')
+    .eq('user_id', user.id)
+    .order('created_at', { ascending: false });
+  
+  if (error) return [];
+  return data || [];
+};
