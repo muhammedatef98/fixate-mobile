@@ -216,12 +216,17 @@ export const requests = {
   },
 
   // Get available orders (for technicians)
-  getAvailable: async (): Promise<Order[]> => {
-    const { data, error } = await supabase
+  getAvailable: async (city?: string): Promise<Order[]> => {
+    let query = supabase
       .from('orders')
       .select('*')
-      .eq('status', 'pending')
-      .order('created_at', { ascending: false });
+      .eq('status', 'pending');
+    
+    if (city) {
+      query = query.ilike('location', `%${city}%`);
+    }
+
+    const { data, error } = await query.order('created_at', { ascending: false });
 
     if (error) {
       console.error('Error getting available orders:', error);

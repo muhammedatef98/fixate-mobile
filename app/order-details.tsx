@@ -42,6 +42,19 @@ export default function OrderDetailsScreen() {
   const [isCancelling, setIsCancelling] = useState(false);
   const [cancelModalVisible, setCancelModalVisible] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+  const [userType, setUserType] = useState<'customer' | 'technician'>('customer');
+
+  useEffect(() => {
+    checkUserType();
+  }, []);
+
+  const checkUserType = async () => {
+    const user = await auth.getCurrentUser();
+    if (user?.user_metadata?.user_type) {
+      setUserType(user.user_metadata.user_type);
+    }
+  };
 
   const CANCEL_REASONS = isRTL 
     ? ['السعر مرتفع جداً', 'وجدت فني آخر بسعر أفضل', 'لم أعد بحاجة للإصلاح', 'تأخر الفني في الرد', 'أخرى']
@@ -110,6 +123,28 @@ export default function OrderDetailsScreen() {
     }
   };
 
+  const handleUpdateStatus = async (newStatus: Order['status']) => {
+    setIsUpdatingStatus(true);
+    try {
+      await requests.updateStatus(id as string, newStatus);
+      Alert.alert(isRTL ? 'تم' : 'Done', isRTL ? 'تم تحديث حالة الطلب' : 'Status updated successfully');
+      loadOrderDetails();
+    } catch (error) {
+      Alert.alert(isRTL ? 'خطأ' : 'Error', isRTL ? 'فشل تحديث الحالة' : 'Failed to update status');
+    } finally {
+      setIsUpdatingStatus(false);
+    }
+  };
+
+  const getNextStatus = (currentStatus: string): Order['status'] | null => {
+    const statuses: Order['status'][] = ['pending', 'accepted', 'picking_up', 'diagnosing', 'repairing', 'delivering', 'completed'];
+    const currentIndex = statuses.indexOf(currentStatus as any);
+    if (currentIndex >= 0 && currentIndex < statuses.length - 1) {
+      return statuses[currentIndex + 1];
+    }
+    return null;
+  };
+
   if (loading) {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: COLORS.background }]}>
@@ -165,8 +200,36 @@ export default function OrderDetailsScreen() {
       </View>
 
         <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-          {/* Cancel Button (Only for pending orders) */}
-          {order.status === 'pending' && (
+          {/* Technician Action Bar */}
+          {userType === 'technician' && order.status !== 'completed' && order.status !== 'cancelled' && (
+            <View style={[styles.techActionBar, { backgroundColor: COLORS.primary + '10' }]}>
+              <Text style={[styles.techActionTitle, { color: COLORS.text }]}>
+                {isRTL ? 'تحديث حالة الطلب' : 'Update Order Status'}
+              </Text>
+              <TouchableOpacity 
+                style={[styles.techActionBtn, { backgroundColor: COLORS.primary }]}
+                onPress={() => {
+                  const next = getNextStatus(order.status);
+                  if (next) handleUpdateStatus(next);
+                }}
+                disabled={isUpdatingStatus}
+              >
+                {isUpdatingStatus ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <>
+                    <Text style={styles.techActionBtnText}>
+                      {isRTL ? 'الخطوة التالية' : 'Next Step'}
+                    </Text>
+                    <MaterialIcons name="skip-next" size={20} color="#fff" />
+                  </>
+                )}
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {/* Cancel Button (Only for pending orders and customers) */}
+          {userType === 'customer' && order.status === 'pending' && (
             <TouchableOpacity 
               style={[styles.cancelOrderBtn, { borderColor: COLORS.error }]} 
               onPress={() => setCancelModalVisible(true)}
@@ -493,6 +556,32 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: 'bold',
     marginLeft: 8,
+  },
+  techActionBar: {
+    padding: 16,
+    borderRadius: 16,
+    marginHorizontal: 16,
+    marginBottom: 16,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  techActionTitle: {
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  techActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 10,
+    gap: 8,
+  },
+  techActionBtnText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 14,
   },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 20 },
   modalContent: { width: '100%', borderRadius: 20, padding: 20 },
