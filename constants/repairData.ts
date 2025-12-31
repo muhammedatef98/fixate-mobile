@@ -21,14 +21,14 @@ export interface Issue {
   deviceType?: string; // To filter issues by device type
 }
 
-// All major brands with SVG logos where possible
+// All major brands with local assets for instant loading
 export const BRANDS: Brand[] = [
   // Phones
   {
     id: 'apple',
     name: 'Apple',
     deviceType: 'phone',
-    logo: 'https://upload.wikimedia.org/wikipedia/commons/f/fa/Apple_logo_black.svg',
+    logo: require('../assets/apple-logo.png'),
     models: [
       'iPhone 15 Pro Max', 'iPhone 15 Pro', 'iPhone 15 Plus', 'iPhone 15',
       'iPhone 14 Pro Max', 'iPhone 14 Pro', 'iPhone 14 Plus', 'iPhone 14',
@@ -44,7 +44,7 @@ export const BRANDS: Brand[] = [
     id: 'samsung',
     name: 'Samsung',
     deviceType: 'phone',
-    logo: 'https://upload.wikimedia.org/wikipedia/commons/2/24/Samsung_Logo.svg',
+    logo: require('../assets/samsung-logo.png'),
     models: [
       'Galaxy S24 Ultra', 'Galaxy S24+', 'Galaxy S24',
       'Galaxy S23 Ultra', 'Galaxy S23+', 'Galaxy S23',
@@ -64,7 +64,7 @@ export const BRANDS: Brand[] = [
     id: 'huawei',
     name: 'Huawei',
     deviceType: 'phone',
-    logo: 'https://upload.wikimedia.org/wikipedia/commons/e/e8/Huawei_Logo.svg',
+    logo: require('../assets/huawei-logo.png'),
     models: [
       'Mate 60 Pro', 'Mate 60', 'Mate 50 Pro', 'Mate 50',
       'Mate 40 Pro', 'Mate 40', 'Mate 30 Pro', 'Mate 30',
@@ -240,7 +240,7 @@ export const BRANDS: Brand[] = [
     id: 'apple-tablet',
     name: 'Apple iPad',
     deviceType: 'tablet',
-    logo: 'https://upload.wikimedia.org/wikipedia/commons/f/fa/Apple_logo_black.svg',
+    logo: require('../assets/apple-logo.png'),
     models: [
       'iPad Pro 12.9" (2024)', 'iPad Pro 11" (2024)', 'iPad Pro 12.9" (2022)', 'iPad Pro 11" (2022)',
       'iPad Air (2024)', 'iPad Air (2022)', 'iPad (10th gen)', 'iPad (9th gen)',
@@ -251,7 +251,7 @@ export const BRANDS: Brand[] = [
     id: 'samsung-tablet',
     name: 'Samsung Galaxy Tab',
     deviceType: 'tablet',
-    logo: 'https://upload.wikimedia.org/wikipedia/commons/2/24/Samsung_Logo.svg',
+    logo: require('../assets/samsung-logo.png'),
     models: [
       'Galaxy Tab S9 Ultra', 'Galaxy Tab S9+', 'Galaxy Tab S9',
       'Galaxy Tab S8 Ultra', 'Galaxy Tab S8+', 'Galaxy Tab S8',
@@ -262,7 +262,7 @@ export const BRANDS: Brand[] = [
     id: 'huawei-tablet',
     name: 'Huawei MatePad',
     deviceType: 'tablet',
-    logo: 'https://upload.wikimedia.org/wikipedia/commons/e/e8/Huawei_Logo.svg',
+    logo: require('../assets/huawei-logo.png'),
     models: [
       'MatePad Pro 13.2', 'MatePad Pro 12.6', 'MatePad Pro 11',
       'MatePad 11.5', 'MatePad 11', 'MatePad SE', 'MatePad T10'
@@ -284,32 +284,21 @@ export const BRANDS: Brand[] = [
     deviceType: 'tablet',
     logo: 'https://upload.wikimedia.org/wikipedia/commons/a/ae/Xiaomi_logo_%282021-%29.svg',
     models: [
-      'Xiaomi Pad 6 Pro', 'Xiaomi Pad 6', 'Xiaomi Pad 5 Pro', 'Xiaomi Pad 5',
-      'Redmi Pad Pro', 'Redmi Pad SE', 'Redmi Pad'
+      'Xiaomi Pad 6 Max', 'Xiaomi Pad 6 Pro', 'Xiaomi Pad 6',
+      'Xiaomi Pad 5 Pro', 'Xiaomi Pad 5', 'Redmi Pad SE', 'Redmi Pad'
     ]
   },
-  
+
   // Laptop Brands
   {
     id: 'apple-laptop',
     name: 'Apple MacBook',
     deviceType: 'laptop',
-    logo: 'https://upload.wikimedia.org/wikipedia/commons/f/fa/Apple_logo_black.svg',
+    logo: require('../assets/apple-logo.png'),
     models: [
-      'MacBook Pro 16" (M3)', 'MacBook Pro 14" (M3)', 'MacBook Pro 13" (M2)',
-      'MacBook Air 15" (M3)', 'MacBook Air 13" (M3)', 'MacBook Air 13" (M2)', 'MacBook Air (M1)'
-    ]
-  },
-  {
-    id: 'dell-laptop',
-    name: 'Dell',
-    deviceType: 'laptop',
-    logo: 'https://upload.wikimedia.org/wikipedia/commons/1/18/Dell_logo_2016.svg',
-    models: [
-      'XPS 15', 'XPS 13', 'XPS 17',
-      'Inspiron 16', 'Inspiron 15', 'Inspiron 14',
-      'Latitude 7440', 'Latitude 5440', 'Latitude 3540',
-      'Alienware m18', 'Alienware x16', 'Alienware m16'
+      'MacBook Pro 16" (M3)', 'MacBook Pro 14" (M3)', 'MacBook Pro 16" (M2)', 'MacBook Pro 14" (M2)',
+      'MacBook Air 15" (M3)', 'MacBook Air 13" (M3)', 'MacBook Air 15" (M2)', 'MacBook Air 13" (M2)',
+      'MacBook Air (M1)', 'MacBook Pro 13" (M1)'
     ]
   },
   {
@@ -318,9 +307,18 @@ export const BRANDS: Brand[] = [
     deviceType: 'laptop',
     logo: 'https://upload.wikimedia.org/wikipedia/commons/a/ad/HP_logo_2012.svg',
     models: [
-      'Spectre x360', 'Envy x360', 'Pavilion 15',
-      'EliteBook 840', 'ProBook 450',
-      'OMEN 16', 'Victus 15'
+      'Spectre x360', 'Envy x360', 'Pavilion', 'Omen', 'Victus',
+      'EliteBook', 'ProBook', 'ZBook', 'HP Essentials'
+    ]
+  },
+  {
+    id: 'dell-laptop',
+    name: 'Dell',
+    deviceType: 'laptop',
+    logo: 'https://upload.wikimedia.org/wikipedia/commons/1/18/Dell_logo_2016.svg',
+    models: [
+      'XPS 15', 'XPS 13', 'Inspiron', 'Vostro', 'Latitude',
+      'Precision', 'Alienware', 'G-Series'
     ]
   },
   {
@@ -329,9 +327,8 @@ export const BRANDS: Brand[] = [
     deviceType: 'laptop',
     logo: 'https://upload.wikimedia.org/wikipedia/commons/b/b8/Lenovo_logo_2015.svg',
     models: [
-      'ThinkPad X1 Carbon', 'ThinkPad T14', 'ThinkPad E14',
-      'Yoga 9i', 'Yoga 7i', 'IdeaPad 5', 'IdeaPad 3',
-      'Legion Pro 7i', 'Legion 5i', 'Legion Slim 7'
+      'ThinkPad X1 Carbon', 'ThinkPad T-Series', 'ThinkPad L-Series',
+      'Yoga', 'IdeaPad', 'Legion', 'LOQ', 'ThinkBook'
     ]
   },
   {
@@ -340,8 +337,8 @@ export const BRANDS: Brand[] = [
     deviceType: 'laptop',
     logo: 'https://upload.wikimedia.org/wikipedia/commons/2/2e/ASUS_Logo.svg',
     models: [
-      'Zenbook 14', 'Zenbook Pro 16', 'Vivobook 15', 'Vivobook S 14',
-      'ROG Zephyrus G14', 'ROG Strix G16', 'TUF Gaming F15'
+      'Zenbook Pro', 'Zenbook S', 'Zenbook', 'Vivobook Pro', 'Vivobook S',
+      'Vivobook', 'ROG Zephyrus', 'ROG Strix', 'TUF Gaming'
     ]
   },
   {
@@ -350,19 +347,85 @@ export const BRANDS: Brand[] = [
     deviceType: 'laptop',
     logo: 'https://upload.wikimedia.org/wikipedia/commons/a/a7/Acer_Logo.svg',
     models: [
-      'Swift Go', 'Swift Edge', 'Aspire 5', 'Aspire 3',
-      'Predator Helios 16', 'Nitro 5'
+      'Swift Edge', 'Swift Go', 'Swift', 'Spin', 'Aspire',
+      'Predator Helios', 'Predator Triton', 'Nitro V', 'Nitro'
+    ]
+  },
+  {
+    id: 'msi-laptop',
+    name: 'MSI',
+    deviceType: 'laptop',
+    logo: 'https://upload.wikimedia.org/wikipedia/commons/a/a6/MSI_Logo.svg',
+    models: [
+      'Titan', 'Raider', 'Stealth', 'Vector', 'Pulse', 'Katana',
+      'Cyborg', 'Prestige', 'Summit', 'Modern'
+    ]
+  },
+  {
+    id: 'huawei-laptop',
+    name: 'Huawei MateBook',
+    deviceType: 'laptop',
+    logo: require('../assets/huawei-logo.png'),
+    models: [
+      'MateBook X Pro', 'MateBook X', 'MateBook 16s', 'MateBook 14s',
+      'MateBook D 16', 'MateBook D 15', 'MateBook D 14'
+    ]
+  },
+  {
+    id: 'samsung-laptop',
+    name: 'Samsung Galaxy Book',
+    deviceType: 'laptop',
+    logo: require('../assets/samsung-logo.png'),
+    models: [
+      'Galaxy Book 4 Ultra', 'Galaxy Book 4 Pro', 'Galaxy Book 4',
+      'Galaxy Book 3 Ultra', 'Galaxy Book 3 Pro', 'Galaxy Book 3',
+      'Galaxy Book 2 Pro', 'Galaxy Book 2'
+    ]
+  },
+
+  // Watch Brands
+  {
+    id: 'apple-watch',
+    name: 'Apple Watch',
+    deviceType: 'watch',
+    logo: require('../assets/apple-logo.png'),
+    models: [
+      'Apple Watch Ultra 2', 'Apple Watch Ultra',
+      'Apple Watch Series 9', 'Apple Watch Series 8', 'Apple Watch Series 7',
+      'Apple Watch SE (2022)', 'Apple Watch SE'
+    ]
+  },
+  {
+    id: 'samsung-watch',
+    name: 'Samsung Galaxy Watch',
+    deviceType: 'watch',
+    logo: require('../assets/samsung-logo.png'),
+    models: [
+      'Galaxy Watch 6 Classic', 'Galaxy Watch 6',
+      'Galaxy Watch 5 Pro', 'Galaxy Watch 5',
+      'Galaxy Watch 4 Classic', 'Galaxy Watch 4'
+    ]
+  },
+  {
+    id: 'huawei-watch',
+    name: 'Huawei Watch',
+    deviceType: 'watch',
+    logo: require('../assets/huawei-logo.png'),
+    models: [
+      'Watch Ultimate', 'Watch 4 Pro', 'Watch 4',
+      'Watch GT 4', 'Watch GT 3 Pro', 'Watch GT 3',
+      'Watch Fit 3', 'Watch Fit 2'
     ]
   }
 ];
 
 export const ISSUES: Issue[] = [
-  // Phone Issues
+  // Phone & Tablet Issues
   {
     id: 'screen',
-    name: 'Screen Replacement',
-    nameAr: 'استبدال الشاشة',
-    icon: 'phone-portrait-outline',
+    name: 'Screen Repair',
+    nameAr: 'إصلاح الشاشة',
+    icon: 'cellphone-screenshot',
     estimatedPrice: 250,
     priceRange: { min: 150, max: 800 },
     deviceType: 'phone'
@@ -370,257 +433,174 @@ export const ISSUES: Issue[] = [
   {
     id: 'battery',
     name: 'Battery Replacement',
-    nameAr: 'استبدال البطارية',
-    icon: 'battery-charging-outline',
-    estimatedPrice: 150,
-    priceRange: { min: 100, max: 300 },
+    nameAr: 'تبديل البطارية',
+    icon: 'battery-charging',
+    estimatedPrice: 120,
+    priceRange: { min: 80, max: 250 },
     deviceType: 'phone'
   },
   {
     id: 'charging',
-    name: 'Charging Port Repair',
-    nameAr: 'إصلاح منفذ الشحن',
-    icon: 'flash-outline',
+    name: 'Charging Port',
+    nameAr: 'منفذ الشحن',
+    icon: 'usb-port',
     estimatedPrice: 100,
-    priceRange: { min: 80, max: 200 },
+    priceRange: { min: 70, max: 180 },
     deviceType: 'phone'
   },
   {
     id: 'camera',
     name: 'Camera Repair',
     nameAr: 'إصلاح الكاميرا',
-    icon: 'camera-outline',
-    estimatedPrice: 200,
-    priceRange: { min: 150, max: 500 },
+    icon: 'camera',
+    estimatedPrice: 180,
+    priceRange: { min: 120, max: 450 },
     deviceType: 'phone'
   },
   {
-    id: 'water',
+    id: 'back-glass',
+    name: 'Back Glass',
+    nameAr: 'الزجاج الخلفي',
+    icon: 'cellphone-back',
+    estimatedPrice: 150,
+    priceRange: { min: 100, max: 350 },
+    deviceType: 'phone'
+  },
+  {
+    id: 'water-damage',
     name: 'Water Damage',
-    nameAr: 'تلف بسبب المياه',
-    icon: 'water-outline',
+    nameAr: 'ضرر السوائل',
+    icon: 'water-alert',
     estimatedPrice: 300,
-    priceRange: { min: 200, max: 1000 },
+    priceRange: { min: 150, max: 1000 },
     deviceType: 'phone'
   },
   {
     id: 'software',
     name: 'Software Issue',
     nameAr: 'مشكلة برمجية',
-    icon: 'code-slash-outline',
-    estimatedPrice: 100,
-    priceRange: { min: 50, max: 150 },
-    deviceType: 'phone'
-  },
-  {
-    id: 'speaker',
-    name: 'Speaker/Mic Repair',
-    nameAr: 'إصلاح السماعة/الميكروفون',
-    icon: 'volume-high-outline',
-    estimatedPrice: 120,
-    priceRange: { min: 80, max: 250 },
-    deviceType: 'phone'
-  },
-  {
-    id: 'back-glass',
-    name: 'Back Glass Replacement',
-    nameAr: 'استبدال الزجاج الخلفي',
-    icon: 'phone-portrait-outline',
-    estimatedPrice: 180,
-    priceRange: { min: 120, max: 400 },
-    deviceType: 'phone'
-  },
-  {
-    id: 'buttons',
-    name: 'Buttons Repair',
-    nameAr: 'إصلاح الأزرار',
-    icon: 'radio-button-on-outline',
+    icon: 'cellphone-cog',
     estimatedPrice: 80,
     priceRange: { min: 50, max: 150 },
     deviceType: 'phone'
   },
   {
     id: 'other-phone',
-    name: 'Other',
+    name: 'Other Issue',
     nameAr: 'أخرى',
-    icon: 'help-circle-outline',
+    icon: 'dots-horizontal-circle-outline',
     estimatedPrice: 0,
-    priceRange: { min: 0, max: 0 },
     deviceType: 'phone'
-  },
-
-  // Tablet Issues
-  {
-    id: 'tablet-screen',
-    name: 'Screen Replacement',
-    nameAr: 'استبدال الشاشة',
-    icon: 'tablet-portrait-outline',
-    estimatedPrice: 350,
-    priceRange: { min: 250, max: 1200 },
-    deviceType: 'tablet'
-  },
-  {
-    id: 'tablet-battery',
-    name: 'Battery Replacement',
-    nameAr: 'استبدال البطارية',
-    icon: 'battery-charging-outline',
-    estimatedPrice: 200,
-    priceRange: { min: 150, max: 400 },
-    deviceType: 'tablet'
-  },
-  {
-    id: 'tablet-charging',
-    name: 'Charging Port Repair',
-    nameAr: 'إصلاح منفذ الشحن',
-    icon: 'flash-outline',
-    estimatedPrice: 120,
-    priceRange: { min: 100, max: 250 },
-    deviceType: 'tablet'
-  },
-  {
-    id: 'tablet-software',
-    name: 'Software Issue',
-    nameAr: 'مشكلة برمجية',
-    icon: 'code-slash-outline',
-    estimatedPrice: 100,
-    priceRange: { min: 80, max: 200 },
-    deviceType: 'tablet'
-  },
-  {
-    id: 'other-tablet',
-    name: 'Other',
-    nameAr: 'أخرى',
-    icon: 'help-circle-outline',
-    estimatedPrice: 0,
-    priceRange: { min: 0, max: 0 },
-    deviceType: 'tablet'
   },
 
   // Laptop Issues
   {
     id: 'laptop-screen',
-    name: 'Screen Replacement',
-    nameAr: 'استبدال الشاشة',
-    icon: 'laptop-outline',
+    name: 'Screen Repair',
+    nameAr: 'إصلاح الشاشة',
+    icon: 'laptop-off',
     estimatedPrice: 450,
-    priceRange: { min: 300, max: 1500 },
+    priceRange: { min: 300, max: 1200 },
     deviceType: 'laptop'
   },
   {
-    id: 'laptop-keyboard',
-    name: 'Keyboard Replacement',
-    nameAr: 'استبدال لوحة المفاتيح',
-    icon: 'keypad-outline',
+    id: 'keyboard',
+    name: 'Keyboard Repair',
+    nameAr: 'إصلاح لوحة المفاتيح',
+    icon: 'keyboard-outline',
     estimatedPrice: 200,
-    priceRange: { min: 150, max: 500 },
+    priceRange: { min: 150, max: 450 },
     deviceType: 'laptop'
   },
   {
     id: 'laptop-battery',
     name: 'Battery Replacement',
-    nameAr: 'استبدال البطارية',
-    icon: 'battery-charging-outline',
+    nameAr: 'تبديل البطارية',
+    icon: 'battery-charging',
     estimatedPrice: 250,
-    priceRange: { min: 180, max: 600 },
+    priceRange: { min: 180, max: 450 },
     deviceType: 'laptop'
   },
   {
-    id: 'laptop-charging',
-    name: 'Charging Port Repair',
-    nameAr: 'إصلاح منفذ الشحن',
-    icon: 'flash-outline',
-    estimatedPrice: 150,
-    priceRange: { min: 100, max: 300 },
+    id: 'laptop-upgrade',
+    name: 'RAM/SSD Upgrade',
+    nameAr: 'ترقية الرام/الهارد',
+    icon: 'memory',
+    estimatedPrice: 350,
+    priceRange: { min: 200, max: 800 },
     deviceType: 'laptop'
   },
   {
-    id: 'laptop-overheat',
-    name: 'Overheating/Fan Cleaning',
-    nameAr: 'ارتفاع الحرارة/تنظيف المروحة',
-    icon: 'thermometer-outline',
-    estimatedPrice: 100,
-    priceRange: { min: 80, max: 200 },
-    deviceType: 'laptop'
-  },
-  {
-    id: 'laptop-software',
-    name: 'Windows/Software Issue',
-    nameAr: 'مشكلة ويندوز/برمجية',
-    icon: 'logo-windows',
-    estimatedPrice: 100,
-    priceRange: { min: 50, max: 200 },
-    deviceType: 'laptop'
-  },
-  {
-    id: 'laptop-ssd',
-    name: 'SSD/RAM Upgrade',
-    nameAr: 'ترقية SSD/RAM',
-    icon: 'hardware-chip-outline',
-    estimatedPrice: 300,
-    priceRange: { min: 200, max: 1000 },
+    id: 'laptop-hinge',
+    name: 'Hinge Repair',
+    nameAr: 'إصلاح المفصلات',
+    icon: 'laptop',
+    estimatedPrice: 180,
+    priceRange: { min: 120, max: 350 },
     deviceType: 'laptop'
   },
   {
     id: 'other-laptop',
-    name: 'Other',
+    name: 'Other Issue',
     nameAr: 'أخرى',
-    icon: 'help-circle-outline',
+    icon: 'dots-horizontal-circle-outline',
     estimatedPrice: 0,
-    priceRange: { min: 0, max: 0 },
     deviceType: 'laptop'
   },
 
   // Watch Issues
   {
     id: 'watch-screen',
-    name: 'Screen Replacement',
-    nameAr: 'استبدال الشاشة',
-    icon: 'watch-outline',
-    estimatedPrice: 300,
-    priceRange: { min: 200, max: 800 },
+    name: 'Screen Repair',
+    nameAr: 'إصلاح الشاشة',
+    icon: 'watch-variant',
+    estimatedPrice: 350,
+    priceRange: { min: 250, max: 700 },
     deviceType: 'watch'
   },
   {
     id: 'watch-battery',
     name: 'Battery Replacement',
-    nameAr: 'استبدال البطارية',
-    icon: 'battery-charging-outline',
+    nameAr: 'تبديل البطارية',
+    icon: 'battery-charging',
     estimatedPrice: 150,
-    priceRange: { min: 100, max: 300 },
+    priceRange: { min: 100, max: 250 },
     deviceType: 'watch'
   },
   {
     id: 'other-watch',
-    name: 'Other',
+    name: 'Other Issue',
     nameAr: 'أخرى',
-    icon: 'help-circle-outline',
+    icon: 'dots-horizontal-circle-outline',
     estimatedPrice: 0,
-    priceRange: { min: 0, max: 0 },
     deviceType: 'watch'
+  },
+
+  // Printer Issues
+  {
+    id: 'printer-paper',
+    name: 'Paper Jam',
+    nameAr: 'انحشار الورق',
+    icon: 'printer-alert',
+    estimatedPrice: 100,
+    priceRange: { min: 50, max: 200 },
+    deviceType: 'printer'
+  },
+  {
+    id: 'printer-ink',
+    name: 'Ink/Toner Issue',
+    nameAr: 'مشكلة الحبر',
+    icon: 'printer-pos',
+    estimatedPrice: 150,
+    priceRange: { min: 80, max: 400 },
+    deviceType: 'printer'
+  },
+  {
+    id: 'other-printer',
+    name: 'Other Issue',
+    nameAr: 'أخرى',
+    icon: 'dots-horizontal-circle-outline',
+    estimatedPrice: 0,
+    deviceType: 'printer'
   }
 ];
-
-export const searchBrands = (query: string, deviceType: string): Brand[] => {
-  const lowerQuery = query.toLowerCase();
-  return BRANDS.filter(
-    (brand) => 
-      brand.deviceType === deviceType && 
-      brand.name.toLowerCase().includes(lowerQuery)
-  );
-};
-
-export const searchModels = (brandId: string, query: string): string[] => {
-  const brand = BRANDS.find((b) => b.id === brandId);
-  if (!brand) return [];
-  const lowerQuery = query.toLowerCase();
-  return brand.models.filter((model) => model.toLowerCase().includes(lowerQuery));
-};
-
-export const searchIssues = (deviceType: string, query: string): Issue[] => {
-  const lowerQuery = query.toLowerCase();
-  return ISSUES.filter(
-    (issue) => 
-      issue.deviceType === deviceType && 
-      (issue.name.toLowerCase().includes(lowerQuery) || issue.nameAr.includes(lowerQuery))
-  );
-};
