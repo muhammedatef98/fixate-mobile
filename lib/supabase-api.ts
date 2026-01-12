@@ -148,23 +148,32 @@ export const requests = {
     return order;
   },
 
-  // Get order by ID
-  getById: async (id: string): Promise<Order | null> => {
-    try {
-      const { data, error } = await supabase
-        .from('orders')
-        .select('*')
-        .eq('id', id)
-        .single();
-      if (error) {
-        console.error('Error fetching order by ID:', error);
-        return null;
+  // Get order by ID with retry logic
+  getById: async (id: string, retries = 2): Promise<Order | null> => {
+    for (let i = 0; i <= retries; i++) {
+      try {
+        const { data, error } = await supabase
+          .from('orders')
+          .select('*')
+          .eq('id', id)
+          .single();
+        
+        if (!error) return data;
+        
+        if (i === retries) {
+          console.error(`Error fetching order by ID after ${retries} retries:`, error);
+          return null;
+        }
+        // Wait before retry
+        await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1)));
+      } catch (err) {
+        if (i === retries) {
+          console.error('Unexpected error in getById:', err);
+          return null;
+        }
       }
-      return data;
-    } catch (err) {
-      console.error('Unexpected error in getById:', err);
-      return null;
     }
+    return null;
   },
 
   // Get available orders (for technicians)

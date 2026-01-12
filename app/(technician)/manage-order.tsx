@@ -48,12 +48,19 @@ export default function ManageOrderScreen() {
     loadOrderDetails();
     
     // Subscribe to real-time updates
-    const subscription = requests.subscribeToUpdates(id as string, (updatedOrder) => {
-      setOrder(updatedOrder);
-    });
+    let subscription: any = null;
+    if (id) {
+      subscription = requests.subscribeToUpdates(id as string, (updatedOrder) => {
+        if (updatedOrder) {
+          setOrder(prev => ({ ...prev, ...updatedOrder }));
+        }
+      });
+    }
 
     return () => {
-      subscription.unsubscribe();
+      if (subscription) {
+        subscription.unsubscribe();
+      }
     };
   }, [id]);
 
