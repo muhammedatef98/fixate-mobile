@@ -186,8 +186,14 @@ export default function ManageOrderScreen() {
           <View style={styles.workflowGrid}>
             {STATUS_ACTIONS.map((action) => {
               const isActive = order.status === action.status;
-              const isAvailable = order.status !== 'pending' || action.status === 'accepted';
+              // Only "Accept Order" is available if status is pending
+              const isAvailable = order.status === 'pending' ? action.status === 'accepted' : action.status !== 'accepted';
               
+              // Don't show other actions if order is pending, except the accept button
+              if (order.status === 'pending' && action.status !== 'accepted') return null;
+              // Don't show accept button if order is already accepted
+              if (order.status !== 'pending' && action.status === 'accepted') return null;
+
               return (
                 <TouchableOpacity
                   key={action.status}
