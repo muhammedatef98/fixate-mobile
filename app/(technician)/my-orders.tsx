@@ -50,7 +50,7 @@ export default function MyOrdersScreen() {
 
   const updateOrderStatus = async (orderId: string, newStatus: string) => {
     try {
-      await requests.update(orderId, { status: newStatus });
+      await requests.updateStatus(orderId, newStatus as any);
       loadOrders();
     } catch (error) {
       console.error('Error updating order:', error);
