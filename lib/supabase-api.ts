@@ -150,13 +150,21 @@ export const requests = {
 
   // Get order by ID
   getById: async (id: string): Promise<Order | null> => {
-    const { data, error } = await supabase
-      .from('orders')
-      .select('*')
-      .eq('id', id)
-      .single();
-    if (error) return null;
-    return data;
+    try {
+      const { data, error } = await supabase
+        .from('orders')
+        .select('*')
+        .eq('id', id)
+        .single();
+      if (error) {
+        console.error('Error fetching order by ID:', error);
+        return null;
+      }
+      return data;
+    } catch (err) {
+      console.error('Unexpected error in getById:', err);
+      return null;
+    }
   },
 
   // Get available orders (for technicians)
