@@ -267,11 +267,16 @@ export default function AvailableOrdersScreen() {
 
           <TouchableOpacity
             style={styles.acceptButton}
-            onPress={() => handleAcceptOrder(order.id)}
+            onPress={() => {
+              router.push({
+                pathname: '/(technician)/manage-order',
+                params: { id: order.id }
+              });
+            }}
           >
-            <MaterialIcons name="check-circle" size={20} color="#FFF" />
+            <MaterialIcons name="visibility" size={20} color="#FFF" />
             <Text style={styles.acceptButtonText}>
-              {language === 'ar' ? 'قبول' : 'Accept'}
+              {language === 'ar' ? 'عرض التفاصيل' : 'View Details'}
             </Text>
           </TouchableOpacity>
         </View>
