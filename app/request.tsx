@@ -238,13 +238,15 @@ export default function RequestScreen() {
         const cityMatch = address?.match(/,\s*([^,]+)$/);
         const city = cityMatch ? cityMatch[1].trim() : null;
         
-        if (city) {
-          notificationManager.notifyTechniciansInCity(city, {
-            id: result.id,
-            device_brand: orderData.device_brand,
-            device_model: orderData.device_model
-          });
-        }
+        // Notify all technicians in the city
+        // If city is not explicitly found in address, we can use a default or search by coordinates
+        const targetCity = city || 'Riyadh'; // Default to Riyadh if city not found
+        
+        notificationManager.notifyTechniciansInCity(targetCity, {
+          id: result.id,
+          device_brand: orderData.device_brand,
+          device_model: orderData.device_model
+        });
 
         setIsSubmitting(false);
         Alert.alert(
