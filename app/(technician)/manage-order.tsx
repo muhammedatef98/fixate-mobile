@@ -171,20 +171,7 @@ export default function ManageOrderScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: COLORS.background }]}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <MaterialIcons 
-            name={isRTL ? 'arrow-forward' : 'arrow-back'} 
-            size={24} 
-            color={COLORS.text} 
-          />
-        </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: COLORS.text }]}>
-          {isRTL ? 'إدارة الطلب' : 'Manage Order'}
-        </Text>
-        <View style={{ width: 40 }} />
-      </View>
+      {/* Header removed to use Stack Header */}
 
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         {/* Professional Workflow Control */}

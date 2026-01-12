@@ -125,13 +125,7 @@ export default function OrderDetailsScreen() {
     <SafeAreaView style={[styles.container, { backgroundColor: COLORS.background }]}>
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={COLORS.background} />
       
-      {/* Header */}
-      <View style={[styles.header, { borderBottomColor: COLORS.border }]}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <MaterialIcons name={isRTL ? 'arrow-forward' : 'arrow-back'} size={24} color={COLORS.text} />
-        </TouchableOpacity>
-        <View style={{ flex: 1 }} />
-      </View>
+      {/* Header removed to use Stack Header */}
 
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         {/* Order ID & Status Badge */}

@@ -147,27 +147,7 @@ export default function ChatScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: COLORS.background }]}>
-      {/* Header */}
-      <View style={[styles.header, { borderBottomColor: COLORS.border }]}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <MaterialIcons 
-            name={isRTL ? 'arrow-forward' : 'arrow-back'} 
-            size={24} 
-            color={COLORS.text} 
-          />
-        </TouchableOpacity>
-        <View style={styles.headerInfo}>
-          <Text style={[styles.headerTitle, { color: COLORS.text }]}>
-            {otherUserName || (isRTL ? 'المحادثة' : 'Chat')}
-          </Text>
-          <View style={styles.onlineStatus}>
-            <View style={styles.onlineDot} />
-            <Text style={styles.onlineText}>
-              {isRTL ? 'متصل الآن' : 'Online'}
-            </Text>
-          </View>
-        </View>
-      </View>
+      {/* Header removed to use Stack Header */}
 
       {/* Messages List */}
       <FlatList
