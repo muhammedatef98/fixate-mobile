@@ -139,6 +139,7 @@ export const requests = {
         longitude: orderData.longitude || orderData.location?.longitude || 0,
         media_urls: orderData.media_urls || orderData.images || [],
         status: 'pending',
+        technician_id: null, // Ensure it's available to all technicians
       }])
       .select()
       .single();

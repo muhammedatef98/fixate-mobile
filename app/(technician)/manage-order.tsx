@@ -39,6 +39,7 @@ export default function ManageOrderScreen() {
   const isRTL = language === 'ar';
 
   const [order, setOrder] = useState<Order | null>(null);
+  const [customer, setCustomer] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
 
@@ -59,6 +60,11 @@ export default function ManageOrderScreen() {
     try {
       const orderData = await requests.getById(id as string);
       setOrder(orderData);
+      
+      if (orderData?.user_id) {
+        const customerProfile = await auth.getUserProfile(orderData.user_id);
+        setCustomer(customerProfile);
+      }
     } catch (error) {
       console.error('Error loading order:', error);
     } finally {
@@ -114,17 +120,13 @@ export default function ManageOrderScreen() {
   const getNextActions = () => {
     if (!order) return [];
     
-    const statusIndex = STATUS_ACTIONS.findIndex(a => a.status === order.status);
-    
+    // Allow technician to update to any status after accepting
     if (order.status === 'pending') {
       return [STATUS_ACTIONS[0]]; // Only show "Accept Order"
     }
     
-    if (statusIndex === -1 || statusIndex === STATUS_ACTIONS.length - 1) {
-      return [];
-    }
-    
-    return [STATUS_ACTIONS[statusIndex + 1]];
+    // Return all statuses except 'pending' and the current one
+    return STATUS_ACTIONS.filter(a => a.status !== 'pending' && a.status !== order.status);
   };
 
   const openLocation = () => {
@@ -196,7 +198,7 @@ export default function ManageOrderScreen() {
           <View style={styles.workflowGrid}>
             {STATUS_ACTIONS.map((action) => {
               const isActive = order.status === action.status;
-              const isNext = nextActions.some(a => a.status === action.status);
+              const isAvailable = order.status !== 'pending' || action.status === 'accepted';
               
               return (
                 <TouchableOpacity
@@ -204,21 +206,21 @@ export default function ManageOrderScreen() {
                   style={[
                     styles.workflowButton, 
                     { 
-                      borderColor: isActive ? action.color : isNext ? action.color : COLORS.border,
+                      borderColor: isActive ? action.color : isAvailable ? action.color : COLORS.border,
                       backgroundColor: isActive ? `${action.color}15` : 'transparent',
-                      opacity: (isActive || isNext) ? 1 : 0.5
+                      opacity: (isActive || isAvailable) ? 1 : 0.5
                     }
                   ]}
                   onPress={() => {
-                    if (action.status === 'accepted') {
+                    if (action.status === 'accepted' && order.status === 'pending') {
                       handleAcceptOrder();
                     } else {
                       handleUpdateStatus(action.status);
                     }
                   }}
-                  disabled={updating || (!isActive && !isNext)}
+                  disabled={updating || !isAvailable}
                 >
-                  <View style={[styles.iconContainer, { backgroundColor: isActive || isNext ? action.color : COLORS.disabled }]}>
+                  <View style={[styles.iconContainer, { backgroundColor: isActive || isAvailable ? action.color : COLORS.disabled }]}>
                     <MaterialCommunityIcons name={action.icon as any} size={20} color="#FFFFFF" />
                   </View>
                   <View style={styles.workflowTextContainer}>
@@ -265,6 +267,31 @@ export default function ManageOrderScreen() {
             )}
           </View>
         )}
+
+        {/* Customer Info */}
+        <View style={[styles.card, { backgroundColor: COLORS.card }, SHADOWS.medium]}>
+          <Text style={[styles.cardTitle, { color: COLORS.text }]}>
+            {isRTL ? 'معلومات العميل' : 'Customer Information'}
+          </Text>
+          <View style={styles.infoRow}>
+            <MaterialIcons name="person" size={20} color={COLORS.textSecondary} />
+            <Text style={[styles.infoLabel, { color: COLORS.textSecondary }]}>
+              {isRTL ? 'الاسم' : 'Name'}
+            </Text>
+            <Text style={[styles.infoValue, { color: COLORS.text }]}>
+              {customer?.name || (isRTL ? 'عميل' : 'Customer')}
+            </Text>
+          </View>
+          <View style={styles.infoRow}>
+            <MaterialIcons name="phone" size={20} color={COLORS.textSecondary} />
+            <Text style={[styles.infoLabel, { color: COLORS.textSecondary }]}>
+              {isRTL ? 'الهاتف' : 'Phone'}
+            </Text>
+            <Text style={[styles.infoValue, { color: COLORS.text }]}>
+              {order.customer_phone || customer?.phone || (isRTL ? 'غير متوفر' : 'N/A')}
+            </Text>
+          </View>
+        </View>
 
         {/* Device Info */}
         <View style={[styles.card, { backgroundColor: COLORS.card }, SHADOWS.medium]}>
