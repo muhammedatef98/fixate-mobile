@@ -51,6 +51,7 @@ function RootLayoutContent() {
           headerTitleStyle: {
             fontWeight: 'bold',
           },
+          headerBackTitle: language === 'ar' ? 'رجوع' : 'Back',
           animation: 'none',
           gestureEnabled: true,
           gestureDirection: 'horizontal',
@@ -141,8 +142,22 @@ function RootLayoutContent() {
         <Stack.Screen 
           name="technician-auth" 
           options={{ 
-            title: 'تسجيل دخول الفني',
+            title: language === 'ar' ? 'تسجيل دخول الفني' : 'Technician Login',
             headerShown: false 
+          }} 
+        />
+        <Stack.Screen 
+          name="order-details" 
+          options={{ 
+            title: language === 'ar' ? 'تفاصيل الطلب' : 'Order Details',
+            headerShown: true 
+          }} 
+        />
+        <Stack.Screen 
+          name="chat/[id]" 
+          options={{ 
+            title: language === 'ar' ? 'المحادثة' : 'Chat',
+            headerShown: true 
           }} 
         />
       </Stack>
