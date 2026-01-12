@@ -213,10 +213,10 @@ export default function ChatScreen() {
               <ActivityIndicator size="small" color="#FFFFFF" />
             ) : (
               <Ionicons 
-                name={isRTL ? 'send-sharp' : 'send-sharp'} 
+                name="send-sharp" 
                 size={20} 
                 color="#FFFFFF" 
-                style={{ transform: [{ rotate: isRTL ? '180deg' : '0deg' }] }}
+                style={{ transform: [{ scaleX: isRTL ? -1 : 1 }] }}
               />
             )}
           </TouchableOpacity>
