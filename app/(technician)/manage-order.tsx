@@ -13,7 +13,8 @@ import {
   I18nManager,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { MaterialIcons, MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
+import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import { getColors, getShadows, SPACING, BORDER_RADIUS } from '../../constants/theme';
 import { useApp } from '../../contexts/AppContext';
 import { requests, auth } from '../../lib/supabase-api';
@@ -327,31 +328,81 @@ export default function ManageOrderScreen() {
           </View>
         </View>
 
-        {/* Location */}
-        <View style={[styles.card, { backgroundColor: COLORS.card }, SHADOWS.medium]}>
-          <Text style={[styles.cardTitle, { color: COLORS.text }]}>
-            {isRTL ? 'الموقع' : 'Location'}
-          </Text>
-          <Text style={[styles.locationText, { color: COLORS.textSecondary }]}>
-            {order.location}
-          </Text>
-          <View style={styles.locationButtons}>
-            <TouchableOpacity
-              style={[styles.locationButton, { backgroundColor: COLORS.primary }]}
-              onPress={openLocation}
-            >
-              <MaterialIcons name="map" size={20} color="#FFFFFF" />
-              <Text style={styles.locationButtonText}>
-                {isRTL ? 'عرض' : 'View'}
+        {/* Location & Map */}
+        <View style={[styles.card, { backgroundColor: COLORS.card, padding: 0, overflow: 'hidden' }, SHADOWS.medium]}>
+          <View style={{ padding: SPACING.l }}>
+            <Text style={[styles.cardTitle, { color: COLORS.text, marginBottom: 4 }]}>
+              {isRTL ? 'موقع العميل' : 'Customer Location'}
+            </Text>
+            <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 4, marginBottom: SPACING.m }}>
+              <MaterialIcons name="place" size={16} color={COLORS.primary} />
+              <Text style={[styles.locationText, { color: COLORS.textSecondary, marginBottom: 0, flex: 1 }]}>
+                {order.location}
               </Text>
-            </TouchableOpacity>
+            </View>
+          </View>
+
+          {order.latitude && order.longitude && (
+            <View style={{ height: 200, width: '100%' }}>
+              <MapView
+                provider={PROVIDER_GOOGLE}
+                style={{ flex: 1 }}
+                initialRegion={{
+                  latitude: order.latitude,
+                  longitude: order.longitude,
+                  latitudeDelta: 0.005,
+                  longitudeDelta: 0.005,
+                }}
+                scrollEnabled={false}
+                zoomEnabled={false}
+              >
+                <Marker
+                  coordinate={{
+                    latitude: order.latitude,
+                    longitude: order.longitude,
+                  }}
+                >
+                  <View style={{ backgroundColor: COLORS.primary, padding: 8, borderRadius: 20, borderWidth: 2, borderColor: '#FFF' }}>
+                    <MaterialIcons name="person-pin-circle" size={24} color="#FFF" />
+                  </View>
+                </Marker>
+              </MapView>
+              
+              <TouchableOpacity 
+                style={{ 
+                  position: 'absolute', 
+                  bottom: 12, 
+                  [isRTL ? 'left' : 'right']: 12, 
+                  backgroundColor: '#FFF', 
+                  padding: 8, 
+                  borderRadius: 8,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 4,
+                  elevation: 3,
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.2,
+                  shadowRadius: 4
+                }}
+                onPress={openNavigation}
+              >
+                <MaterialIcons name="navigation" size={20} color={COLORS.primary} />
+                <Text style={{ color: COLORS.text, fontWeight: 'bold', fontSize: 12 }}>
+                  {isRTL ? 'فتح في الخرائط' : 'Open in Maps'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          <View style={[styles.locationButtons, { padding: SPACING.l }]}>
             <TouchableOpacity
-              style={[styles.locationButton, { backgroundColor: '#10B981' }]}
+              style={[styles.locationButton, { backgroundColor: COLORS.primary, height: 50 }]}
               onPress={openNavigation}
             >
-              <MaterialIcons name="navigation" size={20} color="#FFFFFF" />
-              <Text style={styles.locationButtonText}>
-                {isRTL ? 'توجيه' : 'Navigate'}
+              <Ionicons name="navigate-circle" size={24} color="#FFFFFF" />
+              <Text style={[styles.locationButtonText, { fontSize: 16 }]}>
+                {isRTL ? 'بدء التوجه للموقع' : 'Start Navigation'}
               </Text>
             </TouchableOpacity>
           </View>
