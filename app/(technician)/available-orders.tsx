@@ -17,8 +17,9 @@ import * as Location from 'expo-location';
 import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { getColors, getShadows, SPACING, BORDER_RADIUS } from '../../constants/theme';
 import { useApp } from '../../contexts/AppContext';
+import { useAuth } from '../../contexts/AuthContext';
 import { translations } from '../../constants/translations';
-import { requests, auth } from '../../lib/supabase-api';
+import { requests } from '../../lib/supabase-api';
 import { ISSUE_CATEGORIES, getIssueCategory } from '../../constants/issueCategories';
 import NeuCard from '../../components/NeuCard';
 
@@ -115,9 +116,6 @@ export default function AvailableOrdersScreen() {
 
   const handleAcceptOrder = async (orderId: string) => {
     try {
-      const user = await auth.getCurrentUser();
-      if (!user) return;
-
       await requests.acceptOrder(orderId);
       
       Alert.alert(
