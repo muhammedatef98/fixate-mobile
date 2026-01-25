@@ -12,6 +12,7 @@ import {
   ActivityIndicator,
   RefreshControl,
   Alert,
+  Modal,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { MaterialIcons, MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
@@ -36,6 +37,9 @@ export default function TechnicianHomeScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState<'available' | 'my-orders'>('available');
+  const [selectedOrder, setSelectedOrder] = useState<orderService.Order | null>(null);
+  const [showOrderModal, setShowOrderModal] = useState(false);
+  const [accepting, setAccepting] = useState(false);
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
@@ -86,8 +90,12 @@ export default function TechnicianHomeScreen() {
     }
 
     try {
+      setAccepting(true);
       await orderService.assignOrderToTechnician(orderId, user.id);
       await orderService.updateOrderStatus(orderId, 'accepted');
+      
+      setShowOrderModal(false);
+      setSelectedOrder(null);
       
       Alert.alert(
         isRTL ? 'نجح!' : 'Success!',
@@ -104,6 +112,8 @@ export default function TechnicianHomeScreen() {
         isRTL ? 'خطأ' : 'Error',
         isRTL ? 'فشل قبول الطلب' : 'Failed to accept order'
       );
+    } finally {
+      setAccepting(false);
     }
   };
 
@@ -141,15 +151,9 @@ export default function TechnicianHomeScreen() {
       style={[styles.orderCard, SHADOWS.neuFlat]}
       onPress={() => {
         if (isAvailable) {
-          // Show order details before accepting
-          Alert.alert(
-            isRTL ? 'تفاصيل الطلب' : 'Order Details',
-            `${order.device_brand} ${order.device_model}\n${order.issue_description || ''}\n\n${isRTL ? 'هل تريد قبول هذا الطلب؟' : 'Do you want to accept this order?'}`,
-            [
-              { text: isRTL ? 'إلغاء' : 'Cancel', style: 'cancel' },
-              { text: isRTL ? 'قبول' : 'Accept', onPress: () => handleAcceptOrder(order.id) }
-            ]
-          );
+          // Show order details modal before accepting
+          setSelectedOrder(order);
+          setShowOrderModal(true);
         } else {
           router.push(`/(technician)/manage-order?id=${order.id}`);
         }
@@ -399,6 +403,177 @@ export default function TechnicianHomeScreen() {
         )}
       </Animated.View>
 
+      {/* Order Details Modal */}
+      <Modal
+        visible={showOrderModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => {
+          setShowOrderModal(false);
+          setSelectedOrder(null);
+        }}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: COLORS.card }]}>
+            {/* Modal Header */}
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: COLORS.text }]}>
+                {isRTL ? 'تفاصيل الطلب' : 'Order Details'}
+              </Text>
+              <TouchableOpacity
+                onPress={() => {
+                  setShowOrderModal(false);
+                  setSelectedOrder(null);
+                }}
+                style={styles.closeButton}
+              >
+                <MaterialCommunityIcons name="close" size={24} color={COLORS.text} />
+              </TouchableOpacity>
+            </View>
+
+            {/* Modal Body */}
+            <ScrollView 
+              style={styles.modalBody}
+              showsVerticalScrollIndicator={false}
+            >
+              {selectedOrder && (
+                <>
+                  {/* Device Info */}
+                  <View style={[styles.modalSection, { backgroundColor: COLORS.background }]}>
+                    <View style={styles.deviceHeader}>
+                      <View style={[styles.deviceIconLarge, { backgroundColor: COLORS.primary + '15' }]}>
+                        <MaterialCommunityIcons 
+                          name={selectedOrder.device_brand?.toLowerCase().includes('ipad') || selectedOrder.device_brand?.toLowerCase().includes('tablet') ? 'tablet' : 
+                                selectedOrder.device_brand?.toLowerCase().includes('watch') ? 'watch' : 'cellphone'} 
+                          size={40} 
+                          color={COLORS.primary} 
+                        />
+                      </View>
+                      <View style={styles.deviceHeaderInfo}>
+                        <Text style={[styles.deviceBrand, { color: COLORS.text }]}>
+                          {selectedOrder.device_brand}
+                        </Text>
+                        <Text style={[styles.deviceModel, { color: COLORS.textSecondary }]}>
+                          {selectedOrder.device_model}
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+
+                  {/* Issue Description */}
+                  <View style={styles.modalSection}>
+                    <View style={styles.sectionHeader}>
+                      <MaterialCommunityIcons name="alert-circle-outline" size={20} color={COLORS.primary} />
+                      <Text style={[styles.sectionTitle, { color: COLORS.text }]}>
+                        {isRTL ? 'وصف المشكلة' : 'Issue Description'}
+                      </Text>
+                    </View>
+                    <Text style={[styles.issueDescription, { color: COLORS.textSecondary }]}>
+                      {selectedOrder.issue_description || (isRTL ? 'لا يوجد وصف' : 'No description')}
+                    </Text>
+                  </View>
+
+                  {/* Service Type */}
+                  {selectedOrder.service_type && (
+                    <View style={styles.modalSection}>
+                      <View style={styles.infoRowModal}>
+                        <MaterialCommunityIcons name="wrench" size={20} color={COLORS.textSecondary} />
+                        <Text style={[styles.infoLabelModal, { color: COLORS.textSecondary }]}>
+                          {isRTL ? 'نوع الخدمة:' : 'Service Type:'}
+                        </Text>
+                        <Text style={[styles.infoValueModal, { color: COLORS.text }]}>
+                          {selectedOrder.service_type === 'mobile' 
+                            ? (isRTL ? 'فني متنقل' : 'Mobile Service')
+                            : (isRTL ? 'استلام وتوصيل' : 'Pickup & Delivery')}
+                        </Text>
+                      </View>
+                    </View>
+                  )}
+
+                  {/* Address */}
+                  {selectedOrder.address && (
+                    <View style={styles.modalSection}>
+                      <View style={styles.sectionHeader}>
+                        <Ionicons name="location" size={20} color={COLORS.primary} />
+                        <Text style={[styles.sectionTitle, { color: COLORS.text }]}>
+                          {isRTL ? 'العنوان' : 'Address'}
+                        </Text>
+                      </View>
+                      <Text style={[styles.addressText, { color: COLORS.textSecondary }]}>
+                        {selectedOrder.address}
+                      </Text>
+                    </View>
+                  )}
+
+                  {/* Date & Time */}
+                  <View style={styles.modalSection}>
+                    <View style={styles.infoRowModal}>
+                      <Ionicons name="time" size={20} color={COLORS.textSecondary} />
+                      <Text style={[styles.infoLabelModal, { color: COLORS.textSecondary }]}>
+                        {isRTL ? 'التاريخ:' : 'Date:'}
+                      </Text>
+                      <Text style={[styles.infoValueModal, { color: COLORS.text }]}>
+                        {new Date(selectedOrder.created_at || '').toLocaleDateString(isRTL ? 'ar-SA' : 'en-US', {
+                          year: 'numeric',
+                          month: 'long',
+                          day: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })}
+                      </Text>
+                    </View>
+                  </View>
+
+                  {/* Estimated Price */}
+                  <View style={[styles.modalSection, { backgroundColor: COLORS.primary + '10' }]}>
+                    <View style={styles.priceRow}>
+                      <Text style={[styles.priceLabel, { color: COLORS.text }]}>
+                        {isRTL ? 'السعر التقديري' : 'Estimated Price'}
+                      </Text>
+                      <Text style={[styles.priceAmount, { color: COLORS.primary }]}>
+                        {selectedOrder.estimated_price ? `${selectedOrder.estimated_price} ${isRTL ? 'ر.س' : 'SAR'}` : (isRTL ? 'غير محدد' : 'TBD')}
+                      </Text>
+                    </View>
+                  </View>
+                </>
+              )}
+            </ScrollView>
+
+            {/* Modal Footer */}
+            <View style={styles.modalFooter}>
+              <TouchableOpacity
+                style={[styles.cancelButton, { borderColor: COLORS.border }]}
+                onPress={() => {
+                  setShowOrderModal(false);
+                  setSelectedOrder(null);
+                }}
+                disabled={accepting}
+              >
+                <Text style={[styles.cancelButtonText, { color: COLORS.text }]}>
+                  {isRTL ? 'إلغاء' : 'Cancel'}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.acceptButtonModal, { backgroundColor: COLORS.primary }]}
+                onPress={() => selectedOrder && handleAcceptOrder(selectedOrder.id)}
+                disabled={accepting}
+              >
+                {accepting ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <>
+                    <Text style={styles.acceptButtonTextModal}>
+                      {isRTL ? 'قبول الطلب' : 'Accept Order'}
+                    </Text>
+                    <Ionicons name="checkmark-circle" size={20} color="#fff" />
+                  </>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       <BottomNavTech currentRoute="index" />
     </SafeAreaView>
   );
@@ -592,5 +767,145 @@ const createStyles = (COLORS: any, SHADOWS: any, isRTL: boolean) => StyleSheet.c
     fontSize: 14,
     textAlign: 'center',
     paddingHorizontal: SPACING.xl,
+  },
+  // Modal Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    borderTopLeftRadius: BORDER_RADIUS.xl,
+    borderTopRightRadius: BORDER_RADIUS.xl,
+    maxHeight: '90%',
+    paddingBottom: SPACING.xl,
+  },
+  modalHeader: {
+    flexDirection: isRTL ? 'row-reverse' : 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.md,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0,0,0,0.05)',
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
+  closeButton: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalBody: {
+    maxHeight: '70%',
+  },
+  modalSection: {
+    padding: SPACING.lg,
+    marginHorizontal: SPACING.lg,
+    marginTop: SPACING.md,
+    borderRadius: BORDER_RADIUS.md,
+  },
+  deviceHeader: {
+    flexDirection: isRTL ? 'row-reverse' : 'row',
+    alignItems: 'center',
+    gap: SPACING.md,
+  },
+  deviceIconLarge: {
+    width: 64,
+    height: 64,
+    borderRadius: BORDER_RADIUS.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  deviceHeaderInfo: {
+    flex: 1,
+  },
+  deviceBrand: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 4,
+  },
+  deviceModel: {
+    fontSize: 16,
+  },
+  sectionHeader: {
+    flexDirection: isRTL ? 'row-reverse' : 'row',
+    alignItems: 'center',
+    gap: SPACING.xs,
+    marginBottom: SPACING.sm,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  issueDescription: {
+    fontSize: 14,
+    lineHeight: 22,
+  },
+  infoRowModal: {
+    flexDirection: isRTL ? 'row-reverse' : 'row',
+    alignItems: 'center',
+    gap: SPACING.xs,
+  },
+  infoLabelModal: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  infoValueModal: {
+    fontSize: 14,
+    flex: 1,
+    textAlign: isRTL ? 'left' : 'right',
+  },
+  addressText: {
+    fontSize: 14,
+    lineHeight: 22,
+  },
+  priceRow: {
+    flexDirection: isRTL ? 'row-reverse' : 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  priceLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  priceAmount: {
+    fontSize: 22,
+    fontWeight: 'bold',
+  },
+  modalFooter: {
+    flexDirection: isRTL ? 'row-reverse' : 'row',
+    gap: SPACING.md,
+    paddingHorizontal: SPACING.lg,
+    paddingTop: SPACING.lg,
+  },
+  cancelButton: {
+    flex: 1,
+    paddingVertical: SPACING.md,
+    borderRadius: BORDER_RADIUS.md,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cancelButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  acceptButtonModal: {
+    flex: 1,
+    flexDirection: isRTL ? 'row-reverse' : 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: SPACING.xs,
+    paddingVertical: SPACING.md,
+    borderRadius: BORDER_RADIUS.md,
+  },
+  acceptButtonTextModal: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

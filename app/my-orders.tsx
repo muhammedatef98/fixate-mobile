@@ -123,7 +123,7 @@ export default function MyOrdersScreen() {
         onPress={() => router.push(`/order-details?id=${order.id}`)}
       >
         {/* Header with Status */}
-        <View style={[styles.statusBadge, { backgroundColor: `${statusConfig.color}15`, alignSelf: 'flex-start', marginBottom: SPACING.sm }]}>
+        <View style={[styles.statusBadge, { backgroundColor: `${statusConfig.color}15`, alignSelf: 'flex-start', marginBottom: SPACING.md }]}>
           <MaterialCommunityIcons name={statusConfig.icon as any} size={14} color={statusConfig.color} />
           <Text style={[styles.statusText, { color: statusConfig.color }]}>
             {isRTL ? statusConfig.ar : statusConfig.en}
