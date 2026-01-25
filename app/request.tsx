@@ -214,14 +214,7 @@ export default function RequestScreen() {
 
     setIsSubmitting(true);
     try {
-      // Get service_id based on device type (default to first service if not found)
-      const serviceId = selectedDeviceType === 'phone' ? '1' : 
-                       selectedDeviceType === 'tablet' ? '2' :
-                       selectedDeviceType === 'laptop' ? '3' :
-                       selectedDeviceType === 'watch' ? '4' : '1';
-      
       const orderData = {
-        service_id: serviceId,
         device_brand: selectedBrand?.name || '',
         device_model: selectedModel || '',
         issue_description: selectedIssue?.name + (issueDescription ? `: ${issueDescription}` : ''),
