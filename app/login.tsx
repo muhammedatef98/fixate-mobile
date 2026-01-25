@@ -18,13 +18,14 @@ import {
 import { useRouter } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useApp } from '../contexts/AppContext';
-import { supabase } from '../lib/supabase';
+import { useAuth } from '../contexts/AuthContext';
 
 const { width } = Dimensions.get('window');
 
 export default function LoginScreen() {
   const router = useRouter();
   const { language } = useApp();
+  const { login: authLogin } = useAuth();
   const isRTL = language === 'ar';
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -60,46 +61,9 @@ export default function LoginScreen() {
 
     setLoading(true);
     try {
-      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-      if (authError) throw authError;
-
-      if (authData.user) {
-        // Check if email is confirmed
-        if (!authData.user.email_confirmed_at) {
-          await supabase.auth.signOut();
-          Alert.alert(
-            isRTL ? 'تفعيل الحساب' : 'Account Verification',
-            isRTL 
-              ? 'يرجى تفعيل حسابك من خلال الرابط المرسل إلى بريدك الإلكتروني أولاً.' 
-              : 'Please verify your account via the link sent to your email first.'
-          );
-          setLoading(false);
-          return;
-        }
-
-        const { data: profileData } = await supabase
-          .from('profiles')
-          .select('role')
-          .eq('id', authData.user.id)
-          .single();
-
-        const userRole = profileData?.role || authData.user.user_metadata?.role;
-
-        if (userRole === 'technician') {
-          await supabase.auth.signOut();
-          Alert.alert(
-            isRTL ? 'تنبيه' : 'Access Denied',
-            isRTL ? 'هذا الحساب مسجل كفني، يرجى الدخول من بوابة الفنيين' : 'This account is registered as a technician, please login from the technician portal'
-          );
-          return;
-        }
-        
-        router.replace('/(customer)');
-      }
+      await authLogin(email, password);
+      // Navigation will be handled by AuthContext
+      router.replace('/role-selection');
     } catch (error: any) {
       Alert.alert(isRTL ? 'خطأ' : 'Error', error.message);
     } finally {
