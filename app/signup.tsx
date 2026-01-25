@@ -127,11 +127,22 @@ export default function SignupScreen() {
           ? 'تم إنشاء حسابك بنجاح!'
           : 'Your account has been created successfully!',
         [
-          { text: 'OK', onPress: () => router.replace('/role-selection') }
+          { 
+            text: 'OK', 
+            onPress: () => {
+              setTimeout(() => {
+                if (userType === 'customer') {
+                  router.replace('/(customer)');
+                } else {
+                  router.replace('/(technician)');
+                }
+              }, 500);
+            }
+          }
         ]
       );
     } catch (error: any) {
-      Alert.alert(isRTL ? 'خطأ' : 'Error', error.message);
+      Alert.alert(isRTL ? 'خطأ' : 'Error', error.message || 'فشل إنشاء الحساب');
     }
   };
 
