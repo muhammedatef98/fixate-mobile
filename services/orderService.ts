@@ -79,6 +79,7 @@ export const getMyOrders = async (userId: string): Promise<Order[]> => {
  */
 export const getAvailableOrders = async (): Promise<Order[]> => {
   try {
+    console.log('Fetching available orders...');
     const { data, error } = await supabase
       .from('orders')
       .select('*')
@@ -86,6 +87,7 @@ export const getAvailableOrders = async (): Promise<Order[]> => {
       .is('technician_id', null)
       .order('created_at', { ascending: false });
 
+    console.log('Available orders query result:', { data, error });
     if (error) throw error;
     return data || [];
   } catch (error: any) {
