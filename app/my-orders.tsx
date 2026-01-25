@@ -14,8 +14,9 @@ import { useRouter } from 'expo-router';
 import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { getColors, getShadows, SPACING, BORDER_RADIUS } from '../constants/theme';
 import { useApp } from '../contexts/AppContext';
-import { requests, auth } from '../lib/supabase-api';
-import type { Order } from '../lib/supabase-api';
+import { useOrders } from '../contexts/OrdersContext';
+import { useAuth } from '../contexts/AuthContext';
+import type { Order } from '../services/orderService';
 
 const ORDER_STATUS_CONFIG = {
   pending: {
@@ -83,36 +84,21 @@ export default function MyOrdersScreen() {
   const SHADOWS = getShadows(isDark);
   const isRTL = language === 'ar';
 
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { orders, loading, refreshOrders } = useOrders();
+  const { user } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
   const [filter, setFilter] = useState<'all' | 'active' | 'completed'>('all');
 
   useEffect(() => {
-    loadOrders();
-  }, []);
-
-  const loadOrders = async () => {
-    try {
-      const user = await auth.getCurrentUser();
-      if (!user) {
-        router.replace('/login');
-        return;
-      }
-
-      const userOrders = await requests.getUserRequests(user.id);
-      setOrders(userOrders);
-    } catch (error) {
-      console.error('Error loading orders:', error);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
+    if (!user) {
+      router.replace('/login');
     }
-  };
+  }, [user]);
 
-  const onRefresh = () => {
+  const onRefresh = async () => {
     setRefreshing(true);
-    loadOrders();
+    await refreshOrders();
+    setRefreshing(false);
   };
 
   const getFilteredOrders = () => {

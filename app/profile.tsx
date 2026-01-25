@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { getColors, getShadows, SPACING } from '../constants/theme';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useApp } from '../contexts/AppContext';
+import { useAuth } from '../contexts/AuthContext';
 import { translations } from '../constants/translations';
 
 const MENU_ITEMS = [
@@ -19,6 +20,7 @@ const MENU_ITEMS = [
 export default function ProfileScreen() {
   const router = useRouter();
   const { isDark, language, setLanguage } = useApp();
+  const { user, logout } = useAuth();
   const COLORS = getColors(isDark);
   const SHADOWS = getShadows(isDark);
   const isRTL = language === 'ar';
@@ -29,9 +31,9 @@ export default function ProfileScreen() {
   const [languageModalVisible, setLanguageModalVisible] = useState(false);
   const [aboutModalVisible, setAboutModalVisible] = useState(false);
   
-  const [name, setName] = useState('محمد عاطف');
-  const [phone, setPhone] = useState('+966 50 123 4567');
-  const [email, setEmail] = useState('mohamed@example.com');
+  const [name, setName] = useState(user?.name || '');
+  const [phone, setPhone] = useState(user?.phone || '');
+  const [email, setEmail] = useState(user?.email || '');
   
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [emailNotifications, setEmailNotifications] = useState(true);
@@ -69,8 +71,9 @@ export default function ProfileScreen() {
         { 
           text: isRTL ? 'تسجيل الخروج' : 'Logout', 
           style: 'destructive',
-          onPress: () => {
-            Alert.alert(isRTL ? 'تم تسجيل الخروج' : 'Logged Out', isRTL ? 'تم تسجيل خروجك بنجاح' : 'You have been logged out successfully');
+          onPress: async () => {
+            await logout();
+            router.replace('/role-selection');
           }
         },
       ]
