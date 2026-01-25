@@ -19,7 +19,7 @@ import { getColors, getShadows, SPACING, BORDER_RADIUS } from '../../constants/t
 import { useApp } from '../../contexts/AppContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { translations } from '../../constants/translations';
-import { requests } from '../../lib/supabase-api';
+import * as orderService from '../../services/orderService';
 import { ISSUE_CATEGORIES, getIssueCategory } from '../../constants/issueCategories';
 import NeuCard from '../../components/NeuCard';
 
@@ -39,12 +39,13 @@ function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: numbe
 export default function AvailableOrdersScreen() {
   const router = useRouter();
   const { language, isDark } = useApp();
+  const { user } = useAuth();
   const COLORS = getColors(isDark);
   const SHADOWS = getShadows(isDark);
   const t = translations[language];
   const isRTL = language === 'ar';
 
-  const [orders, setOrders] = useState<any[]>([]);
+  const [orders, setOrders] = useState<orderService.Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState('all');
@@ -55,26 +56,7 @@ export default function AvailableOrdersScreen() {
     getTechnicianLocation();
     
     // Set up real-time subscription for new orders
-    const subscription = requests.subscribeToOrders((newOrder) => {
-      // Add new order to the list
-      setOrders(prev => [newOrder, ...prev]);
-      
-      // Show notification
-      Alert.alert(
-        language === 'ar' ? 'طلب جديد!' : 'New Order!',
-        language === 'ar' 
-          ? `طلب صيانة جديد: ${newOrder.device_brand} ${newOrder.device_model}`
-          : `New repair request: ${newOrder.device_brand} ${newOrder.device_model}`,
-        [
-          { text: language === 'ar' ? 'عرض' : 'View', onPress: () => {} },
-          { text: language === 'ar' ? 'لاحقاً' : 'Later', style: 'cancel' }
-        ]
-      );
-    });
-
-    return () => {
-      subscription?.unsubscribe();
-    };
+    // TODO: Implement real-time subscription using realtimeService
   }, []);
 
   const getTechnicianLocation = async () => {
@@ -99,7 +81,7 @@ export default function AvailableOrdersScreen() {
         }
       }
       
-      const availableOrders = await requests.getAvailableOrders(city);
+      const availableOrders = await orderService.getAvailableOrders();
       setOrders(availableOrders || []);
     } catch (error) {
       console.error('Error loading orders:', error);
@@ -116,7 +98,9 @@ export default function AvailableOrdersScreen() {
 
   const handleAcceptOrder = async (orderId: string) => {
     try {
-      await requests.acceptOrder(orderId);
+      if (!user) return;
+      await orderService.assignOrderToTechnician(orderId, user.id);
+      await orderService.updateOrderStatus(orderId, 'accepted');
       
       Alert.alert(
         language === 'ar' ? 'نجح!' : 'Success!',
