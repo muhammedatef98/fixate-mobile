@@ -72,7 +72,7 @@ export default function TechnicianProfile() {
           <View style={styles.profileCard}>
             <View style={styles.avatarContainer}>
               <Image 
-                source={{ uri: `https://ui-avatars.com/api/?name=${user?.name || 'Tech'}&background=10b981&color=fff` }} 
+                source={{ uri: `https://ui-avatars.com/api/?name=${userProfile?.name || 'Tech'}&background=10b981&color=fff` }} 
                 style={styles.avatar} 
               />
               <View style={styles.verifiedBadge}>
