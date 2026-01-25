@@ -62,10 +62,12 @@ export default function LoginScreen() {
     setLoading(true);
     try {
       await authLogin(email, password);
-      // Navigation will be handled by AuthContext
-      router.replace('/role-selection');
+      // Wait a bit for auth state to update
+      setTimeout(() => {
+        router.replace('/(customer)');
+      }, 500);
     } catch (error: any) {
-      Alert.alert(isRTL ? 'خطأ' : 'Error', error.message);
+      Alert.alert(isRTL ? 'خطأ' : 'Error', error.message || 'فشل تسجيل الدخول');
     } finally {
       setLoading(false);
     }
