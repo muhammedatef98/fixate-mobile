@@ -281,42 +281,49 @@ export default function TechnicianHomeScreen() {
       </View>
 
       {/* Stats Cards */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.statsContainer}
-        contentContainerStyle={styles.statsContent}
-      >
-        <View style={[styles.statCard, SHADOWS.neuFlat, { backgroundColor: '#10B98120' }]}>
-          <MaterialIcons name="attach-money" size={28} color="#10B981" />
-          <Text style={[styles.statValue, { color: '#10B981' }]}>
-            {isRTL ? '٠ ر.س' : '0 SAR'}
-          </Text>
-          <Text style={[styles.statLabel, { color: COLORS.textSecondary }]}>
-            {isRTL ? 'أرباح اليوم' : "Today's Earnings"}
-          </Text>
+      <View style={styles.statsContainer}>
+        <View style={[styles.statCard, SHADOWS.neuFlat]}>
+          <View style={[styles.statIconContainer, { backgroundColor: '#10B98120' }]}>
+            <MaterialIcons name="attach-money" size={20} color="#10B981" />
+          </View>
+          <View style={styles.statInfo}>
+            <Text style={[styles.statValue, { color: COLORS.text }]}>
+              {isRTL ? '٠ ر.س' : '0 SAR'}
+            </Text>
+            <Text style={[styles.statLabel, { color: COLORS.textSecondary }]}>
+              {isRTL ? 'أرباح اليوم' : "Today's Earnings"}
+            </Text>
+          </View>
         </View>
 
-        <View style={[styles.statCard, SHADOWS.neuFlat, { backgroundColor: '#3B82F620' }]}>
-          <MaterialCommunityIcons name="clipboard-check" size={28} color="#3B82F6" />
-          <Text style={[styles.statValue, { color: '#3B82F6' }]}>
-            {myOrders.filter(o => o.status === 'completed').length}
-          </Text>
-          <Text style={[styles.statLabel, { color: COLORS.textSecondary }]}>
-            {isRTL ? 'مكتملة' : 'Completed'}
-          </Text>
+        <View style={[styles.statCard, SHADOWS.neuFlat]}>
+          <View style={[styles.statIconContainer, { backgroundColor: '#3B82F620' }]}>
+            <MaterialCommunityIcons name="clipboard-check" size={20} color="#3B82F6" />
+          </View>
+          <View style={styles.statInfo}>
+            <Text style={[styles.statValue, { color: COLORS.text }]}>
+              {myOrders.filter(o => o.status === 'completed').length}
+            </Text>
+            <Text style={[styles.statLabel, { color: COLORS.textSecondary }]}>
+              {isRTL ? 'مكتملة' : 'Completed'}
+            </Text>
+          </View>
         </View>
 
-        <View style={[styles.statCard, SHADOWS.neuFlat, { backgroundColor: '#F59E0B20' }]}>
-          <MaterialCommunityIcons name="clock-outline" size={28} color="#F59E0B" />
-          <Text style={[styles.statValue, { color: '#F59E0B' }]}>
-            {availableOrders.length}
-          </Text>
-          <Text style={[styles.statLabel, { color: COLORS.textSecondary }]}>
-            {isRTL ? 'متاحة' : 'Available'}
-          </Text>
+        <View style={[styles.statCard, SHADOWS.neuFlat]}>
+          <View style={[styles.statIconContainer, { backgroundColor: '#F59E0B20' }]}>
+            <MaterialCommunityIcons name="clock-outline" size={20} color="#F59E0B" />
+          </View>
+          <View style={styles.statInfo}>
+            <Text style={[styles.statValue, { color: COLORS.text }]}>
+              {availableOrders.length}
+            </Text>
+            <Text style={[styles.statLabel, { color: COLORS.textSecondary }]}>
+              {isRTL ? 'متاحة' : 'Available'}
+            </Text>
+          </View>
         </View>
-      </ScrollView>
+      </View>
 
       {/* Tabs */}
       <View style={[styles.tabsContainer, SHADOWS.neuFlat]}>
@@ -433,25 +440,38 @@ const createStyles = (COLORS: any, SHADOWS: any, isRTL: boolean) => StyleSheet.c
     justifyContent: 'center',
   },
   statsContainer: {
+    flexDirection: isRTL ? 'row-reverse' : 'row',
     paddingHorizontal: SPACING.lg,
     marginBottom: SPACING.md,
-  },
-  statsContent: {
-    gap: SPACING.md,
+    gap: SPACING.sm,
   },
   statCard: {
-    width: 140,
-    padding: SPACING.md,
-    borderRadius: BORDER_RADIUS.lg,
+    flex: 1,
+    flexDirection: isRTL ? 'row-reverse' : 'row',
     alignItems: 'center',
-    gap: SPACING.xs,
+    backgroundColor: COLORS.card,
+    padding: SPACING.sm,
+    borderRadius: BORDER_RADIUS.md,
+    gap: SPACING.sm,
+  },
+  statIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: BORDER_RADIUS.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  statInfo: {
+    flex: 1,
+    alignItems: isRTL ? 'flex-end' : 'flex-start',
   },
   statValue: {
-    fontSize: 24,
+    fontSize: 18,
     fontWeight: '700',
   },
   statLabel: {
-    fontSize: 12,
+    fontSize: 11,
+    marginTop: 2,
   },
   tabsContainer: {
     flexDirection: isRTL ? 'row-reverse' : 'row',
