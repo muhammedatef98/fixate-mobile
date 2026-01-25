@@ -13,6 +13,7 @@ import {
   RefreshControl,
   Alert,
   Modal,
+  Linking,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { MaterialIcons, MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
@@ -490,18 +491,38 @@ export default function TechnicianHomeScreen() {
                     </View>
                   )}
 
-                  {/* Address */}
+                  {/* Address & Location */}
                   {selectedOrder.address && (
                     <View style={styles.modalSection}>
                       <View style={styles.sectionHeader}>
                         <Ionicons name="location" size={20} color={COLORS.primary} />
                         <Text style={[styles.sectionTitle, { color: COLORS.text }]}>
-                          {isRTL ? 'العنوان' : 'Address'}
+                          {isRTL ? 'موقع العميل' : 'Customer Location'}
                         </Text>
                       </View>
                       <Text style={[styles.addressText, { color: COLORS.textSecondary }]}>
                         {selectedOrder.address}
                       </Text>
+                      {selectedOrder.latitude && selectedOrder.longitude && (
+                        <TouchableOpacity
+                          style={[styles.mapButton, { backgroundColor: COLORS.primary }]}
+                          onPress={() => {
+                            const url = `https://www.google.com/maps/search/?api=1&query=${selectedOrder.latitude},${selectedOrder.longitude}`;
+                            Linking.openURL(url).catch(err => {
+                              Alert.alert(
+                                isRTL ? 'خطأ' : 'Error',
+                                isRTL ? 'فشل فتح الخريطة' : 'Failed to open map'
+                              );
+                            });
+                          }}
+                        >
+                          <Ionicons name="map" size={18} color="#fff" />
+                          <Text style={styles.mapButtonText}>
+                            {isRTL ? 'فتح في خرائط جوجل' : 'Open in Google Maps'}
+                          </Text>
+                          <MaterialCommunityIcons name="open-in-new" size={16} color="#fff" />
+                        </TouchableOpacity>
+                      )}
                     </View>
                   )}
 
@@ -513,7 +534,7 @@ export default function TechnicianHomeScreen() {
                         {isRTL ? 'التاريخ:' : 'Date:'}
                       </Text>
                       <Text style={[styles.infoValueModal, { color: COLORS.text }]}>
-                        {new Date(selectedOrder.created_at || '').toLocaleDateString(isRTL ? 'ar-SA' : 'en-US', {
+                        {new Date(selectedOrder.created_at || '').toLocaleDateString('en-US', {
                           year: 'numeric',
                           month: 'long',
                           day: 'numeric',
@@ -862,6 +883,22 @@ const createStyles = (COLORS: any, SHADOWS: any, isRTL: boolean) => StyleSheet.c
   addressText: {
     fontSize: 14,
     lineHeight: 22,
+    marginBottom: SPACING.sm,
+  },
+  mapButton: {
+    flexDirection: isRTL ? 'row-reverse' : 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: SPACING.xs,
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.md,
+    borderRadius: BORDER_RADIUS.md,
+    marginTop: SPACING.xs,
+  },
+  mapButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
   },
   priceRow: {
     flexDirection: isRTL ? 'row-reverse' : 'row',
