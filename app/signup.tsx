@@ -18,7 +18,7 @@ import {
 import { useRouter } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useApp } from '../contexts/AppContext';
-import { supabase } from '../lib/supabase';
+import { useAuth } from '../contexts/AuthContext';
 import { validateEmail } from '../utils/validation';
 
 const { width } = Dimensions.get('window');
@@ -26,6 +26,7 @@ const { width } = Dimensions.get('window');
 export default function SignupScreen() {
   const router = useRouter();
   const { language } = useApp();
+  const { signup: authSignup } = useAuth();
   const isRTL = language === 'ar';
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -111,34 +112,27 @@ export default function SignupScreen() {
       return;
     }
 
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: { 
-          name, 
-          phone, 
-          user_type: userType,
-          specialty: userType === 'technician' ? specialty : undefined,
-          city: city
-        },
-      },
-    });
+    try {
+      await authSignup({
+        email,
+        password,
+        name,
+        phone,
+        role: userType,
+      });
 
-    if (error) {
+      Alert.alert(
+        isRTL ? 'تم إنشاء الحساب' : 'Account Created',
+        isRTL
+          ? 'تم إنشاء حسابك بنجاح!'
+          : 'Your account has been created successfully!',
+        [
+          { text: 'OK', onPress: () => router.replace('/role-selection') }
+        ]
+      );
+    } catch (error: any) {
       Alert.alert(isRTL ? 'خطأ' : 'Error', error.message);
-      return;
     }
-
-    Alert.alert(
-      isRTL ? 'تحقق من بريدك' : 'Verify Your Email', 
-      isRTL 
-        ? 'تم إنشاء الحساب! أرسلنا رابط تفعيل إلى بريدك الإلكتروني. يرجى تفعيل الحساب لتتمكن من تسجيل الدخول.' 
-        : 'Account created! We sent a verification link to your email. Please verify your account to login.', 
-      [
-        { text: 'OK', onPress: () => router.push('/login') }
-      ]
-    );
   };
 
   const styles = createStyles(COLORS, isRTL, strengthAnim, getStrengthColor());

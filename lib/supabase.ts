@@ -5,8 +5,8 @@ import Constants from 'expo-constants';
 
 // Supabase Configuration
 // Get these from: https://supabase.com/dashboard/project/_/settings/api
-const SUPABASE_URL = Constants.expoConfig?.extra?.supabaseUrl || 'https://gpucisjxecupcyosumgy.supabase.co';
-const SUPABASE_ANON_KEY = Constants.expoConfig?.extra?.supabaseAnonKey || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdwdWNpc2p4ZWN1cGN5b3N1bWd5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU1NjY1NTEsImV4cCI6MjA4MTE0MjU1MX0.dPN6rdv6R5DF_8GdeP5DmNvoj0tecFAcfqVFgN68QkE';
+const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL || Constants.expoConfig?.extra?.supabaseUrl || 'https://gpucisjxecupcyosumgy.supabase.co';
+const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || Constants.expoConfig?.extra?.supabaseAnonKey || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdwdWNpc2p4ZWN1cGN5b3N1bWd5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU1NjY1NTEsImV4cCI6MjA4MTE0MjU1MX0.dPN6rdv6R5DF_8GdeP5DmNvoj0tecFAcfqVFgN68QkE';
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: {

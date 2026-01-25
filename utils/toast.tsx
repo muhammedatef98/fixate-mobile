@@ -1,4 +1,7 @@
+import React from 'react';
+import { View, Text, StyleSheet } from 'react-native';
 import Toast from 'react-native-toast-message';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 export const showToast = {
   success: (message: string, description?: string) => {
@@ -49,56 +52,6 @@ export const showToast = {
     });
   },
 };
-
-export const toastConfig = {
-  success: ({ text1, text2 }: any) => (
-    <View style={styles.toastContainer}>
-      <View style={[styles.toast, styles.successToast]}>
-        <MaterialCommunityIcons name="check-circle" size={24} color="#10B981" />
-        <View style={styles.toastContent}>
-          <Text style={styles.toastTitle}>{text1}</Text>
-          {text2 && <Text style={styles.toastDescription}>{text2}</Text>}
-        </View>
-      </View>
-    </View>
-  ),
-  error: ({ text1, text2 }: any) => (
-    <View style={styles.toastContainer}>
-      <View style={[styles.toast, styles.errorToast]}>
-        <MaterialCommunityIcons name="close-circle" size={24} color="#EF4444" />
-        <View style={styles.toastContent}>
-          <Text style={styles.toastTitle}>{text1}</Text>
-          {text2 && <Text style={styles.toastDescription}>{text2}</Text>}
-        </View>
-      </View>
-    </View>
-  ),
-  info: ({ text1, text2 }: any) => (
-    <View style={styles.toastContainer}>
-      <View style={[styles.toast, styles.infoToast]}>
-        <MaterialCommunityIcons name="information" size={24} color="#3B82F6" />
-        <View style={styles.toastContent}>
-          <Text style={styles.toastTitle}>{text1}</Text>
-          {text2 && <Text style={styles.toastDescription}>{text2}</Text>}
-        </View>
-      </View>
-    </View>
-  ),
-  warning: ({ text1, text2 }: any) => (
-    <View style={styles.toastContainer}>
-      <View style={[styles.toast, styles.warningToast]}>
-        <MaterialCommunityIcons name="alert" size={24} color="#F59E0B" />
-        <View style={styles.toastContent}>
-          <Text style={styles.toastTitle}>{text1}</Text>
-          {text2 && <Text style={styles.toastDescription}>{text2}</Text>}
-        </View>
-      </View>
-    </View>
-  ),
-};
-
-import { View, Text, StyleSheet } from 'react-native';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 const styles = StyleSheet.create({
   toastContainer: {
@@ -151,3 +104,50 @@ const styles = StyleSheet.create({
     color: '#6B7280',
   },
 });
+
+export const toastConfig = {
+  success: ({ text1, text2 }: any) => (
+    <View style={styles.toastContainer}>
+      <View style={[styles.toast, styles.successToast]}>
+        <MaterialCommunityIcons name="check-circle" size={24} color="#10B981" />
+        <View style={styles.toastContent}>
+          <Text style={styles.toastTitle}>{text1}</Text>
+          {text2 && <Text style={styles.toastDescription}>{text2}</Text>}
+        </View>
+      </View>
+    </View>
+  ),
+  error: ({ text1, text2 }: any) => (
+    <View style={styles.toastContainer}>
+      <View style={[styles.toast, styles.errorToast]}>
+        <MaterialCommunityIcons name="close-circle" size={24} color="#EF4444" />
+        <View style={styles.toastContent}>
+          <Text style={styles.toastTitle}>{text1}</Text>
+          {text2 && <Text style={styles.toastDescription}>{text2}</Text>}
+        </View>
+      </View>
+    </View>
+  ),
+  info: ({ text1, text2 }: any) => (
+    <View style={styles.toastContainer}>
+      <View style={[styles.toast, styles.infoToast]}>
+        <MaterialCommunityIcons name="information" size={24} color="#3B82F6" />
+        <View style={styles.toastContent}>
+          <Text style={styles.toastTitle}>{text1}</Text>
+          {text2 && <Text style={styles.toastDescription}>{text2}</Text>}
+        </View>
+      </View>
+    </View>
+  ),
+  warning: ({ text1, text2 }: any) => (
+    <View style={styles.toastContainer}>
+      <View style={[styles.toast, styles.warningToast]}>
+        <MaterialCommunityIcons name="alert" size={24} color="#F59E0B" />
+        <View style={styles.toastContent}>
+          <Text style={styles.toastTitle}>{text1}</Text>
+          {text2 && <Text style={styles.toastDescription}>{text2}</Text>}
+        </View>
+      </View>
+    </View>
+  ),
+};

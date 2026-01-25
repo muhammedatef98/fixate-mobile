@@ -16,8 +16,9 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { getColors, SPACING, BORDER_RADIUS, SHADOWS } from '../constants/theme';
 import { useApp } from '../contexts/AppContext';
-import { chat, auth } from '../lib/supabase-api';
-import type { Message } from '../lib/supabase-api';
+import { useAuth } from '../contexts/AuthContext';
+import * as messagingService from '../services/messagingService';
+import type { Message } from '../services/messagingService';
 
 export default function ChatScreen() {
   const router = useRouter();
@@ -32,35 +33,29 @@ export default function ChatScreen() {
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const { user } = useAuth();
   
   const flatListRef = useRef<FlatList>(null);
 
   useEffect(() => {
-    loadCurrentUser();
+    if (!orderId || !user) return;
+    
     loadMessages();
 
     // Subscribe to new messages
-    const subscription = chat.subscribeToMessages(orderId as string, (message) => {
+    const channel = messagingService.subscribeToMessages(orderId as string, (message) => {
       setMessages((prev) => [...prev, message]);
       setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
     });
 
     return () => {
-      subscription.unsubscribe();
+      messagingService.unsubscribeFromMessages(channel);
     };
-  }, [orderId]);
-
-  const loadCurrentUser = async () => {
-    const user = await auth.getCurrentUser();
-    if (user) {
-      setCurrentUserId(user.id);
-    }
-  };
+  }, [orderId, user]);
 
   const loadMessages = async () => {
     try {
-      const data = await chat.getMessages(orderId as string);
+      const data = await messagingService.getMessages(orderId as string);
       setMessages(data);
       setLoading(false);
       setTimeout(() => flatListRef.current?.scrollToEnd({ animated: false }), 100);
@@ -71,11 +66,11 @@ export default function ChatScreen() {
   };
 
   const handleSend = async () => {
-    if (!newMessage.trim() || sending) return;
+    if (!newMessage.trim() || sending || !user) return;
 
     setSending(true);
     try {
-      await chat.sendMessage(orderId as string, newMessage.trim());
+      await messagingService.sendMessage(orderId as string, user.id, newMessage.trim());
       setNewMessage('');
     } catch (error) {
       console.error('Error sending message:', error);

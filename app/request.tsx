@@ -6,8 +6,7 @@ import { MaterialIcons, Ionicons, MaterialCommunityIcons } from '@expo/vector-ic
 import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import * as Location from 'expo-location';
 import * as ImagePicker from 'expo-image-picker';
-import { useRequests } from '../contexts/RequestContext';
-import { requests, auth } from '../lib/supabase-api';
+import { useOrders } from '../contexts/OrdersContext';
 import { notificationManager } from '../lib/notifications';
 import { BRANDS, searchBrands, searchModels, searchIssues, Brand, Issue } from '../constants/repairData';
 import { useApp } from '../contexts/AppContext';
@@ -47,7 +46,7 @@ const DEVICE_TYPES = [
 
 export default function RequestScreen() {
   const router = useRouter();
-  const { addRequest } = useRequests();
+  const { createOrder } = useOrders();
   const { language, isDark } = useApp();
   const { user } = useAuth();
   const isRTL = language === 'ar';
@@ -209,8 +208,7 @@ export default function RequestScreen() {
       return;
     }
     
-    const currentUser = await auth.getCurrentUser();
-    if (!currentUser) {
+    if (!user) {
       Alert.alert(isRTL ? 'خطأ' : 'Error', isRTL ? 'يجب تسجيل الدخول أولاً' : 'Please login first');
       return;
     }
@@ -218,20 +216,17 @@ export default function RequestScreen() {
     setIsSubmitting(true);
     try {
       const orderData = {
-        user_id: currentUser.id,
-        device_type: selectedDeviceType,
-        device_brand: selectedBrand?.name,
-        device_model: selectedModel,
+        device_brand: selectedBrand?.name || '',
+        device_model: selectedModel || '',
         issue_description: selectedIssue?.name + (issueDescription ? `: ${issueDescription}` : ''),
-        estimated_price: selectedIssue?.price || 0,
-        status: 'pending',
-        location: address || `${location.latitude}, ${location.longitude}`,
+        service_type: selectedServiceType as 'mobile' | 'pickup',
+        address: address || `${location.latitude}, ${location.longitude}`,
         latitude: location.latitude,
         longitude: location.longitude,
-        service_type: selectedServiceType,
+        notes: issueDescription,
       };
 
-      const result = await requests.create(orderData);
+      const result = await createOrder(orderData);
       
       if (result) {
         // Extract city from address if possible and notify technicians
