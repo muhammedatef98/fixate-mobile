@@ -21,9 +21,17 @@ function RootLayoutContent() {
   useEffect(() => {
     if (loading) return;
 
-    // Minimal routing logic: only redirect to role-selection if not logged in and trying to access protected routes
+    const inAuthFlow = segments[0] === 'login' || segments[0] === 'signup' || segments[0] === 'role-selection';
     const isProtectedRoute = segments[0] === '(customer)' || segments[0] === '(technician)' || segments[0] === 'request';
     
+    // If user is logged in and still in auth flow, redirect to appropriate home
+    if (user && inAuthFlow) {
+      // User is logged in, redirect based on role or default to customer
+      // The actual navigation will be handled by login/signup screens
+      return;
+    }
+    
+    // If not logged in and trying to access protected routes, redirect to role-selection
     if (!user && isProtectedRoute) {
       router.replace('/role-selection');
     }
