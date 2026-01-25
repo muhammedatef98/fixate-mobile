@@ -6,7 +6,7 @@ import { Card } from '../../components/ui/Card';
 import { MaterialIcons, Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import { useRequests } from '../../contexts/RequestContext';
 import { useApp } from '../../contexts/AppContext';
-import { auth } from '../../lib/supabase-api';
+import { useAuth } from '../../contexts/AuthContext';
 import { registerForPushNotifications, subscribeToNewRequests, unsubscribeFromNewRequests, addNotificationResponseListener } from '../../services/localNotificationService';
 
 const STATS = [
@@ -19,7 +19,8 @@ export default function TechnicianDashboard() {
   const router = useRouter();
   const { requests, updateRequestStatus } = useRequests();
   const [technicianName, setTechnicianName] = useState('فني');
-  const { user, language } = useApp();
+  const { language } = useApp();
+  const { user, userProfile } = useAuth();
   const [isOnline, setIsOnline] = useState(true);
   const isRTL = language === 'ar';
 
@@ -33,17 +34,9 @@ export default function TechnicianDashboard() {
 
   // Setup notifications and real-time listener
   useEffect(() => {
-    const loadProfile = async () => {
-      try {
-        const currentUser = await auth.getCurrentUser();
-        if (currentUser?.user_metadata?.full_name) {
-          setTechnicianName(currentUser.user_metadata.full_name);
-        }
-      } catch (error) {
-        console.error('Error loading profile:', error);
-      }
-    };
-    loadProfile();
+    if (userProfile?.name) {
+      setTechnicianName(userProfile.name);
+    }
 
     let subscription: any;
     let notificationListener: any;
