@@ -55,6 +55,7 @@ export default function TechnicianHomeScreen() {
       
       // Fetch available orders (pending status, no technician assigned)
       const available = await orderService.getAvailableOrders();
+      console.log('Available orders fetched:', available);
       setAvailableOrders(available || []);
 
       // Fetch technician's accepted orders
