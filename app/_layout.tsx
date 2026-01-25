@@ -6,6 +6,7 @@ import { RequestProvider } from '../contexts/RequestContext';
 import { ThemeProvider } from '../contexts/ThemeContext';
 import { AppProvider, useApp } from '../contexts/AppContext';
 import { AuthProvider, useAuth } from '../contexts/AuthContext';
+import { OrdersProvider } from '../contexts/OrdersContext';
 import { useRouter, useSegments } from 'expo-router';
 import { supabase } from '../lib/supabase';
 import ErrorBoundary from '../components/ErrorBoundary';
@@ -170,11 +171,13 @@ export default function RootLayout() {
     <ErrorBoundary>
       <AppProvider>
         <AuthProvider>
-          <ThemeProvider>
-            <RequestProvider>
-              <RootLayoutContent />
-            </RequestProvider>
-          </ThemeProvider>
+          <OrdersProvider>
+            <ThemeProvider>
+              <RequestProvider>
+                <RootLayoutContent />
+              </RequestProvider>
+            </ThemeProvider>
+          </OrdersProvider>
         </AuthProvider>
       </AppProvider>
     </ErrorBoundary>
