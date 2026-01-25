@@ -99,8 +99,7 @@ export default function RequestScreen() {
   }, []);
 
   const checkUser = async () => {
-    const currentUser = await auth.getCurrentUser();
-    if (!currentUser) {
+    if (!user) {
       Alert.alert(
         isRTL ? 'تسجيل الدخول مطلوب' : 'Login Required',
         isRTL ? 'يجب عليك تسجيل الدخول لرفع طلب صيانة' : 'You must login to submit a repair request',
