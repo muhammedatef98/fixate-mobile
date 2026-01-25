@@ -122,24 +122,34 @@ export default function MyOrdersScreen() {
         style={[styles.orderCard, { backgroundColor: COLORS.card }, SHADOWS.medium]}
         onPress={() => router.push(`/order-details?id=${order.id}`)}
       >
-        {/* Header */}
-        <View style={styles.orderHeader}>
-          <View style={styles.orderInfo}>
-            <Text style={[styles.deviceName, { color: COLORS.text }]}>
+        {/* Header with Status */}
+        <View style={[styles.statusBadge, { backgroundColor: `${statusConfig.color}15`, alignSelf: 'flex-start', marginBottom: SPACING.sm }]}>
+          <MaterialCommunityIcons name={statusConfig.icon as any} size={14} color={statusConfig.color} />
+          <Text style={[styles.statusText, { color: statusConfig.color }]}>
+            {isRTL ? statusConfig.ar : statusConfig.en}
+          </Text>
+        </View>
+
+        {/* Device Info */}
+        <View style={styles.deviceRow}>
+          <View style={[styles.deviceIconContainer, { backgroundColor: COLORS.primary + '15' }]}>
+            <MaterialCommunityIcons 
+              name={order.device_brand?.toLowerCase().includes('ipad') || order.device_brand?.toLowerCase().includes('tablet') ? 'tablet' : 
+                    order.device_brand?.toLowerCase().includes('watch') ? 'watch' : 'cellphone'} 
+              size={24} 
+              color={COLORS.primary} 
+            />
+          </View>
+          <View style={styles.deviceInfo}>
+            <Text style={[styles.deviceName, { color: COLORS.text }]} numberOfLines={1}>
               {order.device_brand} {order.device_model}
             </Text>
             <Text style={[styles.orderDate, { color: COLORS.textSecondary }]}>
-              {new Date(order.created_at).toLocaleDateString('en-US', {
+              {new Date(order.created_at).toLocaleDateString(isRTL ? 'ar-SA' : 'en-US', {
                 year: 'numeric',
                 month: 'short',
                 day: 'numeric',
               })}
-            </Text>
-          </View>
-          <View style={[styles.statusBadge, { backgroundColor: `${statusConfig.color}15` }]}>
-            <MaterialCommunityIcons name={statusConfig.icon as any} size={16} color={statusConfig.color} />
-            <Text style={[styles.statusText, { color: statusConfig.color }]}>
-              {isRTL ? statusConfig.ar : statusConfig.en}
             </Text>
           </View>
         </View>
@@ -169,26 +179,33 @@ export default function MyOrdersScreen() {
           </View>
         )}
 
-        {/* Footer */}
-        <View style={styles.orderFooter}>
-          <View style={styles.priceContainer}>
-            <Text style={[styles.priceLabel, { color: COLORS.textSecondary }]}>
-              {isRTL ? 'السعر التقديري' : 'Estimated Price'}
-            </Text>
-            <Text style={[styles.priceValue, { color: COLORS.primary }]}>
-              {order.estimated_price} {isRTL ? 'ر.س' : 'SAR'}
+        {/* Service Type & Price Row */}
+        <View style={styles.infoRow}>
+          <View style={styles.infoItem}>
+            <MaterialCommunityIcons name="wrench" size={16} color={COLORS.textSecondary} />
+            <Text style={[styles.infoLabel, { color: COLORS.textSecondary }]}>
+              {order.service_type || (isRTL ? 'صيانة عامة' : 'General Repair')}
             </Text>
           </View>
+          <View style={styles.priceTag}>
+            <Text style={[styles.priceValue, { color: COLORS.primary }]}>
+              {order.estimated_price ? `${order.estimated_price} ${isRTL ? 'ر.س' : 'SAR'}` : (isRTL ? 'غير محدد' : 'TBD')}
+            </Text>
+          </View>
+        </View>
+
+        {/* Footer */}
+        <View style={styles.orderFooter}>
           <TouchableOpacity
             style={[styles.detailsButton, { backgroundColor: COLORS.primary }]}
             onPress={() => router.push(`/order-details?id=${order.id}`)}
           >
             <Text style={styles.detailsButtonText}>
-              {isRTL ? 'التفاصيل' : 'Details'}
+              {isRTL ? 'عرض التفاصيل' : 'View Details'}
             </Text>
-            <MaterialIcons 
-              name={isRTL ? 'arrow-back' : 'arrow-forward'} 
-              size={16} 
+            <MaterialCommunityIcons 
+              name={isRTL ? 'chevron-left' : 'chevron-right'} 
+              size={18} 
               color="#FFFFFF" 
             />
           </TouchableOpacity>
@@ -326,19 +343,26 @@ const styles = StyleSheet.create({
     borderRadius: BORDER_RADIUS.lg,
     marginBottom: SPACING.md,
   },
-  orderHeader: {
+  deviceRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     marginBottom: SPACING.md,
+    gap: SPACING.sm,
   },
-  orderInfo: {
+  deviceIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: BORDER_RADIUS.md,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  deviceInfo: {
     flex: 1,
   },
   deviceName: {
     fontSize: 16,
     fontWeight: 'bold',
-    marginBottom: SPACING.xs,
+    marginBottom: 4,
   },
   orderDate: {
     fontSize: 12,
@@ -381,21 +405,39 @@ const styles = StyleSheet.create({
     width: 40,
     textAlign: I18nManager.isRTL ? 'right' : 'left',
   },
-  orderFooter: {
+  infoRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    marginBottom: SPACING.md,
+    paddingTop: SPACING.xs,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(0,0,0,0.05)',
   },
-  priceContainer: {
+  infoItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.xs,
     flex: 1,
   },
-  priceLabel: {
-    fontSize: 12,
-    marginBottom: SPACING.xs,
+  infoLabel: {
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  priceTag: {
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: SPACING.xs,
+    borderRadius: BORDER_RADIUS.sm,
+    backgroundColor: 'rgba(0,0,0,0.03)',
   },
   priceValue: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 'bold',
+  },
+  orderFooter: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   detailsButton: {
     flexDirection: 'row',
