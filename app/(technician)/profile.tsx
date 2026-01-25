@@ -3,8 +3,8 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, Ima
 import { useRouter } from 'expo-router';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { useApp } from '../../contexts/AppContext';
+import { useAuth } from '../../contexts/AuthContext';
 import BottomNavTech from '../../components/BottomNavTech';
-import { auth } from '../../lib/supabase-api';
 
 export default function TechnicianProfile() {
   const router = useRouter();
@@ -22,25 +22,16 @@ export default function TechnicianProfile() {
     danger: '#ef4444',
   };
 
-  const [user, setUser] = useState<any>(null);
+  const { user: authUser, userProfile, signOut } = useAuth();
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(20)).current;
 
   useEffect(() => {
-    loadUser();
     Animated.parallel([
       Animated.timing(fadeAnim, { toValue: 1, duration: 300, useNativeDriver: true }),
       Animated.timing(slideAnim, { toValue: 0, duration: 300, useNativeDriver: true }),
     ]).start();
   }, []);
-
-  const loadUser = async () => {
-    const currentUser = await auth.getCurrentUser();
-    if (currentUser) {
-      const profile = await auth.getUserProfile(currentUser.id);
-      setUser(profile);
-    }
-  };
 
   const handleLogout = () => {
     Alert.alert(
@@ -49,7 +40,7 @@ export default function TechnicianProfile() {
       [
         { text: isRTL ? 'إلغاء' : 'Cancel', style: 'cancel' },
         { text: isRTL ? 'خروج' : 'Logout', style: 'destructive', onPress: async () => {
-          await auth.signOut();
+          await signOut();
           router.replace('/role-selection');
         }}
       ]
@@ -88,8 +79,8 @@ export default function TechnicianProfile() {
                 <MaterialIcons name="verified" size={18} color="#fff" />
               </View>
             </View>
-            <Text style={styles.userName}>{user?.name || (isRTL ? 'فني معتمد' : 'Certified Tech')}</Text>
-            <Text style={styles.userEmail}>{user?.email || (isRTL ? 'فني صيانة' : 'Repair Technician')}</Text>
+            <Text style={styles.userName}>{userProfile?.name || (isRTL ? 'فني معتمد' : 'Certified Tech')}</Text>
+            <Text style={styles.userEmail}>{userProfile?.email || authUser?.email || (isRTL ? 'فني صيانة' : 'Repair Technician')}</Text>
             
             <View style={styles.statsRow}>
               <View style={styles.statItem}>
