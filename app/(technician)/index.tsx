@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -10,59 +10,58 @@ import {
   Dimensions,
   Animated,
   ActivityIndicator,
+  RefreshControl,
+  Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { MaterialIcons, MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import { getColors, getShadows, SPACING, BORDER_RADIUS } from '../../constants/theme';
 import { useApp } from '../../contexts/AppContext';
 import { useAuth } from '../../contexts/AuthContext';
-import { useOrders } from '../../contexts/OrdersContext';
-import { requests } from '../../lib/supabase-api';
+import * as orderService from '../../services/orderService';
 import BottomNavTech from '../../components/BottomNavTech';
-import type { Order } from '../../lib/supabase-api';
 
 const { width } = Dimensions.get('window');
 
 export default function TechnicianHomeScreen() {
   const router = useRouter();
   const { isDark, language } = useApp();
+  const { user, userProfile } = useAuth();
   const COLORS = getColors(isDark);
   const SHADOWS = getShadows(isDark);
   const isRTL = language === 'ar';
 
-  const [myOrders, setMyOrders] = useState<Order[]>([]);
-  const [availableOrders, setAvailableOrders] = useState<Order[]>([]);
+  const [availableOrders, setAvailableOrders] = useState<orderService.Order[]>([]);
+  const [myOrders, setMyOrders] = useState<orderService.Order[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState<'available' | 'my-orders'>('available');
 
-  const fadeAnim = React.useRef(new Animated.Value(0)).current;
+  const fadeAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     loadOrders();
-    // Set up real-time subscription for new orders
-    const subscription = requests.subscribeToOrders(() => {
-      loadOrders();
-    });
-
-    return () => subscription?.unsubscribe();
+    
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 500,
+      useNativeDriver: true,
+    }).start();
   }, []);
 
   const loadOrders = async () => {
     try {
       setLoading(true);
-      // Fetch available orders (pending status)
-      const available = await requests.getAvailableOrders();
+      
+      // Fetch available orders (pending status, no technician assigned)
+      const available = await orderService.getAvailableOrders();
       setAvailableOrders(available || []);
 
       // Fetch technician's accepted orders
-      const myOrdersList = await requests.getMyOrders();
-      setMyOrders(myOrdersList || []);
-
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 300,
-        useNativeDriver: true,
-      }).start();
+      if (user) {
+        const myOrdersList = await orderService.getTechnicianOrders(user.id);
+        setMyOrders(myOrdersList || []);
+      }
     } catch (error) {
       console.error('Error loading orders:', error);
     } finally {
@@ -70,17 +69,40 @@ export default function TechnicianHomeScreen() {
     }
   };
 
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadOrders();
+    setRefreshing(false);
+  };
+
   const handleAcceptOrder = async (orderId: string) => {
+    if (!user) {
+      Alert.alert(
+        isRTL ? 'خطأ' : 'Error',
+        isRTL ? 'يجب تسجيل الدخول أولاً' : 'Please login first'
+      );
+      return;
+    }
+
     try {
-      await requests.acceptOrder(orderId);
-      loadOrders();
-      // Navigate to manage order screen
-      router.push({
-        pathname: '/(technician)/manage-order',
-        params: { id: orderId }
-      });
+      await orderService.assignOrderToTechnician(orderId, user.id);
+      await orderService.updateOrderStatus(orderId, 'accepted');
+      
+      Alert.alert(
+        isRTL ? 'نجح!' : 'Success!',
+        isRTL ? 'تم قبول الطلب بنجاح' : 'Order accepted successfully'
+      );
+      
+      await loadOrders();
+      
+      // Navigate to order details
+      router.push(`/(technician)/manage-order?id=${orderId}`);
     } catch (error) {
       console.error('Error accepting order:', error);
+      Alert.alert(
+        isRTL ? 'خطأ' : 'Error',
+        isRTL ? 'فشل قبول الطلب' : 'Failed to accept order'
+      );
     }
   };
 
@@ -89,417 +111,465 @@ export default function TechnicianHomeScreen() {
       pending: '#F59E0B',
       accepted: '#3B82F6',
       picking_up: '#8B5CF6',
-      diagnosing: '#06B6D4',
-      repairing: '#EC4899',
-      delivering: '#10B981',
-      completed: '#10B981',
+      diagnosing: '#EC4899',
+      repairing: '#10B981',
+      delivering: '#06B6D4',
+      completed: '#22C55E',
+      cancelled: '#EF4444',
     };
     return colors[status] || '#6B7280';
   };
 
-  const styles = createStyles(COLORS, SHADOWS, isRTL);
+  const getStatusText = (status: string) => {
+    const statusTexts: { [key: string]: { ar: string; en: string } } = {
+      pending: { ar: 'قيد الانتظار', en: 'Pending' },
+      accepted: { ar: 'مقبول', en: 'Accepted' },
+      picking_up: { ar: 'جاري الاستلام', en: 'Picking Up' },
+      diagnosing: { ar: 'جاري الفحص', en: 'Diagnosing' },
+      repairing: { ar: 'جاري الإصلاح', en: 'Repairing' },
+      delivering: { ar: 'جاري التوصيل', en: 'Delivering' },
+      completed: { ar: 'مكتمل', en: 'Completed' },
+      cancelled: { ar: 'ملغي', en: 'Cancelled' },
+    };
+    return isRTL ? statusTexts[status]?.ar : statusTexts[status]?.en;
+  };
 
-  return (
-    <SafeAreaView style={[styles.container, { backgroundColor: COLORS.background }]}>
-      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={COLORS.background} />
-
-      {/* Header */}
-      <View style={[styles.header, { backgroundColor: COLORS.card, borderBottomColor: COLORS.border }]}>
-        <View style={styles.headerInfo}>
-          <Text style={[styles.greeting, { color: COLORS.text }]}>
-            {isRTL ? 'أهلاً بك' : 'Welcome Back'}
-          </Text>
-          <View style={styles.statusRow}>
-            <View style={[styles.statusDot, { backgroundColor: '#10B981' }]} />
-            <Text style={[styles.statusText, { color: COLORS.textSecondary }]}>
-              {isRTL ? 'متصل' : 'Online'}
+  const renderOrderCard = (order: orderService.Order, isAvailable: boolean = false) => (
+    <TouchableOpacity
+      key={order.id}
+      style={[styles.orderCard, SHADOWS.neuFlat]}
+      onPress={() => {
+        if (isAvailable) {
+          // Show order details before accepting
+          Alert.alert(
+            isRTL ? 'تفاصيل الطلب' : 'Order Details',
+            `${order.device_brand} ${order.device_model}\n${order.issue_description || ''}\n\n${isRTL ? 'هل تريد قبول هذا الطلب؟' : 'Do you want to accept this order?'}`,
+            [
+              { text: isRTL ? 'إلغاء' : 'Cancel', style: 'cancel' },
+              { text: isRTL ? 'قبول' : 'Accept', onPress: () => handleAcceptOrder(order.id) }
+            ]
+          );
+        } else {
+          router.push(`/(technician)/manage-order?id=${order.id}`);
+        }
+      }}
+      activeOpacity={0.7}
+    >
+      <View style={styles.orderHeader}>
+        <View style={styles.orderHeaderLeft}>
+          <MaterialCommunityIcons 
+            name={order.device_brand?.toLowerCase().includes('apple') ? 'apple' : 
+                  order.device_brand?.toLowerCase().includes('samsung') ? 'android' : 
+                  'cellphone'} 
+            size={32} 
+            color={COLORS.primary} 
+          />
+          <View style={styles.orderInfo}>
+            <Text style={[styles.orderTitle, { color: COLORS.text }]}>
+              {order.device_brand} {order.device_model}
+            </Text>
+            <Text style={[styles.orderSubtitle, { color: COLORS.textSecondary }]}>
+              {order.issue_description || (isRTL ? 'لا يوجد وصف' : 'No description')}
             </Text>
           </View>
         </View>
-        <TouchableOpacity onPress={() => router.push('/profile')}>
-          <View style={[styles.profileIcon, { backgroundColor: COLORS.primary + '20' }]}>
-            <MaterialIcons name="account-circle" size={32} color={COLORS.primary} />
+        <View style={[styles.statusBadge, { backgroundColor: `${getStatusColor(order.status)}20` }]}>
+          <Text style={[styles.statusText, { color: getStatusColor(order.status) }]}>
+            {getStatusText(order.status)}
+          </Text>
+        </View>
+      </View>
+
+      <View style={styles.orderDetails}>
+        {order.address && (
+          <View style={styles.detailRow}>
+            <Ionicons name="location-outline" size={16} color={COLORS.textSecondary} />
+            <Text style={[styles.detailText, { color: COLORS.textSecondary }]} numberOfLines={1}>
+              {order.address}
+            </Text>
           </View>
+        )}
+        
+        <View style={styles.detailRow}>
+          <Ionicons name="time-outline" size={16} color={COLORS.textSecondary} />
+          <Text style={[styles.detailText, { color: COLORS.textSecondary }]}>
+            {new Date(order.created_at || '').toLocaleDateString(isRTL ? 'ar-SA' : 'en-US', {
+              month: 'short',
+              day: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit'
+            })}
+          </Text>
+        </View>
+
+        {order.service_type && (
+          <View style={styles.detailRow}>
+            <MaterialCommunityIcons 
+              name={order.service_type === 'mobile' ? 'account-wrench' : 'truck-delivery'} 
+              size={16} 
+              color={COLORS.textSecondary} 
+            />
+            <Text style={[styles.detailText, { color: COLORS.textSecondary }]}>
+              {order.service_type === 'mobile' 
+                ? (isRTL ? 'فني متنقل' : 'Mobile Service')
+                : (isRTL ? 'استلام وتوصيل' : 'Pickup & Delivery')}
+            </Text>
+          </View>
+        )}
+      </View>
+
+      {isAvailable && (
+        <TouchableOpacity
+          style={[styles.acceptButton, { backgroundColor: COLORS.primary }]}
+          onPress={() => handleAcceptOrder(order.id)}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.acceptButtonText}>
+            {isRTL ? 'قبول الطلب' : 'Accept Order'}
+          </Text>
+          <Ionicons name="checkmark-circle" size={20} color="#fff" />
+        </TouchableOpacity>
+      )}
+    </TouchableOpacity>
+  );
+
+  const renderEmptyState = () => (
+    <View style={styles.emptyState}>
+      <MaterialCommunityIcons 
+        name={activeTab === 'available' ? 'clipboard-search-outline' : 'clipboard-check-outline'} 
+        size={80} 
+        color={COLORS.border} 
+      />
+      <Text style={[styles.emptyTitle, { color: COLORS.text }]}>
+        {activeTab === 'available'
+          ? (isRTL ? 'لا توجد طلبات متاحة' : 'No Available Orders')
+          : (isRTL ? 'لا توجد طلبات حالية' : 'No Current Orders')}
+      </Text>
+      <Text style={[styles.emptySubtitle, { color: COLORS.textSecondary }]}>
+        {activeTab === 'available'
+          ? (isRTL ? 'سيظهر هنا الطلبات الجديدة من العملاء' : 'New customer orders will appear here')
+          : (isRTL ? 'الطلبات التي قبلتها ستظهر هنا' : 'Orders you accept will appear here')}
+      </Text>
+    </View>
+  );
+
+  const styles = createStyles(COLORS, SHADOWS, isRTL);
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={COLORS.background} />
+      
+      {/* Header */}
+      <View style={styles.header}>
+        <View style={styles.headerLeft}>
+          <MaterialCommunityIcons name="wrench" size={28} color={COLORS.primary} />
+          <View style={styles.headerTextContainer}>
+            <Text style={[styles.headerTitle, { color: COLORS.text }]}>
+              {isRTL ? 'مرحباً' : 'Welcome'}
+            </Text>
+            <Text style={[styles.headerSubtitle, { color: COLORS.textSecondary }]}>
+              {userProfile?.name || (isRTL ? 'فني معتمد' : 'Certified Tech')}
+            </Text>
+          </View>
+        </View>
+        <TouchableOpacity 
+          style={[styles.refreshButton, SHADOWS.neuSmall]}
+          onPress={loadOrders}
+        >
+          <Ionicons name="refresh" size={22} color={COLORS.primary} />
         </TouchableOpacity>
       </View>
 
-      {/* Quick Stats */}
-      <View style={styles.statsContainer}>
-        <View style={[styles.statCard, { backgroundColor: COLORS.card }, SHADOWS.small]}>
-          <View style={[styles.statIconContainer, { backgroundColor: '#FEF3C7' }]}>
-            <MaterialCommunityIcons name="briefcase-check" size={24} color="#F59E0B" />
-          </View>
-          <Text style={[styles.statValue, { color: COLORS.text }]}>{myOrders.length}</Text>
+      {/* Stats Cards */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.statsContainer}
+        contentContainerStyle={styles.statsContent}
+      >
+        <View style={[styles.statCard, SHADOWS.neuFlat, { backgroundColor: '#10B98120' }]}>
+          <MaterialIcons name="attach-money" size={28} color="#10B981" />
+          <Text style={[styles.statValue, { color: '#10B981' }]}>
+            {isRTL ? '٠ ر.س' : '0 SAR'}
+          </Text>
           <Text style={[styles.statLabel, { color: COLORS.textSecondary }]}>
-            {isRTL ? 'طلباتي' : 'My Orders'}
+            {isRTL ? 'أرباح اليوم' : "Today's Earnings"}
           </Text>
         </View>
 
-        <View style={[styles.statCard, { backgroundColor: COLORS.card }, SHADOWS.small]}>
-          <View style={[styles.statIconContainer, { backgroundColor: '#DBEAFE' }]}>
-            <MaterialCommunityIcons name="star" size={24} color="#3B82F6" />
-          </View>
-          <Text style={[styles.statValue, { color: COLORS.text }]}>4.8</Text>
+        <View style={[styles.statCard, SHADOWS.neuFlat, { backgroundColor: '#3B82F620' }]}>
+          <MaterialCommunityIcons name="clipboard-check" size={28} color="#3B82F6" />
+          <Text style={[styles.statValue, { color: '#3B82F6' }]}>
+            {myOrders.filter(o => o.status === 'completed').length}
+          </Text>
           <Text style={[styles.statLabel, { color: COLORS.textSecondary }]}>
-            {isRTL ? 'التقييم' : 'Rating'}
+            {isRTL ? 'مكتملة' : 'Completed'}
           </Text>
         </View>
 
-        <View style={[styles.statCard, { backgroundColor: COLORS.card }, SHADOWS.small]}>
-          <View style={[styles.statIconContainer, { backgroundColor: '#ECFDF5' }]}>
-            <MaterialCommunityIcons name="cash" size={24} color="#10B981" />
-          </View>
-          <Text style={[styles.statValue, { color: COLORS.text }]}>2,450</Text>
+        <View style={[styles.statCard, SHADOWS.neuFlat, { backgroundColor: '#F59E0B20' }]}>
+          <MaterialCommunityIcons name="clock-outline" size={28} color="#F59E0B" />
+          <Text style={[styles.statValue, { color: '#F59E0B' }]}>
+            {availableOrders.length}
+          </Text>
           <Text style={[styles.statLabel, { color: COLORS.textSecondary }]}>
-            {isRTL ? 'هذا الأسبوع' : 'This Week'}
+            {isRTL ? 'متاحة' : 'Available'}
           </Text>
         </View>
-      </View>
+      </ScrollView>
 
-      {/* Tab Switcher */}
-      <View style={[styles.tabContainer, { backgroundColor: COLORS.card, borderBottomColor: COLORS.border }]}>
+      {/* Tabs */}
+      <View style={[styles.tabsContainer, SHADOWS.neuFlat]}>
         <TouchableOpacity
           style={[
             styles.tab,
-            activeTab === 'available' && [styles.activeTab, { borderBottomColor: COLORS.primary }],
+            activeTab === 'available' && [styles.activeTab, { backgroundColor: COLORS.primary }]
           ]}
           onPress={() => setActiveTab('available')}
+          activeOpacity={0.7}
         >
-          <Text
-            style={[
-              styles.tabText,
-              {
-                color: activeTab === 'available' ? COLORS.primary : COLORS.textSecondary,
-                fontWeight: activeTab === 'available' ? '700' : '500',
-              },
-            ]}
-          >
-            {isRTL ? 'الطلبات المتاحة' : 'Available Orders'}
+          <Text style={[
+            styles.tabText,
+            { color: activeTab === 'available' ? '#fff' : COLORS.textSecondary }
+          ]}>
+            {isRTL ? `طلبات متاحة (${availableOrders.length})` : `Available (${availableOrders.length})`}
           </Text>
-          <View style={[styles.badge, { backgroundColor: COLORS.primary }]}>
-            <Text style={styles.badgeText}>{availableOrders.length}</Text>
-          </View>
         </TouchableOpacity>
 
         <TouchableOpacity
           style={[
             styles.tab,
-            activeTab === 'my-orders' && [styles.activeTab, { borderBottomColor: COLORS.primary }],
+            activeTab === 'my-orders' && [styles.activeTab, { backgroundColor: COLORS.primary }]
           ]}
           onPress={() => setActiveTab('my-orders')}
+          activeOpacity={0.7}
         >
-          <Text
-            style={[
-              styles.tabText,
-              {
-                color: activeTab === 'my-orders' ? COLORS.primary : COLORS.textSecondary,
-                fontWeight: activeTab === 'my-orders' ? '700' : '500',
-              },
-            ]}
-          >
-            {isRTL ? 'طلباتي' : 'My Orders'}
+          <Text style={[
+            styles.tabText,
+            { color: activeTab === 'my-orders' ? '#fff' : COLORS.textSecondary }
+          ]}>
+            {isRTL ? `طلباتي (${myOrders.length})` : `My Orders (${myOrders.length})`}
           </Text>
-          <View style={[styles.badge, { backgroundColor: COLORS.primary }]}>
-            <Text style={styles.badgeText}>{myOrders.length}</Text>
-          </View>
         </TouchableOpacity>
       </View>
 
       {/* Orders List */}
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+      <Animated.View style={[styles.content, { opacity: fadeAnim }]}>
         {loading ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color={COLORS.primary} />
+            <Text style={[styles.loadingText, { color: COLORS.textSecondary }]}>
+              {isRTL ? 'جاري التحميل...' : 'Loading...'}
+            </Text>
           </View>
-        ) : activeTab === 'available' ? (
-          <Animated.View style={[styles.ordersContainer, { opacity: fadeAnim }]}>
-            {availableOrders.length === 0 ? (
-              <View style={styles.emptyContainer}>
-                <MaterialCommunityIcons name="inbox-outline" size={64} color={COLORS.textSecondary} />
-                <Text style={[styles.emptyText, { color: COLORS.textSecondary }]}>
-                  {isRTL ? 'لا توجد طلبات متاحة الآن' : 'No available orders'}
-                </Text>
-              </View>
-            ) : (
-              availableOrders.map((order) => (
-                <TouchableOpacity
-                  key={order.id}
-                  style={[styles.orderCard, { backgroundColor: COLORS.card }, SHADOWS.small]}
-                  onPress={() => router.push({
-                    pathname: '/order-details',
-                    params: { id: order.id }
-                  })}
-                >
-                  <View style={styles.orderHeader}>
-                    <View style={styles.deviceInfo}>
-                      <View style={[styles.deviceIconContainer, { backgroundColor: COLORS.primary + '20' }]}>
-                        <MaterialCommunityIcons name="cellphone" size={24} color={COLORS.primary} />
-                      </View>
-                      <View>
-                        <Text style={[styles.deviceName, { color: COLORS.text }]}>
-                          {order.device_brand} {order.device_model}
-                        </Text>
-                        <Text style={[styles.orderId, { color: COLORS.textSecondary }]}>
-                          #{order.id?.slice(0, 8)}
-                        </Text>
-                      </View>
-                    </View>
-                    <View style={[styles.priceBadge, { backgroundColor: getStatusColor(order.status) + '20' }]}>
-                      <Text style={[styles.priceText, { color: getStatusColor(order.status) }]}>
-                        {order.estimated_price} {isRTL ? 'ر.س' : 'SAR'}
-                      </Text>
-                    </View>
-                  </View>
-
-                  <View style={[styles.divider, { backgroundColor: COLORS.border }]} />
-
-                  <View style={styles.orderFooter}>
-                    <View style={styles.locationRow}>
-                      <Ionicons name="location-outline" size={16} color={COLORS.textSecondary} />
-                      <Text style={[styles.locationText, { color: COLORS.textSecondary }]}>
-                        {order.customer_city || (isRTL ? 'الرياض' : 'Riyadh')}
-                      </Text>
-                    </View>
-                    <TouchableOpacity
-                      style={[styles.acceptButton, { backgroundColor: COLORS.primary }]}
-                      onPress={() => handleAcceptOrder(order.id!)}
-                    >
-                      <MaterialIcons name="check" size={18} color="#fff" />
-                      <Text style={styles.acceptButtonText}>
-                        {isRTL ? 'قبول' : 'Accept'}
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
-                </TouchableOpacity>
-              ))
-            )}
-          </Animated.View>
         ) : (
-          <Animated.View style={[styles.ordersContainer, { opacity: fadeAnim }]}>
-            {myOrders.length === 0 ? (
-              <View style={styles.emptyContainer}>
-                <MaterialCommunityIcons name="clipboard-outline" size={64} color={COLORS.textSecondary} />
-                <Text style={[styles.emptyText, { color: COLORS.textSecondary }]}>
-                  {isRTL ? 'لم تقبل أي طلبات بعد' : 'No accepted orders yet'}
-                </Text>
-              </View>
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                tintColor={COLORS.primary}
+              />
+            }
+            contentContainerStyle={styles.scrollContent}
+          >
+            {activeTab === 'available' ? (
+              availableOrders.length > 0 ? (
+                availableOrders.map(order => renderOrderCard(order, true))
+              ) : (
+                renderEmptyState()
+              )
             ) : (
-              myOrders.map((order) => (
-                <TouchableOpacity
-                  key={order.id}
-                  style={[styles.orderCard, { backgroundColor: COLORS.card }, SHADOWS.small]}
-                  onPress={() => router.push({
-                    pathname: '/order-details',
-                    params: { id: order.id }
-                  })}
-                >
-                  <View style={styles.orderHeader}>
-                    <View style={styles.deviceInfo}>
-                      <View style={[styles.deviceIconContainer, { backgroundColor: COLORS.primary + '20' }]}>
-                        <MaterialCommunityIcons name="cellphone" size={24} color={COLORS.primary} />
-                      </View>
-                      <View>
-                        <Text style={[styles.deviceName, { color: COLORS.text }]}>
-                          {order.device_brand} {order.device_model}
-                        </Text>
-                        <Text style={[styles.orderId, { color: COLORS.textSecondary }]}>
-                          #{order.id?.slice(0, 8)}
-                        </Text>
-                      </View>
-                    </View>
-                    <View style={[styles.statusBadge, { backgroundColor: getStatusColor(order.status) + '20' }]}>
-                      <Text style={[styles.statusText, { color: getStatusColor(order.status) }]}>
-                        {isRTL ? 'قيد المعالجة' : 'Processing'}
-                      </Text>
-                    </View>
-                  </View>
-
-                  <View style={[styles.divider, { backgroundColor: COLORS.border }]} />
-
-                  <View style={styles.orderFooter}>
-                    <View style={styles.locationRow}>
-                      <Ionicons name="location-outline" size={16} color={COLORS.textSecondary} />
-                      <Text style={[styles.locationText, { color: COLORS.textSecondary }]}>
-                        {order.customer_city || (isRTL ? 'الرياض' : 'Riyadh')}
-                      </Text>
-                    </View>
-                    <TouchableOpacity
-                      style={[styles.viewButton, { borderColor: COLORS.primary }]}
-                      onPress={() => router.push({
-                        pathname: '/chat',
-                        params: { orderId: order.id, otherUserName: isRTL ? 'العميل' : 'Customer' }
-                      })}
-                    >
-                      <MaterialIcons name="chat" size={18} color={COLORS.primary} />
-                      <Text style={[styles.viewButtonText, { color: COLORS.primary }]}>
-                        {isRTL ? 'محادثة' : 'Chat'}
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
-                </TouchableOpacity>
-              ))
+              myOrders.length > 0 ? (
+                myOrders.map(order => renderOrderCard(order, false))
+              ) : (
+                renderEmptyState()
+              )
             )}
-          </Animated.View>
+          </ScrollView>
         )}
+      </Animated.View>
 
-        <View style={{ height: 100 }} />
-      </ScrollView>
-
-      <BottomNavTech />
+      <BottomNavTech currentRoute="index" />
     </SafeAreaView>
   );
 }
 
-const createStyles = (COLORS: any, SHADOWS: any, isRTL: boolean) =>
-  StyleSheet.create({
-    container: { flex: 1, backgroundColor: COLORS.background },
-    
-    header: {
-      flexDirection: isRTL ? 'row-reverse' : 'row',
-      padding: SPACING.lg,
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      borderBottomWidth: 1,
-    },
-    headerInfo: { alignItems: isRTL ? 'flex-end' : 'flex-start' },
-    greeting: { fontSize: 22, fontWeight: 'bold' },
-    statusRow: {
-      flexDirection: isRTL ? 'row-reverse' : 'row',
-      alignItems: 'center',
-      marginTop: 4,
-      gap: 6,
-    },
-    statusDot: { width: 8, height: 8, borderRadius: 4 },
-    statusText: { fontSize: 13, fontWeight: '500' },
-    profileIcon: { width: 44, height: 44, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
-
-    statsContainer: {
-      flexDirection: 'row',
-      paddingHorizontal: SPACING.lg,
-      paddingVertical: SPACING.lg,
-      gap: SPACING.md,
-    },
-    statCard: {
-      flex: 1,
-      borderRadius: BORDER_RADIUS.lg,
-      padding: SPACING.md,
-      borderWidth: 1,
-      borderColor: COLORS.border,
-      alignItems: 'center',
-    },
-    statIconContainer: {
-      width: 44,
-      height: 44,
-      borderRadius: BORDER_RADIUS.md,
-      justifyContent: 'center',
-      alignItems: 'center',
-      marginBottom: SPACING.sm,
-    },
-    statValue: { fontSize: 18, fontWeight: 'bold' },
-    statLabel: { fontSize: 12, marginTop: 4 },
-
-    tabContainer: {
-      flexDirection: 'row',
-      borderBottomWidth: 1,
-      paddingHorizontal: SPACING.lg,
-    },
-    tab: {
-      flex: 1,
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      paddingVertical: SPACING.md,
-      borderBottomWidth: 3,
-      borderBottomColor: 'transparent',
-      gap: SPACING.sm,
-    },
-    activeTab: {},
-    tabText: { fontSize: 15 },
-    badge: {
-      paddingHorizontal: 8,
-      paddingVertical: 2,
-      borderRadius: 12,
-      minWidth: 24,
-      alignItems: 'center',
-    },
-    badgeText: { color: '#fff', fontSize: 12, fontWeight: 'bold' },
-
-    scrollView: { flex: 1 },
-    loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingVertical: 40 },
-    ordersContainer: { paddingHorizontal: SPACING.lg, paddingVertical: SPACING.lg },
-
-    emptyContainer: { alignItems: 'center', justifyContent: 'center', paddingVertical: 60 },
-    emptyText: { fontSize: 16, marginTop: SPACING.lg },
-
-    orderCard: {
-      borderRadius: BORDER_RADIUS.lg,
-      padding: SPACING.lg,
-      marginBottom: SPACING.lg,
-      borderWidth: 1,
-      borderColor: COLORS.border,
-    },
-    orderHeader: {
-      flexDirection: isRTL ? 'row-reverse' : 'row',
-      justifyContent: 'space-between',
-      alignItems: 'flex-start',
-      marginBottom: SPACING.md,
-      gap: SPACING.sm,
-    },
-    deviceInfo: {
-      flexDirection: isRTL ? 'row-reverse' : 'row',
-      alignItems: 'center',
-      gap: SPACING.md,
-      flex: 1,
-      flexShrink: 1,
-    },
-    deviceIconContainer: {
-      width: 44,
-      height: 44,
-      borderRadius: BORDER_RADIUS.md,
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-    deviceName: { fontSize: 16, fontWeight: 'bold', flexWrap: 'wrap' },
-    orderId: { fontSize: 12, marginTop: 2 },
-
-    priceBadge: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10, minWidth: 80, alignItems: 'center' },
-    priceText: { fontWeight: 'bold', fontSize: 14 },
-
-    statusBadge: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10, minWidth: 90, alignItems: 'center' },
-    statusText: { fontWeight: 'bold', fontSize: 12 },
-
-    divider: { height: 1, marginVertical: SPACING.md },
-
-    orderFooter: {
-      flexDirection: isRTL ? 'row-reverse' : 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-    },
-    locationRow: {
-      flexDirection: isRTL ? 'row-reverse' : 'row',
-      alignItems: 'center',
-      gap: 4,
-    },
-    locationText: { fontSize: 12 },
-
-    acceptButton: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 6,
-      paddingHorizontal: 12,
-      paddingVertical: 8,
-      borderRadius: 8,
-    },
-    acceptButtonText: { color: '#fff', fontWeight: '600', fontSize: 13 },
-
-    viewButton: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 6,
-      paddingHorizontal: 12,
-      paddingVertical: 8,
-      borderRadius: 8,
-      borderWidth: 1.5,
-    },
-    viewButtonText: { fontWeight: '600', fontSize: 13 },
-  });
+const createStyles = (COLORS: any, SHADOWS: any, isRTL: boolean) => StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: COLORS.background,
+  },
+  header: {
+    flexDirection: isRTL ? 'row-reverse' : 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.md,
+  },
+  headerLeft: {
+    flexDirection: isRTL ? 'row-reverse' : 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+  },
+  headerTextContainer: {
+    alignItems: isRTL ? 'flex-end' : 'flex-start',
+  },
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+  },
+  headerSubtitle: {
+    fontSize: 14,
+    marginTop: 2,
+  },
+  refreshButton: {
+    width: 44,
+    height: 44,
+    borderRadius: BORDER_RADIUS.lg,
+    backgroundColor: COLORS.card,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  statsContainer: {
+    paddingHorizontal: SPACING.lg,
+    marginBottom: SPACING.md,
+  },
+  statsContent: {
+    gap: SPACING.md,
+  },
+  statCard: {
+    width: 140,
+    padding: SPACING.md,
+    borderRadius: BORDER_RADIUS.lg,
+    alignItems: 'center',
+    gap: SPACING.xs,
+  },
+  statValue: {
+    fontSize: 24,
+    fontWeight: '700',
+  },
+  statLabel: {
+    fontSize: 12,
+  },
+  tabsContainer: {
+    flexDirection: isRTL ? 'row-reverse' : 'row',
+    marginHorizontal: SPACING.lg,
+    marginBottom: SPACING.md,
+    padding: 4,
+    backgroundColor: COLORS.card,
+    borderRadius: BORDER_RADIUS.lg,
+  },
+  tab: {
+    flex: 1,
+    paddingVertical: SPACING.sm,
+    alignItems: 'center',
+    borderRadius: BORDER_RADIUS.md,
+  },
+  activeTab: {
+    elevation: 2,
+  },
+  tabText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  content: {
+    flex: 1,
+  },
+  scrollContent: {
+    padding: SPACING.lg,
+    paddingBottom: 100,
+  },
+  orderCard: {
+    backgroundColor: COLORS.card,
+    borderRadius: BORDER_RADIUS.lg,
+    padding: SPACING.md,
+    marginBottom: SPACING.md,
+  },
+  orderHeader: {
+    flexDirection: isRTL ? 'row-reverse' : 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    marginBottom: SPACING.sm,
+  },
+  orderHeaderLeft: {
+    flexDirection: isRTL ? 'row-reverse' : 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+    flex: 1,
+  },
+  orderInfo: {
+    flex: 1,
+    alignItems: isRTL ? 'flex-end' : 'flex-start',
+  },
+  orderTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  orderSubtitle: {
+    fontSize: 13,
+  },
+  statusBadge: {
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: 4,
+    borderRadius: BORDER_RADIUS.sm,
+  },
+  statusText: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  orderDetails: {
+    gap: SPACING.xs,
+    marginBottom: SPACING.sm,
+  },
+  detailRow: {
+    flexDirection: isRTL ? 'row-reverse' : 'row',
+    alignItems: 'center',
+    gap: SPACING.xs,
+  },
+  detailText: {
+    fontSize: 13,
+    flex: 1,
+  },
+  acceptButton: {
+    flexDirection: isRTL ? 'row-reverse' : 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: SPACING.xs,
+    paddingVertical: SPACING.sm,
+    borderRadius: BORDER_RADIUS.md,
+    marginTop: SPACING.xs,
+  },
+  acceptButtonText: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  loadingContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: SPACING.md,
+  },
+  loadingText: {
+    fontSize: 14,
+  },
+  emptyState: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: SPACING.xxl * 2,
+    gap: SPACING.md,
+  },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  emptySubtitle: {
+    fontSize: 14,
+    textAlign: 'center',
+    paddingHorizontal: SPACING.xl,
+  },
+});
