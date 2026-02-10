@@ -43,6 +43,7 @@ export default function ManageOrderScreen() {
   const [customer, setCustomer] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
+  const [mapReady, setMapReady] = useState(false);
 
   useEffect(() => {
     loadOrderDetails();
@@ -345,21 +346,22 @@ export default function ManageOrderScreen() {
           {order.latitude && order.longitude && (
             <View style={{ height: 200, width: '100%' }}>
               <MapView
-                provider={PROVIDER_GOOGLE}
-                style={{ flex: 1 }}
+                provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
+                style={{ flex: 1, opacity: mapReady ? 1 : 0 }}
                 initialRegion={{
-                  latitude: order.latitude,
-                  longitude: order.longitude,
+                  latitude: Number(order.latitude),
+                  longitude: Number(order.longitude),
                   latitudeDelta: 0.005,
                   longitudeDelta: 0.005,
                 }}
                 scrollEnabled={false}
                 zoomEnabled={false}
+                onMapReady={() => setMapReady(true)}
               >
                 <Marker
                   coordinate={{
-                    latitude: order.latitude,
-                    longitude: order.longitude,
+                    latitude: Number(order.latitude),
+                    longitude: Number(order.longitude),
                   }}
                 >
                   <View style={{ backgroundColor: COLORS.primary, padding: 8, borderRadius: 20, borderWidth: 2, borderColor: '#FFF' }}>
@@ -367,6 +369,12 @@ export default function ManageOrderScreen() {
                   </View>
                 </Marker>
               </MapView>
+              
+              {!mapReady && (
+                <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: '#f3f4f6', justifyContent: 'center', alignItems: 'center' }}>
+                  <ActivityIndicator size="small" color={COLORS.primary} />
+                </View>
+              )}
               
               <TouchableOpacity 
                 style={{ 
