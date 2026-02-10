@@ -86,6 +86,7 @@ export default function RequestScreen() {
   const [address, setAddress] = useState('');
   const [isLocating, setIsLocating] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [mapReady, setMapReady] = useState(false);
   
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
@@ -158,13 +159,18 @@ export default function RequestScreen() {
         return;
       }
 
-      let loc = await Location.getCurrentPositionAsync({});
-      setLocation({
-        latitude: loc.coords.latitude,
-        longitude: loc.coords.longitude,
-        latitudeDelta: 0.005,
-        longitudeDelta: 0.005,
+      let loc = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
       });
+      
+      if (loc && loc.coords) {
+        setLocation({
+          latitude: loc.coords.latitude,
+          longitude: loc.coords.longitude,
+          latitudeDelta: 0.005,
+          longitudeDelta: 0.005,
+        });
+      }
       
       let reverseGeocode = await Location.reverseGeocodeAsync({
         latitude: loc.coords.latitude,
@@ -485,14 +491,24 @@ export default function RequestScreen() {
           <View style={{ flex: 1 }}>
             <Text style={styles.sectionTitle}>{isRTL ? 'حدد موقعك' : 'Set Your Location'}</Text>
             <View style={styles.mapContainer}>
-              {location ? (
+              {location && location.latitude && location.longitude ? (
                 <MapView
-                  provider={PROVIDER_GOOGLE}
-                  style={styles.map}
+                  provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
+                  style={[styles.map, { opacity: mapReady ? 1 : 0 }]}
                   initialRegion={location}
-                  onRegionChangeComplete={(region) => setLocation(region)}
+                  onRegionChangeComplete={(region) => {
+                    if (region && region.latitude) {
+                      setLocation(region);
+                    }
+                  }}
+                  onMapReady={() => setMapReady(true)}
                 >
-                  <Marker coordinate={location} />
+                  <Marker 
+                    coordinate={{
+                      latitude: location.latitude,
+                      longitude: location.longitude
+                    }} 
+                  />
                 </MapView>
               ) : (
                 <View style={styles.mapPlaceholder}>
@@ -500,6 +516,13 @@ export default function RequestScreen() {
                   <Text style={styles.mapPlaceholderText}>{isRTL ? 'الخريطة ستظهر هنا' : 'Map will appear here'}</Text>
                 </View>
               )}
+              
+              {!mapReady && location && (
+                <View style={[styles.mapPlaceholder, { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }]}>
+                  <ActivityIndicator size="large" color={COLORS.primary} />
+                </View>
+              )}
+
               <TouchableOpacity 
                 style={styles.locationButton} 
                 onPress={handleLocationRequest}
