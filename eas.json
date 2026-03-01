@@ -27,6 +27,10 @@
     }
   },
   "submit": {
-    "production": {}
+    "production": {
+      "android": {
+        "serviceAccountKeyPath": "/home/ubuntu/upload/fixate-7dd90-372d24da1291.json"
+      }
+    }
   }
 }
