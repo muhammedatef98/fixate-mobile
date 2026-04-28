@@ -1,7 +1,4 @@
-/**
- * Payment Service - Placeholder for future Stripe integration
- * This service provides mock functions for payment processing
- */
+import { logger } from '../utils/logger';
 
 export interface PaymentIntent {
   id: string;
@@ -32,7 +29,7 @@ export const createPaymentIntentMock = async (
       orderId,
     };
   } catch (error) {
-    console.error('Create payment intent error:', error);
+    logger.error('Create payment intent error', error);
     throw error;
   }
 };
@@ -57,7 +54,7 @@ export const confirmPaymentMock = async (
       orderId: '',
     };
   } catch (error) {
-    console.error('Confirm payment error:', error);
+    logger.error('Confirm payment error', error);
     throw error;
   }
 };
@@ -73,7 +70,7 @@ export const getPaymentStatus = async (
     await new Promise((resolve) => setTimeout(resolve, 500));
     return 'succeeded';
   } catch (error) {
-    console.error('Get payment status error:', error);
+    logger.error('Get payment status error', error);
     return 'failed';
   }
 };

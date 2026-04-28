@@ -5,6 +5,7 @@ import { MaterialIcons, Ionicons, MaterialCommunityIcons } from '@expo/vector-ic
 import { useApp } from '../../contexts/AppContext';
 import { requests, auth } from '../../lib/supabase-api';
 import BottomNav from '../../components/BottomNav';
+import { logger } from '../../utils/logger';
 
 export default function OrdersScreen() {
   const router = useRouter();
@@ -64,7 +65,7 @@ export default function OrdersScreen() {
       }
       setOrders(filteredData);
     } catch (error) {
-      console.error('Error loading orders:', error);
+      logger.error('Error loading orders:', error);
     } finally {
       setLoading(false);
       setRefreshing(false);

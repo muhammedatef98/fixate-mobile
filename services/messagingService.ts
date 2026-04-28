@@ -1,5 +1,6 @@
 import { supabase } from './supabaseClient';
 import { RealtimeChannel } from '@supabase/supabase-js';
+import { logger } from '../utils/logger';
 
 export interface Message {
   id: string;
@@ -32,7 +33,7 @@ export const sendMessage = async (
     if (error) throw error;
     return data;
   } catch (error: any) {
-    console.error('Send message error:', error);
+    logger.error('Send message error', error);
     throw error;
   }
 };
@@ -51,7 +52,7 @@ export const getMessages = async (orderId: string): Promise<Message[]> => {
     if (error) throw error;
     return data || [];
   } catch (error: any) {
-    console.error('Get messages error:', error);
+    logger.error('Get messages error', error);
     return [];
   }
 };
@@ -102,7 +103,7 @@ export const markMessagesAsRead = async (orderId: string, userId: string): Promi
 
     if (error) throw error;
   } catch (error: any) {
-    console.error('Mark messages as read error:', error);
+    logger.error('Mark messages as read error', error);
     throw error;
   }
 };

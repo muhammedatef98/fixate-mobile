@@ -19,6 +19,7 @@ import { getColors, getShadows, SPACING, BORDER_RADIUS } from '../../constants/t
 import { useApp } from '../../contexts/AppContext';
 import { requests, auth } from '../../lib/supabase-api';
 import type { Order } from '../../lib/supabase-api';
+import { logger } from '../../utils/logger';
 
 const STATUS_ACTIONS = [
   { status: 'accepted', arLabel: 'قبول الطلب', enLabel: 'Accept Order', icon: 'check-circle', color: '#10B981', description: 'تأكيد استلام الطلب والبدء في المعالجة' },
@@ -75,7 +76,7 @@ export default function ManageOrderScreen() {
         setCustomer(customerProfile);
       }
     } catch (error) {
-      console.error('Error loading order:', error);
+      logger.error('Error loading order:', error);
     } finally {
       setLoading(false);
     }
@@ -93,7 +94,7 @@ export default function ManageOrderScreen() {
         isRTL ? 'تم قبول الطلب بنجاح' : 'Order accepted successfully'
       );
     } catch (error) {
-      console.error('Error accepting order:', error);
+      logger.error('Error accepting order:', error);
       Alert.alert(
         isRTL ? 'خطأ' : 'Error',
         isRTL ? 'حدث خطأ أثناء قبول الطلب' : 'Error accepting order'
@@ -116,7 +117,7 @@ export default function ManageOrderScreen() {
           : `Status updated to: ${statusAction?.enLabel}`
       );
     } catch (error) {
-      console.error('Error updating status:', error);
+      logger.error('Error updating status:', error);
       Alert.alert(
         isRTL ? 'خطأ' : 'Error',
         isRTL ? 'حدث خطأ أثناء تحديث الحالة' : 'Error updating status'

@@ -5,6 +5,7 @@ import { getColors, getShadows, SPACING, BORDER_RADIUS } from '../../constants/t
 import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { requests, auth } from '../../lib/supabase-api';
 import { useApp } from '../../contexts/AppContext';
+import { logger } from '../../utils/logger';
 
 const STATUS_TABS = [
   { id: 'accepted', labelAr: 'مقبولة', labelEn: 'Accepted', color: '#F59E0B' },
@@ -38,7 +39,7 @@ export default function MyOrdersScreen() {
       
       setOrders(myOrders);
     } catch (error) {
-      console.error('Error loading orders:', error);
+      logger.error('Error loading orders:', error);
     }
   };
 
@@ -53,7 +54,7 @@ export default function MyOrdersScreen() {
       await requests.updateStatus(orderId, newStatus as any);
       loadOrders();
     } catch (error) {
-      console.error('Error updating order:', error);
+      logger.error('Error updating order:', error);
     }
   };
 

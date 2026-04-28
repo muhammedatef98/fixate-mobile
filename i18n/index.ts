@@ -23,7 +23,7 @@ const languageDetector = {
     try {
       await AsyncStorage.setItem(LANGUAGE_KEY, language);
     } catch (error) {
-      console.error('Error saving language:', error);
+      // Silently fail - app will default to Arabic next launch
     }
   },
 };

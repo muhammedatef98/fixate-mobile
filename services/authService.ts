@@ -1,4 +1,5 @@
 import { supabase } from './supabaseClient';
+import { logger } from '../utils/logger';
 
 export interface SignUpData {
   email: string;
@@ -23,12 +24,8 @@ export interface UserProfile {
   created_at?: string;
 }
 
-/**
- * Sign up with email and password
- */
 export const signUpWithPhoneOrEmail = async (data: SignUpData) => {
   try {
-    // 1. Create auth user
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email: data.email,
       password: data.password,
@@ -44,7 +41,6 @@ export const signUpWithPhoneOrEmail = async (data: SignUpData) => {
     if (authError) throw authError;
     if (!authData.user) throw new Error('Failed to create user');
 
-    // 2. Create user profile
     const { error: profileError } = await supabase.from('users').insert({
       id: authData.user.id,
       email: data.email,
@@ -57,14 +53,11 @@ export const signUpWithPhoneOrEmail = async (data: SignUpData) => {
 
     return { user: authData.user, session: authData.session };
   } catch (error: any) {
-    console.error('Sign up error:', error);
+    logger.error('Sign up error', error);
     throw error;
   }
 };
 
-/**
- * Login with email and password
- */
 export const loginWithPhoneOrEmail = async (data: LoginData) => {
   try {
     const { data: authData, error } = await supabase.auth.signInWithPassword({
@@ -76,55 +69,43 @@ export const loginWithPhoneOrEmail = async (data: LoginData) => {
 
     return { user: authData.user, session: authData.session };
   } catch (error: any) {
-    console.error('Login error:', error);
+    logger.error('Login error', error);
     throw error;
   }
 };
 
-/**
- * Logout current user
- */
 export const logout = async () => {
   try {
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
   } catch (error: any) {
-    console.error('Logout error:', error);
+    logger.error('Logout error', error);
     throw error;
   }
 };
 
-/**
- * Get current authenticated user
- */
 export const getCurrentUser = async () => {
   try {
     const { data: { user }, error } = await supabase.auth.getUser();
     if (error) throw error;
     return user;
   } catch (error: any) {
-    console.error('Get current user error:', error);
+    logger.error('Get current user error', error);
     return null;
   }
 };
 
-/**
- * Get current session
- */
 export const getCurrentSession = async () => {
   try {
     const { data: { session }, error } = await supabase.auth.getSession();
     if (error) throw error;
     return session;
   } catch (error: any) {
-    console.error('Get session error:', error);
+    logger.error('Get session error', error);
     return null;
   }
 };
 
-/**
- * Update user profile
- */
 export const updateProfile = async (userId: string, updates: Partial<UserProfile>) => {
   try {
     const { data, error } = await supabase
@@ -137,14 +118,11 @@ export const updateProfile = async (userId: string, updates: Partial<UserProfile
     if (error) throw error;
     return data;
   } catch (error: any) {
-    console.error('Update profile error:', error);
+    logger.error('Update profile error', error);
     throw error;
   }
 };
 
-/**
- * Listen to auth state changes
- */
 export const onAuthStateChange = (callback: (event: string, session: any) => void) => {
   return supabase.auth.onAuthStateChange(callback);
 };

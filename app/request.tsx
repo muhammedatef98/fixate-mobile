@@ -11,6 +11,7 @@ import { notificationManager } from '../lib/notifications';
 import { BRANDS, searchBrands, searchModels, searchIssues, Brand, Issue } from '../constants/repairData';
 import { useApp } from '../contexts/AppContext';
 import { useAuth } from '../contexts/AuthContext';
+import { logger } from '../utils/logger';
 
 const { width } = Dimensions.get('window');
 
@@ -258,7 +259,7 @@ export default function RequestScreen() {
         throw new Error('Failed to create request');
       }
     } catch (error) {
-      console.error('Submit error:', error);
+      logger.error('Submit error:', error);
       setIsSubmitting(false);
       Alert.alert(isRTL ? 'خطأ' : 'Error', isRTL ? 'فشل إرسال الطلب، حاول مرة أخرى' : 'Failed to submit request, please try again');
     }

@@ -21,6 +21,7 @@ import { useApp } from '../../contexts/AppContext';
 import BottomNav from '../../components/BottomNav';
 import Sidebar from '../../components/Sidebar';
 import { requests } from '../../lib/supabase-api';
+import { logger } from '../../utils/logger';
 
 const { width } = Dimensions.get('window');
 
@@ -71,7 +72,7 @@ export default function CustomerHomeScreen() {
       const active = orders.filter((o: any) => o.status !== 'completed' && o.status !== 'cancelled');
       setActiveOrders(active.slice(0, 1));
     } catch (error) {
-      console.error('Error loading orders:', error);
+      logger.error('Error loading orders:', error);
     }
   };
 

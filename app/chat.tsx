@@ -19,6 +19,7 @@ import { useApp } from '../contexts/AppContext';
 import { useAuth } from '../contexts/AuthContext';
 import * as messagingService from '../services/messagingService';
 import type { Message } from '../services/messagingService';
+import { logger } from '../utils/logger';
 
 export default function ChatScreen() {
   const router = useRouter();
@@ -60,7 +61,7 @@ export default function ChatScreen() {
       setLoading(false);
       setTimeout(() => flatListRef.current?.scrollToEnd({ animated: false }), 100);
     } catch (error) {
-      console.error('Error loading messages:', error);
+      logger.error('Error loading messages:', error);
       setLoading(false);
     }
   };
@@ -73,7 +74,7 @@ export default function ChatScreen() {
       await messagingService.sendMessage(orderId as string, user.id, newMessage.trim());
       setNewMessage('');
     } catch (error) {
-      console.error('Error sending message:', error);
+      logger.error('Error sending message:', error);
     } finally {
       setSending(false);
     }

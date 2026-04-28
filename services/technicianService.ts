@@ -1,5 +1,6 @@
 import { supabase } from './supabaseClient';
 import { getTechnicianOrders } from './orderService';
+import { logger } from '../utils/logger';
 
 export interface TechnicianDashboardData {
   totalJobs: number;
@@ -46,7 +47,7 @@ export const getTechnicianDashboardData = async (
       earnings,
     };
   } catch (error: any) {
-    console.error('Get technician dashboard data error:', error);
+    logger.error('Get technician dashboard data error', error);
     return {
       totalJobs: 0,
       completedJobs: 0,
@@ -73,7 +74,7 @@ export const toggleTechnicianAvailability = async (
     if (error) throw error;
     return true;
   } catch (error: any) {
-    console.error('Toggle technician availability error:', error);
+    logger.error('Toggle technician availability error', error);
     return false;
   }
 };
@@ -92,7 +93,7 @@ export const getAvailableTechnicians = async () => {
     if (error) throw error;
     return data || [];
   } catch (error: any) {
-    console.error('Get available technicians error:', error);
+    logger.error('Get available technicians error', error);
     return [];
   }
 };

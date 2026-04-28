@@ -1,10 +1,8 @@
 import { supabase } from './supabaseClient';
 import { RealtimeChannel } from '@supabase/supabase-js';
 import { Order } from './orderService';
+import { logger } from '../utils/logger';
 
-/**
- * Subscribe to real-time order updates
- */
 export const subscribeToOrders = (
   callback: (order: Order) => void
 ): RealtimeChannel => {
@@ -18,7 +16,7 @@ export const subscribeToOrders = (
         table: 'orders',
       },
       (payload) => {
-        console.log('Order change received:', payload);
+        logger.debug('Order change received', payload);
         if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
           callback(payload.new as Order);
         }
@@ -29,9 +27,6 @@ export const subscribeToOrders = (
   return channel;
 };
 
-/**
- * Subscribe to pending orders for technicians
- */
 export const subscribeToPendingOrders = (
   callback: (order: Order) => void
 ): RealtimeChannel => {
@@ -46,7 +41,7 @@ export const subscribeToPendingOrders = (
         filter: 'status=eq.pending',
       },
       (payload) => {
-        console.log('New pending order:', payload);
+        logger.debug('New pending order', payload);
         callback(payload.new as Order);
       }
     )
@@ -55,9 +50,6 @@ export const subscribeToPendingOrders = (
   return channel;
 };
 
-/**
- * Subscribe to specific order updates
- */
 export const subscribeToOrderUpdates = (
   orderId: string,
   callback: (order: Order) => void
@@ -73,7 +65,7 @@ export const subscribeToOrderUpdates = (
         filter: `id=eq.${orderId}`,
       },
       (payload) => {
-        console.log('Order updated:', payload);
+        logger.debug('Order updated', payload);
         callback(payload.new as Order);
       }
     )
@@ -82,9 +74,6 @@ export const subscribeToOrderUpdates = (
   return channel;
 };
 
-/**
- * Unsubscribe from a channel
- */
 export const unsubscribeFromChannel = async (channel: RealtimeChannel) => {
   await supabase.removeChannel(channel);
 };

@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { requests, auth } from '../lib/supabase-api';
 import { router } from 'expo-router';
+import { logger } from '../utils/logger';
 
 interface Request {
   id: string;
@@ -49,7 +50,7 @@ export default function AvailableRequestsScreen() {
       const data = await requests.getAvailableOrders();
       setRequests(data || []);
     } catch (error) {
-      console.error('Error fetching requests:', error);
+      logger.error('Error fetching requests:', error);
       Alert.alert('خطأ', 'فشل في تحميل الطلبات');
     } finally {
       setLoading(false);
@@ -71,7 +72,7 @@ export default function AvailableRequestsScreen() {
       fetchAvailableRequests();
       router.push('/technician-dashboard');
     } catch (error: any) {
-      console.error('Error accepting request:', error);
+      logger.error('Error accepting request:', error);
       if (error.code === '23505') {
         Alert.alert('عذراً', 'تم قبول هذا الطلب من قبل فني آخر');
       } else {

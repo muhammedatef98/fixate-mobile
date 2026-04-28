@@ -1,7 +1,7 @@
 import messaging from '@react-native-firebase/messaging';
 import { supabase } from './supabase';
+import { logger } from '../utils/logger';
 
-// Request permission for notifications
 export async function requestNotificationPermission() {
   const authStatus = await messaging().requestPermission();
   const enabled =
@@ -9,25 +9,23 @@ export async function requestNotificationPermission() {
     authStatus === messaging.AuthorizationStatus.PROVISIONAL;
 
   if (enabled) {
-    console.log('Authorization status:', authStatus);
+    logger.info('FCM authorization status', authStatus);
     return true;
   }
   return false;
 }
 
-// Get FCM token
 export async function getFCMToken() {
   try {
     const token = await messaging().getToken();
-    console.log('FCM Token:', token);
+    logger.debug('FCM Token obtained');
     return token;
   } catch (error) {
-    console.error('Error getting FCM token:', error);
+    logger.error('Error getting FCM token', error);
     return null;
   }
 }
 
-// Save FCM token to user metadata
 export async function saveFCMToken(userId: string, token: string) {
   try {
     const { error } = await supabase.auth.updateUser({
@@ -35,21 +33,19 @@ export async function saveFCMToken(userId: string, token: string) {
     });
 
     if (error) throw error;
-    console.log('FCM token saved successfully');
+    logger.info('FCM token saved successfully');
   } catch (error) {
-    console.error('Error saving FCM token:', error);
+    logger.error('Error saving FCM token', error);
   }
 }
 
-// Listen for foreground notifications
 export function onMessageReceived(callback: (message: any) => void) {
   return messaging().onMessage(async remoteMessage => {
-    console.log('Foreground notification:', remoteMessage);
+    logger.debug('Foreground notification received');
     callback(remoteMessage);
   });
 }
 
-// Handle background notifications
 messaging().setBackgroundMessageHandler(async remoteMessage => {
-  console.log('Background notification:', remoteMessage);
+  logger.debug('Background notification received');
 });
