@@ -4,7 +4,7 @@
 // To deploy this function:
 // 1. Install Supabase CLI: npm install -g supabase
 // 2. Login: supabase login
-// 3. Link project: supabase link --project-ref gpucisjxecupcyosumgy
+// 3. Link project: supabase link --project-ref <your-project-ref>
 // 4. Deploy: supabase functions deploy notify-technicians
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
