@@ -1,13 +1,14 @@
 import * as orderService from '../services/orderService';
 
-const mockSingle = jest.fn();
-const mockSelect = jest.fn(() => ({ single: mockSingle, eq: mockEq, is: mockIs, order: mockOrder }));
-const mockEq = jest.fn(() => ({ select: mockSelect, single: mockSingle, order: mockOrder, is: mockIs }));
-const mockIs = jest.fn(() => ({ order: mockOrder, eq: mockEq }));
-const mockOrder = jest.fn(() => ({ data: [], error: null }));
-const mockInsert = jest.fn(() => ({ select: mockSelect }));
-const mockUpdate = jest.fn(() => ({ eq: mockEq, select: mockSelect }));
-const mockFrom = jest.fn(() => ({
+// Break circular reference by typing mocks explicitly
+const mockSingle: jest.Mock = jest.fn();
+const mockOrder: jest.Mock = jest.fn(() => Promise.resolve({ data: [], error: null }));
+const mockIs: jest.Mock = jest.fn(() => ({ order: mockOrder, eq: mockEq }));
+const mockEq: jest.Mock = jest.fn(() => ({ select: mockSelect, single: mockSingle, order: mockOrder, is: mockIs }));
+const mockSelect: jest.Mock = jest.fn(() => ({ single: mockSingle, eq: mockEq, is: mockIs, order: mockOrder }));
+const mockInsert: jest.Mock = jest.fn(() => ({ select: mockSelect }));
+const mockUpdate: jest.Mock = jest.fn(() => ({ eq: mockEq, select: mockSelect }));
+const mockFrom: jest.Mock = jest.fn(() => ({
   insert: mockInsert,
   select: mockSelect,
   update: mockUpdate,
