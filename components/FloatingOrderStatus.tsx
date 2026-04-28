@@ -6,6 +6,7 @@ import { COLORS, SPACING, BORDER_RADIUS, SHADOWS } from '../constants/theme';
 import { useApp } from '../contexts/AppContext';
 import { useRequests } from '../contexts/RequestContext';
 import { requests } from '../lib/supabase-api';
+import { logger } from '../utils/logger';
 
 export default function FloatingOrderStatus() {
   const router = useRouter();
@@ -58,7 +59,7 @@ export default function FloatingOrderStatus() {
         hide();
       }
     } catch (error) {
-      console.log('Error checking active order:', error);
+      logger.debug('Error checking active order:', error);
     }
   };
 

@@ -2,11 +2,14 @@ import 'react-native-url-polyfill/auto';
 import { createClient } from '@supabase/supabase-js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
+import { logger } from '../utils/logger';
 
-// Supabase Configuration
-// Get these from: https://supabase.com/dashboard/project/_/settings/api
-const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL || Constants.expoConfig?.extra?.supabaseUrl || 'https://gpucisjxecupcyosumgy.supabase.co';
-const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || Constants.expoConfig?.extra?.supabaseAnonKey || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdwdWNpc2p4ZWN1cGN5b3N1bWd5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU1NjY1NTEsImV4cCI6MjA4MTE0MjU1MX0.dPN6rdv6R5DF_8GdeP5DmNvoj0tecFAcfqVFgN68QkE';
+const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL || Constants.expoConfig?.extra?.supabaseUrl;
+const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || Constants.expoConfig?.extra?.supabaseAnonKey;
+
+if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+  throw new Error('Missing Supabase environment variables. Please check your .env file.');
+}
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: {
@@ -113,21 +116,18 @@ export const auth = {
     return user;
   },
 
-  // Get user profile
+  // Get user profile by ID
   getUserProfile: async (userId: string) => {
-    const { data: { user }, error } = await supabase.auth.getUser();
-    
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('id', userId)
+      .single();
+
     if (error) throw error;
-    if (!user) throw new Error('User not found');
-    
-    // Return user data from auth metadata
-    return {
-      id: user.id,
-      email: user.email!,
-      name: user.user_metadata.name || '',
-      role: user.user_metadata.role || 'customer',
-      created_at: user.created_at,
-    } as User;
+    if (!data) throw new Error('User not found');
+
+    return data as User;
   },
 };
 
@@ -350,7 +350,7 @@ export const storage = {
 
       return publicUrl;
     } catch (error) {
-      console.error('Error uploading image:', error);
+      logger.error('Error uploading image', error);
       throw error;
     }
   },

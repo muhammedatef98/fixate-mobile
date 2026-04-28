@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { logger } from '../utils/logger';
 
 // Database Types (matching Supabase schema)
 export interface User {
@@ -161,14 +162,13 @@ export const requests = {
         if (!error) return data;
         
         if (i === retries) {
-          console.error(`Error fetching order by ID after ${retries} retries:`, error);
+          logger.error(`Error fetching order by ID after ${retries} retries`, error);
           return null;
         }
-        // Wait before retry
         await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1)));
       } catch (err) {
         if (i === retries) {
-          console.error('Unexpected error in getById:', err);
+          logger.error('Unexpected error in getById', err);
           return null;
         }
       }

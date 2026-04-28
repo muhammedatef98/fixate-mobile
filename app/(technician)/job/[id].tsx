@@ -5,6 +5,7 @@ import { COLORS, SPACING, SHADOWS } from '../../../constants/theme';
 import { MaterialIcons, Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import { useApp } from '../../../contexts/AppContext';
 import { requests } from '../../../lib/supabase-api';
+import { logger } from '../../../utils/logger';
 
 const JOB_STEPS = [
   { id: 'arrive', label: 'الوصول لموقع العميل', labelEn: 'Arrive at location', icon: 'location-arrow' },
@@ -44,7 +45,7 @@ export default function ActiveJobScreen() {
         else if (data.status === 'completed') setStatus('completed');
       }
     } catch (error) {
-      console.error('Error loading order:', error);
+      logger.error('Error loading order:', error);
     }
   };
 
@@ -53,7 +54,7 @@ export default function ActiveJobScreen() {
       await requests.updateStatus(id as string, newStatus);
       // Local state update is handled by the logic below
     } catch (error) {
-      console.error('Error updating status:', error);
+      logger.error('Error updating status:', error);
       Alert.alert(isRTL ? 'خطأ' : 'Error', isRTL ? 'فشل تحديث الحالة' : 'Failed to update status');
     }
   };

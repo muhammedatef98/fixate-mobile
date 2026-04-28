@@ -22,6 +22,7 @@ import { translations } from '../../constants/translations';
 import * as orderService from '../../services/orderService';
 import { ISSUE_CATEGORIES, getIssueCategory } from '../../constants/issueCategories';
 import NeuCard from '../../components/NeuCard';
+import { logger } from '../../utils/logger';
 
 // Calculate distance between two coordinates (Haversine formula)
 function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
@@ -84,7 +85,7 @@ export default function AvailableOrdersScreen() {
       const availableOrders = await orderService.getAvailableOrders();
       setOrders(availableOrders || []);
     } catch (error) {
-      console.error('Error loading orders:', error);
+      logger.error('Error loading orders:', error);
     } finally {
       setLoading(false);
     }
@@ -113,7 +114,7 @@ export default function AvailableOrdersScreen() {
         params: { id: orderId }
       });
     } catch (error) {
-      console.error('Error accepting order:', error);
+      logger.error('Error accepting order:', error);
       Alert.alert(
         language === 'ar' ? 'خطأ' : 'Error',
         language === 'ar' ? 'حدث خطأ أثناء قبول الطلب' : 'An error occurred while accepting the order'

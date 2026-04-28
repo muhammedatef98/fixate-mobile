@@ -1,4 +1,5 @@
 import { supabase } from './supabaseClient';
+import { logger } from '../utils/logger';
 
 export interface UserProfile {
   id: string;
@@ -21,9 +22,6 @@ export interface TechnicianProfile {
   created_at?: string;
 }
 
-/**
- * Get user profile by ID
- */
 export const getUserProfile = async (userId: string): Promise<UserProfile | null> => {
   try {
     const { data, error } = await supabase
@@ -35,14 +33,11 @@ export const getUserProfile = async (userId: string): Promise<UserProfile | null
     if (error) throw error;
     return data;
   } catch (error: any) {
-    console.error('Get user profile error:', error);
+    logger.error('Get user profile error', error);
     return null;
   }
 };
 
-/**
- * Create or update user profile
- */
 export const createOrUpdateUserProfile = async (
   userId: string,
   profileData: Partial<UserProfile>
@@ -57,14 +52,11 @@ export const createOrUpdateUserProfile = async (
     if (error) throw error;
     return data;
   } catch (error: any) {
-    console.error('Create/update user profile error:', error);
+    logger.error('Create/update user profile error', error);
     throw error;
   }
 };
 
-/**
- * Get technician profile by user ID
- */
 export const getTechnicianProfileByUserId = async (
   userId: string
 ): Promise<TechnicianProfile | null> => {
@@ -77,7 +69,6 @@ export const getTechnicianProfileByUserId = async (
 
     if (error) {
       if (error.code === 'PGRST116') {
-        // No technician profile found
         return null;
       }
       throw error;
@@ -85,14 +76,11 @@ export const getTechnicianProfileByUserId = async (
 
     return data;
   } catch (error: any) {
-    console.error('Get technician profile error:', error);
+    logger.error('Get technician profile error', error);
     return null;
   }
 };
 
-/**
- * Create technician profile
- */
 export const createTechnicianProfile = async (
   userId: string,
   technicianData: Partial<TechnicianProfile>
@@ -107,14 +95,11 @@ export const createTechnicianProfile = async (
     if (error) throw error;
     return data;
   } catch (error: any) {
-    console.error('Create technician profile error:', error);
+    logger.error('Create technician profile error', error);
     throw error;
   }
 };
 
-/**
- * Update technician profile
- */
 export const updateTechnicianProfile = async (
   userId: string,
   updates: Partial<TechnicianProfile>
@@ -130,7 +115,7 @@ export const updateTechnicianProfile = async (
     if (error) throw error;
     return data;
   } catch (error: any) {
-    console.error('Update technician profile error:', error);
+    logger.error('Update technician profile error', error);
     throw error;
   }
 };

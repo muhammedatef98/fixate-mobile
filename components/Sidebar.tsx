@@ -18,6 +18,7 @@ import { useApp } from '../contexts/AppContext';
 import { getColors, getShadows, SPACING, BORDER_RADIUS } from '../constants/theme';
 import { translations } from '../constants/translations';
 import api from '../lib/supabase-api';
+import { logger } from '../utils/logger';
 
 const { width } = Dimensions.get('window');
 const DRAWER_WIDTH = 280;
@@ -66,7 +67,7 @@ export default function Sidebar({ visible, onClose }: SidebarProps) {
         setUser(profile);
       }
     } catch (error) {
-      console.debug('User not logged in');
+      logger.debug('User not logged in');
     }
   };
 
@@ -88,7 +89,7 @@ export default function Sidebar({ visible, onClose }: SidebarProps) {
               onClose();
               router.replace('/role-selection');
             } catch (error) {
-              console.debug('Logout error:', error);
+              logger.error('Logout error', error);
             }
           },
         },

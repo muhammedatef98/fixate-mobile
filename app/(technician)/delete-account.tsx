@@ -13,6 +13,7 @@ import { useRouter } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useApp } from '../../contexts/AppContext';
 import { auth, supabase } from '../../lib/supabase';
+import { logger } from '../../utils/logger';
 
 const COLORS = {
   primary: '#10b981',
@@ -97,7 +98,7 @@ export default function TechnicianDeleteAccountScreen() {
                 ]
               );
             } catch (error) {
-              console.error('Error deleting account:', error);
+              logger.error('Error deleting account:', error);
               Alert.alert(
                 isRTL ? 'خطأ' : 'Error',
                 isRTL

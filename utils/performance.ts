@@ -3,6 +3,7 @@
  */
 
 import { InteractionManager } from 'react-native';
+import { logger } from './logger';
 
 /**
  * Delays execution until after interactions are complete
@@ -115,7 +116,7 @@ export const cleanupResources = (...cleanupFunctions: (() => void)[]): void => {
     try {
       cleanup();
     } catch (error) {
-      console.warn('Error during cleanup:', error);
+      logger.warn('Error during cleanup', error);
     }
   });
 };

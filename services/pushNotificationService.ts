@@ -1,10 +1,8 @@
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import { Platform } from 'react-native';
+import { logger } from '../utils/logger';
 
-/**
- * Configure notification behavior
- */
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowAlert: true,
@@ -13,14 +11,10 @@ Notifications.setNotificationHandler({
   }),
 });
 
-/**
- * Register for push notifications
- * Returns the Expo push token
- */
 export const registerForPushNotifications = async (): Promise<string | null> => {
   try {
     if (!Device.isDevice) {
-      console.log('Must use physical device for Push Notifications');
+      logger.info('Must use physical device for Push Notifications');
       return null;
     }
 
@@ -33,12 +27,12 @@ export const registerForPushNotifications = async (): Promise<string | null> => 
     }
 
     if (finalStatus !== 'granted') {
-      console.log('Failed to get push token for push notification!');
+      logger.warn('Failed to get push token for push notification');
       return null;
     }
 
     const token = (await Notifications.getExpoPushTokenAsync()).data;
-    console.log('Push token:', token);
+    logger.debug('Push token obtained');
 
     if (Platform.OS === 'android') {
       Notifications.setNotificationChannelAsync('default', {
@@ -51,14 +45,11 @@ export const registerForPushNotifications = async (): Promise<string | null> => 
 
     return token;
   } catch (error) {
-    console.error('Error registering for push notifications:', error);
+    logger.error('Error registering for push notifications', error);
     return null;
   }
 };
 
-/**
- * Send a local notification
- */
 export const sendLocalNotification = async (
   title: string,
   body: string,
@@ -71,25 +62,19 @@ export const sendLocalNotification = async (
         body,
         data,
       },
-      trigger: null, // Show immediately
+      trigger: null,
     });
   } catch (error) {
-    console.error('Error sending local notification:', error);
+    logger.error('Error sending local notification', error);
   }
 };
 
-/**
- * Add notification received listener
- */
 export const addNotificationReceivedListener = (
   callback: (notification: Notifications.Notification) => void
 ) => {
   return Notifications.addNotificationReceivedListener(callback);
 };
 
-/**
- * Add notification response listener (when user taps notification)
- */
 export const addNotificationResponseListener = (
   callback: (response: Notifications.NotificationResponse) => void
 ) => {

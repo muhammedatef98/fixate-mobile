@@ -1,4 +1,5 @@
 import { supabase } from './supabaseClient';
+import { logger } from '../utils/logger';
 
 export interface Order {
   id: string;
@@ -32,9 +33,6 @@ export interface CreateOrderData {
   service_id?: string;
 }
 
-/**
- * Create a new order
- */
 export const createOrder = async (userId: string, orderData: CreateOrderData): Promise<Order> => {
   try {
     const { data, error } = await supabase
@@ -50,14 +48,11 @@ export const createOrder = async (userId: string, orderData: CreateOrderData): P
     if (error) throw error;
     return data;
   } catch (error: any) {
-    console.error('Create order error:', error);
+    logger.error('Create order error', error);
     throw error;
   }
 };
 
-/**
- * Get orders for a customer
- */
 export const getMyOrders = async (userId: string): Promise<Order[]> => {
   try {
     const { data, error } = await supabase
@@ -69,17 +64,14 @@ export const getMyOrders = async (userId: string): Promise<Order[]> => {
     if (error) throw error;
     return data || [];
   } catch (error: any) {
-    console.error('Get my orders error:', error);
+    logger.error('Get my orders error', error);
     return [];
   }
 };
 
-/**
- * Get available orders for technicians (status = pending)
- */
 export const getAvailableOrders = async (): Promise<Order[]> => {
   try {
-    console.log('Fetching available orders...');
+    logger.debug('Fetching available orders');
     const { data, error } = await supabase
       .from('orders')
       .select('*')
@@ -87,18 +79,15 @@ export const getAvailableOrders = async (): Promise<Order[]> => {
       .is('technician_id', null)
       .order('created_at', { ascending: false });
 
-    console.log('Available orders query result:', { data, error });
+    logger.debug('Available orders query result', { count: data?.length, error });
     if (error) throw error;
     return data || [];
   } catch (error: any) {
-    console.error('Get available orders error:', error);
+    logger.error('Get available orders error', error);
     return [];
   }
 };
 
-/**
- * Get order by ID
- */
 export const getOrderById = async (orderId: string): Promise<Order | null> => {
   try {
     const { data, error } = await supabase
@@ -110,14 +99,11 @@ export const getOrderById = async (orderId: string): Promise<Order | null> => {
     if (error) throw error;
     return data;
   } catch (error: any) {
-    console.error('Get order by ID error:', error);
+    logger.error('Get order by ID error', error);
     return null;
   }
 };
 
-/**
- * Assign order to technician
- */
 export const assignOrderToTechnician = async (
   orderId: string,
   technicianId: string
@@ -136,14 +122,11 @@ export const assignOrderToTechnician = async (
     if (error) throw error;
     return data;
   } catch (error: any) {
-    console.error('Assign order to technician error:', error);
+    logger.error('Assign order to technician error', error);
     throw error;
   }
 };
 
-/**
- * Update order status
- */
 export const updateOrderStatus = async (
   orderId: string,
   status: Order['status']
@@ -159,14 +142,11 @@ export const updateOrderStatus = async (
     if (error) throw error;
     return data;
   } catch (error: any) {
-    console.error('Update order status error:', error);
+    logger.error('Update order status error', error);
     throw error;
   }
 };
 
-/**
- * Add price estimate to order
- */
 export const addPriceToOrder = async (
   orderId: string,
   price: number
@@ -182,14 +162,11 @@ export const addPriceToOrder = async (
     if (error) throw error;
     return data;
   } catch (error: any) {
-    console.error('Add price to order error:', error);
+    logger.error('Add price to order error', error);
     throw error;
   }
 };
 
-/**
- * Get orders for a technician
- */
 export const getTechnicianOrders = async (technicianId: string): Promise<Order[]> => {
   try {
     const { data, error } = await supabase
@@ -201,7 +178,7 @@ export const getTechnicianOrders = async (technicianId: string): Promise<Order[]
     if (error) throw error;
     return data || [];
   } catch (error: any) {
-    console.error('Get technician orders error:', error);
+    logger.error('Get technician orders error', error);
     return [];
   }
 };

@@ -5,6 +5,7 @@ import { getColors, getShadows, SPACING, BORDER_RADIUS } from '../../constants/t
 import { MaterialIcons, MaterialCommunityIcons, FontAwesome5 } from '@expo/vector-icons';
 import { requests, auth } from '../../lib/supabase-api';
 import { useApp } from '../../contexts/AppContext';
+import { logger } from '../../utils/logger';
 
 const { width } = Dimensions.get('window');
 
@@ -76,7 +77,7 @@ export default function EarningsScreen() {
       });
       setOrders(filteredOrders);
     } catch (error) {
-      console.error('Error loading earnings:', error);
+      logger.error('Error loading earnings:', error);
     }
   };
 

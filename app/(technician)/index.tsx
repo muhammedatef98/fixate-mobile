@@ -22,6 +22,7 @@ import { useApp } from '../../contexts/AppContext';
 import { useAuth } from '../../contexts/AuthContext';
 import * as orderService from '../../services/orderService';
 import BottomNavTech from '../../components/BottomNavTech';
+import { logger } from '../../utils/logger';
 
 const { width } = Dimensions.get('window');
 
@@ -60,7 +61,7 @@ export default function TechnicianHomeScreen() {
       
       // Fetch available orders (pending status, no technician assigned)
       const available = await orderService.getAvailableOrders();
-      console.log('Available orders fetched:', available);
+      logger.debug('Available orders fetched:', available);
       setAvailableOrders(available || []);
 
       // Fetch technician's accepted orders
@@ -69,7 +70,7 @@ export default function TechnicianHomeScreen() {
         setMyOrders(myOrdersList || []);
       }
     } catch (error) {
-      console.error('Error loading orders:', error);
+      logger.error('Error loading orders:', error);
     } finally {
       setLoading(false);
     }
@@ -108,7 +109,7 @@ export default function TechnicianHomeScreen() {
       // Navigate to order details
       router.push(`/(technician)/manage-order?id=${orderId}`);
     } catch (error) {
-      console.error('Error accepting order:', error);
+      logger.error('Error accepting order:', error);
       Alert.alert(
         isRTL ? 'خطأ' : 'Error',
         isRTL ? 'فشل قبول الطلب' : 'Failed to accept order'

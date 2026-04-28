@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useApp } from '../contexts/AppContext';
 import { auth } from '../lib/supabase-api';
+import { logger } from '../utils/logger';
 
 export default function EditProfileScreen() {
   const router = useRouter();
@@ -38,7 +39,7 @@ export default function EditProfileScreen() {
         setPhone(profile?.phone || '');
       }
     } catch (error) {
-      console.error('Error loading profile:', error);
+      logger.error('Error loading profile:', error);
     } finally {
       setLoading(false);
     }

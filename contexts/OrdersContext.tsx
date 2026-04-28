@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import * as orderService from '../services/orderService';
 import { useAuth } from './AuthContext';
+import { logger } from '../utils/logger';
 
 interface OrdersContextType {
   orders: orderService.Order[];
@@ -34,7 +35,7 @@ export function OrdersProvider({ children }: { children: React.ReactNode }) {
 
       setOrders(fetchedOrders);
     } catch (error) {
-      console.error('Error refreshing orders:', error);
+      logger.error('Error refreshing orders', error);
     } finally {
       setLoading(false);
     }

@@ -18,6 +18,7 @@ import { getColors, getShadows, SPACING, BORDER_RADIUS } from '../constants/them
 import { useApp } from '../contexts/AppContext';
 import { requests, auth } from '../lib/supabase-api';
 import type { Order } from '../lib/supabase-api';
+import { logger } from '../utils/logger';
 
 const ORDER_TIMELINE = [
   { status: 'pending', arLabel: 'قيد الانتظار', enLabel: 'Pending', icon: 'clock-outline' },
@@ -69,7 +70,7 @@ export default function OrderDetailsScreen() {
       const orderData = await requests.getById(id as string);
       setOrder(orderData);
     } catch (error) {
-      console.error('Error loading order:', error);
+      logger.error('Error loading order:', error);
     } finally {
       setLoading(false);
     }

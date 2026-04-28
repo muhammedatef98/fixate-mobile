@@ -19,6 +19,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { COLORS, SPACING, BORDER_RADIUS, SHADOWS } from '../../constants/theme';
 import { useApp } from '../../contexts/AppContext';
 import { chat, auth, requests } from '../../lib/supabase-api';
+import { logger } from '../../utils/logger';
 
 export default function ChatScreen() {
   const { id } = useLocalSearchParams();
@@ -76,7 +77,7 @@ export default function ChatScreen() {
       setLoading(false);
       setTimeout(() => flatListRef.current?.scrollToEnd({ animated: false }), 100);
     } catch (error) {
-      console.error('Error loading chat data:', error);
+      logger.error('Error loading chat data:', error);
       setLoading(false);
     }
   };
@@ -107,7 +108,7 @@ export default function ChatScreen() {
       // For simplicity, we let the subscription handle the "real" message arrival
       // and we filter out temp messages if needed, or just let React key reconciliation handle it
     } catch (error) {
-      console.error('Error sending message:', error);
+      logger.error('Error sending message:', error);
       Alert.alert(language === 'ar' ? 'خطأ' : 'Error', language === 'ar' ? 'فشل إرسال الرسالة' : 'Failed to send message');
       // Remove temp message on failure
       setMessages(prev => prev.filter(m => m.id !== tempId));
