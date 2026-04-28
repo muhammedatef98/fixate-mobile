@@ -1,5 +1,6 @@
 # Fixatee - Your Trusted Device Repair Partner 🔧
 # Fixatee - شريكك الموثوق في إصلاح الأجهزة 🔧
+<!-- CI secrets rotated: 2026-04-28 -->
 
 <div align="center">
   <img src="./assets/icon.png" alt="Fixatee Logo" width="120"/>
