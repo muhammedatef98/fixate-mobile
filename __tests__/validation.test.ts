@@ -176,7 +176,7 @@ describe('validateImageType', () => {
 describe('sanitizeInput', () => {
   it('escapes HTML special characters', () => {
     expect(sanitizeInput('<script>alert("xss")</script>')).not.toContain('<script>');
-    expect(sanitizeInput('<b>bold</b>')).toBe('&lt;b&gt;bold&lt;/b&gt;');
+    expect(sanitizeInput('<b>bold</b>')).toBe('&lt;b&gt;bold&lt;&#x2F;b&gt;');
   });
 
   it('leaves safe text unchanged in structure', () => {
