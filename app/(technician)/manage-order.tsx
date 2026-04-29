@@ -11,6 +11,7 @@ import {
   Image,
   Linking,
   I18nManager,
+  Platform,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { MaterialIcons, MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
