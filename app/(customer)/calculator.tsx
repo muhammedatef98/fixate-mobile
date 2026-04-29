@@ -5,6 +5,7 @@ import { MaterialIcons, MaterialCommunityIcons, Ionicons } from '@expo/vector-ic
 import { useApp } from '../../contexts/AppContext';
 import BottomNav from '../../components/BottomNav';
 import { BRANDS } from '../../constants/repairData';
+import { RTLIonicon } from '../../components/RTLIcon';
 
 const { width } = Dimensions.get('window');
 
@@ -79,8 +80,8 @@ export default function PriceCalculatorScreen() {
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.white} />
       
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name={isRTL ? "chevron-forward" : "chevron-back"} size={24} color={COLORS.text} />
+        <TouchableOpacity accessibilityRole="button" accessibilityLabel={isRTL ? 'رجوع' : 'Back'} onPress={() => router.back()} style={styles.backButton}>
+          <RTLIonicon name="chevron-back" size={24} color={COLORS.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{isRTL ? 'حاسبة الأسعار' : 'Price Calculator'}</Text>
         <View style={{ width: 40 }} />
@@ -160,7 +161,7 @@ export default function PriceCalculatorScreen() {
           onPress={() => router.push('/request')}
         >
           <Text style={styles.bookButtonText}>{isRTL ? 'احجز الآن' : 'Book Now'}</Text>
-          <Ionicons name={isRTL ? "arrow-back" : "arrow-forward"} size={20} color="#fff" />
+          <RTLIonicon name="arrow-forward" size={20} color="#fff" />
         </TouchableOpacity>
       </View>
 

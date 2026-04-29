@@ -12,6 +12,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { getColors, SPACING, BORDER_RADIUS } from '../constants/theme';
 import { useApp } from '../contexts/AppContext';
+import { RTLIonicon } from '../components/RTLIcon';
 
 export default function NotificationsScreen() {
   const router = useRouter();
@@ -50,8 +51,8 @@ export default function NotificationsScreen() {
       
       {/* Header */}
       <View style={[styles.header, { borderBottomColor: COLORS.border }]}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name={isRTL ? "arrow-forward" : "arrow-back"} size={24} color={COLORS.text} />
+        <TouchableOpacity accessibilityRole="button" accessibilityLabel={isRTL ? 'رجوع' : 'Back'} onPress={() => router.back()} style={styles.backButton}>
+          <RTLIonicon name="arrow-back" size={24} color={COLORS.text} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: COLORS.text }]}>
           {isRTL ? 'الإشعارات' : 'Notifications'}

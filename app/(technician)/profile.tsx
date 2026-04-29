@@ -5,6 +5,7 @@ import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { useApp } from '../../contexts/AppContext';
 import { useAuth } from '../../contexts/AuthContext';
 import BottomNavTech from '../../components/BottomNavTech';
+import { RTLIonicon } from '../../components/RTLIcon';
 
 export default function TechnicianProfile() {
   const router = useRouter();
@@ -114,7 +115,7 @@ export default function TechnicianProfile() {
                   </View>
                   <Text style={styles.menuLabel}>{isRTL ? item.labelAr : item.labelEn}</Text>
                 </View>
-                <Ionicons name={isRTL ? "chevron-back" : "chevron-forward"} size={18} color={COLORS.border} />
+                <RTLIonicon name="chevron-forward" size={18} color={COLORS.border} />
               </TouchableOpacity>
             ))}
           </View>

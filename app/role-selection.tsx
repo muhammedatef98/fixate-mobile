@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { getColors, getShadows, SPACING, BORDER_RADIUS } from '../constants/theme';
 import { useApp } from '../contexts/AppContext';
 import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { RTLMaterialIcon } from '../components/RTLIcon';
 
 const { width } = Dimensions.get('window');
 
@@ -111,8 +112,7 @@ export default function RoleSelectionScreen() {
                   {language === 'ar' ? 'أبحث عن خدمات صيانة لأجهزتي' : 'Looking for repair services'}
                 </Text>
               </View>
-              <MaterialIcons 
-                name={isRTL ? "chevron-left" : "chevron-right"} 
+              <RTLMaterialIcon name="chevron-right" 
                 size={28} 
                 color={COLORS.primary} 
               />
@@ -135,8 +135,7 @@ export default function RoleSelectionScreen() {
                   {language === 'ar' ? 'أقدم خدمات الصيانة وأستقبل الطلبات' : 'Providing repair services'}
                 </Text>
               </View>
-              <MaterialIcons 
-                name={isRTL ? "chevron-left" : "chevron-right"} 
+              <RTLMaterialIcon name="chevron-right" 
                 size={28} 
                 color={COLORS.info} 
               />

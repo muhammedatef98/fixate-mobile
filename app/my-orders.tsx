@@ -17,6 +17,7 @@ import { useApp } from '../contexts/AppContext';
 import { useOrders } from '../contexts/OrdersContext';
 import { useAuth } from '../contexts/AuthContext';
 import type { Order } from '../services/orderService';
+import { RTLMaterialIcon } from '../components/RTLIcon';
 
 const ORDER_STATUS_CONFIG = {
   pending: {
@@ -230,9 +231,8 @@ export default function MyOrdersScreen() {
     <SafeAreaView style={[styles.container, { backgroundColor: COLORS.background }]}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <MaterialIcons 
-            name={isRTL ? 'arrow-forward' : 'arrow-back'} 
+        <TouchableOpacity accessibilityRole="button" accessibilityLabel={isRTL ? 'رجوع' : 'Back'} onPress={() => router.back()} style={styles.backButton}>
+          <RTLMaterialIcon name="arrow-back" 
             size={24} 
             color={COLORS.text} 
           />

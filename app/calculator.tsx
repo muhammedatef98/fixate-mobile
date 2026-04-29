@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { getColors, getShadows, SPACING } from '../constants/theme';
 import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useApp } from '../contexts/AppContext';
+import { RTLMaterialIcon } from '../components/RTLIcon';
 
 const { width } = Dimensions.get('window');
 
@@ -72,8 +73,8 @@ export default function PriceCalculatorScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <MaterialIcons name={isRTL ? "arrow-forward" : "arrow-back"} size={24} color={COLORS.text} />
+        <TouchableOpacity accessibilityRole="button" accessibilityLabel={isRTL ? 'رجوع' : 'Back'} onPress={() => router.back()} style={styles.backBtn}>
+          <RTLMaterialIcon name="arrow-back" size={24} color={COLORS.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>
           {isRTL ? 'حاسبة الأسعار التقديرية' : 'Price Calculator'}
@@ -194,7 +195,7 @@ export default function PriceCalculatorScreen() {
           <Text style={styles.bookBtnText}>
             {isRTL ? 'احجز موعد صيانة الآن' : 'Book Service Now'}
           </Text>
-          <MaterialIcons name={isRTL ? "arrow-back" : "arrow-forward"} size={20} color="#FFF" />
+          <RTLMaterialIcon name="arrow-forward" size={20} color="#FFF" />
         </TouchableOpacity>
       </View>
     </SafeAreaView>

@@ -6,6 +6,7 @@ import { COLORS, SPACING, BORDER_RADIUS, SHADOWS } from '../constants/theme';
 import { useApp } from '../contexts/AppContext';
 import { requests } from '../lib/supabase-api';
 import { logger } from '../utils/logger';
+import { RTLMaterialIcon } from './RTLIcon';
 
 export default function FloatingOrderStatus() {
   const router = useRouter();
@@ -135,8 +136,7 @@ export default function FloatingOrderStatus() {
           </Text>
         </View>
 
-        <MaterialIcons 
-          name={isRTL ? "chevron-left" : "chevron-right"} 
+        <RTLMaterialIcon name="chevron-right" 
           size={24} 
           color={COLORS.textSecondary} 
         />

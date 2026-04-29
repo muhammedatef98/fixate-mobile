@@ -1,8 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, Dimensions, TouchableOpacity, SafeAreaView, Animated, I18nManager } from 'react-native';
+import { View, Text, StyleSheet, FlatList, Dimensions, TouchableOpacity, SafeAreaView, Animated } from 'react-native';
 import { useRouter } from 'expo-router';
 import { COLORS, SPACING } from '../constants/theme';
 import { MaterialIcons } from '@expo/vector-icons';
+import { RTLMaterialIcon } from '../components/RTLIcon';
 
 const { width, height } = Dimensions.get('window');
 
@@ -132,12 +133,11 @@ export default function OnboardingScreen() {
           <Text style={styles.buttonText}>
             {currentIndex === SLIDES.length - 1 ? 'ابدأ الآن' : 'التالي'}
           </Text>
-          <MaterialIcons 
-            name={currentIndex === SLIDES.length - 1 ? "check" : "arrow-back"} 
-            size={24} 
-            color="#FFF" 
-            style={{ transform: [{ scaleX: I18nManager.isRTL ? 1 : -1 }] }}
-          />
+          {currentIndex === SLIDES.length - 1 ? (
+            <MaterialIcons name="check" size={24} color="#FFF" />
+          ) : (
+            <RTLMaterialIcon name="arrow-forward" size={24} color="#FFF" />
+          )}
         </TouchableOpacity>
       </View>
     </SafeAreaView>

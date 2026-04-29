@@ -5,6 +5,7 @@ import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useApp } from '../contexts/AppContext';
 import { auth } from '../lib/supabase-api';
 import { logger } from '../utils/logger';
+import { RTLIonicon } from '../components/RTLIcon';
 
 export default function EditProfileScreen() {
   const router = useRouter();
@@ -78,8 +79,8 @@ export default function EditProfileScreen() {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.white} />
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name={isRTL ? "chevron-forward" : "chevron-back"} size={24} color={COLORS.text} />
+        <TouchableOpacity accessibilityRole="button" accessibilityLabel={isRTL ? 'رجوع' : 'Back'} onPress={() => router.back()} style={styles.backButton}>
+          <RTLIonicon name="chevron-back" size={24} color={COLORS.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{isRTL ? 'تعديل الملف الشخصي' : 'Edit Profile'}</Text>
         <View style={{ width: 40 }} />

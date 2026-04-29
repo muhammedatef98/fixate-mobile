@@ -5,6 +5,7 @@ import { useRouter } from 'expo-router';
 import { MaterialIcons, MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import { useApp } from '../../contexts/AppContext';
 import BottomNav from '../../components/BottomNav';
+import { RTLIonicon } from '../../components/RTLIcon';
 
 const { width } = Dimensions.get('window');
 
@@ -97,8 +98,8 @@ export default function ServicesScreen() {
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.white} />
       
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name={isRTL ? "chevron-forward" : "chevron-back"} size={24} color={COLORS.text} />
+        <TouchableOpacity accessibilityRole="button" accessibilityLabel={isRTL ? 'رجوع' : 'Back'} onPress={() => router.back()} style={styles.backButton}>
+          <RTLIonicon name="chevron-back" size={24} color={COLORS.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{isRTL ? 'خدماتنا' : 'Our Services'}</Text>
         <View style={{ width: 40 }} />
@@ -129,7 +130,7 @@ export default function ServicesScreen() {
                     {isRTL ? service.descriptionAr : service.descriptionEn}
                   </Text>
                 </View>
-                <Ionicons name={isRTL ? "chevron-back" : "chevron-forward"} size={20} color={COLORS.border} />
+                <RTLIonicon name="chevron-forward" size={20} color={COLORS.border} />
               </TouchableOpacity>
             ))}
           </View>

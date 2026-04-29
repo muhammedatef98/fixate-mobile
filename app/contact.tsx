@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { getColors, getShadows, SPACING, BORDER_RADIUS } from '../constants/theme';
 import { useApp } from '../contexts/AppContext';
 import { translations } from '../constants/translations';
+import { RTLIonicon } from '../components/RTLIcon';
 
 const CONTACT_INFO = {
   phone: '0548940042',
@@ -49,8 +50,8 @@ export default function ContactScreen() {
     <SafeAreaView style={[styles.container, { backgroundColor: COLORS.background }]}>
       {/* Header */}
       <View style={[styles.header, { backgroundColor: COLORS.primary }]}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name={isRTL ? "arrow-forward" : "arrow-back"} size={24} color="#fff" />
+        <TouchableOpacity accessibilityRole="button" accessibilityLabel={isRTL ? 'رجوع' : 'Back'} onPress={() => router.back()} style={styles.backButton}>
+          <RTLIonicon name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{t.contact.title}</Text>
         <View style={{ width: 40 }} />
@@ -74,7 +75,7 @@ export default function ContactScreen() {
                 {CONTACT_INFO.phone}
               </Text>
             </View>
-            <Ionicons name={isRTL ? "chevron-back" : "chevron-forward"} size={20} color={COLORS.textSecondary} />
+            <RTLIonicon name="chevron-forward" size={20} color={COLORS.textSecondary} />
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -92,7 +93,7 @@ export default function ContactScreen() {
                 {CONTACT_INFO.email}
               </Text>
             </View>
-            <Ionicons name={isRTL ? "chevron-back" : "chevron-forward"} size={20} color={COLORS.textSecondary} />
+            <RTLIonicon name="chevron-forward" size={20} color={COLORS.textSecondary} />
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -110,7 +111,7 @@ export default function ContactScreen() {
                 {CONTACT_INFO.phone}
               </Text>
             </View>
-            <Ionicons name={isRTL ? "chevron-back" : "chevron-forward"} size={20} color={COLORS.textSecondary} />
+            <RTLIonicon name="chevron-forward" size={20} color={COLORS.textSecondary} />
           </TouchableOpacity>
         </View>
 
@@ -185,7 +186,7 @@ export default function ContactScreen() {
                 {t.contact.workingHoursValue}
               </Text>
             </View>
-            <Ionicons name={isRTL ? "chevron-back" : "chevron-forward"} size={24} color="#fff" />
+            <RTLIonicon name="chevron-forward" size={24} color="#fff" />
           </TouchableOpacity>
         </View>
 

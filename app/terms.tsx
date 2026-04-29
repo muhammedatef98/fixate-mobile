@@ -11,6 +11,7 @@ import { useRouter } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
 import { getColors, SPACING, BORDER_RADIUS } from '../constants/theme';
 import { useApp } from '../contexts/AppContext';
+import { RTLMaterialIcon } from '../components/RTLIcon';
 
 export default function TermsScreen() {
   const router = useRouter();
@@ -256,9 +257,8 @@ If you have any questions about these terms, please contact us:
     <SafeAreaView style={[styles.container, { backgroundColor: COLORS.background }]}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <MaterialIcons 
-            name={isRTL ? 'arrow-forward' : 'arrow-back'} 
+        <TouchableOpacity accessibilityRole="button" accessibilityLabel={isRTL ? 'رجوع' : 'Back'} onPress={() => router.back()} style={styles.backButton}>
+          <RTLMaterialIcon name="arrow-back" 
             size={24} 
             color={COLORS.text} 
           />

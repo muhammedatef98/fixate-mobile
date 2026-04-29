@@ -20,6 +20,7 @@ import { getColors, getShadows, SPACING, BORDER_RADIUS } from '../constants/them
 import { useApp } from '../contexts/AppContext';
 import { translations } from '../constants/translations';
 import { auth } from '../lib/supabase';
+import { RTLMaterialIcon } from '../components/RTLIcon';
 
 export default function AuthScreen() {
   const router = useRouter();
@@ -278,11 +279,11 @@ export default function AuthScreen() {
             </TouchableOpacity>
 
             {/* Back Button */}
-            <TouchableOpacity
+            <TouchableOpacity accessibilityRole="button" accessibilityLabel={isRTL ? 'رجوع' : 'Back'}
               style={styles.backButton}
               onPress={() => router.back()}
             >
-              <MaterialIcons name={isRTL ? "arrow-forward" : "arrow-back"} size={24} color={COLORS.textSecondary} />
+              <RTLMaterialIcon name="arrow-back" size={24} color={COLORS.textSecondary} />
             </TouchableOpacity>
           </View>
 
