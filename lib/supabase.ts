@@ -41,23 +41,8 @@ export interface Service {
   created_at: string;
 }
 
-export interface Order {
-  id: string;
-  user_id: string;
-  service_id: string;
-  technician_id?: string;
-  device_brand: string;
-  device_model: string;
-  issue_description: string;
-  estimated_price: number;
-  status: 'pending' | 'confirmed' | 'in_progress' | 'completed' | 'cancelled';
-  scheduled_date?: string;
-  address?: string;
-  notes?: string;
-  media_urls?: string[];
-  created_at: string;
-  updated_at: string;
-}
+import type { Order, OrderStatus, ServiceType, CreateOrderData } from '../types/order';
+export type { Order, OrderStatus, ServiceType, CreateOrderData };
 
 export interface Technician {
   id: string;
@@ -267,10 +252,10 @@ export const orders = {
   assignToTechnician: async (orderId: string, technicianId: string) => {
     const { data, error } = await supabase
       .from('orders')
-      .update({ 
-        technician_id: technicianId, 
-        status: 'confirmed',
-        updated_at: new Date().toISOString() 
+      .update({
+        technician_id: technicianId,
+        status: 'accepted' as OrderStatus,
+        updated_at: new Date().toISOString()
       })
       .eq('id', orderId)
       .is('technician_id', null) // Only if not already assigned

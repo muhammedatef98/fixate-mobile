@@ -38,10 +38,9 @@ export default function ActiveJobScreen() {
     try {
       const data = await requests.getById(id as string);
       setOrder(data);
-      if (data.status) {
-        // Map backend status to local status
-        if (data.status === 'accepted') setStatus('en_route');
-        else if (data.status === 'in_progress') setStatus('working');
+      if (data?.status) {
+        if (data.status === 'accepted' || data.status === 'picking_up') setStatus('en_route');
+        else if (data.status === 'diagnosing' || data.status === 'repairing' || data.status === 'delivering') setStatus('working');
         else if (data.status === 'completed') setStatus('completed');
       }
     } catch (error) {
@@ -51,7 +50,7 @@ export default function ActiveJobScreen() {
 
   const updateOrderStatus = async (newStatus: string) => {
     try {
-      await requests.updateStatus(id as string, newStatus);
+      await requests.updateStatus(id as string, newStatus as any);
       // Local state update is handled by the logic below
     } catch (error) {
       logger.error('Error updating status:', error);
