@@ -10,6 +10,7 @@ import { OrdersProvider } from '../contexts/OrdersContext';
 import { useRouter, useSegments } from 'expo-router';
 import { supabase } from '../lib/supabase';
 import ErrorBoundary from '../components/ErrorBoundary';
+import OfflineBanner from '../components/OfflineBanner';
 import {
   useFonts,
   Cairo_400Regular,
@@ -57,6 +58,7 @@ function RootLayoutContent() {
   return (
     <>
       <StatusBar hidden={true} />
+      <OfflineBanner />
       <Stack
         screenOptions={{
           headerStyle: {
@@ -180,6 +182,8 @@ function RootLayoutContent() {
         <Stack.Screen name="notifications-settings" options={{ headerShown: false }} />
         <Stack.Screen name="settings" options={{ headerShown: false }} />
         <Stack.Screen name="technician-onboarding" options={{ headerShown: false }} />
+        <Stack.Screen name="login-otp" options={{ headerShown: false }} />
+        <Stack.Screen name="admin-verifications" options={{ headerShown: false }} />
       </Stack>
     </>
   );

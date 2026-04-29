@@ -8,6 +8,8 @@ import { useRequests } from '../../contexts/RequestContext';
 import { useApp } from '../../contexts/AppContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { assignOrderToTechnician } from '../../services/orderService';
+import { startBroadcastingLocation } from '../../services/locationTrackingService';
+import { tapMedium, success } from '../../utils/haptics';
 import { registerForPushNotifications, subscribeToNewRequests, unsubscribeFromNewRequests, addNotificationResponseListener } from '../../services/localNotificationService';
 import { logger } from '../../utils/logger';
 
@@ -103,7 +105,11 @@ export default function TechnicianDashboard() {
       return;
     }
     try {
+      tapMedium();
       await assignOrderToTechnician(requestId, user.id);
+      // Start broadcasting location so customer can track us
+      startBroadcastingLocation(user.id, requestId).catch(() => undefined);
+      success();
       router.push({
         pathname: '/(technician)/manage-order',
         params: { id: requestId }

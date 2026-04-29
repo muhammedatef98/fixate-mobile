@@ -11,6 +11,10 @@ import { logger } from '../../utils/logger';
 import { getColors } from '../../constants/theme';
 import { getFriendlyError } from '../../utils/errorMessages';
 import { RTLIonicon } from '../../components/RTLIcon';
+import RatingModal from '../../components/RatingModal';
+import { getReviewByOrder } from '../../services/reviewService';
+import { useAuth } from '../../contexts/AuthContext';
+import { supabase } from '../../services/supabaseClient';
 
 export default function OrdersScreen() {
   const router = useRouter();
@@ -32,11 +36,13 @@ export default function OrdersScreen() {
     error: themeColors.error,
   };
 
+  const { user } = useAuth();
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [filter, setFilter] = useState<'all' | 'active' | 'completed'>('all');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [ratingOrder, setRatingOrder] = useState<{ id: string; technician_id: string | null } | null>(null);
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(20)).current;
@@ -49,11 +55,34 @@ export default function OrdersScreen() {
     ]).start();
   }, [filter]);
 
-  // Refresh when screen comes into focus
+  // Realtime subscription replaces 5s polling
   useEffect(() => {
-    const interval = setInterval(loadOrders, 5000); // Poll every 5 seconds for real-time feel
-    return () => clearInterval(interval);
-  }, []);
+    if (!user?.id) return;
+    const channel = supabase
+      .channel(`orders-user-${user.id}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'orders', filter: `user_id=eq.${user.id}` },
+        () => loadOrders()
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id]);
+
+  // After loading, prompt for rating on the first completed un-reviewed order
+  useEffect(() => {
+    if (!user?.id || orders.length === 0) return;
+    const candidate = orders.find((o) => o.status === 'completed' && o.technician_id);
+    if (!candidate) return;
+    (async () => {
+      const existing = await getReviewByOrder(candidate.id, user.id);
+      if (!existing) {
+        setRatingOrder({ id: candidate.id, technician_id: candidate.technician_id });
+      }
+    })();
+  }, [orders, user?.id]);
 
   const loadOrders = async () => {
     try {
@@ -137,13 +166,22 @@ export default function OrdersScreen() {
           <ErrorState message={errorMessage} onRetry={loadOrders} />
         ) : orders.length === 0 ? (
           <View style={styles.emptyState}>
-            <Ionicons name="receipt-outline" size={80} color={COLORS.border} />
-            <Text style={styles.emptyText}>{isRTL ? 'لا توجد طلبات حالياً' : 'No orders found'}</Text>
-            <TouchableOpacity 
-              style={styles.loginPromptBtn} 
-              onPress={() => router.push('/login')}
+            <Ionicons name="construct-outline" size={80} color={COLORS.primary} />
+            <Text style={styles.emptyText}>
+              {isRTL ? 'لا توجد طلبات بعد' : 'No orders yet'}
+            </Text>
+            <Text style={[styles.emptyText, { fontSize: 13, color: COLORS.textSecondary, marginTop: 4 }]}>
+              {isRTL ? 'اطلب فني الآن — يصلك خلال 30 دقيقة' : 'Request a technician — arrives within 30 minutes'}
+            </Text>
+            <TouchableOpacity
+              style={styles.loginPromptBtn}
+              onPress={() => router.push(user ? '/request' : '/login')}
+              accessibilityRole="button"
+              accessibilityLabel={isRTL ? 'اطلب صيانة الآن' : 'Request repair now'}
             >
-              <Text style={styles.loginPromptText}>{isRTL ? 'سجل الدخول لمتابعة طلباتك' : 'Login to track your orders'}</Text>
+              <Text style={styles.loginPromptText}>
+                {user ? (isRTL ? 'اطلب صيانة الآن' : 'Request repair now') : (isRTL ? 'سجل الدخول' : 'Login')}
+              </Text>
             </TouchableOpacity>
           </View>
         ) : (
@@ -191,6 +229,13 @@ export default function OrdersScreen() {
       </ScrollView>
 
       <BottomNav />
+      <RatingModal
+        visible={!!ratingOrder}
+        orderId={ratingOrder?.id ?? ''}
+        technicianId={ratingOrder?.technician_id ?? null}
+        onClose={() => setRatingOrder(null)}
+        onSubmitted={() => setRatingOrder(null)}
+      />
     </SafeAreaView>
   );
 }

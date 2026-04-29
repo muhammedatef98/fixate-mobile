@@ -175,9 +175,14 @@ export default function LoginScreen() {
               <MaterialCommunityIcons name="lock-outline" size={20} color={COLORS.gray} />
             </View>
 
-            <TouchableOpacity style={styles.forgotPassword}>
-              <Text style={styles.forgotPasswordText}>{isRTL ? 'نسيت كلمة المرور؟' : 'Forgot Password?'}</Text>
-            </TouchableOpacity>
+            <View style={styles.altActions}>
+              <TouchableOpacity onPress={() => router.push('/login-otp')} accessibilityRole="button">
+                <Text style={styles.altActionLink}>{isRTL ? 'الدخول بالجوال' : 'Login by phone'}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.forgotPassword}>
+                <Text style={styles.forgotPasswordText}>{isRTL ? 'نسيت كلمة المرور؟' : 'Forgot Password?'}</Text>
+              </TouchableOpacity>
+            </View>
 
             <TouchableOpacity
               style={[styles.mainButton, (!isFormValid || loading) && styles.mainButtonDisabled]}
@@ -222,8 +227,10 @@ const createStyles = (COLORS: any, isRTL: boolean) => StyleSheet.create({
   form: { gap: 16 },
   inputContainer: { flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 12, paddingHorizontal: 16, height: 56, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2, borderWidth: 1, borderColor: '#f3f4f6' },
   input: { flex: 1, fontSize: 16, color: '#1f2937', marginHorizontal: 12 },
-  forgotPassword: { alignSelf: isRTL ? 'flex-start' : 'flex-end' },
+  forgotPassword: {},
   forgotPasswordText: { color: COLORS.primary, fontSize: 14, fontWeight: '600' },
+  altActions: { flexDirection: isRTL ? 'row-reverse' : 'row', justifyContent: 'space-between', alignItems: 'center' },
+  altActionLink: { color: COLORS.primary, fontSize: 14, fontWeight: '600' },
   mainButton: { backgroundColor: COLORS.primary, height: 56, borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginTop: 8, shadowColor: COLORS.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 4 },
   mainButtonDisabled: { opacity: 0.5, shadowOpacity: 0 },
   mainButtonText: { color: '#fff', fontSize: 18, fontWeight: 'bold' },

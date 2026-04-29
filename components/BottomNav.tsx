@@ -3,6 +3,7 @@ import { View, TouchableOpacity, Text, StyleSheet, Animated, Dimensions, Platfor
 import { useRouter, usePathname } from 'expo-router';
 import { MaterialIcons, MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import { useApp } from '../contexts/AppContext';
+import { selection } from '../utils/haptics';
 
 const { width } = Dimensions.get('window');
 
@@ -39,7 +40,7 @@ export default function BottomNav() {
             <TouchableOpacity
               key={item.path}
               style={styles.navItem}
-              onPress={() => router.push(item.path as any)}
+              onPress={() => { selection(); router.push(item.path as any); }}
               activeOpacity={0.7}
               accessibilityRole="tab"
               accessibilityLabel={isRTL ? item.labelAr : item.labelEn}
