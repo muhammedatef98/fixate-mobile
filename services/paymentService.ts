@@ -1,76 +1,92 @@
+import { supabase } from './supabaseClient';
 import { logger } from '../utils/logger';
+import { validatePrice } from '../utils/validation';
 
-export interface PaymentIntent {
+export interface Payment {
   id: string;
+  order_id: string;
+  user_id: string;
+  provider: string;
+  provider_payment_id?: string;
   amount: number;
   currency: string;
-  status: 'pending' | 'succeeded' | 'failed';
-  orderId: string;
+  status: 'pending' | 'processing' | 'succeeded' | 'failed' | 'refunded' | 'cancelled';
+  metadata?: Record<string, any>;
+  failure_reason?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface CreatePaymentResponse {
+  payment: Payment;
+  clientSecret?: string;
+  publishableKey?: string;
 }
 
 /**
- * Create a mock payment intent
- * TODO: Replace with actual Stripe integration
+ * Create a payment intent via the create-payment Edge Function.
+ * The Edge Function (server-side) talks to Stripe with the secret key
+ * and inserts a row in public.payments. The mobile app never sees the Stripe secret.
  */
-export const createPaymentIntentMock = async (
+export const createPayment = async (
   orderId: string,
-  amount: number
-): Promise<PaymentIntent> => {
-  try {
-    // Simulate API call delay
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+  amount: number,
+  currency: string = 'SAR'
+): Promise<CreatePaymentResponse> => {
+  const priceCheck = validatePrice(amount);
+  if (!priceCheck.valid) {
+    throw new Error(priceCheck.message);
+  }
+  if (!orderId) {
+    throw new Error('Order ID is required');
+  }
 
-    // Return mock payment intent
-    return {
-      id: `pi_mock_${Date.now()}`,
-      amount,
-      currency: 'SAR',
-      status: 'pending',
-      orderId,
-    };
-  } catch (error) {
-    logger.error('Create payment intent error', error);
+  try {
+    const { data, error } = await supabase.functions.invoke<CreatePaymentResponse>(
+      'create-payment',
+      {
+        body: { orderId, amount, currency },
+      }
+    );
+    if (error) throw error;
+    if (!data) throw new Error('Empty response from payment service');
+    return data;
+  } catch (error: any) {
+    logger.error('Create payment error', error);
     throw error;
   }
 };
 
-/**
- * Confirm payment (mock)
- * TODO: Replace with actual Stripe payment confirmation
- */
-export const confirmPaymentMock = async (
-  paymentIntentId: string
-): Promise<PaymentIntent> => {
+export const getPaymentByOrderId = async (orderId: string): Promise<Payment | null> => {
   try {
-    // Simulate API call delay
-    await new Promise((resolve) => setTimeout(resolve, 1500));
+    const { data, error } = await supabase
+      .from('payments')
+      .select('*')
+      .eq('order_id', orderId)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
 
-    // Return successful payment
-    return {
-      id: paymentIntentId,
-      amount: 0,
-      currency: 'SAR',
-      status: 'succeeded',
-      orderId: '',
-    };
-  } catch (error) {
-    logger.error('Confirm payment error', error);
-    throw error;
+    if (error) throw error;
+    return data;
+  } catch (error: any) {
+    logger.error('Get payment error', error);
+    return null;
   }
 };
 
-/**
- * Get payment status (mock)
- */
-export const getPaymentStatus = async (
-  paymentIntentId: string
-): Promise<'pending' | 'succeeded' | 'failed'> => {
+export const getMyPayments = async (userId: string): Promise<Payment[]> => {
   try {
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 500));
-    return 'succeeded';
-  } catch (error) {
-    logger.error('Get payment status error', error);
-    return 'failed';
+    const { data, error } = await supabase
+      .from('payments')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    return data || [];
+  } catch (error: any) {
+    logger.error('Get my payments error', error);
+    return [];
   }
 };

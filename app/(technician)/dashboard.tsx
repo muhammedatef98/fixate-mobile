@@ -7,6 +7,7 @@ import { MaterialIcons, Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import { useRequests } from '../../contexts/RequestContext';
 import { useApp } from '../../contexts/AppContext';
 import { useAuth } from '../../contexts/AuthContext';
+import { assignOrderToTechnician } from '../../services/orderService';
 import { registerForPushNotifications, subscribeToNewRequests, unsubscribeFromNewRequests, addNotificationResponseListener } from '../../services/localNotificationService';
 import { logger } from '../../utils/logger';
 
@@ -18,7 +19,7 @@ const STATS = [
 
 export default function TechnicianDashboard() {
   const router = useRouter();
-  const { requests, updateRequestStatus } = useRequests();
+  const { requests: pendingOrders, updateRequestStatus } = useRequests();
   const [technicianName, setTechnicianName] = useState('فني');
   const { language } = useApp();
   const { user, userProfile } = useAuth();
@@ -29,7 +30,7 @@ export default function TechnicianDashboard() {
   const [rejectedRequestIds, setRejectedRequestIds] = useState<string[]>([]);
 
   // Filter requests: only pending and not rejected locally
-  const pendingRequests = requests.filter(req => 
+  const pendingRequests = pendingOrders.filter(req =>
     req.status === 'pending' && !rejectedRequestIds.includes(req.id)
   );
 
@@ -97,15 +98,21 @@ export default function TechnicianDashboard() {
   };
 
   const handleAccept = async (requestId: string) => {
+    if (!user?.id) {
+      Alert.alert(isRTL ? 'خطأ' : 'Error', isRTL ? 'يرجى تسجيل الدخول' : 'Please sign in');
+      return;
+    }
     try {
-      await requests.acceptOrder(requestId);
-      // Navigate to manage order screen
+      await assignOrderToTechnician(requestId, user.id);
       router.push({
         pathname: '/(technician)/manage-order',
         params: { id: requestId }
       });
     } catch (error) {
-      Alert.alert(isRTL ? 'خطأ' : 'Error', isRTL ? 'فشل قبول الطلب. ربما قبله فني آخر.' : 'Failed to accept request. Another technician might have taken it.');
+      Alert.alert(
+        isRTL ? 'خطأ' : 'Error',
+        isRTL ? 'فشل قبول الطلب. ربما قبله فني آخر.' : 'Failed to accept request. Another technician might have taken it.'
+      );
     }
   };
 

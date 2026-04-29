@@ -8,7 +8,7 @@ import {
   Alert,
   RefreshControl,
 } from 'react-native';
-import { requests, auth } from '../lib/supabase-api';
+import { requests as requestsApi, auth } from '../lib/supabase-api';
 import { router } from 'expo-router';
 import { logger } from '../utils/logger';
 
@@ -47,8 +47,8 @@ export default function AvailableRequestsScreen() {
 
   const fetchAvailableRequests = async () => {
     try {
-      const data = await requests.getAvailableOrders();
-      setRequests(data || []);
+      const data = await requestsApi.getAvailableOrders();
+      setRequests((data || []) as any);
     } catch (error) {
       logger.error('Error fetching requests:', error);
       Alert.alert('خطأ', 'فشل في تحميل الطلبات');
@@ -66,7 +66,7 @@ export default function AvailableRequestsScreen() {
         return;
       }
 
-      await requests.acceptOrder(parseInt(requestId));
+      await requestsApi.acceptOrder(requestId);
 
       Alert.alert('نجح!', 'تم قبول الطلب بنجاح');
       fetchAvailableRequests();

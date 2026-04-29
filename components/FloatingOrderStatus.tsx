@@ -4,7 +4,6 @@ import { useRouter, usePathname } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
 import { COLORS, SPACING, BORDER_RADIUS, SHADOWS } from '../constants/theme';
 import { useApp } from '../contexts/AppContext';
-import { useRequests } from '../contexts/RequestContext';
 import { requests } from '../lib/supabase-api';
 import { logger } from '../utils/logger';
 
@@ -44,9 +43,8 @@ export default function FloatingOrderStatus() {
   const checkActiveOrder = async () => {
     try {
       const allRequests = await requests.getAll();
-      // Find the most recent active order (pending, accepted, in_progress)
-      const active = allRequests.find(r => 
-        ['pending', 'accepted', 'in_progress'].includes(r.status)
+      const active = allRequests.find(r =>
+        ['pending', 'accepted', 'picking_up', 'diagnosing', 'repairing', 'delivering'].includes(r.status)
       );
       
       if (active) {
@@ -87,8 +85,11 @@ export default function FloatingOrderStatus() {
   const getStatusText = (status: string) => {
     switch (status) {
       case 'pending': return isRTL ? 'جاري البحث عن فني...' : 'Finding technician...';
-      case 'accepted': return isRTL ? 'الفني في الطريق إليك' : 'Technician is on the way';
-      case 'in_progress': return isRTL ? 'جاري العمل على جهازك' : 'Repair in progress';
+      case 'accepted': return isRTL ? 'تم القبول' : 'Accepted';
+      case 'picking_up': return isRTL ? 'الفني في الطريق إليك' : 'Technician is on the way';
+      case 'diagnosing': return isRTL ? 'جاري فحص الجهاز' : 'Diagnosing';
+      case 'repairing': return isRTL ? 'جاري الإصلاح' : 'Repair in progress';
+      case 'delivering': return isRTL ? 'جاري التسليم' : 'Delivering';
       default: return isRTL ? 'طلب نشط' : 'Active Order';
     }
   };
@@ -96,8 +97,11 @@ export default function FloatingOrderStatus() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'pending': return COLORS.warning;
-      case 'accepted': return COLORS.primary;
-      case 'in_progress': return COLORS.info;
+      case 'accepted':
+      case 'picking_up': return COLORS.primary;
+      case 'diagnosing':
+      case 'repairing':
+      case 'delivering': return COLORS.info;
       default: return COLORS.textSecondary;
     }
   };
