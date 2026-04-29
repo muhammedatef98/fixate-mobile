@@ -179,7 +179,11 @@ export default function LoginScreen() {
               <TouchableOpacity onPress={() => router.push('/login-otp')} accessibilityRole="button">
                 <Text style={styles.altActionLink}>{isRTL ? 'الدخول بالجوال' : 'Login by phone'}</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.forgotPassword}>
+              <TouchableOpacity
+                style={styles.forgotPassword}
+                onPress={() => router.push('/forgot-password')}
+                accessibilityRole="button"
+              >
                 <Text style={styles.forgotPasswordText}>{isRTL ? 'نسيت كلمة المرور؟' : 'Forgot Password?'}</Text>
               </TouchableOpacity>
             </View>

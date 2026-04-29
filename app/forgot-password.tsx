@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -12,36 +12,36 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../contexts/AppContext';
 import { getColors, SPACING, BORDER_RADIUS } from '../constants/theme';
 import { RTLIonicon } from '../components/RTLIcon';
 import { supabase } from '../services/supabaseClient';
-import { normalizeSaudiPhone, validatePhone, validateEmail } from '../utils/validation';
+import { validateEmail, validatePassword } from '../utils/validation';
 import { getFriendlyError } from '../utils/errorMessages';
 import { tapMedium, success } from '../utils/haptics';
 
-type Method = 'email' | 'phone';
+type Step = 'email' | 'otp' | 'newPassword';
 
-export default function LoginOtpScreen() {
+export default function ForgotPasswordScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ method?: Method }>();
   const { language, isDark } = useApp();
   const COLORS = getColors(isDark);
   const isRTL = language === 'ar';
 
-  const [method, setMethod] = useState<Method>((params.method as Method) === 'phone' ? 'phone' : 'email');
-  const [identifier, setIdentifier] = useState('');
+  const [step, setStep] = useState<Step>('email');
+  const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
-  const [step, setStep] = useState<'identifier' | 'otp'>('identifier');
+  const [newPassword, setNewPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [resendIn, setResendIn] = useState(0);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => () => { if (intervalRef.current) clearInterval(intervalRef.current); }, []);
 
-  const startResendTimer = () => {
+  const startTimer = () => {
     setResendIn(60);
     if (intervalRef.current) clearInterval(intervalRef.current);
     intervalRef.current = setInterval(() => {
@@ -55,35 +55,23 @@ export default function LoginOtpScreen() {
     }, 1000);
   };
 
-  const isIdentifierValid =
-    method === 'email' ? validateEmail(identifier.trim()) : validatePhone(identifier);
-
   const sendCode = async () => {
-    if (!isIdentifierValid) {
-      Alert.alert(
-        isRTL ? 'خطأ' : 'Error',
-        method === 'email'
-          ? (isRTL ? 'البريد الإلكتروني غير صحيح' : 'Invalid email')
-          : (isRTL ? 'رقم الجوال غير صحيح' : 'Invalid phone number')
-      );
+    if (!validateEmail(email.trim())) {
+      Alert.alert(isRTL ? 'خطأ' : 'Error', isRTL ? 'البريد الإلكتروني غير صحيح' : 'Invalid email');
       return;
     }
     setLoading(true);
     try {
-      if (method === 'email') {
-        const { error } = await supabase.auth.signInWithOtp({
-          email: identifier.trim().toLowerCase(),
-          options: { shouldCreateUser: true },
-        });
-        if (error) throw error;
-      } else {
-        const normalized = normalizeSaudiPhone(identifier);
-        const { error } = await supabase.auth.signInWithOtp({ phone: normalized });
-        if (error) throw error;
-      }
+      // signInWithOtp also works for password reset: sends a 6-digit token to the email.
+      // After verifyOtp + an active session we can call updateUser({ password }).
+      const { error } = await supabase.auth.signInWithOtp({
+        email: email.trim().toLowerCase(),
+        options: { shouldCreateUser: false },
+      });
+      if (error) throw error;
       tapMedium();
       setStep('otp');
-      startResendTimer();
+      startTimer();
     } catch (e: any) {
       Alert.alert(isRTL ? 'خطأ' : 'Error', getFriendlyError(e, language));
     } finally {
@@ -91,28 +79,44 @@ export default function LoginOtpScreen() {
     }
   };
 
-  const verify = async () => {
+  const verifyCode = async () => {
     if (code.length !== 6) {
       Alert.alert(isRTL ? 'خطأ' : 'Error', isRTL ? 'الكود يجب أن يكون 6 أرقام' : 'Code must be 6 digits');
       return;
     }
     setLoading(true);
     try {
-      const { error } =
-        method === 'email'
-          ? await supabase.auth.verifyOtp({
-              email: identifier.trim().toLowerCase(),
-              token: code,
-              type: 'email',
-            })
-          : await supabase.auth.verifyOtp({
-              phone: normalizeSaudiPhone(identifier),
-              token: code,
-              type: 'sms',
-            });
+      const { error } = await supabase.auth.verifyOtp({
+        email: email.trim().toLowerCase(),
+        token: code,
+        type: 'email',
+      });
+      if (error) throw error;
+      tapMedium();
+      setStep('newPassword');
+    } catch (e: any) {
+      Alert.alert(isRTL ? 'خطأ' : 'Error', getFriendlyError(e, language));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const setPassword = async () => {
+    const check = validatePassword(newPassword);
+    if (!check.isValid) {
+      Alert.alert(isRTL ? 'خطأ' : 'Error', check.errors[0] || (isRTL ? 'كلمة المرور ضعيفة' : 'Weak password'));
+      return;
+    }
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
       if (error) throw error;
       success();
-      router.replace('/(customer)');
+      Alert.alert(
+        isRTL ? 'تم' : 'Done',
+        isRTL ? 'تم تحديث كلمة المرور. يمكنك الدخول الآن.' : 'Password updated. You can now log in.',
+        [{ text: 'OK', onPress: () => router.replace('/(customer)') }]
+      );
     } catch (e: any) {
       Alert.alert(isRTL ? 'خطأ' : 'Error', getFriendlyError(e, language));
     } finally {
@@ -121,71 +125,38 @@ export default function LoginOtpScreen() {
   };
 
   const styles = createStyles(COLORS, isRTL);
-  const sentTo = method === 'email' ? identifier.trim() : normalizeSaudiPhone(identifier);
 
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
       <View style={styles.header}>
         <TouchableOpacity
-          onPress={() => (step === 'otp' ? setStep('identifier') : router.back())}
+          onPress={() => (step === 'email' ? router.back() : setStep(step === 'newPassword' ? 'otp' : 'email'))}
           accessibilityRole="button"
           accessibilityLabel={isRTL ? 'رجوع' : 'Back'}
         >
           <RTLIonicon name="chevron-back" size={26} color={COLORS.text} />
         </TouchableOpacity>
-        <Text style={styles.title}>{isRTL ? 'دخول بكود' : 'Login with code'}</Text>
-        <View style={{ width: 26 }} />
+        <Text style={styles.title}>{isRTL ? 'استعادة كلمة المرور' : 'Reset password'}</Text>
+        <Text style={styles.stepBadge}>
+          {step === 'email' ? '1/3' : step === 'otp' ? '2/3' : '3/3'}
+        </Text>
       </View>
 
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <View style={styles.content}>
-          {step === 'identifier' ? (
+          {step === 'email' && (
             <>
-              <View style={styles.tabs}>
-                <TouchableOpacity
-                  onPress={() => { setMethod('email'); setIdentifier(''); }}
-                  style={[styles.tab, method === 'email' && styles.tabActive]}
-                  accessibilityRole="tab"
-                  accessibilityState={{ selected: method === 'email' }}
-                >
-                  <Ionicons name="mail-outline" size={18} color={method === 'email' ? '#fff' : COLORS.text} />
-                  <Text style={[styles.tabText, method === 'email' && { color: '#fff' }]}>
-                    {isRTL ? 'بريد إلكتروني' : 'Email'}
-                  </Text>
-                  <View style={styles.freeBadge}>
-                    <Text style={styles.freeBadgeText}>{isRTL ? 'مجاني' : 'FREE'}</Text>
-                  </View>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={() => { setMethod('phone'); setIdentifier(''); }}
-                  style={[styles.tab, method === 'phone' && styles.tabActive]}
-                  accessibilityRole="tab"
-                  accessibilityState={{ selected: method === 'phone' }}
-                >
-                  <Ionicons name="phone-portrait-outline" size={18} color={method === 'phone' ? '#fff' : COLORS.text} />
-                  <Text style={[styles.tabText, method === 'phone' && { color: '#fff' }]}>
-                    {isRTL ? 'جوال' : 'Phone'}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-
-              <Text style={styles.bigTitle}>
-                {method === 'email'
-                  ? (isRTL ? 'أدخل بريدك الإلكتروني' : 'Enter your email')
-                  : (isRTL ? 'أدخل رقم جوالك' : 'Enter your phone')}
-              </Text>
+              <Text style={styles.bigTitle}>{isRTL ? 'أدخل بريدك الإلكتروني' : 'Enter your email'}</Text>
               <Text style={styles.sub}>
-                {method === 'email'
-                  ? (isRTL ? 'سنرسل كود مكوّن من 6 أرقام إلى بريدك' : "We'll email you a 6-digit code")
-                  : (isRTL ? 'سنرسل كود التحقق برسالة نصية' : "We'll SMS you a verification code")}
+                {isRTL ? 'سنرسل كود مكوّن من 6 أرقام لإعادة تعيين كلمة المرور' : "We'll send a 6-digit code to reset your password"}
               </Text>
               <TextInput
-                value={identifier}
-                onChangeText={setIdentifier}
-                placeholder={method === 'email' ? 'name@example.com' : '05xxxxxxxx'}
+                value={email}
+                onChangeText={setEmail}
+                placeholder="name@example.com"
                 placeholderTextColor={COLORS.textSecondary}
-                keyboardType={method === 'email' ? 'email-address' : 'phone-pad'}
+                keyboardType="email-address"
                 autoCapitalize="none"
                 autoCorrect={false}
                 style={[styles.input, { color: COLORS.text, borderColor: COLORS.border }]}
@@ -194,23 +165,22 @@ export default function LoginOtpScreen() {
               />
               <TouchableOpacity
                 onPress={sendCode}
-                disabled={!isIdentifierValid || loading}
-                style={[styles.btn, { backgroundColor: COLORS.primary, opacity: !isIdentifierValid || loading ? 0.5 : 1 }]}
+                disabled={!validateEmail(email.trim()) || loading}
+                style={[styles.btn, { backgroundColor: COLORS.primary, opacity: !validateEmail(email.trim()) || loading ? 0.5 : 1 }]}
                 accessibilityRole="button"
                 accessibilityLabel={isRTL ? 'إرسال الكود' : 'Send code'}
-                accessibilityState={{ disabled: !isIdentifierValid || loading }}
               >
                 {loading ? <ActivityIndicator color="#fff" /> : (
                   <Text style={styles.btnText}>{isRTL ? 'إرسال الكود' : 'Send code'}</Text>
                 )}
               </TouchableOpacity>
             </>
-          ) : (
+          )}
+
+          {step === 'otp' && (
             <>
-              <Text style={styles.bigTitle}>{isRTL ? 'أدخل كود التحقّق' : 'Enter verification code'}</Text>
-              <Text style={styles.sub}>
-                {isRTL ? `أُرسل إلى ${sentTo}` : `Sent to ${sentTo}`}
-              </Text>
+              <Text style={styles.bigTitle}>{isRTL ? 'أدخل الكود' : 'Enter code'}</Text>
+              <Text style={styles.sub}>{isRTL ? `أُرسل إلى ${email}` : `Sent to ${email}`}</Text>
               <TextInput
                 value={code}
                 onChangeText={(v) => setCode(v.replace(/\D/g, '').slice(0, 6))}
@@ -223,17 +193,16 @@ export default function LoginOtpScreen() {
                 maxLength={6}
               />
               <TouchableOpacity
-                onPress={verify}
+                onPress={verifyCode}
                 disabled={code.length !== 6 || loading}
                 style={[styles.btn, { backgroundColor: COLORS.primary, opacity: code.length !== 6 || loading ? 0.5 : 1 }]}
                 accessibilityRole="button"
                 accessibilityLabel={isRTL ? 'تأكيد' : 'Verify'}
               >
                 {loading ? <ActivityIndicator color="#fff" /> : (
-                  <Text style={styles.btnText}>{isRTL ? 'تأكيد' : 'Verify'}</Text>
+                  <Text style={styles.btnText}>{isRTL ? 'تأكيد الكود' : 'Verify code'}</Text>
                 )}
               </TouchableOpacity>
-
               {resendIn > 0 ? (
                 <Text style={styles.resendDisabled}>
                   {isRTL ? `إعادة الإرسال خلال ${resendIn}ث` : `Resend in ${resendIn}s`}
@@ -243,6 +212,52 @@ export default function LoginOtpScreen() {
                   <Text style={styles.resend}>{isRTL ? 'إعادة إرسال الكود' : 'Resend code'}</Text>
                 </TouchableOpacity>
               )}
+            </>
+          )}
+
+          {step === 'newPassword' && (
+            <>
+              <Text style={styles.bigTitle}>{isRTL ? 'كلمة مرور جديدة' : 'New password'}</Text>
+              <Text style={styles.sub}>
+                {isRTL
+                  ? '8 أحرف، حرف كبير، صغير، رقم، ورمز خاص'
+                  : '8 chars with upper, lower, number, special'}
+              </Text>
+              <View style={styles.passwordRow}>
+                <TextInput
+                  value={newPassword}
+                  onChangeText={setNewPassword}
+                  placeholder={isRTL ? 'كلمة مرور جديدة' : 'New password'}
+                  placeholderTextColor={COLORS.textSecondary}
+                  secureTextEntry={!showPassword}
+                  style={[styles.input, { flex: 1, color: COLORS.text, borderColor: COLORS.border }]}
+                  textAlign={isRTL ? 'right' : 'left'}
+                  autoCapitalize="none"
+                  autoFocus
+                />
+                <TouchableOpacity
+                  onPress={() => setShowPassword((s) => !s)}
+                  accessibilityRole="button"
+                  accessibilityLabel={isRTL ? 'إظهار كلمة المرور' : 'Show password'}
+                >
+                  <Ionicons
+                    name={showPassword ? 'eye-off' : 'eye'}
+                    size={22}
+                    color={COLORS.textSecondary}
+                  />
+                </TouchableOpacity>
+              </View>
+              <TouchableOpacity
+                onPress={setPassword}
+                disabled={loading || !validatePassword(newPassword).isValid}
+                style={[styles.btn, { backgroundColor: COLORS.primary, opacity: loading || !validatePassword(newPassword).isValid ? 0.5 : 1 }]}
+                accessibilityRole="button"
+                accessibilityLabel={isRTL ? 'حفظ' : 'Save'}
+              >
+                {loading ? <ActivityIndicator color="#fff" /> : (
+                  <Text style={styles.btnText}>{isRTL ? 'حفظ كلمة المرور' : 'Save password'}</Text>
+                )}
+              </TouchableOpacity>
             </>
           )}
         </View>
@@ -261,16 +276,12 @@ const createStyles = (C: any, isRTL: boolean) =>
       padding: SPACING.lg,
     },
     title: { fontSize: 16, fontWeight: 'bold', color: C.text },
+    stepBadge: { color: C.primary, fontWeight: '700' },
     content: { flex: 1, padding: SPACING.lg, gap: SPACING.lg },
-    tabs: { flexDirection: 'row', backgroundColor: C.card, borderRadius: BORDER_RADIUS.md, padding: 4, marginBottom: 8 },
-    tab: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 12, borderRadius: BORDER_RADIUS.md - 2, minHeight: 44 },
-    tabActive: { backgroundColor: C.primary },
-    tabText: { color: C.text, fontWeight: '600', fontSize: 14 },
-    freeBadge: { backgroundColor: '#10B981', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, marginLeft: 4 },
-    freeBadgeText: { color: '#fff', fontSize: 10, fontWeight: '700' },
     bigTitle: { fontSize: 24, fontWeight: 'bold', color: C.text, textAlign: isRTL ? 'right' : 'left' },
     sub: { fontSize: 14, color: C.textSecondary, textAlign: isRTL ? 'right' : 'left' },
     input: { borderWidth: 1, borderRadius: BORDER_RADIUS.md, padding: 16, fontSize: 16 },
+    passwordRow: { flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 8 },
     otpInput: {
       borderWidth: 2,
       borderRadius: BORDER_RADIUS.md,
