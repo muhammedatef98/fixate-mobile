@@ -19,6 +19,7 @@ import { useApp } from '../contexts/AppContext';
 import { requests, auth } from '../lib/supabase-api';
 import type { Order } from '../lib/supabase-api';
 import { logger } from '../utils/logger';
+import LiveTrackingMap from '../components/LiveTrackingMap';
 
 const ORDER_TIMELINE = [
   { status: 'pending', arLabel: 'قيد الانتظار', enLabel: 'Pending', icon: 'clock-outline' },
@@ -146,6 +147,19 @@ export default function OrderDetailsScreen() {
             </Text>
           </View>
         </View>
+
+        {/* Live Tracking Map */}
+        {!isCancelled &&
+          order.technician_id &&
+          ['accepted', 'picking_up', 'diagnosing', 'repairing', 'delivering'].includes(order.status) && (
+            <View style={{ paddingHorizontal: SPACING.lg, marginBottom: SPACING.md }}>
+              <LiveTrackingMap
+                orderId={order.id as string}
+                customerLat={order.latitude as any}
+                customerLng={order.longitude as any}
+              />
+            </View>
+          )}
 
         {/* Timeline Progress */}
         {!isCancelled && (

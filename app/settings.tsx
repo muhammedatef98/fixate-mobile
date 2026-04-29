@@ -16,6 +16,7 @@ import Constants from 'expo-constants';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useApp } from '../contexts/AppContext';
 import { useAuth } from '../contexts/AuthContext';
+import { tapLight } from '../utils/haptics';
 import { getColors, SPACING, BORDER_RADIUS } from '../constants/theme';
 import { RTLIonicon } from '../components/RTLIcon';
 import { sendPasswordReset } from '../services/authService';
@@ -24,9 +25,10 @@ import { getFriendlyError } from '../utils/errorMessages';
 export default function SettingsScreen() {
   const router = useRouter();
   const { language, setLanguage, isDark, toggleTheme } = useApp();
-  const { user } = useAuth();
+  const { user, userProfile } = useAuth();
   const COLORS = getColors(isDark);
   const isRTL = language === 'ar';
+  const isAdmin = (userProfile as any)?.is_admin === true;
 
   const appVersion = Constants.expoConfig?.version ?? '1.0.0';
 
@@ -203,6 +205,23 @@ export default function SettingsScreen() {
           </View>
           <RTLIonicon name="chevron-forward" size={20} color={COLORS.textSecondary} />
         </TouchableOpacity>
+
+        {isAdmin && (
+          <>
+            <Text style={styles.section}>{isRTL ? 'الإدارة' : 'Admin'}</Text>
+            <TouchableOpacity
+              style={styles.row}
+              onPress={() => { tapLight(); router.push('/admin-verifications'); }}
+              accessibilityRole="button"
+            >
+              <View style={styles.rowLeft}>
+                <Ionicons name="shield-checkmark" size={22} color={COLORS.primary} />
+                <Text style={styles.rowText}>{isRTL ? 'مراجعة طلبات الفنيين' : 'Technician verifications'}</Text>
+              </View>
+              <RTLIonicon name="chevron-forward" size={20} color={COLORS.textSecondary} />
+            </TouchableOpacity>
+          </>
+        )}
 
         <View style={styles.versionRow}>
           <Text style={styles.versionText}>

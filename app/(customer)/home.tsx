@@ -22,16 +22,29 @@ const PROMOTIONS = [
     id: 1,
     title: 'خصم 25%',
     subtitle: 'على صيانة الشاشات الأصلية',
-    image: 'https://img.freepik.com/free-photo/technician-repairing-computer-computer-hardware-repairing-upgrade-technology_1150-8862.jpg',
-    color: '#10B981'
+    icon: 'cellphone-screenshot',
+    color: '#10B981',
+    bgFrom: '#10B981',
+    bgTo: '#059669',
   },
   {
     id: 2,
     title: 'فحص مجاني',
     subtitle: 'شامل لجميع أجهزة آبل',
-    image: 'https://images.unsplash.com/photo-1621768216002-5ac171876625?w=800&q=80',
-    color: '#3B82F6'
-  }
+    icon: 'apple',
+    color: '#3B82F6',
+    bgFrom: '#3B82F6',
+    bgTo: '#1D4ED8',
+  },
+  {
+    id: 3,
+    title: 'وصول خلال 30 دقيقة',
+    subtitle: 'فني محترف يصلك في موقعك',
+    icon: 'clock-fast',
+    color: '#F59E0B',
+    bgFrom: '#F59E0B',
+    bgTo: '#D97706',
+  },
 ];
 
 export default function CustomerHomeScreen() {
@@ -92,19 +105,27 @@ export default function CustomerHomeScreen() {
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.promoContainer}>
           {PROMOTIONS.map((promo) => (
             <TouchableOpacity key={promo.id} style={[styles.promoCard, SHADOWS.medium]}>
-              <Image source={{ uri: promo.image }} style={styles.promoImage} />
               <LinearGradient
-                colors={['transparent', 'rgba(0,0,0,0.8)']}
-                style={styles.promoOverlay}
-              >
+                colors={[promo.bgFrom, promo.bgTo]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={[StyleSheet.absoluteFillObject, { borderRadius: 16 }]}
+              />
+              <MaterialCommunityIcons
+                name={promo.icon as any}
+                size={120}
+                color="rgba(255,255,255,0.18)"
+                style={{ position: 'absolute', right: -16, top: -16 }}
+              />
+              <View style={styles.promoOverlay}>
                 <View style={styles.promoContent}>
                   <Text style={styles.promoTitle}>{promo.title}</Text>
                   <Text style={styles.promoSubtitle}>{promo.subtitle}</Text>
-                  <View style={[styles.promoBtn, { backgroundColor: promo.color }]}>
-                    <Text style={styles.promoBtnText}>اطلب الآن</Text>
+                  <View style={[styles.promoBtn, { backgroundColor: 'rgba(255,255,255,0.95)' }]}>
+                    <Text style={[styles.promoBtnText, { color: promo.color }]}>اطلب الآن</Text>
                   </View>
                 </View>
-              </LinearGradient>
+              </View>
             </TouchableOpacity>
           ))}
         </ScrollView>
