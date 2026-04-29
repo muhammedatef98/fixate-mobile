@@ -216,13 +216,15 @@ export const requests = {
 
     const { data, error } = await supabase
       .from('orders')
-      .update({ 
-        status: 'accepted', 
+      .update({
+        status: 'accepted',
         technician_id: user.id,
         technician_phone: user.user_metadata?.phone || '',
-        updated_at: new Date().toISOString() 
+        updated_at: new Date().toISOString()
       })
       .eq('id', orderId)
+      .eq('status', 'pending')
+      .is('technician_id', null)
       .select()
       .single();
 

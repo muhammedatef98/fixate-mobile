@@ -1,4 +1,7 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useEffect, useState, ReactNode, useCallback } from 'react';
+import { supabase } from '../services/supabaseClient';
+import { logger } from '../utils/logger';
+import type { OrderStatus } from '../types/order';
 
 export interface Request {
   id: string;
@@ -8,40 +11,96 @@ export interface Request {
   issue: string;
   description: string;
   location: string;
-  status: 'pending' | 'accepted' | 'completed';
+  status: OrderStatus;
   timestamp: Date;
   price: string;
+  user_id: string;
+  customerName?: string;
 }
 
 interface RequestContextType {
   requests: Request[];
-  addRequest: (request: Omit<Request, 'id' | 'timestamp' | 'status'>) => void;
-  updateRequestStatus: (id: string, status: Request['status']) => void;
+  loading: boolean;
+  refresh: () => Promise<void>;
+  updateRequestStatus: (id: string, status: OrderStatus) => Promise<void>;
 }
 
 const RequestContext = createContext<RequestContextType | undefined>(undefined);
 
+const mapOrderToRequest = (order: any, customerName?: string): Request => ({
+  id: order.id,
+  brand: order.device_brand ?? '',
+  deviceType: order.service_type ?? '',
+  model: order.device_model ?? '',
+  issue: order.issue_description ?? '',
+  description: order.issue_description ?? '',
+  location: order.address ?? order.location ?? '',
+  status: order.status as OrderStatus,
+  timestamp: order.created_at ? new Date(order.created_at) : new Date(),
+  price: order.estimated_price?.toString() ?? '',
+  user_id: order.user_id,
+  customerName,
+});
+
 export function RequestProvider({ children }: { children: ReactNode }) {
   const [requests, setRequests] = useState<Request[]>([]);
+  const [loading, setLoading] = useState(false);
 
-  const addRequest = (newRequest: Omit<Request, 'id' | 'timestamp' | 'status'>) => {
-    const request: Request = {
-      ...newRequest,
-      id: Math.random().toString(36).substr(2, 9),
-      timestamp: new Date(),
-      status: 'pending',
+  const refresh = useCallback(async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('orders')
+        .select('*, users:user_id (name)')
+        .eq('status', 'pending')
+        .is('technician_id', null)
+        .order('created_at', { ascending: false })
+        .limit(50);
+
+      if (error) throw error;
+      setRequests(
+        (data ?? []).map((o: any) => mapOrderToRequest(o, o.users?.name))
+      );
+    } catch (error) {
+      logger.error('RequestContext refresh error', error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    refresh();
+    const channel = supabase
+      .channel('requests-orders-changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'orders' },
+        () => {
+          refresh();
+        }
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
     };
-    setRequests(prev => [request, ...prev]);
-  };
+  }, [refresh]);
 
-  const updateRequestStatus = (id: string, status: Request['status']) => {
-    setRequests(prev => prev.map(req => 
-      req.id === id ? { ...req, status } : req
-    ));
+  const updateRequestStatus = async (id: string, status: OrderStatus) => {
+    try {
+      const { error } = await supabase
+        .from('orders')
+        .update({ status })
+        .eq('id', id);
+      if (error) throw error;
+      setRequests((prev) => prev.map((r) => (r.id === id ? { ...r, status } : r)));
+    } catch (error) {
+      logger.error('RequestContext updateRequestStatus error', error);
+      throw error;
+    }
   };
 
   return (
-    <RequestContext.Provider value={{ requests, addRequest, updateRequestStatus }}>
+    <RequestContext.Provider value={{ requests, loading, refresh, updateRequestStatus }}>
       {children}
     </RequestContext.Provider>
   );
