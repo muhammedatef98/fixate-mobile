@@ -194,14 +194,6 @@ export default function LoginScreen() {
               )}
             </TouchableOpacity>
 
-            <View style={styles.divider}>
-              <Text style={styles.dividerText}>{isRTL ? 'أو' : 'OR'}</Text>
-            </View>
-
-            <TouchableOpacity style={styles.guestButton} onPress={() => router.replace('/(customer)')}>
-              <MaterialCommunityIcons name="account-outline" size={20} color={COLORS.primary} />
-              <Text style={styles.guestButtonText}>{isRTL ? 'الاستمرار كضيف' : 'Continue as Guest'}</Text>
-            </TouchableOpacity>
           </View>
         </Animated.View>
       </KeyboardAvoidingView>

@@ -168,13 +168,18 @@ function RootLayoutContent() {
             headerShown: true 
           }} 
         />
-        <Stack.Screen 
-          name="chat/[id]" 
-          options={{ 
+        <Stack.Screen
+          name="chat/[id]"
+          options={{
             title: language === 'ar' ? 'المحادثة' : 'Chat',
-            headerShown: true 
-          }} 
+            headerShown: true
+          }}
         />
+        <Stack.Screen name="addresses" options={{ headerShown: false }} />
+        <Stack.Screen name="wallet" options={{ headerShown: false }} />
+        <Stack.Screen name="notifications-settings" options={{ headerShown: false }} />
+        <Stack.Screen name="settings" options={{ headerShown: false }} />
+        <Stack.Screen name="technician-onboarding" options={{ headerShown: false }} />
       </Stack>
     </>
   );

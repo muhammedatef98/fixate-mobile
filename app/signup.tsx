@@ -117,24 +117,21 @@ export default function SignupScreen() {
         role: userType,
       });
 
-      Alert.alert(
-        isRTL ? 'تم إنشاء الحساب' : 'Account Created',
-        isRTL ? 'تم إنشاء حسابك بنجاح!' : 'Your account has been created successfully!',
-        [
-          {
-            text: 'OK',
-            onPress: () => {
-              setTimeout(() => {
-                if (userType === 'customer') {
-                  router.replace('/(customer)');
-                } else {
-                  router.replace('/(technician)');
-                }
-              }, 500);
-            },
-          },
-        ]
-      );
+      if (userType === 'technician') {
+        Alert.alert(
+          isRTL ? 'خطوة أخيرة' : 'One more step',
+          isRTL
+            ? 'لإكمال تسجيلك كفني نحتاج التحقّق من هويتك ومعلوماتك المهنية.'
+            : 'To complete your technician registration we need to verify your identity and credentials.',
+          [{ text: isRTL ? 'متابعة' : 'Continue', onPress: () => router.replace('/technician-onboarding') }]
+        );
+      } else {
+        Alert.alert(
+          isRTL ? 'تم إنشاء الحساب' : 'Account Created',
+          isRTL ? 'تم إنشاء حسابك بنجاح!' : 'Your account has been created successfully!',
+          [{ text: 'OK', onPress: () => setTimeout(() => router.replace('/(customer)'), 500) }]
+        );
+      }
     } catch (error: any) {
       Alert.alert(isRTL ? 'خطأ' : 'Error', getFriendlyError(error, language));
     } finally {
