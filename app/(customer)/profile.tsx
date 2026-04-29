@@ -62,14 +62,23 @@ export default function ProfileScreen() {
       case 'orders':
         router.push('/(customer)/orders');
         break;
+      case 'wallet':
+        router.push('/wallet');
+        break;
+      case 'address':
+        router.push('/addresses');
+        break;
+      case 'notifications':
+        router.push('/notifications-settings');
+        break;
+      case 'settings':
+        router.push('/settings');
+        break;
       case 'help':
         router.push('/contact');
         break;
       default:
-        Alert.alert(
-          isRTL ? 'قريباً' : 'Coming Soon',
-          isRTL ? 'هذه الميزة ستكون متاحة في التحديث القادم' : 'This feature will be available in the next update'
-        );
+        break;
     }
   };
 

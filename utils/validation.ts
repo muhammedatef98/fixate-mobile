@@ -92,6 +92,69 @@ export const validateEmail = (email: string): boolean => {
   return emailRegex.test(email);
 };
 
+/**
+ * Saudi National ID / Iqama validation
+ * - 10 digits
+ * - Citizens start with 1, residents (Iqama) start with 2
+ * - Verified using the official check-digit algorithm (Luhn-like, modulo 10)
+ */
+export const validateSaudiId = (id: string): { valid: boolean; type: 'citizen' | 'resident' | 'unknown'; message: string } => {
+  const cleaned = id.replace(/\D/g, '');
+  if (cleaned.length !== 10) {
+    return { valid: false, type: 'unknown', message: 'رقم الهوية يجب أن يكون 10 أرقام / National ID must be 10 digits' };
+  }
+  const first = cleaned.charAt(0);
+  if (first !== '1' && first !== '2') {
+    return { valid: false, type: 'unknown', message: 'يجب أن يبدأ بـ 1 (مواطن) أو 2 (مقيم) / Must start with 1 (citizen) or 2 (resident)' };
+  }
+  // Saudi national ID checksum (modulo 10)
+  let sum = 0;
+  for (let i = 0; i < 10; i++) {
+    const digit = parseInt(cleaned[i], 10);
+    if (i % 2 === 0) {
+      const doubled = digit * 2;
+      const str = doubled.toString().padStart(2, '0');
+      sum += parseInt(str[0], 10) + parseInt(str[1], 10);
+    } else {
+      sum += digit;
+    }
+  }
+  if (sum % 10 !== 0) {
+    return { valid: false, type: 'unknown', message: 'رقم الهوية غير صحيح / Invalid National ID checksum' };
+  }
+  return {
+    valid: true,
+    type: first === '1' ? 'citizen' : 'resident',
+    message: '',
+  };
+};
+
+/**
+ * Saudi IBAN validation
+ * Format: SA + 22 digits = 24 chars total
+ */
+export const validateSaudiIban = (iban: string): { valid: boolean; message: string } => {
+  const cleaned = iban.replace(/\s/g, '').toUpperCase();
+  if (!/^SA\d{22}$/.test(cleaned)) {
+    return { valid: false, message: 'الـ IBAN السعودي يجب أن يبدأ بـ SA متبوعاً بـ 22 رقماً / Saudi IBAN must start with SA followed by 22 digits' };
+  }
+  // ISO 13616 mod-97 check
+  const rearranged = cleaned.slice(4) + cleaned.slice(0, 4);
+  const numericString = rearranged
+    .split('')
+    .map((c) => (/[A-Z]/.test(c) ? (c.charCodeAt(0) - 55).toString() : c))
+    .join('');
+  let remainder = 0;
+  for (let i = 0; i < numericString.length; i += 7) {
+    const chunk = remainder.toString() + numericString.substring(i, i + 7);
+    remainder = parseInt(chunk, 10) % 97;
+  }
+  if (remainder !== 1) {
+    return { valid: false, message: 'الـ IBAN غير صحيح / Invalid IBAN' };
+  }
+  return { valid: true, message: '' };
+};
+
 // Phone validation (Saudi Arabia format)
 export const validatePhone = (phone: string): boolean => {
   // Saudi phone: 05xxxxxxxx or +9665xxxxxxxx or 5xxxxxxxx

@@ -1,0 +1,91 @@
+import { supabase } from './supabaseClient';
+import { logger } from '../utils/logger';
+import { validateSaudiId, validateSaudiIban, validatePhone, normalizeSaudiPhone } from '../utils/validation';
+
+export interface TechnicianOnboardingPayload {
+  userId: string;
+  fullName: string;
+  phone: string;
+  nationalId: string;
+  city: string;
+  specialty: string;
+  yearsOfExperience: number;
+  bio: string;
+  iban: string;
+  idDocumentUri?: string;
+  certificateUri?: string;
+}
+
+const uploadDoc = async (userId: string, uri: string, kind: 'id' | 'cert'): Promise<string> => {
+  const ext = uri.split('.').pop()?.toLowerCase() ?? 'jpg';
+  const path = `${userId}/${kind}-${Date.now()}.${ext}`;
+  const response = await fetch(uri);
+  const blob = await response.blob();
+  const contentType = blob.type || (ext === 'pdf' ? 'application/pdf' : 'image/jpeg');
+  const { error } = await supabase.storage
+    .from('technician-docs')
+    .upload(path, blob, { contentType, upsert: true });
+  if (error) throw error;
+  return path;
+};
+
+export const submitTechnicianApplication = async (
+  payload: TechnicianOnboardingPayload
+): Promise<void> => {
+  if (!payload.fullName.trim()) throw new Error('الاسم الكامل مطلوب');
+  if (!validatePhone(payload.phone)) throw new Error('رقم الجوال غير صحيح');
+  const idCheck = validateSaudiId(payload.nationalId);
+  if (!idCheck.valid) throw new Error(idCheck.message);
+  const ibanCheck = validateSaudiIban(payload.iban);
+  if (!ibanCheck.valid) throw new Error(ibanCheck.message);
+  if (!payload.specialty.trim()) throw new Error('التخصّص مطلوب');
+  if (payload.yearsOfExperience < 0 || payload.yearsOfExperience > 60) throw new Error('سنوات الخبرة غير منطقية');
+  if (!payload.idDocumentUri) throw new Error('صورة الهوية مطلوبة');
+
+  try {
+    const idDocPath = await uploadDoc(payload.userId, payload.idDocumentUri, 'id');
+    let certPath: string | undefined;
+    if (payload.certificateUri) {
+      certPath = await uploadDoc(payload.userId, payload.certificateUri, 'cert');
+    }
+
+    const { error } = await supabase.from('technicians').upsert(
+      {
+        user_id: payload.userId,
+        phone: normalizeSaudiPhone(payload.phone),
+        specialty: payload.specialty.trim(),
+        years_of_experience: payload.yearsOfExperience,
+        national_id: idCheck.valid ? payload.nationalId.replace(/\D/g, '') : payload.nationalId,
+        id_document_url: idDocPath,
+        certificate_url: certPath,
+        iban: payload.iban.replace(/\s/g, '').toUpperCase(),
+        city: payload.city.trim(),
+        bio: payload.bio.trim(),
+        is_available: false,
+        completed_jobs: 0,
+        verification_status: 'submitted',
+      },
+      { onConflict: 'user_id' }
+    );
+    if (error) throw error;
+
+    // Also upgrade users.role to technician
+    await supabase
+      .from('users')
+      .update({ role: 'technician', name: payload.fullName.trim() })
+      .eq('id', payload.userId);
+  } catch (error: any) {
+    logger.error('submitTechnicianApplication error', error);
+    throw error;
+  }
+};
+
+export const getMyTechnicianProfile = async (userId: string) => {
+  const { data, error } = await supabase
+    .from('technicians')
+    .select('*')
+    .eq('user_id', userId)
+    .maybeSingle();
+  if (error) throw error;
+  return data;
+};

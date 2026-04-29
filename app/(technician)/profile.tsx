@@ -107,7 +107,10 @@ export default function TechnicianProfile() {
               <TouchableOpacity key={item.id} style={styles.menuItem} onPress={() => {
                 if (item.id === 'earnings') router.push('/(technician)/earnings');
                 else if (item.id === 'my-orders') router.push('/(technician)/my-orders');
-                else Alert.alert(isRTL ? 'قريباً' : 'Coming Soon');
+                else if (item.id === 'notifications') router.push('/notifications-settings');
+                else if (item.id === 'settings') router.push('/settings');
+                else if (item.id === 'help') router.push('/contact');
+                else if (item.id === 'skills') router.push('/technician-onboarding');
               }}>
                 <View style={styles.menuItemLeft}>
                   <View style={styles.menuIconContainer}>
