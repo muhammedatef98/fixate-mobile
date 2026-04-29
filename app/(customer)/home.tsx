@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { COLORS, SPACING, SHADOWS } from '../../constants/theme';
 import { MaterialIcons, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useAuth } from '../../contexts/AuthContext';
 
 const { width } = Dimensions.get('window');
 
@@ -35,6 +36,8 @@ const PROMOTIONS = [
 
 export default function CustomerHomeScreen() {
   const router = useRouter();
+  const { userProfile } = useAuth();
+  const firstName = userProfile?.name?.split(' ')[0] || 'بك';
 
   return (
     <SafeAreaView style={styles.container}>
@@ -43,7 +46,7 @@ export default function CustomerHomeScreen() {
         {/* Header Section */}
         <View style={styles.header}>
           <View>
-            <Text style={styles.greeting}>مرحباً، محمد 👋</Text>
+            <Text style={styles.greeting}>{`مرحباً، ${firstName} 👋`}</Text>
             <View style={styles.locationContainer}>
               <MaterialIcons name="location-on" size={16} color={COLORS.primary} />
               <Text style={styles.location}>الرياض، حي الملقا</Text>

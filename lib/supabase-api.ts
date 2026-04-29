@@ -12,11 +12,14 @@ export interface User {
   };
 }
 
+import type { OrderStatus } from '../types/order';
+export type { OrderStatus } from '../types/order';
+
 export interface Order {
   id: string;
   user_id: string;
   service_id: string;
-  service_type: string; // 'mobile' or 'pickup'
+  service_type: string;
   device_brand: string;
   device_model: string;
   issue_description: string;
@@ -25,7 +28,7 @@ export interface Order {
   latitude: number;
   longitude: number;
   media_urls?: string[];
-  status: 'pending' | 'accepted' | 'picking_up' | 'diagnosing' | 'repairing' | 'delivering' | 'completed' | 'cancelled';
+  status: OrderStatus;
   technician_id?: string;
   customer_city?: string;
   customer_phone?: string;

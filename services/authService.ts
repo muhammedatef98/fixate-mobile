@@ -1,5 +1,6 @@
 import { supabase } from './supabaseClient';
 import { logger } from '../utils/logger';
+import { validateEmail, validatePassword, validateName, normalizeSaudiPhone, validatePhone } from '../utils/validation';
 
 export interface SignUpData {
   email: string;
@@ -14,6 +15,23 @@ export interface LoginData {
   password: string;
 }
 
+const assertValidSignUp = (data: SignUpData) => {
+  if (!validateEmail(data.email)) {
+    throw new Error('البريد الإلكتروني غير صحيح');
+  }
+  const passCheck = validatePassword(data.password);
+  if (!passCheck.isValid) {
+    throw new Error(passCheck.errors[0] || 'كلمة المرور ضعيفة');
+  }
+  const nameCheck = validateName(data.name);
+  if (!nameCheck.valid) {
+    throw new Error(nameCheck.message);
+  }
+  if (data.phone && !validatePhone(data.phone)) {
+    throw new Error('رقم الجوال غير صحيح');
+  }
+};
+
 export interface UserProfile {
   id: string;
   email: string;
@@ -25,14 +43,17 @@ export interface UserProfile {
 }
 
 export const signUpWithPhoneOrEmail = async (data: SignUpData) => {
+  assertValidSignUp(data);
+  const normalizedPhone = data.phone ? normalizeSaudiPhone(data.phone) : undefined;
+
   try {
     const { data: authData, error: authError } = await supabase.auth.signUp({
-      email: data.email,
+      email: data.email.trim().toLowerCase(),
       password: data.password,
       options: {
         data: {
-          name: data.name,
-          phone: data.phone,
+          name: data.name.trim(),
+          phone: normalizedPhone,
           role: data.role || 'customer',
         },
       },
@@ -41,15 +62,17 @@ export const signUpWithPhoneOrEmail = async (data: SignUpData) => {
     if (authError) throw authError;
     if (!authData.user) throw new Error('Failed to create user');
 
-    const { error: profileError } = await supabase.from('users').insert({
+    const { error: profileError } = await supabase.from('users').upsert({
       id: authData.user.id,
-      email: data.email,
-      name: data.name,
-      phone: data.phone,
+      email: data.email.trim().toLowerCase(),
+      name: data.name.trim(),
+      phone: normalizedPhone,
       role: data.role || 'customer',
     });
 
-    if (profileError) throw profileError;
+    if (profileError) {
+      logger.warn('Profile insert failed (may already exist)', profileError);
+    }
 
     return { user: authData.user, session: authData.session };
   } catch (error: any) {
@@ -59,9 +82,13 @@ export const signUpWithPhoneOrEmail = async (data: SignUpData) => {
 };
 
 export const loginWithPhoneOrEmail = async (data: LoginData) => {
+  if (!data.email?.trim() || !data.password) {
+    throw new Error('البريد الإلكتروني وكلمة المرور مطلوبان');
+  }
+
   try {
     const { data: authData, error } = await supabase.auth.signInWithPassword({
-      email: data.email,
+      email: data.email.trim().toLowerCase(),
       password: data.password,
     });
 
@@ -70,6 +97,35 @@ export const loginWithPhoneOrEmail = async (data: LoginData) => {
     return { user: authData.user, session: authData.session };
   } catch (error: any) {
     logger.error('Login error', error);
+    throw error;
+  }
+};
+
+export const sendPasswordReset = async (email: string) => {
+  if (!validateEmail(email)) {
+    throw new Error('البريد الإلكتروني غير صحيح');
+  }
+  try {
+    const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase());
+    if (error) throw error;
+    return { success: true };
+  } catch (error: any) {
+    logger.error('Password reset error', error);
+    throw error;
+  }
+};
+
+export const updatePassword = async (newPassword: string) => {
+  const passCheck = validatePassword(newPassword);
+  if (!passCheck.isValid) {
+    throw new Error(passCheck.errors[0] || 'كلمة المرور ضعيفة');
+  }
+  try {
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    if (error) throw error;
+    return { success: true };
+  } catch (error: any) {
+    logger.error('Update password error', error);
     throw error;
   }
 };

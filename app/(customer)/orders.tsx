@@ -23,6 +23,7 @@ export default function OrdersScreen() {
     warning: '#f59e0b',
     info: '#3b82f6',
     success: '#10b981',
+    error: '#ef4444',
   };
 
   const [orders, setOrders] = useState<any[]>([]);
@@ -59,7 +60,9 @@ export default function OrdersScreen() {
       const data = await requests.getUserOrders();
       let filteredData = data;
       if (filter === 'active') {
-        filteredData = data.filter((o: any) => ['pending', 'confirmed', 'in_progress'].includes(o.status));
+        filteredData = data.filter((o: any) =>
+          ['pending', 'accepted', 'picking_up', 'diagnosing', 'repairing', 'delivering'].includes(o.status)
+        );
       } else if (filter === 'completed') {
         filteredData = data.filter((o: any) => ['completed', 'cancelled'].includes(o.status));
       }
@@ -75,9 +78,13 @@ export default function OrdersScreen() {
   const getStatusInfo = (status: string) => {
     switch (status) {
       case 'pending': return { label: isRTL ? 'قيد الانتظار' : 'Pending', color: COLORS.warning, icon: 'time-outline' };
-      case 'confirmed': return { label: isRTL ? 'مؤكد' : 'Confirmed', color: COLORS.info, icon: 'checkmark-circle-outline' };
-      case 'in_progress': return { label: isRTL ? 'جاري الإصلاح' : 'Repairing', color: COLORS.primary, icon: 'construct-outline' };
+      case 'accepted': return { label: isRTL ? 'مقبول' : 'Accepted', color: COLORS.info, icon: 'checkmark-circle-outline' };
+      case 'picking_up': return { label: isRTL ? 'جاري الاستلام' : 'Picking up', color: COLORS.info, icon: 'car-outline' };
+      case 'diagnosing': return { label: isRTL ? 'تحت الفحص' : 'Diagnosing', color: COLORS.primary, icon: 'search-outline' };
+      case 'repairing': return { label: isRTL ? 'قيد الإصلاح' : 'Repairing', color: COLORS.primary, icon: 'construct-outline' };
+      case 'delivering': return { label: isRTL ? 'قيد التسليم' : 'Delivering', color: COLORS.info, icon: 'cube-outline' };
       case 'completed': return { label: isRTL ? 'مكتمل' : 'Completed', color: COLORS.success, icon: 'checkbox-outline' };
+      case 'cancelled': return { label: isRTL ? 'ملغي' : 'Cancelled', color: COLORS.error, icon: 'close-circle-outline' };
       default: return { label: status, color: COLORS.textSecondary, icon: 'help-circle-outline' };
     }
   };

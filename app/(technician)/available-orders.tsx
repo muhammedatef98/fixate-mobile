@@ -61,9 +61,24 @@ export default function AvailableOrdersScreen() {
   }, []);
 
   const getTechnicianLocation = async () => {
-    // TODO: Get actual technician location from profile or GPS
-    // For now, using a default location
-    setTechnicianLocation({ lat: 24.7136, lon: 46.6753 }); // Riyadh
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        logger.warn('Location permission denied');
+        setTechnicianLocation({ lat: 24.7136, lon: 46.6753 });
+        return;
+      }
+      const position = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
+      setTechnicianLocation({
+        lat: position.coords.latitude,
+        lon: position.coords.longitude,
+      });
+    } catch (error) {
+      logger.error('Failed to get technician location', error);
+      setTechnicianLocation({ lat: 24.7136, lon: 46.6753 });
+    }
   };
 
   const loadOrders = async () => {

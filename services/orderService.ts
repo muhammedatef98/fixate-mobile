@@ -1,46 +1,33 @@
 import { supabase } from './supabaseClient';
 import { logger } from '../utils/logger';
+import { validatePrice, validateCoordinates, validateDescription } from '../utils/validation';
+import type { Order, CreateOrderData, OrderStatus } from '../types/order';
 
-export interface Order {
-  id: string;
-  user_id: string;
-  service_id?: string;
-  technician_id?: string;
-  device_brand: string;
-  device_model: string;
-  issue_description?: string;
-  estimated_price?: number;
-  status: 'pending' | 'confirmed' | 'accepted' | 'picking_up' | 'diagnosing' | 'repairing' | 'delivering' | 'completed' | 'cancelled';
-  scheduled_date?: string;
-  address?: string;
-  latitude?: number;
-  longitude?: number;
-  service_type?: 'mobile' | 'pickup';
-  notes?: string;
-  created_at?: string;
-  updated_at?: string;
-}
-
-export interface CreateOrderData {
-  device_brand: string;
-  device_model: string;
-  issue_description?: string;
-  service_type?: 'mobile' | 'pickup';
-  address?: string;
-  latitude?: number;
-  longitude?: number;
-  notes?: string;
-  service_id?: string;
-}
+export type { Order, CreateOrderData, OrderStatus } from '../types/order';
 
 export const createOrder = async (userId: string, orderData: CreateOrderData): Promise<Order> => {
+  if (!userId) {
+    throw new Error('User ID is required');
+  }
+  if (!orderData.device_brand?.trim() || !orderData.device_model?.trim()) {
+    throw new Error('Device brand and model are required');
+  }
+  if (orderData.issue_description) {
+    const descCheck = validateDescription(orderData.issue_description, 5, 1000);
+    if (!descCheck.valid) throw new Error(descCheck.message);
+  }
+  if (orderData.latitude !== undefined && orderData.longitude !== undefined) {
+    const coordCheck = validateCoordinates(orderData.latitude, orderData.longitude);
+    if (!coordCheck.valid) throw new Error(coordCheck.message);
+  }
+
   try {
     const { data, error } = await supabase
       .from('orders')
       .insert({
         user_id: userId,
         ...orderData,
-        status: 'pending',
+        status: 'pending' as OrderStatus,
       })
       .select()
       .single();
@@ -113,13 +100,18 @@ export const assignOrderToTechnician = async (
       .from('orders')
       .update({
         technician_id: technicianId,
-        status: 'confirmed',
+        status: 'accepted' as OrderStatus,
       })
       .eq('id', orderId)
+      .eq('status', 'pending')
+      .is('technician_id', null)
       .select()
       .single();
 
     if (error) throw error;
+    if (!data) {
+      throw new Error('Order is no longer available');
+    }
     return data;
   } catch (error: any) {
     logger.error('Assign order to technician error', error);
@@ -129,7 +121,7 @@ export const assignOrderToTechnician = async (
 
 export const updateOrderStatus = async (
   orderId: string,
-  status: Order['status']
+  status: OrderStatus
 ): Promise<Order | null> => {
   try {
     const { data, error } = await supabase
@@ -151,6 +143,11 @@ export const addPriceToOrder = async (
   orderId: string,
   price: number
 ): Promise<Order | null> => {
+  const priceCheck = validatePrice(price);
+  if (!priceCheck.valid) {
+    throw new Error(priceCheck.message);
+  }
+
   try {
     const { data, error } = await supabase
       .from('orders')
