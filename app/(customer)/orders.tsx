@@ -5,31 +5,37 @@ import { MaterialIcons, Ionicons, MaterialCommunityIcons } from '@expo/vector-ic
 import { useApp } from '../../contexts/AppContext';
 import { requests, auth } from '../../lib/supabase-api';
 import BottomNav from '../../components/BottomNav';
+import ErrorState from '../../components/ErrorState';
+import { SkeletonOrderCard } from '../../components/SkeletonLoader';
 import { logger } from '../../utils/logger';
+import { getColors } from '../../constants/theme';
+import { getFriendlyError } from '../../utils/errorMessages';
 
 export default function OrdersScreen() {
   const router = useRouter();
-  const { language } = useApp();
+  const { language, isDark } = useApp();
   const isRTL = language === 'ar';
-  
+  const themeColors = getColors(isDark);
+
   const COLORS = {
-    primary: '#10b981',
-    background: '#f9fafb',
-    card: '#ffffff',
-    text: '#1f2937',
-    textSecondary: '#6b7280',
-    border: '#e5e7eb',
-    white: '#ffffff',
-    warning: '#f59e0b',
-    info: '#3b82f6',
-    success: '#10b981',
-    error: '#ef4444',
+    primary: themeColors.primary,
+    background: themeColors.background,
+    card: themeColors.card,
+    text: themeColors.text,
+    textSecondary: themeColors.textSecondary,
+    border: themeColors.border,
+    white: themeColors.card,
+    warning: themeColors.warning,
+    info: themeColors.info,
+    success: themeColors.success,
+    error: themeColors.error,
   };
 
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [filter, setFilter] = useState<'all' | 'active' | 'completed'>('all');
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(20)).current;
@@ -51,6 +57,7 @@ export default function OrdersScreen() {
   const loadOrders = async () => {
     try {
       setLoading(true);
+      setErrorMessage(null);
       const currentUser = await auth.getCurrentUser();
       if (!currentUser) {
         setOrders([]);
@@ -67,8 +74,9 @@ export default function OrdersScreen() {
         filteredData = data.filter((o: any) => ['completed', 'cancelled'].includes(o.status));
       }
       setOrders(filteredData);
-    } catch (error) {
+    } catch (error: any) {
       logger.error('Error loading orders:', error);
+      setErrorMessage(getFriendlyError(error, language));
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -119,7 +127,13 @@ export default function OrdersScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={loadOrders} colors={[COLORS.primary]} />}
       >
         {loading ? (
-          <ActivityIndicator size="large" color={COLORS.primary} style={{ marginTop: 40 }} />
+          <View style={{ paddingTop: 16 }}>
+            <SkeletonOrderCard />
+            <SkeletonOrderCard />
+            <SkeletonOrderCard />
+          </View>
+        ) : errorMessage ? (
+          <ErrorState message={errorMessage} onRetry={loadOrders} />
         ) : orders.length === 0 ? (
           <View style={styles.emptyState}>
             <Ionicons name="receipt-outline" size={80} color={COLORS.border} />

@@ -14,20 +14,25 @@ import {
   StatusBar,
   Image,
   Animated,
+  ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useApp } from '../contexts/AppContext';
 import { useAuth } from '../contexts/AuthContext';
-import { validateEmail } from '../utils/validation';
+import { validateEmail, validatePhone } from '../utils/validation';
+import { getColors } from '../constants/theme';
+import { getFriendlyError } from '../utils/errorMessages';
 
 const { width } = Dimensions.get('window');
 
 export default function SignupScreen() {
   const router = useRouter();
-  const { language } = useApp();
+  const { language, isDark } = useApp();
   const { signup: authSignup } = useAuth();
   const isRTL = language === 'ar';
+  const themeColors = getColors(isDark);
+  const [loading, setLoading] = useState(false);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
@@ -43,17 +48,23 @@ export default function SignupScreen() {
   const strengthAnim = useRef(new Animated.Value(0)).current;
 
   const COLORS = {
-    primary: '#10b981',
-    background: '#f9fafb',
+    primary: themeColors.primary,
+    background: themeColors.background,
     white: '#ffffff',
-    text: '#1f2937',
-    gray: '#9ca3af',
-    lightGray: '#f3f4f6',
-    border: '#e5e7eb',
-    error: '#ef4444',
-    warning: '#f59e0b',
-    success: '#10b981',
+    text: themeColors.text,
+    gray: themeColors.textSecondary,
+    lightGray: isDark ? '#1f2937' : '#f3f4f6',
+    border: themeColors.border,
+    error: themeColors.error,
+    warning: themeColors.warning,
+    success: themeColors.success,
   };
+
+  const isFormValid =
+    name.trim().length >= 3 &&
+    validateEmail(email.trim()) &&
+    validatePhone(phone) &&
+    password.length >= 6;
 
   useEffect(() => {
     // Calculate password strength
@@ -87,48 +98,30 @@ export default function SignupScreen() {
   };
 
   const handleSignup = async () => {
-    if (!name.trim() || !email.trim() || !phone.trim() || !password.trim()) {
-      Alert.alert(isRTL ? 'خطأ' : 'Error', isRTL ? 'الرجاء ملء جميع الحقول' : 'Please fill all fields');
-      return;
-    }
-    
-    if (name.trim().length < 3) {
-      Alert.alert(isRTL ? 'خطأ' : 'Error', isRTL ? 'الاسم يجب أن يكون 3 أحرف على الأقل' : 'Name must be at least 3 characters');
-      return;
-    }
-    
-    if (phone.trim().length < 9) {
-      Alert.alert(isRTL ? 'خطأ' : 'Error', isRTL ? 'رقم الجوال غير صحيح' : 'Invalid phone number');
-      return;
-    }
-    
-    if (!validateEmail(email)) {
-      Alert.alert(isRTL ? 'خطأ' : 'Error', isRTL ? 'البريد الإلكتروني غير صحيح' : 'Invalid email address');
+    if (!isFormValid) {
+      Alert.alert(
+        isRTL ? 'خطأ' : 'Error',
+        isRTL ? 'الرجاء التحقّق من جميع الحقول' : 'Please check all fields'
+      );
       return;
     }
 
-    if (password.length < 6) {
-      Alert.alert(isRTL ? 'خطأ' : 'Error', isRTL ? 'كلمة المرور يجب أن تكون 6 أحرف على الأقل' : 'Password must be at least 6 characters');
-      return;
-    }
-
+    setLoading(true);
     try {
       await authSignup({
-        email,
+        email: email.trim(),
         password,
-        name,
-        phone,
+        name: name.trim(),
+        phone: phone.trim(),
         role: userType,
       });
 
       Alert.alert(
         isRTL ? 'تم إنشاء الحساب' : 'Account Created',
-        isRTL
-          ? 'تم إنشاء حسابك بنجاح!'
-          : 'Your account has been created successfully!',
+        isRTL ? 'تم إنشاء حسابك بنجاح!' : 'Your account has been created successfully!',
         [
-          { 
-            text: 'OK', 
+          {
+            text: 'OK',
             onPress: () => {
               setTimeout(() => {
                 if (userType === 'customer') {
@@ -137,12 +130,14 @@ export default function SignupScreen() {
                   router.replace('/(technician)');
                 }
               }, 500);
-            }
-          }
+            },
+          },
         ]
       );
     } catch (error: any) {
-      Alert.alert(isRTL ? 'خطأ' : 'Error', error.message || 'فشل إنشاء الحساب');
+      Alert.alert(isRTL ? 'خطأ' : 'Error', getFriendlyError(error, language));
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -315,8 +310,19 @@ export default function SignupScreen() {
               </View>
             )}
 
-            <TouchableOpacity style={styles.mainButton} onPress={handleSignup}>
-              <Text style={styles.mainButtonText}>{isRTL ? 'إنشاء حساب' : 'Sign Up'}</Text>
+            <TouchableOpacity
+              style={[styles.mainButton, (!isFormValid || loading) && styles.mainButtonDisabled]}
+              onPress={handleSignup}
+              disabled={!isFormValid || loading}
+              accessibilityRole="button"
+              accessibilityLabel={isRTL ? 'إنشاء حساب' : 'Sign Up'}
+              accessibilityState={{ disabled: !isFormValid || loading }}
+            >
+              {loading ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.mainButtonText}>{isRTL ? 'إنشاء حساب' : 'Sign Up'}</Text>
+              )}
             </TouchableOpacity>
 
             <View style={styles.divider}>
@@ -502,6 +508,10 @@ const createStyles = (COLORS: any, isRTL: boolean, strengthAnim: any, strengthCo
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 4,
+  },
+  mainButtonDisabled: {
+    opacity: 0.5,
+    shadowOpacity: 0,
   },
   mainButtonText: {
     color: '#fff',

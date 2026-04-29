@@ -22,6 +22,9 @@ import { translations } from '../../constants/translations';
 import * as orderService from '../../services/orderService';
 import { ISSUE_CATEGORIES, getIssueCategory } from '../../constants/issueCategories';
 import NeuCard from '../../components/NeuCard';
+import ErrorState from '../../components/ErrorState';
+import { SkeletonOrderCard } from '../../components/SkeletonLoader';
+import { getFriendlyError } from '../../utils/errorMessages';
 import { logger } from '../../utils/logger';
 
 // Calculate distance between two coordinates (Haversine formula)
@@ -51,6 +54,7 @@ export default function AvailableOrdersScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [technicianLocation, setTechnicianLocation] = useState<{lat: number, lon: number} | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
     loadOrders();
@@ -97,10 +101,12 @@ export default function AvailableOrdersScreen() {
         }
       }
       
+      setErrorMessage(null);
       const availableOrders = await orderService.getAvailableOrders();
       setOrders(availableOrders || []);
-    } catch (error) {
+    } catch (error: any) {
       logger.error('Error loading orders:', error);
+      setErrorMessage(getFriendlyError(error, language));
     } finally {
       setLoading(false);
     }
@@ -311,9 +317,13 @@ export default function AvailableOrdersScreen() {
       {renderCategoryFilters()}
 
       {loading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
+        <View style={{ paddingTop: 16, paddingHorizontal: 16 }}>
+          <SkeletonOrderCard />
+          <SkeletonOrderCard />
+          <SkeletonOrderCard />
         </View>
+      ) : errorMessage ? (
+        <ErrorState message={errorMessage} onRetry={loadOrders} />
       ) : (
         <ScrollView
           style={styles.content}
