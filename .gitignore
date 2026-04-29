@@ -56,3 +56,4 @@ GoogleService-Info.plist
 # Reports and temporary documentation
 *-report.md
 *-complete.md
+.claude/
