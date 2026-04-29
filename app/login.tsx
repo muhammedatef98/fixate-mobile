@@ -19,14 +19,18 @@ import { useRouter } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useApp } from '../contexts/AppContext';
 import { useAuth } from '../contexts/AuthContext';
+import { getColors } from '../constants/theme';
+import { validateEmail } from '../utils/validation';
+import { getFriendlyError } from '../utils/errorMessages';
 
 const { width } = Dimensions.get('window');
 
 export default function LoginScreen() {
   const router = useRouter();
-  const { language } = useApp();
+  const { language, isDark } = useApp();
   const { login: authLogin } = useAuth();
   const isRTL = language === 'ar';
+  const themeColors = getColors(isDark);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -44,30 +48,34 @@ export default function LoginScreen() {
   }, []);
 
   const COLORS = {
-    primary: '#10b981',
-    background: '#f9fafb',
+    primary: themeColors.primary,
+    background: themeColors.background,
     white: '#ffffff',
-    text: '#1f2937',
-    gray: '#9ca3af',
-    lightGray: '#f3f4f6',
-    border: '#e5e7eb',
+    text: themeColors.text,
+    gray: themeColors.textSecondary,
+    lightGray: isDark ? '#1f2937' : '#f3f4f6',
+    border: themeColors.border,
   };
 
+  const isFormValid = validateEmail(email.trim()) && password.length >= 6;
+
   const handleLogin = async () => {
-    if (!email || !password) {
-      Alert.alert(isRTL ? 'خطأ' : 'Error', isRTL ? 'الرجاء إدخال البريد الإلكتروني وكلمة المرور' : 'Please enter email and password');
+    if (!isFormValid) {
+      Alert.alert(
+        isRTL ? 'خطأ' : 'Error',
+        isRTL ? 'الرجاء إدخال بريد إلكتروني صحيح وكلمة مرور' : 'Please enter a valid email and password'
+      );
       return;
     }
 
     setLoading(true);
     try {
-      await authLogin(email, password);
-      // Wait a bit for auth state to update
+      await authLogin(email.trim(), password);
       setTimeout(() => {
         router.replace('/(customer)');
       }, 500);
     } catch (error: any) {
-      Alert.alert(isRTL ? 'خطأ' : 'Error', error.message || 'فشل تسجيل الدخول');
+      Alert.alert(isRTL ? 'خطأ' : 'Error', getFriendlyError(error, language));
     } finally {
       setLoading(false);
     }
@@ -170,7 +178,14 @@ export default function LoginScreen() {
               <Text style={styles.forgotPasswordText}>{isRTL ? 'نسيت كلمة المرور؟' : 'Forgot Password?'}</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.mainButton} onPress={handleLogin} disabled={loading}>
+            <TouchableOpacity
+              style={[styles.mainButton, (!isFormValid || loading) && styles.mainButtonDisabled]}
+              onPress={handleLogin}
+              disabled={loading || !isFormValid}
+              accessibilityRole="button"
+              accessibilityLabel={isRTL ? 'تسجيل الدخول' : 'Login'}
+              accessibilityState={{ disabled: loading || !isFormValid }}
+            >
               {loading ? (
                 <ActivityIndicator color="#fff" />
               ) : (
@@ -217,6 +232,7 @@ const createStyles = (COLORS: any, isRTL: boolean) => StyleSheet.create({
   forgotPassword: { alignSelf: isRTL ? 'flex-start' : 'flex-end' },
   forgotPasswordText: { color: COLORS.primary, fontSize: 14, fontWeight: '600' },
   mainButton: { backgroundColor: COLORS.primary, height: 56, borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginTop: 8, shadowColor: COLORS.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 4 },
+  mainButtonDisabled: { opacity: 0.5, shadowOpacity: 0 },
   mainButtonText: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
   divider: { alignItems: 'center', marginVertical: 10 },
   dividerText: { fontSize: 14, color: COLORS.gray, fontWeight: '600' },

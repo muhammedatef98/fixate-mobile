@@ -4,32 +4,31 @@ import { useRouter } from 'expo-router';
 import { COLORS, SPACING } from '../constants/theme';
 import { MaterialIcons } from '@expo/vector-icons';
 
-// Force RTL for this screen if not already
-I18nManager.forceRTL(true);
-I18nManager.allowRTL(true);
-
 const { width, height } = Dimensions.get('window');
 
 const SLIDES = [
   {
     id: '1',
-    title: 'صيانة احترافية\nفي مكانك',
-    subtitle: 'فنيون محترفون يصلون إليك أينما كنت.\nخدمة سريعة وموثوقة لجميع أجهزتك.',
-    image: 'https://img.freepik.com/free-vector/mobile-login-concept-illustration_114360-83.jpg',
+    title: 'فيكساتي\nصيانة أجهزتك في خطوتين',
+    subtitle: 'اطلب فني محترف لإصلاح جوالك أو لابتوبك\nأو أي جهاز إلكتروني — يصلك أينما كنت.',
     icon: 'home-repair-service'
   },
   {
     id: '2',
-    title: 'تتبع طلبك\nلحظة بلحظة',
-    subtitle: 'شاهد تحركات الفني على الخريطة\nواحصل على تحديثات فورية لحالة طلبك.',
-    image: 'https://img.freepik.com/free-vector/location-tracking-concept-illustration_114360-5254.jpg',
-    icon: 'location-on'
+    title: 'كيف يعمل التطبيق؟',
+    subtitle: '١. اختر جهازك واشرح المشكلة\n٢. يقبل الفني الأقرب طلبك\n٣. يصل لمكانك ويصلح الجهاز',
+    icon: 'play-circle-outline'
   },
   {
     id: '3',
-    title: 'ضمان ذهبي\nوأسعار شفافة',
-    subtitle: 'أسعار محددة مسبقاً بدون مفاجآت.\nوضمان شامل على جميع قطع الغيار.',
-    image: 'https://img.freepik.com/free-vector/wallet-concept-illustration_114360-978.jpg',
+    title: 'تتبع الفني\nلحظة بلحظة',
+    subtitle: 'شاهد موقع الفني على الخريطة\nواستلم إشعارات فورية عند كل تحديث.',
+    icon: 'location-on'
+  },
+  {
+    id: '4',
+    title: 'ضمان وأسعار شفافة',
+    subtitle: 'سعر مُتفق عليه قبل الإصلاح\nوضمان على قطع الغيار الأصلية.',
     icon: 'verified'
   },
 ];

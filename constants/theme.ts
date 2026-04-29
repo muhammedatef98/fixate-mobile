@@ -96,35 +96,41 @@ export const SPACING = {
   xxl: 48,
 };
 
+export const FONTS = {
+  regular: 'Cairo_400Regular',
+  semibold: 'Cairo_600SemiBold',
+  bold: 'Cairo_700Bold',
+};
+
 export const TYPOGRAPHY = {
   h1: {
+    fontFamily: FONTS.bold,
     fontSize: 32,
-    fontWeight: 'bold' as const,
     lineHeight: 40,
   },
   h2: {
+    fontFamily: FONTS.bold,
     fontSize: 24,
-    fontWeight: 'bold' as const,
     lineHeight: 32,
   },
   h3: {
+    fontFamily: FONTS.semibold,
     fontSize: 20,
-    fontWeight: '600' as const,
     lineHeight: 28,
   },
   body: {
+    fontFamily: FONTS.regular,
     fontSize: 16,
-    fontWeight: 'normal' as const,
     lineHeight: 24,
   },
   bodySmall: {
+    fontFamily: FONTS.regular,
     fontSize: 14,
-    fontWeight: 'normal' as const,
     lineHeight: 20,
   },
   caption: {
+    fontFamily: FONTS.regular,
     fontSize: 12,
-    fontWeight: 'normal' as const,
     lineHeight: 16,
   },
 };

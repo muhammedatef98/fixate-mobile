@@ -1,7 +1,7 @@
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
-import { I18nManager } from 'react-native';
+import { I18nManager, View, ActivityIndicator, Text, TextInput } from 'react-native';
 import { RequestProvider } from '../contexts/RequestContext';
 import { ThemeProvider } from '../contexts/ThemeContext';
 import { AppProvider, useApp } from '../contexts/AppContext';
@@ -10,6 +10,12 @@ import { OrdersProvider } from '../contexts/OrdersContext';
 import { useRouter, useSegments } from 'expo-router';
 import { supabase } from '../lib/supabase';
 import ErrorBoundary from '../components/ErrorBoundary';
+import {
+  useFonts,
+  Cairo_400Regular,
+  Cairo_600SemiBold,
+  Cairo_700Bold,
+} from '@expo-google-fonts/cairo';
 import '../i18n';
 
 function RootLayoutContent() {
@@ -175,6 +181,28 @@ function RootLayoutContent() {
 }
 
 export default function RootLayout() {
+  const [fontsLoaded] = useFonts({
+    Cairo_400Regular,
+    Cairo_600SemiBold,
+    Cairo_700Bold,
+  });
+
+  if (!fontsLoaded) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' }}>
+        <ActivityIndicator size="large" color="#10B981" />
+      </View>
+    );
+  }
+
+  // Default Cairo for all Text/TextInput
+  const TextAny: any = Text;
+  const TextInputAny: any = TextInput;
+  TextAny.defaultProps = TextAny.defaultProps || {};
+  TextAny.defaultProps.style = [{ fontFamily: 'Cairo_400Regular' }, TextAny.defaultProps.style];
+  TextInputAny.defaultProps = TextInputAny.defaultProps || {};
+  TextInputAny.defaultProps.style = [{ fontFamily: 'Cairo_400Regular' }, TextInputAny.defaultProps.style];
+
   return (
     <ErrorBoundary>
       <AppProvider>

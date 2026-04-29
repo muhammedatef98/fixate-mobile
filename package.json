@@ -18,9 +18,16 @@
     "transformIgnorePatterns": [
       "node_modules/(?!.*(react-native|@react-native|expo|@expo|react-navigation|@react-navigation|@unimodules|unimodules|sentry-expo|native-base|react-native-svg|@supabase))"
     ],
-    "moduleFileExtensions": ["ts", "tsx", "js", "jsx", "json"]
+    "moduleFileExtensions": [
+      "ts",
+      "tsx",
+      "js",
+      "jsx",
+      "json"
+    ]
   },
   "dependencies": {
+    "@expo-google-fonts/cairo": "^0.4.2",
     "@expo/metro-runtime": "~6.1.2",
     "@expo/vector-icons": "^15.0.3",
     "@react-native-async-storage/async-storage": "^2.2.0",
@@ -35,6 +42,7 @@
     "expo": "^54.0.29",
     "expo-device": "^8.0.10",
     "expo-file-system": "^19.0.21",
+    "expo-font": "^55.0.6",
     "expo-image-picker": "~17.0.9",
     "expo-linear-gradient": "~15.0.8",
     "expo-linking": "~8.0.10",
