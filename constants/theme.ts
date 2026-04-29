@@ -270,12 +270,6 @@ export const getShadows = (isDark: boolean) => isDark ? DARK_SHADOWS : LIGHT_SHA
 // Default export (light mode for backward compatibility)
 export const SHADOWS = LIGHT_SHADOWS;
 
-export const FONTS = {
-  regular: 'System',
-  medium: 'System',
-  bold: 'System',
-};
-
 export const ANIMATIONS = {
   duration: {
     fast: 200,
