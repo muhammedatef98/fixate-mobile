@@ -22,6 +22,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { getColors } from '../constants/theme';
 import { validateEmail } from '../utils/validation';
 import { getFriendlyError } from '../utils/errorMessages';
+import { RTLIonicon } from '../components/RTLIcon';
 
 const { width } = Dimensions.get('window');
 
@@ -90,11 +91,11 @@ export default function LoginScreen() {
       <View style={styles.greenHeader}>
         <SafeAreaView>
           <View style={styles.headerContent}>
-            <TouchableOpacity 
+            <TouchableOpacity accessibilityRole="button" accessibilityLabel={isRTL ? 'رجوع' : 'Back'} 
               style={styles.headerBackButton}
               onPress={() => router.canGoBack() ? router.back() : router.replace('/role-selection')}
             >
-              <Ionicons name={isRTL ? "chevron-forward" : "chevron-back"} size={24} color="#fff" />
+              <RTLIonicon name="chevron-back" size={24} color="#fff" />
               <Text style={styles.headerBackText}>{isRTL ? 'رجوع' : 'Back'}</Text>
             </TouchableOpacity>
             <Text style={styles.headerTitle}>{isRTL ? 'تسجيل الدخول' : 'Login'}</Text>

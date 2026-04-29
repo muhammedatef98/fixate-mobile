@@ -19,6 +19,7 @@ import { getColors, getShadows, SPACING, BORDER_RADIUS } from '../constants/them
 import { translations } from '../constants/translations';
 import api from '../lib/supabase-api';
 import { logger } from '../utils/logger';
+import { RTLMaterialIcon } from './RTLIcon';
 
 const { width } = Dimensions.get('window');
 const DRAWER_WIDTH = 280;
@@ -205,8 +206,7 @@ export default function Sidebar({ visible, onClose }: SidebarProps) {
                     <MaterialCommunityIcons name={item.icon} size={20} color={item.color} />
                   </View>
                   <Text style={[styles.menuItemText, { color: COLORS.text }]}>{item.label}</Text>
-                  <MaterialIcons
-                    name={isRTL ? 'chevron-left' : 'chevron-right'}
+                  <RTLMaterialIcon name="chevron-right"
                     size={20}
                     color={COLORS.textSecondary}
                   />
@@ -234,8 +234,7 @@ export default function Sidebar({ visible, onClose }: SidebarProps) {
                     </View>
                     <Text style={[styles.settingText, { color: COLORS.text }]}>{item.label}</Text>
                   </View>
-                  <MaterialIcons
-                    name={isRTL ? 'chevron-left' : 'chevron-right'}
+                  <RTLMaterialIcon name="chevron-right"
                     size={20}
                     color={COLORS.textSecondary}
                   />

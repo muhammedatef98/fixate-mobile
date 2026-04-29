@@ -20,6 +20,7 @@ import { technicians } from '../../lib/supabase-api';
 import NeuCard from '../../components/NeuCard';
 import BottomNav from '../../components/BottomNav';
 import { logger } from '../../utils/logger';
+import { RTLMaterialIcon } from '../../components/RTLIcon';
 
 export default function TechniciansScreen() {
   const router = useRouter();
@@ -63,11 +64,11 @@ export default function TechniciansScreen() {
       
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity 
+        <TouchableOpacity accessibilityRole="button" accessibilityLabel={isRTL ? 'رجوع' : 'Back'} 
           style={[styles.backButton, SHADOWS.neu]}
           onPress={() => router.back()}
         >
-          <MaterialIcons name={isRTL ? 'arrow-forward' : 'arrow-back'} size={24} color={COLORS.text} />
+          <RTLMaterialIcon name="arrow-back" size={24} color={COLORS.text} />
         </TouchableOpacity>
         
         <View style={styles.headerContent}>

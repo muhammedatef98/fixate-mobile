@@ -6,6 +6,7 @@ import { MaterialIcons, Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import { useApp } from '../../../contexts/AppContext';
 import { requests } from '../../../lib/supabase-api';
 import { logger } from '../../../utils/logger';
+import { RTLMaterialIcon } from '../../../components/RTLIcon';
 
 const JOB_STEPS = [
   { id: 'arrive', label: 'الوصول لموقع العميل', labelEn: 'Arrive at location', icon: 'location-arrow' },
@@ -142,8 +143,8 @@ export default function ActiveJobScreen() {
     <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <MaterialIcons name={isRTL ? "arrow-forward" : "arrow-back"} size={24} color="#FFF" />
+        <TouchableOpacity accessibilityRole="button" accessibilityLabel={isRTL ? 'رجوع' : 'Back'} onPress={() => router.back()} style={styles.backBtn}>
+          <RTLMaterialIcon name="arrow-back" size={24} color="#FFF" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{isRTL ? 'طلب #' : 'Order #'}{id?.slice(0, 4)}</Text>
         <View style={styles.statusBadge}>

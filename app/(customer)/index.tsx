@@ -22,6 +22,7 @@ import BottomNav from '../../components/BottomNav';
 import Sidebar from '../../components/Sidebar';
 import { requests } from '../../lib/supabase-api';
 import { logger } from '../../utils/logger';
+import { RTLIonicon } from '../../components/RTLIcon';
 
 const { width } = Dimensions.get('window');
 
@@ -156,7 +157,7 @@ export default function CustomerHomeScreen() {
                     {isRTL ? 'اضغط للتفاصيل' : 'Tap for details'}
                   </Text>
                 </View>
-                <Ionicons name={isRTL ? 'chevron-back' : 'chevron-forward'} size={20} color={COLORS.primary} />
+                <RTLIonicon name="chevron-forward" size={20} color={COLORS.primary} />
               </View>
             </TouchableOpacity>
           )}

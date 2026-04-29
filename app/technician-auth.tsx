@@ -19,6 +19,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useApp } from '../contexts/AppContext';
 import { supabase } from '../lib/supabase';
+import { RTLIonicon } from '../components/RTLIcon';
 
 const { width } = Dimensions.get('window');
 
@@ -128,11 +129,11 @@ export default function TechnicianAuthScreen() {
       <View style={styles.greenHeader}>
         <SafeAreaView>
           <View style={styles.headerContent}>
-            <TouchableOpacity 
+            <TouchableOpacity accessibilityRole="button" accessibilityLabel={isRTL ? 'رجوع' : 'Back'} 
               style={styles.headerBackButton}
               onPress={() => router.canGoBack() ? router.back() : router.replace('/role-selection')}
             >
-              <Ionicons name={isRTL ? "chevron-forward" : "chevron-back"} size={24} color="#fff" />
+              <RTLIonicon name="chevron-back" size={24} color="#fff" />
               <Text style={styles.headerBackText}>{isRTL ? 'رجوع' : 'Back'}</Text>
             </TouchableOpacity>
             <Text style={styles.headerTitle}>{isRTL ? 'بوابة الفنيين' : 'Technician Portal'}</Text>

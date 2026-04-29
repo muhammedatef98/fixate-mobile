@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../../contexts/AppContext';
 import BottomNav from '../../components/BottomNav';
 import { auth } from '../../lib/supabase-api';
+import { RTLIonicon } from '../../components/RTLIcon';
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -128,7 +129,7 @@ export default function ProfileScreen() {
                   </View>
                   <Text style={styles.menuLabel}>{isRTL ? item.labelAr : item.labelEn}</Text>
                 </View>
-                <Ionicons name={isRTL ? "chevron-back" : "chevron-forward"} size={18} color={COLORS.border} />
+                <RTLIonicon name="chevron-forward" size={18} color={COLORS.border} />
               </TouchableOpacity>
             ))}
           </View>

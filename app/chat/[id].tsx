@@ -20,6 +20,7 @@ import { COLORS, SPACING, BORDER_RADIUS, SHADOWS } from '../../constants/theme';
 import { useApp } from '../../contexts/AppContext';
 import { chat, auth, requests } from '../../lib/supabase-api';
 import { logger } from '../../utils/logger';
+import { RTLMaterialIcon } from '../../components/RTLIcon';
 
 export default function ChatScreen() {
   const { id } = useLocalSearchParams();
@@ -193,11 +194,11 @@ export default function ChatScreen() {
     <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={[styles.header, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-        <TouchableOpacity 
+        <TouchableOpacity accessibilityRole="button" accessibilityLabel={isRTL ? 'رجوع' : 'Back'} 
           style={styles.backButton}
           onPress={() => router.back()}
         >
-          <MaterialIcons name={isRTL ? 'arrow-forward' : 'arrow-back'} size={24} color={COLORS.text} />
+          <RTLMaterialIcon name="arrow-back" size={24} color={COLORS.text} />
         </TouchableOpacity>
         
         <View style={styles.headerAvatarContainer}>
@@ -260,7 +261,7 @@ export default function ChatScreen() {
             onPress={handleSend}
             disabled={!newMessage.trim()}
           >
-             <MaterialIcons name={isRTL ? 'send' : 'send'} size={20} color="#FFF" style={{ transform: [{ rotate: isRTL ? '180deg' : '0deg' }] }} />
+             <RTLMaterialIcon name="send" size={20} color="#FFF" style={{ transform: [{ rotate: isRTL ? '180deg' : '0deg' }] }} />
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>

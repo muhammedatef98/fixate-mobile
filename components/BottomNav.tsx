@@ -36,11 +36,15 @@ export default function BottomNav() {
           const isActive = pathname === item.path || (item.path === '/(customer)' && pathname === '/');
           
           return (
-            <TouchableOpacity 
+            <TouchableOpacity
               key={item.path}
               style={styles.navItem}
               onPress={() => router.push(item.path as any)}
               activeOpacity={0.7}
+              accessibilityRole="tab"
+              accessibilityLabel={isRTL ? item.labelAr : item.labelEn}
+              accessibilityState={{ selected: isActive }}
+              accessibilityHint={isRTL ? 'انتقال إلى ' + item.labelAr : 'Navigate to ' + item.labelEn}
             >
               <View style={[styles.iconWrapper, isActive && styles.activeIconWrapper]}>
                 <Ionicons 

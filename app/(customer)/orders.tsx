@@ -10,6 +10,7 @@ import { SkeletonOrderCard } from '../../components/SkeletonLoader';
 import { logger } from '../../utils/logger';
 import { getColors } from '../../constants/theme';
 import { getFriendlyError } from '../../utils/errorMessages';
+import { RTLIonicon } from '../../components/RTLIcon';
 
 export default function OrdersScreen() {
   const router = useRouter();
@@ -178,7 +179,7 @@ export default function OrdersScreen() {
                   <View style={styles.orderFooter}>
                     <TouchableOpacity style={styles.detailsBtn} onPress={() => router.push(`/order-details?id=${order.id}`)}>
                       <Text style={styles.detailsBtnText}>{isRTL ? 'عرض التفاصيل' : 'View Details'}</Text>
-                      <Ionicons name={isRTL ? "chevron-back" : "chevron-forward"} size={16} color={COLORS.primary} />
+                      <RTLIonicon name="chevron-forward" size={16} color={COLORS.primary} />
                     </TouchableOpacity>
                   </View>
                 </TouchableOpacity>

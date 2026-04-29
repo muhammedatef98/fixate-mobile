@@ -6,6 +6,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { useApp } from '../contexts/AppContext';
 import { useAuth } from '../contexts/AuthContext';
 import { translations } from '../constants/translations';
+import { RTLMaterialIcon } from '../components/RTLIcon';
 
 const MENU_ITEMS = [
   { id: 'account', title: 'تعديل الملف الشخصي', titleEn: 'Edit Profile', icon: 'person-outline' },
@@ -87,8 +88,8 @@ export default function ProfileScreen() {
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={[styles.backBtn, SHADOWS.neuSmall]}>
-            <MaterialIcons name={isRTL ? "arrow-forward" : "arrow-back"} size={24} color={COLORS.text} />
+          <TouchableOpacity accessibilityRole="button" accessibilityLabel={isRTL ? 'رجوع' : 'Back'} onPress={() => router.back()} style={[styles.backBtn, SHADOWS.neuSmall]}>
+            <RTLMaterialIcon name="arrow-back" size={24} color={COLORS.text} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>{isRTL ? 'الملف الشخصي' : 'Profile'}</Text>
           <View style={{ width: 40 }} />
@@ -144,7 +145,7 @@ export default function ProfileScreen() {
                 </View>
                 <Text style={styles.menuTitle}>{isRTL ? item.title : item.titleEn}</Text>
               </View>
-              <MaterialIcons name={isRTL ? "chevron-left" : "chevron-right"} size={24} color={COLORS.textSecondary} />
+              <RTLMaterialIcon name="chevron-right" size={24} color={COLORS.textSecondary} />
             </TouchableOpacity>
           ))}
         </View>
