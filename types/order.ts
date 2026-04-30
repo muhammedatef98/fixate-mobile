@@ -3,7 +3,9 @@ export type OrderStatus =
   | 'accepted'
   | 'picking_up'
   | 'diagnosing'
+  | 'waiting_parts'
   | 'repairing'
+  | 'testing'
   | 'delivering'
   | 'completed'
   | 'cancelled';
@@ -48,7 +50,9 @@ export const ORDER_STATUS_LABELS_AR: Record<OrderStatus, string> = {
   accepted: 'مقبول',
   picking_up: 'جاري الاستلام',
   diagnosing: 'تحت الفحص',
+  waiting_parts: 'انتظار قطع غيار',
   repairing: 'قيد الإصلاح',
+  testing: 'اختبار الجودة',
   delivering: 'قيد التسليم',
   completed: 'مكتمل',
   cancelled: 'ملغي',
@@ -58,7 +62,9 @@ export const ACTIVE_STATUSES: OrderStatus[] = [
   'accepted',
   'picking_up',
   'diagnosing',
+  'waiting_parts',
   'repairing',
+  'testing',
   'delivering',
 ];
 

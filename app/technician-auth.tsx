@@ -265,6 +265,17 @@ export default function TechnicianAuthScreen() {
               )}
             </TouchableOpacity>
 
+            {isLogin && (
+              <View style={styles.altRow}>
+                <TouchableOpacity onPress={() => router.push('/login-otp')} accessibilityRole="button">
+                  <Text style={styles.altLink}>{isRTL ? 'الدخول بكود البريد' : 'Login with email code'}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => router.push('/forgot-password')} accessibilityRole="button">
+                  <Text style={styles.altLink}>{isRTL ? 'نسيت كلمة المرور؟' : 'Forgot password?'}</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
             <View style={styles.divider}>
               <Text style={styles.dividerText}>{isRTL ? 'أو' : 'OR'}</Text>
             </View>
@@ -432,6 +443,17 @@ const createStyles = (COLORS: any, isRTL: boolean) => StyleSheet.create({
     color: '#fff',
     fontSize: 18,
     fontWeight: 'bold',
+  },
+  altRow: {
+    flexDirection: isRTL ? 'row-reverse' : 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 12,
+  },
+  altLink: {
+    color: COLORS.primary,
+    fontSize: 13,
+    fontWeight: '600',
   },
   divider: {
     alignItems: 'center',
