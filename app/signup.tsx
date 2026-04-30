@@ -24,6 +24,7 @@ import { validateEmail, validatePhone } from '../utils/validation';
 import { getColors } from '../constants/theme';
 import { getFriendlyError } from '../utils/errorMessages';
 import { RTLIonicon } from '../components/RTLIcon';
+import { signInWithSocial, SocialProvider } from '../services/socialAuthService';
 
 const { width } = Dimensions.get('window');
 
@@ -328,15 +329,29 @@ export default function SignupScreen() {
             </View>
 
             <View style={styles.socialButtons}>
-              <TouchableOpacity style={styles.socialCircle}>
-                <Ionicons name="logo-google" size={24} color="#DB4437" />
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.socialCircle}>
-                <Ionicons name="logo-facebook" size={24} color="#1877F2" />
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.socialCircle}>
-                <Ionicons name="logo-apple" size={24} color="#000" />
-              </TouchableOpacity>
+              {([
+                { p: 'google' as SocialProvider, icon: 'logo-google', color: '#DB4437' },
+                { p: 'facebook' as SocialProvider, icon: 'logo-facebook', color: '#1877F2' },
+                { p: 'apple' as SocialProvider, icon: 'logo-apple', color: '#000' },
+                { p: 'twitter' as SocialProvider, icon: 'logo-twitter', color: '#1DA1F2' },
+              ]).map(({ p, icon, color }) => (
+                <TouchableOpacity
+                  key={p}
+                  style={styles.socialCircle}
+                  onPress={async () => {
+                    try {
+                      await signInWithSocial(p);
+                      router.replace('/(customer)');
+                    } catch (e: any) {
+                      Alert.alert(isRTL ? 'خطأ' : 'Error', getFriendlyError(e, language));
+                    }
+                  }}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${isRTL ? 'الدخول عبر' : 'Login via'} ${p}`}
+                >
+                  <Ionicons name={icon as any} size={24} color={color} />
+                </TouchableOpacity>
+              ))}
             </View>
           </View>
         </ScrollView>

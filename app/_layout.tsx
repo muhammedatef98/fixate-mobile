@@ -21,29 +21,36 @@ import '../i18n';
 
 function RootLayoutContent() {
   const { language } = useApp();
-  const { user, loading } = useAuth();
+  const { user, userProfile, loading } = useAuth();
   const segments = useSegments();
   const router = useRouter();
 
   useEffect(() => {
     if (loading) return;
 
-    const inAuthFlow = segments[0] === 'login' || segments[0] === 'signup' || segments[0] === 'role-selection';
-    const isProtectedRoute = segments[0] === '(customer)' || segments[0] === '(technician)' || segments[0] === 'request';
-    
-    // If user is logged in and still in auth flow, redirect to appropriate home
+    const AUTH_SCREENS = new Set([
+      'login', 'signup', 'role-selection', 'auth',
+      'technician-auth', 'login-otp', 'forgot-password', 'onboarding',
+    ]);
+    const PROTECTED_GROUPS = new Set(['(customer)', '(technician)', 'request']);
+
+    const first = segments[0] as string | undefined;
+    const inAuthFlow = !!first && AUTH_SCREENS.has(first);
+    const isProtectedRoute = !!first && PROTECTED_GROUPS.has(first);
+
+    // Logged-in user landed on an auth screen → bounce to the right home
     if (user && inAuthFlow) {
-      // User is logged in, redirect based on role or default to customer
-      // The actual navigation will be handled by login/signup screens
+      const target = (userProfile as any)?.role === 'technician' ? '/(technician)' : '/(customer)';
+      router.replace(target as any);
       return;
     }
-    
-    // If not logged in and trying to access protected routes, redirect to role-selection
+
+    // Not logged in trying to open a protected route → role selection
     if (!user && isProtectedRoute) {
       router.replace('/role-selection');
     }
-  }, [user, segments, loading]);
-  
+  }, [user, userProfile, segments, loading]);
+
   useEffect(() => {
     const isRTL = language === 'ar';
     // Force RTL for Arabic

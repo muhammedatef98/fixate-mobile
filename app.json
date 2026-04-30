@@ -63,7 +63,8 @@
         }
       ],
       "expo-notifications",
-      "expo-font"
+      "expo-font",
+      "expo-web-browser"
     ],
     "scheme": "fixatee",
     "extra": {

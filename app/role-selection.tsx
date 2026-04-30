@@ -145,11 +145,11 @@ export default function RoleSelectionScreen() {
           {/* Footer */}
           <Text style={styles.footer}>
             {language === 'ar' ? 'بالمتابعة، أنت توافق على ' : 'By continuing, you agree to our '}
-            <Text style={styles.link}>
+            <Text style={styles.link} onPress={() => router.push('/terms')}>
               {language === 'ar' ? 'شروط الخدمة' : 'Terms of Service'}
             </Text>
             {language === 'ar' ? ' و ' : ' and '}
-            <Text style={styles.link}>
+            <Text style={styles.link} onPress={() => router.push('/privacy')}>
               {language === 'ar' ? 'سياسة الخصوصية' : 'Privacy Policy'}
             </Text>
           </Text>
