@@ -21,6 +21,7 @@ import { supabase } from '../services/supabaseClient';
 import { validateEmail, validatePassword } from '../utils/validation';
 import { getFriendlyError } from '../utils/errorMessages';
 import { tapMedium, success } from '../utils/haptics';
+import { sendOtp as sendCustomOtp, verifyOtp as verifyCustomOtp } from '../services/customOtpService';
 
 type Step = 'email' | 'otp' | 'newPassword';
 
@@ -62,13 +63,7 @@ export default function ForgotPasswordScreen() {
     }
     setLoading(true);
     try {
-      // signInWithOtp also works for password reset: sends a 6-digit token to the email.
-      // After verifyOtp + an active session we can call updateUser({ password }).
-      const { error } = await supabase.auth.signInWithOtp({
-        email: email.trim().toLowerCase(),
-        options: { shouldCreateUser: false },
-      });
-      if (error) throw error;
+      await sendCustomOtp(email.trim().toLowerCase(), 'reset_password', language);
       tapMedium();
       setStep('otp');
       startTimer();
@@ -86,12 +81,7 @@ export default function ForgotPasswordScreen() {
     }
     setLoading(true);
     try {
-      const { error } = await supabase.auth.verifyOtp({
-        email: email.trim().toLowerCase(),
-        token: code,
-        type: 'email',
-      });
-      if (error) throw error;
+      await verifyCustomOtp(email.trim().toLowerCase(), code, 'reset_password');
       tapMedium();
       setStep('newPassword');
     } catch (e: any) {
