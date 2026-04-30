@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Session, User } from '@supabase/supabase-js';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../services/supabaseClient';
 import * as authService from '../services/authService';
 import * as userService from '../services/userService';
@@ -60,15 +61,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signOut = async () => {
-    await authService.logout();
-    // Forcibly clear in-memory auth state in case onAuthStateChange
-    // doesn't fire (e.g. with scope:'local' or on transient network failure).
-    // Without this the auth guard would still see user as logged-in and
-    // immediately route the customer back to /(customer) or /(technician).
+    // Clear in-memory state first so the auth guard sees a logged-out user
+    // immediately on the next render.
     setSession(null);
     setUser(null);
     setUserProfile(null);
     setIsAuthenticated(false);
+
+    // Best-effort Supabase signOut (idempotent, never throws)
+    try { await supabase.auth.signOut({ scope: 'local' }); } catch {}
+
+    // Aggressively wipe every Supabase auth key from AsyncStorage so a
+    // subsequent app reload cannot auto-restore the session.
+    try {
+      const allKeys = await AsyncStorage.getAllKeys();
+      const authKeys = allKeys.filter(
+        (k) => k.startsWith('sb-') || k.includes('supabase') || k.includes('auth-token')
+      );
+      if (authKeys.length) await AsyncStorage.multiRemove(authKeys);
+    } catch {}
   };
 
   const login = async (email: string, password: string) => {
