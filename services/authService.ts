@@ -133,11 +133,10 @@ export const updatePassword = async (newPassword: string) => {
 
 export const logout = async () => {
   try {
-    const { error } = await supabase.auth.signOut();
-    if (error) throw error;
+    // Always clear locally even if the server-side session is gone
+    await supabase.auth.signOut({ scope: 'local' });
   } catch (error: any) {
-    logger.error('Logout error', error);
-    throw error;
+    logger.error('Logout error (ignored, local session cleared)', error);
   }
 };
 

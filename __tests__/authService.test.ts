@@ -93,9 +93,9 @@ describe('authService', () => {
       expect(supabase.auth.signOut).toHaveBeenCalledTimes(1);
     });
 
-    it('throws when signOut fails', async () => {
-      supabase.auth.signOut.mockResolvedValue({ error: new Error('Sign out failed') });
-      await expect(authService.logout()).rejects.toThrow('Sign out failed');
+    it('does not throw when signOut fails (logout is idempotent / local-only)', async () => {
+      supabase.auth.signOut.mockRejectedValue(new Error('Sign out failed'));
+      await expect(authService.logout()).resolves.not.toThrow();
     });
   });
 });
