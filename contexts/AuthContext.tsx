@@ -61,7 +61,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = async () => {
     await authService.logout();
+    // Forcibly clear in-memory auth state in case onAuthStateChange
+    // doesn't fire (e.g. with scope:'local' or on transient network failure).
+    // Without this the auth guard would still see user as logged-in and
+    // immediately route the customer back to /(customer) or /(technician).
+    setSession(null);
+    setUser(null);
     setUserProfile(null);
+    setIsAuthenticated(false);
   };
 
   const login = async (email: string, password: string) => {
