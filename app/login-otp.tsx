@@ -21,6 +21,7 @@ import { supabase } from '../services/supabaseClient';
 import { normalizeSaudiPhone, validatePhone, validateEmail } from '../utils/validation';
 import { getFriendlyError } from '../utils/errorMessages';
 import { tapMedium, success } from '../utils/haptics';
+import { sendOtp as sendCustomOtp, verifyOtp as verifyCustomOtp } from '../services/customOtpService';
 
 type Method = 'email' | 'phone';
 
@@ -71,11 +72,7 @@ export default function LoginOtpScreen() {
     setLoading(true);
     try {
       if (method === 'email') {
-        const { error } = await supabase.auth.signInWithOtp({
-          email: identifier.trim().toLowerCase(),
-          options: { shouldCreateUser: true },
-        });
-        if (error) throw error;
+        await sendCustomOtp(identifier.trim().toLowerCase(), 'login', language);
       } else {
         const normalized = normalizeSaudiPhone(identifier);
         const { error } = await supabase.auth.signInWithOtp({ phone: normalized });
@@ -98,19 +95,16 @@ export default function LoginOtpScreen() {
     }
     setLoading(true);
     try {
-      const { error } =
-        method === 'email'
-          ? await supabase.auth.verifyOtp({
-              email: identifier.trim().toLowerCase(),
-              token: code,
-              type: 'email',
-            })
-          : await supabase.auth.verifyOtp({
-              phone: normalizeSaudiPhone(identifier),
-              token: code,
-              type: 'sms',
-            });
-      if (error) throw error;
+      if (method === 'email') {
+        await verifyCustomOtp(identifier.trim().toLowerCase(), code, 'login');
+      } else {
+        const { error } = await supabase.auth.verifyOtp({
+          phone: normalizeSaudiPhone(identifier),
+          token: code,
+          type: 'sms',
+        });
+        if (error) throw error;
+      }
       success();
       router.replace('/(customer)');
     } catch (e: any) {
