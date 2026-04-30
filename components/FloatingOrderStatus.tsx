@@ -45,7 +45,7 @@ export default function FloatingOrderStatus() {
     try {
       const allRequests = await requests.getAll();
       const active = allRequests.find(r =>
-        ['pending', 'accepted', 'picking_up', 'diagnosing', 'repairing', 'delivering'].includes(r.status)
+        ['pending', 'accepted', 'picking_up', 'diagnosing', 'waiting_parts', 'repairing', 'testing', 'delivering'].includes(r.status)
       );
       
       if (active) {
@@ -89,7 +89,9 @@ export default function FloatingOrderStatus() {
       case 'accepted': return isRTL ? 'تم القبول' : 'Accepted';
       case 'picking_up': return isRTL ? 'الفني في الطريق إليك' : 'Technician is on the way';
       case 'diagnosing': return isRTL ? 'جاري فحص الجهاز' : 'Diagnosing';
+      case 'waiting_parts': return isRTL ? 'انتظار قطع غيار' : 'Waiting for parts';
       case 'repairing': return isRTL ? 'جاري الإصلاح' : 'Repair in progress';
+      case 'testing': return isRTL ? 'اختبار الجودة' : 'Quality testing';
       case 'delivering': return isRTL ? 'جاري التسليم' : 'Delivering';
       default: return isRTL ? 'طلب نشط' : 'Active Order';
     }
@@ -100,8 +102,10 @@ export default function FloatingOrderStatus() {
       case 'pending': return COLORS.warning;
       case 'accepted':
       case 'picking_up': return COLORS.primary;
+      case 'waiting_parts': return COLORS.warning;
       case 'diagnosing':
       case 'repairing':
+      case 'testing':
       case 'delivering': return COLORS.info;
       default: return COLORS.textSecondary;
     }
