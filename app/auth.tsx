@@ -21,6 +21,8 @@ import { useApp } from '../contexts/AppContext';
 import { translations } from '../constants/translations';
 import { auth } from '../lib/supabase';
 import { RTLMaterialIcon } from '../components/RTLIcon';
+import { signInWithSocial } from '../services/socialAuthService';
+import { getFriendlyError } from '../utils/errorMessages';
 
 export default function AuthScreen() {
   const router = useRouter();
@@ -90,25 +92,31 @@ export default function AuthScreen() {
     router.replace('/(customer)');
   };
 
-  const handleGoogleLogin = () => {
-    Alert.alert(
-      language === 'ar' ? 'تسجيل الدخول بجوجل' : 'Google Login',
-      language === 'ar' ? 'هذه الميزة قريباً!' : 'Coming soon!'
-    );
+  const handleGoogleLogin = async () => {
+    try {
+      await signInWithSocial('google');
+      router.replace('/(customer)');
+    } catch (e: any) {
+      Alert.alert(language === 'ar' ? 'خطأ' : 'Error', getFriendlyError(e, language));
+    }
   };
 
-  const handleFacebookLogin = () => {
-    Alert.alert(
-      language === 'ar' ? 'تسجيل الدخول بفيسبوك' : 'Facebook Login',
-      language === 'ar' ? 'هذه الميزة قريباً!' : 'Coming soon!'
-    );
+  const handleFacebookLogin = async () => {
+    try {
+      await signInWithSocial('facebook');
+      router.replace('/(customer)');
+    } catch (e: any) {
+      Alert.alert(language === 'ar' ? 'خطأ' : 'Error', getFriendlyError(e, language));
+    }
   };
 
-  const handleAppleLogin = () => {
-    Alert.alert(
-      language === 'ar' ? 'تسجيل الدخول بأبل' : 'Apple Login',
-      language === 'ar' ? 'هذه الميزة قريباً!' : 'Coming soon!'
-    );
+  const handleAppleLogin = async () => {
+    try {
+      await signInWithSocial('apple');
+      router.replace('/(customer)');
+    } catch (e: any) {
+      Alert.alert(language === 'ar' ? 'خطأ' : 'Error', getFriendlyError(e, language));
+    }
   };
 
   const styles = createStyles(COLORS, SHADOWS, isRTL);

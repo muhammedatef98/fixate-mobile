@@ -21,7 +21,7 @@ import type { Order } from '../lib/supabase-api';
 import { logger } from '../utils/logger';
 import LiveTrackingMap from '../components/LiveTrackingMap';
 
-const ORDER_TIMELINE = [
+const ORDER_TIMELINE: { status: string; arLabel: string; enLabel: string; icon: string }[] = [
   { status: 'pending', arLabel: 'قيد الانتظار', enLabel: 'Pending', icon: 'clock-outline' },
   { status: 'accepted', arLabel: 'تم القبول', enLabel: 'Accepted', icon: 'check-circle' },
   { status: 'picking_up', arLabel: 'جاري الاستلام', enLabel: 'Picking Up', icon: 'car' },
@@ -31,6 +31,7 @@ const ORDER_TIMELINE = [
   { status: 'testing', arLabel: 'اختبار الجودة', enLabel: 'Quality Testing', icon: 'flask' },
   { status: 'delivering', arLabel: 'جاري التوصيل', enLabel: 'Delivering', icon: 'truck-delivery' },
   { status: 'completed', arLabel: 'مكتمل', enLabel: 'Completed', icon: 'check-all' },
+  { status: 'cancelled', arLabel: 'ملغي', enLabel: 'Cancelled', icon: 'close-circle' },
 ];
 
 export default function OrderDetailsScreen() {
@@ -130,22 +131,19 @@ export default function OrderDetailsScreen() {
       {/* Header removed to use Stack Header */}
 
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        {/* Order ID & Status Badge */}
-        <View style={styles.headerSection}>
-          <View style={styles.orderIdRow}>
-            <Text style={[styles.orderIdLabel, { color: COLORS.textSecondary }]}>
-              {isRTL ? 'رقم الطلب:' : 'Order ID:'}
-            </Text>
-            <Text style={[styles.orderId, { color: COLORS.text }]}>#{order.id?.slice(0, 8)}</Text>
-          </View>
-          <View style={[styles.statusBadge, { backgroundColor: statusColor + '20' }]}>
-            <View style={[styles.statusDot, { backgroundColor: statusColor }]} />
-            <Text style={[styles.statusText, { color: statusColor }]}>
-              {isRTL 
-                ? ORDER_TIMELINE.find(t => t.status === order.status)?.arLabel 
-                : ORDER_TIMELINE.find(t => t.status === order.status)?.enLabel}
-            </Text>
-          </View>
+        {/* Prominent status hero */}
+        <View style={[styles.heroStatus, { backgroundColor: statusColor }]}>
+          <MaterialCommunityIcons
+            name={(ORDER_TIMELINE.find(t => t.status === order.status)?.icon as any) || 'progress-clock'}
+            size={36}
+            color="#fff"
+          />
+          <Text style={styles.heroStatusLabel}>
+            {isRTL
+              ? ORDER_TIMELINE.find(t => t.status === order.status)?.arLabel
+              : ORDER_TIMELINE.find(t => t.status === order.status)?.enLabel}
+          </Text>
+          <Text style={styles.heroStatusOrderId}>#{order.id?.slice(0, 8)}</Text>
         </View>
 
         {/* Live Tracking Map */}
@@ -257,7 +255,7 @@ export default function OrderDetailsScreen() {
 
         {/* Action Buttons */}
         <View style={styles.actionContainer}>
-          {order.status !== 'pending' && order.status !== 'completed' && order.status !== 'cancelled' && (
+          {order.technician_id && order.status !== 'pending' && order.status !== 'completed' && order.status !== 'cancelled' && (
             <View style={styles.buttonRow}>
               <TouchableOpacity
                 style={[styles.actionButton, { backgroundColor: COLORS.primary, flex: 1, marginRight: 8 }, SHADOWS.small]}
@@ -265,6 +263,8 @@ export default function OrderDetailsScreen() {
                   pathname: `/chat/${order.id}`,
                   params: { otherUserName: isRTL ? 'الفني' : 'Technician' }
                 })}
+                accessibilityRole="button"
+                accessibilityLabel={isRTL ? 'مراسلة الفني' : 'Chat with technician'}
               >
                 <MaterialIcons name="chat" size={20} color="#fff" />
                 <Text style={styles.actionButtonText}>
@@ -272,17 +272,35 @@ export default function OrderDetailsScreen() {
                 </Text>
               </TouchableOpacity>
 
-              {order.technician_phone && (
-                <TouchableOpacity
-                  style={[styles.actionButton, { backgroundColor: '#10B981', flex: 1 }, SHADOWS.small]}
-                  onPress={() => Linking.openURL(`tel:${order.technician_phone}`)}
-                >
-                  <MaterialIcons name="phone" size={20} color="#fff" />
-                  <Text style={styles.actionButtonText}>
-                    {isRTL ? 'اتصال' : 'Call'}
-                  </Text>
-                </TouchableOpacity>
-              )}
+              <TouchableOpacity
+                style={[styles.actionButton, { backgroundColor: '#10B981', flex: 1 }, SHADOWS.small]}
+                onPress={async () => {
+                  let phone = order.technician_phone;
+                  if (!phone) {
+                    // Fetch from technicians table as fallback
+                    try {
+                      const { data } = await import('../lib/supabase').then(m => m.supabase
+                        .from('technicians').select('phone').eq('user_id', order.technician_id!).maybeSingle());
+                      phone = (data as any)?.phone;
+                    } catch {}
+                  }
+                  if (!phone) {
+                    Alert.alert(
+                      isRTL ? 'تنبيه' : 'Notice',
+                      isRTL ? 'رقم الفني غير متوفّر، استخدم المحادثة' : "Technician's phone unavailable, please use chat"
+                    );
+                    return;
+                  }
+                  Linking.openURL(`tel:${phone}`);
+                }}
+                accessibilityRole="button"
+                accessibilityLabel={isRTL ? 'الاتصال بالفني' : 'Call technician'}
+              >
+                <MaterialIcons name="phone" size={20} color="#fff" />
+                <Text style={styles.actionButtonText}>
+                  {isRTL ? 'اتصال' : 'Call'}
+                </Text>
+              </TouchableOpacity>
             </View>
           )}
 
@@ -356,6 +374,22 @@ const styles = StyleSheet.create({
   backButton: { padding: 8 },
 
   scrollView: { flex: 1 },
+
+  heroStatus: {
+    margin: 16,
+    borderRadius: 20,
+    paddingVertical: 32,
+    paddingHorizontal: 20,
+    alignItems: 'center',
+    gap: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 6,
+  },
+  heroStatusLabel: { color: '#fff', fontSize: 24, fontWeight: 'bold', textAlign: 'center' },
+  heroStatusOrderId: { color: 'rgba(255,255,255,0.85)', fontSize: 13, fontWeight: '600' },
 
   headerSection: {
     paddingHorizontal: 16,
