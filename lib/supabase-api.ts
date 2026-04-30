@@ -81,10 +81,13 @@ export const auth = {
     }
   },
 
-  // Sign out
+  // Sign out (idempotent, local-only — never throws even if server session is gone)
   signOut: async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) throw error;
+    try {
+      await supabase.auth.signOut({ scope: 'local' });
+    } catch {
+      // swallow — local AsyncStorage will be cleared regardless
+    }
   },
 
   // Get user profile from metadata or database
