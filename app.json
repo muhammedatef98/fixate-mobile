@@ -62,7 +62,8 @@
           "locationAlwaysAndWhenInUsePermission": "السماح لـ Fixatee بالوصول إلى موقعك لتحديد عنوان الخدمة."
         }
       ],
-      "expo-notifications"
+      "expo-notifications",
+      "expo-font"
     ],
     "scheme": "fixatee",
     "extra": {
