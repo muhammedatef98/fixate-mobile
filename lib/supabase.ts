@@ -91,8 +91,15 @@ export const auth = {
 
   // Sign out
   signOut: async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) throw error;
+    // scope:'local' clears the local session without requiring the server
+    // session to still exist. This avoids "Auth session missing" errors
+    // when the server-side row was already revoked.
+    try {
+      await supabase.auth.signOut({ scope: 'local' });
+    } catch {
+      // Even if Supabase fails, force-clear local state by signing out without scope
+      await supabase.auth.signOut().catch(() => undefined);
+    }
   },
 
   // Get current user
