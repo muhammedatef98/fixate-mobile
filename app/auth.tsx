@@ -15,7 +15,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { MaterialIcons, FontAwesome5 } from '@expo/vector-icons';
+import { MaterialIcons, FontAwesome5, FontAwesome6 } from '@expo/vector-icons';
 import { getColors, getShadows, SPACING, BORDER_RADIUS } from '../constants/theme';
 import { useApp } from '../contexts/AppContext';
 import { translations } from '../constants/translations';
@@ -101,18 +101,18 @@ export default function AuthScreen() {
     }
   };
 
-  const handleFacebookLogin = async () => {
+  const handleAppleLogin = async () => {
     try {
-      await signInWithSocial('facebook');
+      await signInWithSocial('apple');
       router.replace('/(customer)');
     } catch (e: any) {
       Alert.alert(language === 'ar' ? 'خطأ' : 'Error', getFriendlyError(e, language));
     }
   };
 
-  const handleAppleLogin = async () => {
+  const handleXLogin = async () => {
     try {
-      await signInWithSocial('apple');
+      await signInWithSocial('twitter');
       router.replace('/(customer)');
     } catch (e: any) {
       Alert.alert(language === 'ar' ? 'خطأ' : 'Error', getFriendlyError(e, language));
@@ -295,23 +295,36 @@ export default function AuthScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* Social Login (Customer only) */}
-          {userRole === 'customer' && (
-            <View style={styles.socialContainer}>
-              <Text style={styles.socialText}>{language === 'ar' ? 'أو سجل الدخول عبر' : 'Or login with'}</Text>
-              <View style={styles.socialButtons}>
-                <TouchableOpacity style={[styles.socialButton, SHADOWS.neuFlat]} onPress={handleGoogleLogin}>
-                  <FontAwesome5 name="google" size={20} color="#DB4437" />
-                </TouchableOpacity>
-                <TouchableOpacity style={[styles.socialButton, SHADOWS.neuFlat]} onPress={handleFacebookLogin}>
-                  <FontAwesome5 name="facebook-f" size={20} color="#4267B2" />
-                </TouchableOpacity>
-                <TouchableOpacity style={[styles.socialButton, SHADOWS.neuFlat]} onPress={handleAppleLogin}>
-                  <FontAwesome5 name="apple" size={20} color={isDark ? '#FFF' : '#000'} />
-                </TouchableOpacity>
-              </View>
+          {/* Social Login (available for all roles) */}
+          <View style={styles.socialContainer}>
+            <Text style={styles.socialText}>{language === 'ar' ? 'أو سجل الدخول عبر' : 'Or login with'}</Text>
+            <View style={styles.socialButtons}>
+              <TouchableOpacity
+                style={[styles.socialButton, SHADOWS.neuFlat]}
+                onPress={handleGoogleLogin}
+                accessibilityRole="button"
+                accessibilityLabel="Google"
+              >
+                <FontAwesome5 name="google" size={20} color="#DB4437" />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.socialButton, SHADOWS.neuFlat]}
+                onPress={handleAppleLogin}
+                accessibilityRole="button"
+                accessibilityLabel="Apple"
+              >
+                <FontAwesome5 name="apple" size={20} color={isDark ? '#FFF' : '#000'} />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.socialButton, SHADOWS.neuFlat]}
+                onPress={handleXLogin}
+                accessibilityRole="button"
+                accessibilityLabel="X"
+              >
+                <FontAwesome6 name="x-twitter" size={20} color={isDark ? '#FFF' : '#000'} />
+              </TouchableOpacity>
             </View>
-          )}
+          </View>
 
           {/* Guest Option (Customer only) */}
           {userRole === 'customer' && (

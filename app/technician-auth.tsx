@@ -16,7 +16,7 @@ import {
   Image,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons, FontAwesome6 } from '@expo/vector-icons';
 import { useApp } from '../contexts/AppContext';
 import { supabase } from '../lib/supabase';
 import { RTLIonicon } from '../components/RTLIcon';
@@ -66,25 +66,29 @@ export default function TechnicianAuthScreen() {
         if (authError) throw authError;
 
         if (authData.user) {
-          // 2. Direct Query to profiles table to verify role
-          const { data: profileData, error: profileError } = await supabase
-            .from('profiles')
+          // Verify role from users table (was incorrectly querying 'profiles' before)
+          const { data: profileData } = await supabase
+            .from('users')
             .select('role')
             .eq('id', authData.user.id)
-            .single();
+            .maybeSingle();
 
-          const userRole = profileData?.role || authData.user.user_metadata?.role;
+          const userRole =
+            (profileData as any)?.role ||
+            authData.user.user_metadata?.role ||
+            'customer';
 
           if (userRole !== 'technician') {
             await supabase.auth.signOut();
             Alert.alert(
               isRTL ? 'تنبيه' : 'Access Denied',
-              isRTL ? 'هذا الحساب غير مسجل كفني. يرجى الدخول من بوابة العملاء.' : 'This account is not registered as a technician. Please login from the customer portal.'
+              isRTL
+                ? 'هذا الحساب غير مسجل كفني. يرجى الدخول من بوابة العملاء.'
+                : 'This account is not registered as a technician. Please login from the customer portal.'
             );
             return;
           }
-          
-          // Success: Redirect to technician area
+
           router.replace('/(technician)');
         }
       } else {
@@ -284,11 +288,10 @@ export default function TechnicianAuthScreen() {
 
             <View style={styles.socialButtons}>
               {([
-                { p: 'google' as SocialProvider, icon: 'logo-google', color: '#DB4437' },
-                { p: 'facebook' as SocialProvider, icon: 'logo-facebook', color: '#1877F2' },
-                { p: 'apple' as SocialProvider, icon: 'logo-apple', color: '#000' },
-                { p: 'twitter' as SocialProvider, icon: 'logo-twitter', color: '#1DA1F2' },
-              ]).map(({ p, icon, color }) => (
+                { p: 'google' as SocialProvider, lib: 'ion', icon: 'logo-google', color: '#DB4437' },
+                { p: 'apple' as SocialProvider, lib: 'ion', icon: 'logo-apple', color: '#000' },
+                { p: 'twitter' as SocialProvider, lib: 'fa6', icon: 'x-twitter', color: '#000' },
+              ]).map(({ p, lib, icon, color }) => (
                 <TouchableOpacity
                   key={p}
                   style={styles.socialCircle}
@@ -301,9 +304,11 @@ export default function TechnicianAuthScreen() {
                     }
                   }}
                   accessibilityRole="button"
-                  accessibilityLabel={`${isRTL ? 'الدخول عبر' : 'Login via'} ${p}`}
+                  accessibilityLabel={p}
                 >
-                  <Ionicons name={icon as any} size={24} color={color} />
+                  {lib === 'fa6'
+                    ? <FontAwesome6 name={icon as any} size={22} color={color} />
+                    : <Ionicons name={icon as any} size={24} color={color} />}
                 </TouchableOpacity>
               ))}
             </View>
