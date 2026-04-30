@@ -17,7 +17,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons, FontAwesome6 } from '@expo/vector-icons';
 import { useApp } from '../contexts/AppContext';
 import { useAuth } from '../contexts/AuthContext';
 import { validateEmail, validatePhone } from '../utils/validation';
@@ -330,26 +330,27 @@ export default function SignupScreen() {
 
             <View style={styles.socialButtons}>
               {([
-                { p: 'google' as SocialProvider, icon: 'logo-google', color: '#DB4437' },
-                { p: 'facebook' as SocialProvider, icon: 'logo-facebook', color: '#1877F2' },
-                { p: 'apple' as SocialProvider, icon: 'logo-apple', color: '#000' },
-                { p: 'twitter' as SocialProvider, icon: 'logo-twitter', color: '#1DA1F2' },
-              ]).map(({ p, icon, color }) => (
+                { p: 'google' as SocialProvider, lib: 'ion', icon: 'logo-google', color: '#DB4437' },
+                { p: 'apple' as SocialProvider, lib: 'ion', icon: 'logo-apple', color: '#000' },
+                { p: 'twitter' as SocialProvider, lib: 'fa6', icon: 'x-twitter', color: '#000' },
+              ]).map(({ p, lib, icon, color }) => (
                 <TouchableOpacity
                   key={p}
                   style={styles.socialCircle}
                   onPress={async () => {
                     try {
                       await signInWithSocial(p);
-                      router.replace('/(customer)');
+                      router.replace(userType === 'technician' ? '/(technician)' : '/(customer)');
                     } catch (e: any) {
                       Alert.alert(isRTL ? 'خطأ' : 'Error', getFriendlyError(e, language));
                     }
                   }}
                   accessibilityRole="button"
-                  accessibilityLabel={`${isRTL ? 'الدخول عبر' : 'Login via'} ${p}`}
+                  accessibilityLabel={p}
                 >
-                  <Ionicons name={icon as any} size={24} color={color} />
+                  {lib === 'fa6'
+                    ? <FontAwesome6 name={icon as any} size={22} color={color} />
+                    : <Ionicons name={icon as any} size={24} color={color} />}
                 </TouchableOpacity>
               ))}
             </View>
