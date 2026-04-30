@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, Ima
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../../contexts/AppContext';
+import { useAuth } from '../../contexts/AuthContext';
 import BottomNav from '../../components/BottomNav';
 import { auth } from '../../lib/supabase-api';
 import { RTLIonicon } from '../../components/RTLIcon';
@@ -10,6 +11,7 @@ import { RTLIonicon } from '../../components/RTLIcon';
 export default function ProfileScreen() {
   const router = useRouter();
   const { language } = useApp();
+  const { signOut } = useAuth();
   const isRTL = language === 'ar';
   
   const COLORS = {
@@ -50,7 +52,10 @@ export default function ProfileScreen() {
       [
         { text: isRTL ? 'إلغاء' : 'Cancel', style: 'cancel' },
         { text: isRTL ? 'خروج' : 'Logout', style: 'destructive', onPress: async () => {
-          await auth.signOut();
+          try { await signOut(); } catch {}
+          // Sign out of the parallel client used by lib/supabase-api as well, so
+          // both clients agree the user is gone before navigating
+          try { await auth.signOut(); } catch {}
           router.replace('/role-selection');
         }}
       ]
