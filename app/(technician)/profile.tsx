@@ -41,7 +41,7 @@ export default function TechnicianProfile() {
       [
         { text: isRTL ? 'إلغاء' : 'Cancel', style: 'cancel' },
         { text: isRTL ? 'خروج' : 'Logout', style: 'destructive', onPress: async () => {
-          await signOut();
+          try { await signOut(); } catch {}
           router.replace('/role-selection');
         }}
       ]
