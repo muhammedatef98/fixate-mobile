@@ -41,11 +41,11 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: TypeScript type check
-        run: npx tsc --noEmit
+        run: pnpm typecheck
         continue-on-error: true
 
       - name: Run tests
-        run: pnpm test
+        run: pnpm test:ci
         env:
           EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
           EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
