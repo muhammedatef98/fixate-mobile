@@ -1,350 +1,102 @@
-# Fixatee - Your Trusted Device Repair Partner 🔧
-# Fixatee - شريكك الموثوق في إصلاح الأجهزة 🔧
-<!-- CI secrets rotated: 2026-04-28 -->
+# Fixatee 🔧
 
-<div align="center">
-  <img src="./assets/icon.png" alt="Fixatee Logo" width="120"/>
-  
-  ### Professional Device Repair Services at Your Fingertips
-  ### خدمات إصلاح الأجهزة الاحترافية في متناول يدك
-  
-  *Connecting customers with certified technicians for fast, reliable repairs*  
-  *نربط العملاء بالفنيين المعتمدين لإصلاحات سريعة وموثوقة*
-  
-  [![Platform](https://img.shields.io/badge/Platform-iOS%20%7C%20Android-blue.svg)](https://expo.dev)
-  [![Status](https://img.shields.io/badge/Status-Active-success.svg)]()
-  [![Market](https://img.shields.io/badge/Market-Saudi%20Arabia-green.svg)]()
-  
-  [English](#english) | [العربية](#arabic)
-</div>
+**Mobile device repair platform — connect Saudi customers with certified technicians.**
+
+> Looking for the pitch / market story? See [docs/business/INVESTOR_SUMMARY.md](docs/business/INVESTOR_SUMMARY.md).
+> Need to set things up? See [docs/setup/](docs/setup/).
+
+[![Platform](https://img.shields.io/badge/Platform-iOS%20%7C%20Android-blue.svg)](https://expo.dev)
+[![Status](https://img.shields.io/badge/Status-Active-success.svg)]()
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
 ---
 
-<a name="english"></a>
-# 🇬🇧 English Version
+## Features
 
-## 🌟 About Fixate
+- 📱 **Customer:** request a repair in under 60s, track the technician live, pay in-app, rate & review
+- 🛠️ **Technician:** accept jobs nearby, broadcast live location, manage status pipeline, view earnings
+- 🆔 **Saudi-specific verification:** National ID / Iqama checksum, IBAN validation, document upload
+- 💬 **Realtime chat** between customer and technician, plus phone-call shortcut
+- 🔔 **Email OTP login** (no SMS provider needed) and password reset, via custom Resend Edge Function
+- 🌗 **RTL + dark mode** out of the box, Cairo font for Arabic
+- 🛡️ **RLS-everywhere** Postgres schema with admin verification flow
 
-**Fixate** is revolutionizing the device repair industry in Saudi Arabia by creating a seamless bridge between customers and certified repair technicians. We understand the frustration of dealing with broken devices, and we're here to make the repair process as smooth and transparent as possible.
+## Tech stack
 
-### The Problem We Solve
+- React Native 19 + Expo SDK 54 + Expo Router
+- Supabase (Postgres, Auth, Storage, Realtime, Edge Functions)
+- TypeScript, Jest, GitHub Actions
+- Stripe-ready payments (server-side PaymentIntent via Edge Function)
+- React Native Maps for live tracking
 
-- ❌ Long waiting times at traditional repair shops
-- ❌ Lack of price transparency
-- ❌ Difficulty finding trustworthy technicians
-- ❌ No convenient way to request on-site repairs
-
-### Our Solution
-
-✅ **Instant Booking** - Request repairs in under 60 seconds  
-✅ **Transparent Pricing** - Know the cost before you commit  
-✅ **Certified Technicians** - Only verified professionals  
-✅ **Location-Based Matching** - Find technicians near you  
-✅ **Real-Time Tracking** - Monitor your repair request status  
-
----
-
-## 📱 Key Features
-
-### For Customers
-
-| Feature | Description |
-|---------|-------------|
-| 🔍 **Smart Device Selection** | Choose from Apple, Samsung, Huawei, Xiaomi and more |
-| 💰 **Price Calculator** | Get instant repair cost estimates |
-| 📍 **Location Services** | Interactive map for precise location sharing |
-| 📝 **Detailed Descriptions** | Explain your device issue in detail |
-| ⚡ **Quick Requests** | Submit repair requests without lengthy registration |
-| 📊 **Request Tracking** | Monitor the status of your repairs |
-
-### For Technicians
-
-| Feature | Description |
-|---------|-------------|
-| 📋 **Job Dashboard** | View all incoming repair requests |
-| 🗺️ **Location-Based Jobs** | See requests in your service area |
-| 💼 **Professional Profile** | Showcase your expertise and ratings |
-| 🔔 **Real-Time Notifications** | Never miss a new opportunity |
-| 📈 **Performance Analytics** | Track your completed jobs and earnings |
-
----
-
-## 🎯 Service Options
-
-We offer two flexible service modes to meet different repair needs:
-
-### 🔧 Mobile Technician
-**On-Site Repair Service**
-- Professional technician comes to your location (home, office, anywhere)
-- Repairs performed on-site using fully-equipped mobile van
-- **Best for**: Simple to moderate repairs (screen, battery, charging port, audio)
-- **Timeline**: Same day or scheduled appointment
-- **Benefits**: 
-  - ⚡ Fast service
-  - 📍 Real-time technician tracking
-  - 🏠 Convenience of home service
-  - 👁️ Watch the repair process
-
-### 🚚 Pickup & Delivery
-**Workshop Repair Service**
-- Courier picks up your device from your location
-- Device delivered to specialized partner workshop
-- Professional repair with advanced equipment
-- Courier returns device after completion
-- **Best for**: Complex repairs (motherboard, processor, water damage, precision work)
-- **Timeline**: 1-3 days depending on repair complexity
-- **Benefits**:
-  - 🔧 Professional workshop equipment
-  - 🛡️ Extended warranty
-  - 💰 Competitive pricing
-  - 🏭 Access to specialized parts
-
----
-
-## 🚀 Market Opportunity
-
-### Target Market
-- **Primary**: Saudi Arabia smartphone and laptop users
-- **Secondary**: Expanding to GCC countries
-- **Market Size**: 35M+ smartphone users in Saudi Arabia alone
-
-### Geographic Launch Strategy
-
-#### 🎯 Phase 1: Dammam (Q1 2025)
-**Why Dammam?**
-- ✅ Perfect mid-size test market
-- ✅ Less competition than Riyadh and Jeddah
-- ✅ Lower customer acquisition costs
-- ✅ Tech-savvy community
-- ✅ Strategic proximity to Bahrain and Kuwait for future expansion
-
-**Targets**: 200 technicians, 2,000 customers, 3,000 orders in 3 months
-
-#### Phase 2: Khobar & Dhahran (Q2 2025)
-- Natural expansion in Eastern Province
-- Target Aramco employees and major companies
-
-#### Phase 3: Riyadh & Jeddah (Q3 2025)
-- Enter major markets after proven model
-
-#### Phase 4: All Saudi Cities (Q4 2025)
-#### Phase 5: GCC Countries (2026)
-
----
-
-## 💡 Technology Stack
-
-- **Frontend**: React Native 19 with Expo
-- **Navigation**: Expo Router
-- **Maps**: Google Maps API
-- **State Management**: React Context API
-- **Backend**: Supabase (PostgreSQL, Authentication, Storage)
-
----
-
-## 🚀 Getting Started
-
-### Installation
+## Getting started
 
 ```bash
 git clone https://github.com/muhammedatef98/fixatee-mobile.git
 cd fixatee-mobile
-npm install
-npx expo start
+pnpm install
+cp .env.example .env   # fill in EXPO_PUBLIC_SUPABASE_URL / _ANON_KEY
+pnpm start             # press i / a / scan the QR with Expo Go
 ```
 
-### Run on Device
-- Press `i` for iOS simulator
-- Press `a` for Android emulator
-- Scan QR code with Expo Go app on physical device
+For first-time Supabase setup, OAuth, Firebase push, and production checklist, walk through
+[docs/setup/QUICK_START.md](docs/setup/QUICK_START.md).
 
----
+## Project structure
 
-## 📞 Contact & Investment Opportunities
-
-We're actively seeking strategic partners and investors to scale Fixatee across the region.
-
-📧 **Email**: fixate01@gmail.com  
-📱 **Phone**: +966 54 894 0042  
-🌐 **GitHub**: https://github.com/muhammedatef98/fixatee-mobile
-
-**For Business Inquiries**: Available for pitch deck presentations and product demos.
-
----
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
----
-
-<div align="center">
-  <p>Made with ❤️ by the Fixatee Team</p>
-  <p>© 2024 Fixatee. All rights reserved.</p>
-</div>
-
----
----
-
-<a name="arabic"></a>
-# 🇸🇦 النسخة العربية
-
-## 🌟 عن Fixatee
-
-**Fixatee** يُحدث ثورة في صناعة إصلاح الأجهزة في المملكة العربية السعودية من خلال إنشاء جسر سلس بين العملاء والفنيين المعتمدين. نحن نفهم الإحباط الناتج عن التعامل مع الأجهزة المعطلة، ونحن هنا لجعل عملية الإصلاح سلسة وشفافة قدر الإمكان.
-
-### المشكلة التي نحلها
-
-- ❌ أوقات انتظار طويلة في محلات الإصلاح التقليدية
-- ❌ عدم وضوح الأسعار
-- ❌ صعوبة إيجاد فنيين موثوقين
-- ❌ عدم وجود طريقة مريحة لطلب الإصلاح في الموقع
-
-### الحل الذي نقدمه
-
-✅ **حجز فوري** - اطلب الإصلاح في أقل من 60 ثانية  
-✅ **أسعار شفافة** - اعرف التكلفة قبل الالتزام  
-✅ **فنيون معتمدون** - محترفون موثقون فقط  
-✅ **مطابقة حسب الموقع** - ابحث عن فنيين بالقرب منك  
-✅ **تتبع فوري** - راقب حالة طلب الإصلاح  
-
----
-
-## 📱 الميزات الرئيسية
-
-### للعملاء
-
-| الميزة | الوصف |
-|---------|-------------|
-| 🔍 **اختيار ذكي للأجهزة** | اختر من Apple وSamsung وHuawei وXiaomi والمزيد |
-| 💰 **حاسبة الأسعار** | احصل على تقديرات فورية لتكلفة الإصلاح |
-| 📍 **خدمات الموقع** | خريطة تفاعلية لمشاركة الموقع الدقيق |
-| 📝 **أوصاف تفصيلية** | اشرح مشكلة جهازك بالتفصيل |
-| ⚡ **طلبات سريعة** | قدم طلبات الإصلاح دون تسجيل طويل |
-| 📊 **تتبع الطلبات** | راقب حالة إصلاحاتك |
-
-### للفنيين
-
-| الميزة | الوصف |
-|---------|-------------|
-| 📋 **لوحة الوظائف** | عرض جميع طلبات الإصلاح الواردة |
-| 🗺️ **وظائف حسب الموقع** | شاهد الطلبات في منطقة خدمتك |
-| 💼 **ملف احترافي** | اعرض خبرتك وتقييماتك |
-| 🔔 **إشعارات فورية** | لا تفوت أي فرصة جديدة |
-| 📈 **تحليلات الأداء** | تتبع وظائفك المكتملة وأرباحك |
-
----
-
-## 🎯 خيارات الخدمة
-
-نوفر خيارين مرنين لتلبية احتياجات الإصلاح المختلفة:
-
-### 🔧 فني متنقل
-**خدمة الإصلاح في المكان**
-- يأتي الفني المحترف إلى موقعك (منزل، مكتب، أي مكان)
-- يتم الإصلاح في المكان باستخدام عربة مجهزة بالكامل
-- **مثالي لـ**: الإصلاحات البسيطة والمتوسطة (شاشة، بطارية، منفذ شحن، صوت)
-- **الوقت**: نفس اليوم أو موعد محدد
-- **المميزات**:
-  - ⚡ خدمة سريعة
-  - 📍 تتبع مباشر للفني
-  - 🏠 راحة الخدمة المنزلية
-  - 👁️ مشاهدة عملية الإصلاح
-
-### 🚚 استلام وتوصيل
-**خدمة الإصلاح في الورشة**
-- مندوب يستلم جهازك من موقعك
-- يتم توصيل الجهاز إلى ورشة متخصصة متعاقدة
-- إصلاح احترافي بمعدات متقدمة
-- المندوب يرجع الجهاز بعد الإنتهاء
-- **مثالي لـ**: الإصلاحات المعقدة (لوحة أم، معالج، ضرر الماء، أعمال دقيقة)
-- **الوقت**: 1-3 أيام حسب تعقيد الإصلاح
-- **المميزات**:
-  - 🔧 معدات ورشة احترافية
-  - 🛡️ ضمان ممتد
-  - 💰 أسعار تنافسية
-  - 🏭 الوصول لقطع غيار متخصصة
-
----
-
-## 🚀 فرصة السوق
-
-### السوق المستهدف
-- **الأساسي**: مستخدمو الهواتف الذكية واللابتوب في المملكة العربية السعودية
-- **الثانوي**: التوسع في دول مجلس التعاون الخليجي
-- **حجم السوق**: أكثر من 35 مليون مستخدم هاتف ذكي في السعودية وحدها
-
-### استراتيجية الإطلاق الجغرافي
-
-#### 🎯 المرحلة الأولى: الدمام (الربع الأول 2025)
-**لماذا الدمام؟**
-- ✅ سوق متوسط الحجم مثالي للاختبار والتعلم
-- ✅ منافسة أقل من الرياض وجدة
-- ✅ تكلفة اكتساب عملاء أقل
-- ✅ مجتمع تقني نشط ومتقبل للتكنولوجيا
-- ✅ قرب استراتيجي من البحرين والكويت للتوسع المستقبلي
-
-**الأهداف**: 200 فني، 2,000 عميل، 3,000 طلب في 3 أشهر
-
-#### المرحلة الثانية: الخبر والظهران (الربع الثاني 2025)
-- توسع طبيعي في المنطقة الشرقية
-- استهداف موظفي أرامكو والشركات الكبرى
-
-#### المرحلة الثالثة: الرياض وجدة (الربع الثالث 2025)
-- دخول الأسواق الكبرى بعد إثبات نموذج العمل
-
-#### المرحلة الرابعة: باقي المدن السعودية (الربع الرابع 2025)
-#### المرحلة الخامسة: دول الخليج (2026)
-
----
-
-## 💡 التقنيات المستخدمة
-
-- **الواجهة الأمامية**: React Native 19 مع Expo
-- **التنقل**: Expo Router
-- **الخرائط**: Google Maps API
-- **إدارة الحالة**: React Context API
-- **قاعدة البيانات**: Supabase (PostgreSQL)
-
----
-
-## 🚀 البدء
-
-### التثبيت
-
-```bash
-git clone https://github.com/muhammedatef98/fixatee-mobile.git
-cd fixatee-mobile
-npm install
-npx expo start
+```
+app/                  Expo Router screens (customer, technician, shared)
+components/           Reusable UI (BottomNav, RTLIcon, ErrorState, ...)
+contexts/             AppContext, AuthContext, OrdersContext, RequestContext
+services/             API wrappers (auth, orders, payments, OTP, locations, ...)
+lib/                  Supabase client + legacy helpers
+utils/                logger, validation, haptics, errorMessages, RTL helpers
+types/                Single-source-of-truth domain types (Order, OrderStatus)
+constants/            theme, translations, issue categories
+supabase/migrations/  Database migrations (see folder README)
+supabase-functions/   Edge Functions (send-otp, verify-otp, create-payment, notify-technicians)
+docs/                 Setup guides, business material, internal notes
+__tests__/            Jest unit tests
 ```
 
-### التشغيل على الجهاز
-- اضغط `i` لمحاكي iOS
-- اضغط `a` لمحاكي Android
-- امسح رمز QR باستخدام تطبيق Expo Go على الجهاز الفعلي
+## Useful scripts
+
+| Script | What it does |
+| ------ | ------------ |
+| `pnpm start` | Start Expo dev server |
+| `pnpm test` | Run Jest unit tests |
+| `pnpm test:ci` | Run tests in CI mode (no watch, force exit) |
+| `pnpm typecheck` | `tsc --noEmit` |
+| `pnpm lint` | ESLint |
+| `pnpm format` | Prettier write |
+
+## Contributing
+
+PRs welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for the workflow and
+[SECURITY.md](SECURITY.md) for how to report vulnerabilities.
+
+## License
+
+MIT — see [LICENSE](LICENSE).
+
+## Contact
+
+- 📧 fixate01@gmail.com
+- 📱 +966 54 894 0042
+- 🌐 [github.com/muhammedatef98/fixatee-mobile](https://github.com/muhammedatef98/fixatee-mobile)
 
 ---
 
-## 📞 التواصل وفرص الاستثمار
+## 🇸🇦 ملخّص بالعربية
 
-نبحث بنشاط عن شركاء استراتيجيين ومستثمرين لتوسيع نطاق Fixatee في جميع أنحاء المنطقة.
+**Fixatee** — منصّة جوّال تربط عملاء السعودية بفنيين معتمدين لإصلاح الأجهزة الإلكترونية:
+- العميل يطلب صيانة خلال أقل من 60 ثانية، يتتبّع الفني على الخريطة، يدفع داخل التطبيق، ويقيّم الخدمة
+- الفني يستلم الطلبات القريبة، يبثّ موقعه، ويدير دورة حياة الإصلاح من القبول للتسليم
+- التحقّق من الفني وفق النظام السعودي (هوية وطنية / إقامة + IBAN + مستندات)
+- تسجيل دخول بالإيميل عبر OTP مجاني (بدون مزوّد SMS)، Edge Function مخصّص عبر Resend
+- دعم كامل لـ RTL والوضع الليلي، خط Cairo
 
-📧 **البريد الإلكتروني**: fixate01@gmail.com  
-📱 **الهاتف**: 0548940042  
-🌐 **GitHub**: https://github.com/muhammedatef98/fixatee-mobile
+**ابدأ:** انسخ المستودع، شغّل `pnpm install`، انسخ `.env.example` إلى `.env` واملأه، ثم `pnpm start`.
 
-**للاستفسارات التجارية**: متاح للعروض التقديمية والعروض التوضيحية للمنتج.
-
----
-
-## 📄 الترخيص
-
-هذا المشروع مرخص بموجب ترخيص MIT - راجع ملف [LICENSE](LICENSE) للحصول على التفاصيل.
-
----
-
-<div align="center">
-  <p>صُنع بـ ❤️ من فريق Fixatee</p>
-  <p>© 2024 Fixatee. جميع الحقوق محفوظة.</p>
-</div>
+**الأدلة الكاملة:** [docs/setup/](docs/setup/) — Supabase, OAuth, Firebase, Production Checklist.
+**الفرصة الاستثمارية:** [docs/business/INVESTOR_SUMMARY.md](docs/business/INVESTOR_SUMMARY.md).
