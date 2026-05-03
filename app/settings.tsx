@@ -12,7 +12,7 @@ import {
   Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import Constants from 'expo-constants';
+import appConfig from '../app.json';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useApp } from '../contexts/AppContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -30,7 +30,7 @@ export default function SettingsScreen() {
   const isRTL = language === 'ar';
   const isAdmin = (userProfile as any)?.is_admin === true;
 
-  const appVersion = Constants.expoConfig?.version ?? '1.0.0';
+  const appVersion = (appConfig as any).expo?.version ?? '1.0.0';
 
   const handleResetPassword = async () => {
     if (!user?.email) return;

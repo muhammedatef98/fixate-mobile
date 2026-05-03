@@ -57,3 +57,4 @@ GoogleService-Info.plist
 *-report.md
 *-complete.md
 .claude/
+secrets/

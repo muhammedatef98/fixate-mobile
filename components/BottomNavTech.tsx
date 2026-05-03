@@ -13,7 +13,7 @@ const NAV_ITEMS = [
   { path: '/(technician)/profile', icon: 'person-outline', activeIcon: 'person', labelAr: 'حسابي', labelEn: 'Profile' },
 ];
 
-export default function BottomNavTech() {
+export default function BottomNavTech(_props: { currentRoute?: string } = {}) {
   const router = useRouter();
   const pathname = usePathname();
   const { language } = useApp();

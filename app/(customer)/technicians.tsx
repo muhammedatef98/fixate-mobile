@@ -16,7 +16,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { getColors, getShadows, SPACING, BORDER_RADIUS } from '../../constants/theme';
 import { useApp } from '../../contexts/AppContext';
 import { translations } from '../../constants/translations';
-import { technicians } from '../../lib/supabase-api';
+import { getAvailableTechnicians } from '../../services/technicianService';
 import NeuCard from '../../components/NeuCard';
 import BottomNav from '../../components/BottomNav';
 import { logger } from '../../utils/logger';
@@ -30,7 +30,7 @@ export default function TechniciansScreen() {
   const t = translations[language];
   const isRTL = language === 'ar';
 
-  const [technicians, setTechnicians] = useState<any[]>([]);
+  const [techniciansList, setTechniciansList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -41,8 +41,8 @@ export default function TechniciansScreen() {
   const loadTechnicians = async () => {
     try {
       setLoading(true);
-      const data = await technicians.getAvailable();
-      setTechnicians(data);
+      const data = await getAvailableTechnicians();
+      setTechniciansList(data || []);
     } catch (error) {
       logger.debug('Error loading technicians:', error);
     } finally {
@@ -90,7 +90,7 @@ export default function TechniciansScreen() {
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[COLORS.primary]} />
           }
         >
-          {technicians.length === 0 ? (
+          {techniciansList.length === 0 ? (
             <View style={styles.emptyContainer}>
               <MaterialIcons name="engineering" size={64} color={COLORS.textSecondary} />
               <Text style={styles.emptyText}>
@@ -101,7 +101,7 @@ export default function TechniciansScreen() {
               </Text>
             </View>
           ) : (
-            technicians.map((tech) => (
+            techniciansList.map((tech) => (
               <NeuCard key={tech.id} style={styles.techCard}>
                 <View style={styles.techHeader}>
                   <View style={styles.avatarContainer}>

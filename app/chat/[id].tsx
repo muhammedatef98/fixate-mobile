@@ -68,11 +68,12 @@ export default function ChatScreen() {
       setMessages(msgs);
       
       // Determine other party name
-      const userRole = user?.user_metadata?.user_type || user?.user_metadata?.role;
+      const meta = (user?.user_metadata || {}) as { user_type?: string; role?: string };
+      const userRole = meta.user_type || meta.role;
       if (userRole === 'technician') {
-        setOtherPartyName(orderData?.customer_name || (language === 'ar' ? 'العميل' : 'Customer'));
+        setOtherPartyName((orderData as any)?.customer_name || (language === 'ar' ? 'العميل' : 'Customer'));
       } else {
-        setOtherPartyName(orderData?.technician_name || (language === 'ar' ? 'الفني' : 'Technician'));
+        setOtherPartyName((orderData as any)?.technician_name || (language === 'ar' ? 'الفني' : 'Technician'));
       }
 
       setLoading(false);

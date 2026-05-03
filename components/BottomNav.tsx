@@ -14,7 +14,7 @@ const NAV_ITEMS = [
   { path: '/profile', icon: 'person-outline', activeIcon: 'person', labelAr: 'حسابي', labelEn: 'Profile' },
 ];
 
-export default function BottomNav() {
+export default function BottomNav(_props: { currentRoute?: string } = {}) {
   const router = useRouter();
   const pathname = usePathname();
   const { language } = useApp();

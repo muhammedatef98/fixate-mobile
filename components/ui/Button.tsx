@@ -78,7 +78,7 @@ export const Button: React.FC<ButtonProps> = ({
           <Text style={[
             styles.text,
             { color: getTextColor(), fontSize: size === 'large' ? 18 : 16 },
-            icon && { marginLeft: 8 },
+            icon ? { marginLeft: 8 } : null,
             textStyle
           ]}>
             {title}

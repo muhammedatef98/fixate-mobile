@@ -55,9 +55,17 @@ export default function CustomerHomeScreen() {
 
   const [sidebarVisible, setSidebarVisible] = useState(false);
   const [activeOrders, setActiveOrders] = useState<any[]>([]);
+  const [promoIndex, setPromoIndex] = useState(0);
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(20)).current;
   const scrollX = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const sub = scrollX.addListener(({ value }) => {
+      setPromoIndex(Math.round(value / (width - 32)));
+    });
+    return () => scrollX.removeListener(sub);
+  }, [scrollX]);
 
   useEffect(() => {
     Animated.parallel([
@@ -169,7 +177,7 @@ export default function CustomerHomeScreen() {
               renderItem={({ item }) => (
                 <View style={[styles.promoCard, { backgroundColor: item.color, width: width - 32 }]}>
                   <View style={styles.promoCardContent}>
-                    <MaterialCommunityIcons name={item.icon} size={40} color="#fff" />
+                    <MaterialCommunityIcons name={item.icon as any} size={40} color="#fff" />
                     <View style={{ marginLeft: isRTL ? 0 : 16, marginRight: isRTL ? 16 : 0, flex: 1 }}>
                       <Text style={styles.promoCardTitle}>{isRTL ? item.titleAr : item.titleEn}</Text>
                       <Text style={styles.promoCardDesc}>{isRTL ? item.descAr : item.descEn}</Text>
@@ -191,8 +199,7 @@ export default function CustomerHomeScreen() {
                   style={[
                     styles.promoDot,
                     {
-                      backgroundColor:
-                        index === Math.round(scrollX.__getValue() / (width - 32)) ? COLORS.primary : COLORS.border,
+                      backgroundColor: index === promoIndex ? COLORS.primary : COLORS.border,
                     },
                   ]}
                 />
@@ -215,7 +222,7 @@ export default function CustomerHomeScreen() {
                   onPress={handleCategoryPress}
                 >
                   <View style={[styles.categoryIconContainer, { backgroundColor: category.color + '20' }]}>
-                    <MaterialCommunityIcons name={category.icon} size={32} color={category.color} />
+                    <MaterialCommunityIcons name={category.icon as any} size={32} color={category.color} />
                   </View>
                   <Text style={[styles.categoryLabel, { color: COLORS.text }]}>
                     {isRTL ? category.titleAr : category.titleEn}
@@ -234,7 +241,7 @@ export default function CustomerHomeScreen() {
               {WHY_US.map((item) => (
                 <View key={item.id} style={[styles.whyUsCard, { backgroundColor: COLORS.card }, SHADOWS.small]}>
                   <View style={[styles.whyUsIconContainer, { backgroundColor: item.color + '20' }]}>
-                    <MaterialCommunityIcons name={item.icon} size={28} color={item.color} />
+                    <MaterialCommunityIcons name={item.icon as any} size={28} color={item.color} />
                   </View>
                   <Text style={[styles.whyUsTitle, { color: COLORS.text }]}>
                     {isRTL ? item.titleAr : item.titleEn}

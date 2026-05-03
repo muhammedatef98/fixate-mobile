@@ -48,7 +48,7 @@ export default function AuthScreen() {
   const handleAuth = async () => {
     if (!email || !password || (!isLogin && !name)) {
       Alert.alert(
-        t.error || 'Error',
+        (t as any).error || 'Error',
         isLogin
           ? (language === 'ar' ? 'الرجاء إدخال البريد الإلكتروني وكلمة المرور' : 'Please enter email and password')
           : (language === 'ar' ? 'الرجاء إدخال جميع الحقول' : 'Please fill all fields')
@@ -62,7 +62,7 @@ export default function AuthScreen() {
         // Login
         await auth.signIn(email, password);
         Alert.alert(
-          t.success || 'Success',
+          (t as any).success || 'Success',
           language === 'ar' ? 'تم تسجيل الدخول بنجاح!' : 'Logged in successfully!'
         );
         // Navigate based on user role
@@ -73,14 +73,14 @@ export default function AuthScreen() {
         // Sign up
         await auth.signUp(email, password, name, userRole);
         Alert.alert(
-          t.success || 'Success',
+          (t as any).success || 'Success',
           language === 'ar' ? 'تم إنشاء الحساب بنجاح! يرجى التحقق من بريدك الإلكتروني.' : 'Account created! Please check your email.'
         );
         setIsLogin(true);
       }
     } catch (error: any) {
       Alert.alert(
-        t.error || 'Error',
+        (t as any).error || 'Error',
         error.message || (language === 'ar' ? 'حدث خطأ. حاول مرة أخرى.' : 'An error occurred. Please try again.')
       );
     } finally {

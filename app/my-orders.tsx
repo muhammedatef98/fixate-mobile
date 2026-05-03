@@ -48,12 +48,26 @@ const ORDER_STATUS_CONFIG = {
     color: '#8B5CF6',
     progress: 50,
   },
+  waiting_parts: {
+    ar: 'بانتظار قطع الغيار',
+    en: 'Waiting for Parts',
+    icon: 'package-variant',
+    color: '#A855F7',
+    progress: 60,
+  },
   repairing: {
     ar: 'جاري الإصلاح',
     en: 'Repairing',
     icon: 'tools',
     color: '#EC4899',
     progress: 70,
+  },
+  testing: {
+    ar: 'جاري الاختبار',
+    en: 'Testing',
+    icon: 'check-decagram',
+    color: '#0EA5E9',
+    progress: 80,
   },
   delivering: {
     ar: 'جاري التوصيل',
@@ -146,7 +160,7 @@ export default function MyOrdersScreen() {
               {order.device_brand} {order.device_model}
             </Text>
             <Text style={[styles.orderDate, { color: COLORS.textSecondary }]}>
-              {new Date(order.created_at).toLocaleDateString(isRTL ? 'ar-SA' : 'en-US', {
+              {new Date(order.created_at || Date.now()).toLocaleDateString(isRTL ? 'ar-SA' : 'en-US', {
                 year: 'numeric',
                 month: 'short',
                 day: 'numeric',

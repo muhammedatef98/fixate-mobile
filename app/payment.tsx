@@ -302,7 +302,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   cardPreview: {
-    backgroundColor: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
     backgroundColor: '#667eea',
     borderRadius: BORDER_RADIUS.xl,
     padding: SPACING.xl,

@@ -4,7 +4,7 @@ import { getColors } from '../constants/theme';
 import { useApp } from '../contexts/AppContext';
 
 interface SkeletonLoaderProps {
-  width?: number | string;
+  width?: number | `${number}%`;
   height?: number;
   borderRadius?: number;
   style?: ViewStyle;

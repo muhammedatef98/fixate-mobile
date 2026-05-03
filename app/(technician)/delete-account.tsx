@@ -12,7 +12,7 @@ import {
 import { useRouter } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useApp } from '../../contexts/AppContext';
-import { auth, supabase } from '../../lib/supabase';
+import { useAuth } from '../../contexts/AuthContext';
 import { logger } from '../../utils/logger';
 
 const COLORS = {
@@ -29,6 +29,7 @@ const COLORS = {
 export default function TechnicianDeleteAccountScreen() {
   const router = useRouter();
   const { language } = useApp();
+  const { deleteAccount } = useAuth();
   const isRTL = language === 'ar';
 
   const [confirmText, setConfirmText] = useState('');
@@ -64,24 +65,7 @@ export default function TechnicianDeleteAccountScreen() {
           onPress: async () => {
             setLoading(true);
             try {
-              // Get current user
-              const user = await auth.getCurrentUser();
-              if (!user) {
-                throw new Error('No user found');
-              }
-
-              // Soft delete user account (marks as deleted, will be permanently deleted after 30 days)
-              const { error: deleteError } = await supabase
-                .from('users')
-                .update({ deleted_at: new Date().toISOString() })
-                .eq('id', user.id);
-
-              if (deleteError) {
-                throw deleteError;
-              }
-
-              // Sign out user
-              await auth.signOut();
+              await deleteAccount();
 
               Alert.alert(
                 isRTL ? 'تم حذف الحساب' : 'Account Deleted',

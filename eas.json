@@ -29,7 +29,11 @@
   "submit": {
     "production": {
       "android": {
-        "serviceAccountKeyPath": "/home/ubuntu/upload/fixate-7dd90-372d24da1291.json"
+        "serviceAccountKeyPath": "./secrets/play-service-account.json",
+        "track": "internal"
+      },
+      "ios": {
+        "ascAppId": "REPLACE_WITH_APP_STORE_CONNECT_ID"
       }
     }
   }

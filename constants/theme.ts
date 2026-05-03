@@ -15,7 +15,9 @@ const LIGHT_COLORS = {
   textSecondary: '#6B7280',
   textLight: '#9CA3AF',
   foreground: '#1F2937',
-  
+  secondary: '#6B7280',
+  disabled: '#D1D5DB',
+
   white: '#FFFFFF',
   black: '#000000',
   border: '#E5E7EB',
@@ -54,7 +56,9 @@ const DARK_COLORS = {
   textSecondary: '#9CA3AF',
   textLight: '#6B7280',
   foreground: '#F9FAFB',
-  
+  secondary: '#9CA3AF',
+  disabled: '#4B5563',
+
   white: '#FFFFFF',
   black: '#000000',
   border: '#374151',
@@ -94,6 +98,7 @@ export const SPACING = {
   lg: 24,
   xl: 32,
   xxl: 48,
+  xxxl: 64,
 };
 
 export const FONTS = {
@@ -137,8 +142,11 @@ export const TYPOGRAPHY = {
 
 export const BORDER_RADIUS = {
   sm: 8,
+  s: 8,
   md: 12,
+  m: 12,
   lg: 16,
+  l: 16,
   xl: 20,
   xxl: 24,
   full: 999,
@@ -146,6 +154,20 @@ export const BORDER_RADIUS = {
 
 // Light Mode Shadows
 const LIGHT_SHADOWS = {
+  neu: {
+    shadowColor: '#E5E7EB',
+    shadowOffset: { width: 4, height: 4 },
+    shadowOpacity: 0.8,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  neuPressed: {
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
   neuFlat: {
     shadowColor: '#E5E7EB',
     shadowOffset: { width: 4, height: 4 },
@@ -206,6 +228,20 @@ const LIGHT_SHADOWS = {
 
 // Dark Mode Shadows
 const DARK_SHADOWS = {
+  neu: {
+    shadowColor: '#000000',
+    shadowOffset: { width: 5, height: 5 },
+    shadowOpacity: 0.5,
+    shadowRadius: 10,
+    elevation: 0,
+  },
+  neuPressed: {
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.3,
+    shadowRadius: 2,
+    elevation: 1,
+  },
   neuFlat: {
     shadowColor: '#000000',
     shadowOffset: { width: 5, height: 5 },
