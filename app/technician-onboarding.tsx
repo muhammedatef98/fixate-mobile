@@ -166,7 +166,7 @@ export default function TechnicianOnboardingScreen() {
               <Field
                 label={isRTL ? 'رقم الهوية الوطنية / الإقامة' : 'National ID / Iqama'}
                 value={nationalId}
-                onChangeText={(v) => setNationalId(v.replace(/\D/g, '').slice(0, 10))}
+                onChangeText={(v: string) => setNationalId(v.replace(/\D/g, '').slice(0, 10))}
                 keyboardType="number-pad"
                 placeholder="1xxxxxxxxx"
                 COLORS={COLORS}
@@ -226,7 +226,7 @@ export default function TechnicianOnboardingScreen() {
               <Field
                 label={isRTL ? 'سنوات الخبرة' : 'Years of experience'}
                 value={years}
-                onChangeText={(v) => setYears(v.replace(/\D/g, ''))}
+                onChangeText={(v: string) => setYears(v.replace(/\D/g, ''))}
                 keyboardType="number-pad"
                 COLORS={COLORS}
                 isRTL={isRTL}
@@ -265,7 +265,7 @@ export default function TechnicianOnboardingScreen() {
               <Field
                 label={isRTL ? 'رقم الـ IBAN السعودي' : 'Saudi IBAN'}
                 value={iban}
-                onChangeText={(v) => setIban(v.toUpperCase().replace(/\s/g, ''))}
+                onChangeText={(v: string) => setIban(v.toUpperCase().replace(/\s/g, ''))}
                 placeholder="SAxx xxxx xxxx xxxx xxxx xxxx"
                 COLORS={COLORS}
                 isRTL={isRTL}

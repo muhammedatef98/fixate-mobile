@@ -5,10 +5,7 @@ import { useApp } from '../contexts/AppContext';
 type IoniconsName = React.ComponentProps<typeof Ionicons>['name'];
 type MaterialIconsName = React.ComponentProps<typeof MaterialIcons>['name'];
 
-interface IoniconProps {
-  name: IoniconsName;
-  size?: number;
-  color?: string;
+interface IoniconProps extends React.ComponentProps<typeof Ionicons> {
   flipOnRTL?: boolean;
 }
 
@@ -30,10 +27,7 @@ export function RTLIonicon({ name, flipOnRTL = true, ...rest }: IoniconProps) {
   return <Ionicons name={finalName} {...rest} />;
 }
 
-interface MaterialProps {
-  name: MaterialIconsName;
-  size?: number;
-  color?: string;
+interface MaterialProps extends React.ComponentProps<typeof MaterialIcons> {
   flipOnRTL?: boolean;
 }
 

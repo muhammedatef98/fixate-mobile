@@ -89,7 +89,7 @@ export default function ChatScreen() {
   };
 
   const renderMessage = ({ item }: { item: Message }) => {
-    const isMyMessage = item.sender_id === currentUserId;
+    const isMyMessage = item.sender_id === user?.id;
 
     return (
       <View

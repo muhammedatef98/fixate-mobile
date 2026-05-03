@@ -12,6 +12,7 @@ interface AuthContextType {
   loading: boolean;
   isAuthenticated: boolean;
   signOut: () => Promise<void>;
+  deleteAccount: () => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
   signup: (data: authService.SignUpData) => Promise<void>;
   refreshUser: () => Promise<void>;
@@ -82,6 +83,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch {}
   };
 
+  const deleteAccount = async () => {
+    // Calls the delete-account Edge Function (uses service-role to remove the
+    // auth.users row plus owned data). Server-side does the cascade; we just
+    // sign out locally afterwards.
+    const { error } = await supabase.functions.invoke('delete-account');
+    if (error) throw error;
+    await signOut();
+  };
+
   const login = async (email: string, password: string) => {
     const { user } = await authService.loginWithPhoneOrEmail({ email, password });
     if (user) {
@@ -106,7 +116,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ session, user, userProfile, loading, isAuthenticated, signOut, login, signup, refreshUser }}>
+    <AuthContext.Provider value={{ session, user, userProfile, loading, isAuthenticated, signOut, deleteAccount, login, signup, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

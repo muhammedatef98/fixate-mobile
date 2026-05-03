@@ -4,7 +4,7 @@ import { logger } from '../utils/logger';
 // Database Types (matching Supabase schema)
 export interface User {
   id: string;
-  email: string;
+  email?: string;
   user_metadata?: {
     name?: string;
     phone?: string;
@@ -75,7 +75,7 @@ export const auth = {
     try {
       const { data: { user }, error } = await supabase.auth.getUser();
       if (error) return null;
-      return user;
+      return user as User | null;
     } catch (error) {
       return null;
     }
@@ -194,6 +194,29 @@ export const requests = {
     }
 
     const { data, error } = await query.order('created_at', { ascending: false });
+    if (error) return [];
+    return data || [];
+  },
+
+  // Get current user's orders (customer)
+  getUserOrders: async (): Promise<Order[]> => {
+    const user = await auth.getCurrentUser();
+    if (!user) return [];
+    const { data, error } = await supabase
+      .from('orders')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false });
+    if (error) return [];
+    return data || [];
+  },
+
+  // Get all orders (helper used by FloatingOrderStatus)
+  getAll: async (): Promise<Order[]> => {
+    const { data, error } = await supabase
+      .from('orders')
+      .select('*')
+      .order('created_at', { ascending: false });
     if (error) return [];
     return data || [];
   },
@@ -358,17 +381,3 @@ export default {
   chat,
 };
 
-// Helper function for getting user orders
-requests.getUserOrders = async (): Promise<Order[]> => {
-  const user = await auth.getCurrentUser();
-  if (!user) return [];
-  
-  const { data, error } = await supabase
-    .from('orders')
-    .select('*')
-    .eq('user_id', user.id)
-    .order('created_at', { ascending: false });
-  
-  if (error) return [];
-  return data || [];
-};

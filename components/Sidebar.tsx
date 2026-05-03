@@ -203,7 +203,7 @@ export default function Sidebar({ visible, onClose }: SidebarProps) {
                   }}
                 >
                   <View style={[styles.menuItemIcon, { backgroundColor: item.color + '20' }]}>
-                    <MaterialCommunityIcons name={item.icon} size={20} color={item.color} />
+                    <MaterialCommunityIcons name={item.icon as any} size={20} color={item.color} />
                   </View>
                   <Text style={[styles.menuItemText, { color: COLORS.text }]}>{item.label}</Text>
                   <RTLMaterialIcon name="chevron-right"
@@ -230,7 +230,7 @@ export default function Sidebar({ visible, onClose }: SidebarProps) {
                 >
                   <View style={styles.settingLeft}>
                     <View style={[styles.settingIcon, { backgroundColor: item.color + '20' }]}>
-                      <MaterialCommunityIcons name={item.icon} size={20} color={item.color} />
+                      <MaterialCommunityIcons name={item.icon as any} size={20} color={item.color} />
                     </View>
                     <Text style={[styles.settingText, { color: COLORS.text }]}>{item.label}</Text>
                   </View>

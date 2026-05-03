@@ -20,6 +20,8 @@ import { useApp } from '../../contexts/AppContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { translations } from '../../constants/translations';
 import * as orderService from '../../services/orderService';
+import { subscribeToPendingOrders } from '../../services/realtimeService';
+import { supabase } from '../../services/supabaseClient';
 import { ISSUE_CATEGORIES, getIssueCategory } from '../../constants/issueCategories';
 import NeuCard from '../../components/NeuCard';
 import ErrorState from '../../components/ErrorState';
@@ -59,9 +61,14 @@ export default function AvailableOrdersScreen() {
   useEffect(() => {
     loadOrders();
     getTechnicianLocation();
-    
-    // Set up real-time subscription for new orders
-    // TODO: Implement real-time subscription using realtimeService
+
+    const channel = subscribeToPendingOrders((order) => {
+      setOrders((prev) => (prev.some((o) => o.id === order.id) ? prev : [order, ...prev]));
+    });
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const getTechnicianLocation = async () => {
@@ -161,7 +168,7 @@ export default function AvailableOrdersScreen() {
   const filteredOrders = categoryFilter === 'all' 
     ? orders 
     : orders.filter(order => {
-        const category = getIssueCategory(order.service_id);
+        const category = getIssueCategory(order.service_id || '');
         return category === categoryFilter;
       });
 
@@ -249,7 +256,7 @@ export default function AvailableOrdersScreen() {
 
         {order.media_urls && order.media_urls.length > 0 && (
           <ScrollView horizontal style={styles.mediaPreview} showsHorizontalScrollIndicator={false}>
-            {order.media_urls.map((url, index) => (
+            {order.media_urls.map((url: string, index: number) => (
               <Image
                 key={index}
                 source={{ uri: url }}

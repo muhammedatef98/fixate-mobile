@@ -21,7 +21,7 @@ const MENU_ITEMS = [
 export default function ProfileScreen() {
   const router = useRouter();
   const { isDark, language, setLanguage } = useApp();
-  const { user, logout } = useAuth();
+  const { user, userProfile, signOut } = useAuth();
   const COLORS = getColors(isDark);
   const SHADOWS = getShadows(isDark);
   const isRTL = language === 'ar';
@@ -32,8 +32,8 @@ export default function ProfileScreen() {
   const [languageModalVisible, setLanguageModalVisible] = useState(false);
   const [aboutModalVisible, setAboutModalVisible] = useState(false);
   
-  const [name, setName] = useState(user?.name || '');
-  const [phone, setPhone] = useState(user?.phone || '');
+  const [name, setName] = useState((userProfile as any)?.name || '');
+  const [phone, setPhone] = useState((userProfile as any)?.phone || '');
   const [email, setEmail] = useState(user?.email || '');
   
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
@@ -73,7 +73,7 @@ export default function ProfileScreen() {
           text: isRTL ? 'تسجيل الخروج' : 'Logout', 
           style: 'destructive',
           onPress: async () => {
-            await logout();
+            await signOut();
             router.replace('/role-selection');
           }
         },

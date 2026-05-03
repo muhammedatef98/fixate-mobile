@@ -44,7 +44,7 @@ export default function FloatingOrderStatus() {
   const checkActiveOrder = async () => {
     try {
       const allRequests = await requests.getAll();
-      const active = allRequests.find(r =>
+      const active = allRequests.find((r: any) =>
         ['pending', 'accepted', 'picking_up', 'diagnosing', 'waiting_parts', 'repairing', 'testing', 'delivering'].includes(r.status)
       );
       
