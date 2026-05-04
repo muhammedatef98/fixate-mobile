@@ -1,6 +1,10 @@
 import { supabase } from './supabaseClient';
 import { decode } from 'base64-arraybuffer';
-import { readAsStringAsync } from 'expo-file-system';
+// expo-file-system v19 routed the readAsStringAsync export through a
+// deprecation warning that runs on every call. Importing from the
+// `/legacy` path gets the same function without the deprecation noise.
+// (The new File class API is overkill here — we just need bytes for upload.)
+import { readAsStringAsync } from 'expo-file-system/legacy';
 import { logger } from '../utils/logger';
 
 const ORDERS_BUCKET = 'orders';
