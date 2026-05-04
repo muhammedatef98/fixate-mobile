@@ -33,12 +33,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setSession(session);
       setUser(session?.user ?? null);
       setIsAuthenticated(!!session);
-      
+
       if (session?.user) {
         const profile = await userService.getUserProfile(session.user.id);
         setUserProfile(profile);
+
+        // If the JWT is still valid locally but the auth.users row was
+        // wiped on the server (DB reset, account deleted from another
+        // device), the next supabase.auth.getUser() call returns no user.
+        // Treat that as a hard logout so the app doesn't sit on a stale
+        // session and spam profile-not-found errors.
+        if (!profile) {
+          const { data: { user: serverUser } } = await supabase.auth.getUser().catch(() => ({ data: { user: null } as any }));
+          if (!serverUser) {
+            await supabase.auth.signOut({ scope: 'local' }).catch(() => undefined);
+            setSession(null);
+            setUser(null);
+            setIsAuthenticated(false);
+          }
+        }
       }
-      
+
       setLoading(false);
     });
 

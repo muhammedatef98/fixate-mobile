@@ -24,16 +24,23 @@ export interface TechnicianProfile {
 
 export const getUserProfile = async (userId: string): Promise<UserProfile | null> => {
   try {
+    // maybeSingle() returns null when the row is missing instead of throwing
+    // PGRST116. That happens with a stale JWT after a DB wipe (auth.users
+    // is empty but the client still has a valid token in AsyncStorage), and
+    // briefly between auth signUp and the handle_new_user trigger firing.
     const { data, error } = await supabase
       .from('users')
       .select('*')
       .eq('id', userId)
-      .single();
+      .maybeSingle();
 
-    if (error) throw error;
+    if (error) {
+      logger.warn('Get user profile non-fatal error', error);
+      return null;
+    }
     return data;
   } catch (error: any) {
-    logger.error('Get user profile error', error);
+    logger.warn('Get user profile failed', error);
     return null;
   }
 };
