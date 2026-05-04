@@ -18,6 +18,24 @@ const withTimeout = <T>(p: PromiseLike<T>, ms: number, label: string): Promise<T
     ),
   ]);
 
+// Read queries are idempotent — retry once on timeout before giving up so
+// flaky networks don't surface as red error overlays for the user.
+const withRetry = async <T>(
+  fn: () => PromiseLike<T>,
+  ms: number,
+  label: string
+): Promise<T> => {
+  try {
+    return await withTimeout(fn(), ms, label);
+  } catch (err: any) {
+    if (/timed out/i.test(err?.message || '')) {
+      logger.warn(`${label} timed out, retrying once`);
+      return await withTimeout(fn(), ms, label);
+    }
+    throw err;
+  }
+};
+
 export const createOrder = async (userId: string, orderData: CreateOrderData): Promise<Order> => {
   if (!userId) {
     throw new Error('User ID is required');
@@ -67,15 +85,17 @@ export const createOrder = async (userId: string, orderData: CreateOrderData): P
 
 export const getMyOrders = async (userId: string): Promise<Order[]> => {
   try {
-    const { data, error } = await withTimeout(
-      supabase.from('orders').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
-      10000,
+    const { data, error } = await withRetry(
+      () => supabase.from('orders').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
+      20000,
       'Get my orders'
     );
     if (error) throw error;
     return data || [];
   } catch (error: any) {
-    logger.error('Get my orders error', error);
+    // Read failures are non-fatal — return empty list and warn (not error)
+    // so the dev-overlay doesn't show a red box for a recoverable timeout.
+    logger.warn('Get my orders failed', error);
     return [];
   }
 };
@@ -83,14 +103,15 @@ export const getMyOrders = async (userId: string): Promise<Order[]> => {
 export const getAvailableOrders = async (): Promise<Order[]> => {
   try {
     logger.debug('Fetching available orders');
-    const { data, error } = await withTimeout(
-      supabase
-        .from('orders')
-        .select('*')
-        .eq('status', 'pending')
-        .is('technician_id', null)
-        .order('created_at', { ascending: false }),
-      10000,
+    const { data, error } = await withRetry(
+      () =>
+        supabase
+          .from('orders')
+          .select('*')
+          .eq('status', 'pending')
+          .is('technician_id', null)
+          .order('created_at', { ascending: false }),
+      20000,
       'Get available orders'
     );
 
@@ -98,7 +119,7 @@ export const getAvailableOrders = async (): Promise<Order[]> => {
     if (error) throw error;
     return data || [];
   } catch (error: any) {
-    logger.error('Get available orders error', error);
+    logger.warn('Get available orders failed', error);
     return [];
   }
 };
@@ -194,20 +215,21 @@ export const addPriceToOrder = async (
 
 export const getTechnicianOrders = async (technicianId: string): Promise<Order[]> => {
   try {
-    const { data, error } = await withTimeout(
-      supabase
-        .from('orders')
-        .select('*')
-        .eq('technician_id', technicianId)
-        .order('created_at', { ascending: false }),
-      10000,
+    const { data, error } = await withRetry(
+      () =>
+        supabase
+          .from('orders')
+          .select('*')
+          .eq('technician_id', technicianId)
+          .order('created_at', { ascending: false }),
+      20000,
       'Get technician orders'
     );
 
     if (error) throw error;
     return data || [];
   } catch (error: any) {
-    logger.error('Get technician orders error', error);
+    logger.warn('Get technician orders failed', error);
     return [];
   }
 };
