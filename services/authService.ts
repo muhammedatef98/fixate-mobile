@@ -85,7 +85,8 @@ export const signUpWithPhoneOrEmail = async (data: SignUpData) => {
 
     return { user: signInData.user, session: signInData.session };
   } catch (error: any) {
-    logger.error('Sign up error', error);
+    // Duplicate email / weak password are user-correctable, not real errors.
+    logger.warn('Sign up failed', error);
     throw error;
   }
 };
@@ -105,7 +106,10 @@ export const loginWithPhoneOrEmail = async (data: LoginData) => {
 
     return { user: authData.user, session: authData.session };
   } catch (error: any) {
-    logger.error('Login error', error);
+    // Wrong-password / unknown-email is expected user input, not a bug.
+    // Logging at warn keeps the dev red-overlay quiet while still leaving
+    // a breadcrumb for debugging real auth failures.
+    logger.warn('Login failed', error);
     throw error;
   }
 };
@@ -119,7 +123,7 @@ export const sendPasswordReset = async (email: string) => {
     if (error) throw error;
     return { success: true };
   } catch (error: any) {
-    logger.error('Password reset error', error);
+    logger.warn('Password reset failed', error);
     throw error;
   }
 };
