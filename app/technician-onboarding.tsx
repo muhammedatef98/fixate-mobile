@@ -127,15 +127,39 @@ export default function TechnicianOnboardingScreen() {
           onPress={() => (step > 1 ? setStep(step - 1) : router.back())}
           accessibilityRole="button"
           accessibilityLabel={isRTL ? 'رجوع' : 'Back'}
+          style={{ padding: 6 }}
         >
           <RTLIonicon name="chevron-back" size={26} color={COLORS.text} />
         </TouchableOpacity>
-        <Text style={styles.title}>{isRTL ? 'تسجيل فني' : 'Become a technician'}</Text>
-        <Text style={styles.stepBadge}>{step}/3</Text>
+        <View style={{ alignItems: 'center', flex: 1 }}>
+          <Text style={styles.title}>{isRTL ? 'تسجيل فني' : 'Become a technician'}</Text>
+          <Text style={{ color: COLORS.textSecondary, fontSize: 12, marginTop: 2 }}>
+            {step === 1 && (isRTL ? 'الخطوة 1: البيانات الشخصية' : 'Step 1: Personal info')}
+            {step === 2 && (isRTL ? 'الخطوة 2: المعلومات المهنية' : 'Step 2: Professional info')}
+            {step === 3 && (isRTL ? 'الخطوة 3: التحقق والمستندات' : 'Step 3: Verification')}
+          </Text>
+        </View>
+        <View style={{
+          backgroundColor: COLORS.primary + '15',
+          paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12,
+        }}>
+          <Text style={styles.stepBadge}>{step}/3</Text>
+        </View>
       </View>
 
-      <View style={styles.progressBar}>
-        <View style={[styles.progressFill, { width: `${(step / 3) * 100}%`, backgroundColor: COLORS.primary }]} />
+      {/* Three-segment progress dots */}
+      <View style={{ flexDirection: 'row', paddingHorizontal: SPACING.lg, paddingTop: 12, gap: 6 }}>
+        {[1, 2, 3].map((s) => (
+          <View
+            key={s}
+            style={{
+              flex: 1,
+              height: 4,
+              borderRadius: 2,
+              backgroundColor: s <= step ? COLORS.primary : COLORS.border,
+            }}
+          />
+        ))}
       </View>
 
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
@@ -264,14 +288,38 @@ export default function TechnicianOnboardingScreen() {
 
               <Field
                 label={isRTL ? 'رقم الـ IBAN السعودي' : 'Saudi IBAN'}
-                value={iban}
-                onChangeText={(v: string) => setIban(v.toUpperCase().replace(/\s/g, ''))}
-                placeholder="SAxx xxxx xxxx xxxx xxxx xxxx"
+                value={iban.replace(/(.{4})/g, '$1 ').trim()}
+                onChangeText={(v: string) => {
+                  // Strip whitespace + non-alnum for validation; keep grouping in display
+                  const clean = v.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 24);
+                  setIban(clean);
+                }}
+                placeholder="SA00 0000 0000 0000 0000 0000"
                 COLORS={COLORS}
                 isRTL={isRTL}
                 error={iban.length >= 24 && !ibanCheck.valid ? ibanCheck.message : undefined}
                 hint={ibanCheck.valid ? (isRTL ? 'IBAN صحيح ✓' : 'Valid IBAN ✓') : undefined}
               />
+
+              {/* Final review card */}
+              <View style={{
+                backgroundColor: COLORS.card, borderColor: COLORS.border, borderWidth: 1,
+                borderRadius: BORDER_RADIUS.md, padding: SPACING.md, marginVertical: 12,
+              }}>
+                <Text style={{ color: COLORS.text, fontWeight: '700', marginBottom: 10, textAlign: isRTL ? 'right' : 'left' }}>
+                  {isRTL ? 'مراجعة بياناتك' : 'Review your details'}
+                </Text>
+                <SummaryRow label={isRTL ? 'الاسم' : 'Name'} value={fullName} COLORS={COLORS} isRTL={isRTL} />
+                <SummaryRow label={isRTL ? 'الجوال' : 'Phone'} value={phone} COLORS={COLORS} isRTL={isRTL} />
+                <SummaryRow label={isRTL ? 'المدينة' : 'City'} value={city} COLORS={COLORS} isRTL={isRTL} />
+                <SummaryRow
+                  label={isRTL ? 'التخصص' : 'Specialty'}
+                  value={SPECIALTIES.find((s) => s.id === specialty) ? (isRTL ? SPECIALTIES.find((s) => s.id === specialty)!.ar : SPECIALTIES.find((s) => s.id === specialty)!.en) : ''}
+                  COLORS={COLORS}
+                  isRTL={isRTL}
+                />
+                <SummaryRow label={isRTL ? 'سنوات الخبرة' : 'Experience'} value={`${years} ${isRTL ? 'سنة' : 'yrs'}`} COLORS={COLORS} isRTL={isRTL} />
+              </View>
 
               <UploadCard
                 label={isRTL ? 'صورة الهوية الوطنية / الإقامة *' : 'National ID / Iqama photo *'}
@@ -310,6 +358,21 @@ export default function TechnicianOnboardingScreen() {
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
+  );
+}
+
+function SummaryRow({ label, value, COLORS, isRTL }: any) {
+  return (
+    <View style={{
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      justifyContent: 'space-between',
+      paddingVertical: 6, gap: 12,
+    }}>
+      <Text style={{ color: COLORS.textSecondary, fontSize: 13 }}>{label}</Text>
+      <Text style={{ color: COLORS.text, fontSize: 13, fontWeight: '600', flex: 1, textAlign: isRTL ? 'left' : 'right' }} numberOfLines={1}>
+        {value || '—'}
+      </Text>
+    </View>
   );
 }
 
