@@ -23,6 +23,14 @@ const guessExt = (uri: string, contentType: string): string => {
   return 'jpg';
 };
 
+const withTimeout = <T>(p: PromiseLike<T>, ms: number, label: string): Promise<T> =>
+  Promise.race([
+    Promise.resolve(p),
+    new Promise<T>((_, reject) =>
+      setTimeout(() => reject(new Error(`${label} timed out after ${ms / 1000}s`)), ms)
+    ),
+  ]);
+
 export const uploadOrderMedia = async (
   userId: string,
   localUris: string[],
@@ -40,18 +48,26 @@ export const uploadOrderMedia = async (
       const ext = guessExt(uri, contentType);
       const path = `${folder}/${i}-${Date.now()}.${ext}`;
 
-      const base64 = await readAsStringAsync(uri, { encoding: 'base64' });
+      const base64 = await withTimeout(
+        readAsStringAsync(uri, { encoding: 'base64' }),
+        15000,
+        `Read ${uri}`
+      );
       const fileBytes = decode(base64);
 
-      const { error } = await supabase.storage
-        .from(ORDERS_BUCKET)
-        .upload(path, fileBytes, { contentType, upsert: false });
+      const { error } = await withTimeout(
+        supabase.storage.from(ORDERS_BUCKET).upload(path, fileBytes, { contentType, upsert: false }),
+        20000,
+        `Upload ${path}`
+      );
       if (error) throw error;
 
       const { data: pub } = supabase.storage.from(ORDERS_BUCKET).getPublicUrl(path);
       if (pub?.publicUrl) urls.push(pub.publicUrl);
     } catch (err) {
+      // Don't silently swallow — bubble up so the submit handler shows the user
       logger.error(`uploadOrderMedia failed for ${uri}`, err);
+      throw err;
     }
   }
 

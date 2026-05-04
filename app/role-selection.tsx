@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, Animated, Dimensions, SafeAre
 import { useRouter } from 'expo-router';
 import { getColors, getShadows, SPACING, BORDER_RADIUS } from '../constants/theme';
 import { useApp } from '../contexts/AppContext';
+import { useAuth } from '../contexts/AuthContext';
 import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { RTLMaterialIcon } from '../components/RTLIcon';
 
@@ -11,9 +12,11 @@ const { width } = Dimensions.get('window');
 export default function RoleSelectionScreen() {
   const router = useRouter();
   const { isDark, language, setLanguage } = useApp();
+  const { user, signOut } = useAuth();
   const COLORS = getColors(isDark);
   const SHADOWS = getShadows(isDark);
   const isRTL = language === 'ar';
+  const isLoggedIn = !!user;
   
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
@@ -35,12 +38,25 @@ export default function RoleSelectionScreen() {
   }, []);
 
   const handleRoleSelect = (role: 'customer' | 'technician') => {
-    // Navigate to appropriate auth page
+    // If already logged in, jump straight into that side of the app —
+    // useful for switching between customer and technician views without
+    // logging out (covers the case of test accounts or admins).
+    if (isLoggedIn) {
+      router.replace(role === 'technician' ? '/(technician)' : '/(customer)');
+      return;
+    }
     if (role === 'technician') {
       router.replace('/technician-auth');
     } else {
       router.replace('/login');
     }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await signOut();
+    } catch {}
+    router.replace('/role-selection');
   };
 
   const styles = createStyles(COLORS, SHADOWS, isRTL);
@@ -90,8 +106,18 @@ export default function RoleSelectionScreen() {
 
           {/* Subtitle */}
           <Text style={styles.question}>
-            {language === 'ar' ? 'كيف تود استخدام التطبيق؟' : 'How would you like to use the app?'}
+            {isLoggedIn
+              ? (language === 'ar' ? 'اختر القسم الذي تريد الدخول إليه' : 'Choose which side to enter')
+              : (language === 'ar' ? 'كيف تود استخدام التطبيق؟' : 'How would you like to use the app?')}
           </Text>
+
+          {isLoggedIn && (
+            <TouchableOpacity onPress={handleLogout} style={{ alignSelf: 'center', marginBottom: 12 }}>
+              <Text style={{ color: COLORS.primary, fontSize: 14, fontWeight: '600' }}>
+                {language === 'ar' ? 'تسجيل الخروج والعودة للبداية' : 'Sign out and start over'}
+              </Text>
+            </TouchableOpacity>
+          )}
 
           {/* Role Cards */}
           <View style={styles.cardsContainer}>

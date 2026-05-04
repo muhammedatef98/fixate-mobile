@@ -294,9 +294,13 @@ export default function RequestScreen() {
       logger.error('Submit error', error);
       setIsSubmitting(false);
       setSubmitStage('idle');
+      // Show the raw error message so we can actually diagnose what failed
+      // (timeouts, RLS rejections, validation, etc.) rather than a generic
+      // "something went wrong".
+      const rawMsg = error?.message || error?.error_description || String(error);
       Alert.alert(
         isRTL ? 'فشل الإرسال' : 'Submission failed',
-        getFriendlyError(error, language)
+        `${getFriendlyError(error, language)}\n\n${rawMsg}`
       );
     }
   };
