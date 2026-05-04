@@ -28,24 +28,27 @@ function RootLayoutContent() {
   useEffect(() => {
     if (loading) return;
 
-    const AUTH_SCREENS = new Set([
-      'login', 'signup', 'role-selection', 'auth',
-      'technician-auth', 'login-otp', 'forgot-password', 'onboarding',
+    // Auth screens that should auto-redirect logged-in users away
+    // (login forms shouldn't show if you're already logged in). role-selection
+    // is intentionally NOT in this set — a logged-in user landing there can
+    // pick which side of the app they want to enter, which is critical for
+    // testing both flows from one account.
+    const REDIRECT_AWAY_IF_LOGGED_IN = new Set([
+      'login', 'signup', 'auth', 'technician-auth',
+      'login-otp', 'forgot-password', 'onboarding',
     ]);
     const PROTECTED_GROUPS = new Set(['(customer)', '(technician)', 'request']);
 
     const first = segments[0] as string | undefined;
-    const inAuthFlow = !!first && AUTH_SCREENS.has(first);
+    const inAuthFlow = !!first && REDIRECT_AWAY_IF_LOGGED_IN.has(first);
     const isProtectedRoute = !!first && PROTECTED_GROUPS.has(first);
 
-    // Logged-in user landed on an auth screen → bounce to the right home
     if (user && inAuthFlow) {
       const target = (userProfile as any)?.role === 'technician' ? '/(technician)' : '/(customer)';
       router.replace(target as any);
       return;
     }
 
-    // Not logged in trying to open a protected route → role selection
     if (!user && isProtectedRoute) {
       router.replace('/role-selection');
     }
