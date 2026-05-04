@@ -46,36 +46,44 @@ export interface UserProfile {
 export const signUpWithPhoneOrEmail = async (data: SignUpData) => {
   assertValidSignUp(data);
   const normalizedPhone = data.phone ? normalizeSaudiPhone(data.phone) : undefined;
+  const email = data.email.trim().toLowerCase();
+  const name = data.name.trim();
+  const role = data.role || 'customer';
 
   try {
-    const { data: authData, error: authError } = await supabase.auth.signUp({
-      email: data.email.trim().toLowerCase(),
-      password: data.password,
-      options: {
-        data: {
-          name: data.name.trim(),
-          phone: normalizedPhone,
-          role: data.role || 'customer',
-        },
-      },
+    // Route signup through the `signup` Edge Function. It uses the service
+    // role to admin.createUser({ email_confirm: true }) — bypassing the
+    // "Error sending confirmation email" failure when project SMTP isn't
+    // configured. The Edge Function also upserts the public.users row as
+    // a defence in depth in case the handle_new_user trigger is missing.
+    const { data: fnData, error: fnError } = await supabase.functions.invoke('signup', {
+      body: { email, password: data.password, name, phone: normalizedPhone, role },
     });
 
-    if (authError) throw authError;
-    if (!authData.user) throw new Error('Failed to create user');
-
-    const { error: profileError } = await supabase.from('users').upsert({
-      id: authData.user.id,
-      email: data.email.trim().toLowerCase(),
-      name: data.name.trim(),
-      phone: normalizedPhone,
-      role: data.role || 'customer',
-    });
-
-    if (profileError) {
-      logger.warn('Profile insert failed (may already exist)', profileError);
+    if (fnError) {
+      // supabase.functions.invoke wraps non-2xx responses; pull the real
+      // server-side message out of context.body when present.
+      let serverMsg: string | undefined;
+      try {
+        const ctx: any = (fnError as any).context;
+        if (ctx?.body) {
+          const parsed = typeof ctx.body === 'string' ? JSON.parse(ctx.body) : ctx.body;
+          serverMsg = parsed?.error;
+        }
+      } catch {}
+      throw new Error(serverMsg || fnError.message || 'Sign up failed');
     }
+    if (fnData?.error) throw new Error(fnData.error);
 
-    return { user: authData.user, session: authData.session };
+    // Account created and confirmed — sign in immediately so the client has
+    // a session in hand without round-tripping through email verification.
+    const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+      email,
+      password: data.password,
+    });
+    if (signInError) throw signInError;
+
+    return { user: signInData.user, session: signInData.session };
   } catch (error: any) {
     logger.error('Sign up error', error);
     throw error;

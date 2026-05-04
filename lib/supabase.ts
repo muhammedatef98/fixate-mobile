@@ -44,22 +44,31 @@ export interface Technician {
 export const auth = {
   // Sign up with email and password
   signUp: async (email: string, password: string, name: string, role: 'customer' | 'technician') => {
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          name,
-          role,
-        },
-      },
+    // Route through the auto-confirming `signup` Edge Function so we don't
+    // depend on Supabase project SMTP. The function uses the service-role
+    // admin API to create a confirmed account, then we sign the user in.
+    const cleanEmail = email.trim().toLowerCase();
+    const { data: fnData, error: fnError } = await supabase.functions.invoke('signup', {
+      body: { email: cleanEmail, password, name: name.trim(), role },
     });
-    
+    if (fnError) {
+      let serverMsg: string | undefined;
+      try {
+        const ctx: any = (fnError as any).context;
+        if (ctx?.body) {
+          const parsed = typeof ctx.body === 'string' ? JSON.parse(ctx.body) : ctx.body;
+          serverMsg = parsed?.error;
+        }
+      } catch {}
+      throw new Error(serverMsg || fnError.message || 'Sign up failed');
+    }
+    if (fnData?.error) throw new Error(fnData.error);
+
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: cleanEmail,
+      password,
+    });
     if (error) throw error;
-    
-    // User profile is stored in auth.users metadata
-    // No need to insert into custom users table
-    
     return data;
   },
 

@@ -21,6 +21,7 @@ import { useApp } from '../contexts/AppContext';
 import { supabase } from '../lib/supabase';
 import { RTLIonicon } from '../components/RTLIcon';
 import { signInWithSocial, SocialProvider } from '../services/socialAuthService';
+import { signUpWithPhoneOrEmail } from '../services/authService';
 import { getFriendlyError } from '../utils/errorMessages';
 
 const { width } = Dimensions.get('window');
@@ -92,31 +93,21 @@ export default function TechnicianAuthScreen() {
           router.replace('/(technician)');
         }
       } else {
-        // Sign up logic
-        const { data, error } = await supabase.auth.signUp({
+        // Route signup through the auto-confirming Edge Function so we don't
+        // depend on Supabase project SMTP being configured.
+        await signUpWithPhoneOrEmail({
           email,
           password,
-          options: {
-            data: {
-              name,
-              role: 'technician',
-              phone,
-              specialization
-            }
-          }
-        });
-        if (error) throw error;
-        
-        // Also create profile entry if needed by your schema
-        await supabase.from('profiles').insert({
-          id: data.user?.id,
-          email,
+          name,
+          phone,
           role: 'technician',
-          name
         });
 
-        Alert.alert(isRTL ? 'نجح' : 'Success', isRTL ? 'تم إنشاء الحساب بنجاح!' : 'Account created successfully!');
-        setIsLogin(true);
+        Alert.alert(
+          isRTL ? 'تم بنجاح' : 'Success',
+          isRTL ? 'تم إنشاء حسابك. أكمل ملفك الشخصي للموافقة.' : 'Account created. Complete your profile to get approved.'
+        );
+        router.replace('/technician-onboarding');
       }
     } catch (error: any) {
       Alert.alert(isRTL ? 'خطأ' : 'Error', error.message);
