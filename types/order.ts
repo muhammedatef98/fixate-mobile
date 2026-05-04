@@ -25,10 +25,14 @@ export interface Order {
   status: OrderStatus;
   scheduled_date?: string;
   address?: string;
+  location?: string;
   latitude?: number;
   longitude?: number;
   service_type?: ServiceType;
   notes?: string;
+  media_urls?: string[];
+  customer_phone?: string;
+  technician_phone?: string;
   created_at?: string;
   updated_at?: string;
 }
@@ -43,6 +47,9 @@ export interface CreateOrderData {
   longitude?: number;
   notes?: string;
   service_id?: string;
+  media_urls?: string[];
+  customer_phone?: string;
+  estimated_price?: number;
 }
 
 export const ORDER_STATUS_LABELS_AR: Record<OrderStatus, string> = {

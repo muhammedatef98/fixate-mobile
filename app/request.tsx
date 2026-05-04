@@ -13,6 +13,9 @@ import { useApp } from '../contexts/AppContext';
 import { useAuth } from '../contexts/AuthContext';
 import { logger } from '../utils/logger';
 import { RTLIonicon } from '../components/RTLIcon';
+import { uploadOrderMedia } from '../services/storageService';
+import { getFriendlyError } from '../utils/errorMessages';
+import { tapLight } from '../utils/haptics';
 
 const { width } = Dimensions.get('window');
 
@@ -50,7 +53,7 @@ export default function RequestScreen() {
   const router = useRouter();
   const { createOrder } = useOrders();
   const { language, isDark } = useApp();
-  const { user } = useAuth();
+  const { user, userProfile } = useAuth();
   const isRTL = language === 'ar';
   
   const COLORS = {
@@ -151,6 +154,13 @@ export default function RequestScreen() {
     }
   }, [issueSearch, selectedDeviceType]);
 
+  // Auto-fetch location when the user lands on the location step (saves a tap)
+  useEffect(() => {
+    if (currentStep === STEPS.length - 1 && !location && !isLocating) {
+      handleLocationRequest();
+    }
+  }, [currentStep]);
+
   const handleLocationRequest = async () => {
     setIsLocating(true);
     try {
@@ -209,60 +219,85 @@ export default function RequestScreen() {
     }
   };
 
+  const [submitStage, setSubmitStage] = useState<'idle' | 'uploading' | 'creating'>('idle');
+
   const handleSubmit = async () => {
+    if (!user) {
+      Alert.alert(isRTL ? 'تنبيه' : 'Login Required', isRTL ? 'يجب تسجيل الدخول أولاً' : 'Please login first');
+      router.replace('/login');
+      return;
+    }
+    if (!selectedBrand || !selectedModel || !selectedIssue) {
+      Alert.alert(isRTL ? 'تنبيه' : 'Alert', isRTL ? 'الرجاء استكمال جميع الخطوات' : 'Please complete all steps');
+      return;
+    }
     if (!location) {
       Alert.alert(isRTL ? 'تنبيه' : 'Alert', isRTL ? 'الرجاء تحديد الموقع' : 'Please select location');
       return;
     }
-    
-    if (!user) {
-      Alert.alert(isRTL ? 'خطأ' : 'Error', isRTL ? 'يجب تسجيل الدخول أولاً' : 'Please login first');
-      return;
-    }
 
     setIsSubmitting(true);
+    tapLight();
     try {
+      // 1. Upload media first so the URLs end up in the order row
+      let mediaUrls: string[] = [];
+      if (mediaFiles.length > 0) {
+        setSubmitStage('uploading');
+        mediaUrls = await uploadOrderMedia(user.id, mediaFiles);
+      }
+
+      // 2. Compose description: prefer Arabic name in Arabic UI, fall back to English
+      setSubmitStage('creating');
+      const issueName = isRTL ? selectedIssue.nameAr : selectedIssue.name;
+      const composedDescription = issueDescription
+        ? `${issueName}: ${issueDescription}`
+        : issueName;
+
       const orderData = {
-        device_brand: selectedBrand?.name || '',
-        device_model: selectedModel || '',
-        issue_description: selectedIssue?.name + (issueDescription ? `: ${issueDescription}` : ''),
+        device_brand: selectedBrand.name,
+        device_model: selectedModel,
+        issue_description: composedDescription,
         service_type: selectedServiceType as 'mobile' | 'pickup',
-        address: address || `${location.latitude}, ${location.longitude}`,
+        service_id: selectedIssue.id,
+        address: address || `${location.latitude.toFixed(5)}, ${location.longitude.toFixed(5)}`,
         latitude: location.latitude,
         longitude: location.longitude,
-        notes: issueDescription,
+        notes: issueDescription || undefined,
+        media_urls: mediaUrls,
+        estimated_price: selectedIssue.estimatedPrice,
+        customer_phone: (userProfile as any)?.phone,
       };
 
       const result = await createOrder(orderData);
-      
-      if (result) {
-        // Extract city from address if possible and notify technicians
-        const cityMatch = address?.match(/,\s*([^,]+)$/);
-        const city = cityMatch ? cityMatch[1].trim() : null;
-        
-        // Notify all technicians in the city
-        // If city is not explicitly found in address, we can use a default or search by coordinates
-        const targetCity = city || 'Riyadh'; // Default to Riyadh if city not found
-        
-        notificationManager.notifyTechniciansInCity(targetCity, {
+
+      if (!result) throw new Error('Failed to create request');
+
+      // 3. Best-effort technician notification — never blocks success
+      const cityMatch = address?.match(/,\s*([^,]+)$/);
+      const targetCity = cityMatch ? cityMatch[1].trim() : 'Riyadh';
+      notificationManager
+        .notifyTechniciansInCity(targetCity, {
           id: result.id,
           device_brand: orderData.device_brand,
-          device_model: orderData.device_model
-        });
+          device_model: orderData.device_model,
+        })
+        .catch((e) => logger.warn('notify technicians failed', e));
 
-        setIsSubmitting(false);
-        Alert.alert(
-          isRTL ? 'نجح' : 'Success', 
-          isRTL ? 'تم إرسال طلبك بنجاح' : 'Request submitted successfully',
-          [{ text: 'OK', onPress: () => router.replace('/(customer)/orders') }]
-        );
-      } else {
-        throw new Error('Failed to create request');
-      }
-    } catch (error) {
-      logger.error('Submit error:', error);
       setIsSubmitting(false);
-      Alert.alert(isRTL ? 'خطأ' : 'Error', isRTL ? 'فشل إرسال الطلب، حاول مرة أخرى' : 'Failed to submit request, please try again');
+      setSubmitStage('idle');
+      Alert.alert(
+        isRTL ? 'تم بنجاح ✓' : 'Success ✓',
+        isRTL ? 'تم إرسال طلبك. سيتواصل معك أحد الفنيين قريباً.' : 'Your request was submitted. A technician will contact you soon.',
+        [{ text: isRTL ? 'تتبع الطلب' : 'Track Order', onPress: () => router.replace('/(customer)/orders') }]
+      );
+    } catch (error: any) {
+      logger.error('Submit error', error);
+      setIsSubmitting(false);
+      setSubmitStage('idle');
+      Alert.alert(
+        isRTL ? 'فشل الإرسال' : 'Submission failed',
+        getFriendlyError(error, language)
+      );
     }
   };
 
@@ -490,9 +525,9 @@ export default function RequestScreen() {
         )}
 
         {currentStep === 6 && (
-          <View style={{ flex: 1 }}>
+          <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 24 }} showsVerticalScrollIndicator={false}>
             <Text style={styles.sectionTitle}>{isRTL ? 'حدد موقعك' : 'Set Your Location'}</Text>
-            <View style={styles.mapContainer}>
+            <View style={[styles.mapContainer, { height: 280 }]}>
               {location && location.latitude && location.longitude ? (
                 <MapView
                   provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
@@ -546,21 +581,64 @@ export default function RequestScreen() {
                 <Text style={styles.addressText}>{address}</Text>
               </View>
             ) : null}
-          </View>
+
+            {/* Pre-submit review summary so user can double-check before sending */}
+            <View style={styles.summaryCard}>
+              <Text style={styles.summaryTitle}>{isRTL ? 'مراجعة الطلب' : 'Review Request'}</Text>
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>{isRTL ? 'الجهاز' : 'Device'}</Text>
+                <Text style={styles.summaryValue}>{selectedBrand?.name} {selectedModel}</Text>
+              </View>
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>{isRTL ? 'العطل' : 'Issue'}</Text>
+                <Text style={styles.summaryValue} numberOfLines={2}>
+                  {isRTL ? selectedIssue?.nameAr : selectedIssue?.name}
+                </Text>
+              </View>
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>{isRTL ? 'الخدمة' : 'Service'}</Text>
+                <Text style={styles.summaryValue}>
+                  {SERVICE_TYPES.find(s => s.id === selectedServiceType) ? (isRTL ? SERVICE_TYPES.find(s => s.id === selectedServiceType)!.name : SERVICE_TYPES.find(s => s.id === selectedServiceType)!.nameEn) : ''}
+                </Text>
+              </View>
+              {selectedIssue && selectedIssue.id !== 'other' && (
+                <View style={styles.summaryRow}>
+                  <Text style={styles.summaryLabel}>{isRTL ? 'السعر التقديري' : 'Estimated price'}</Text>
+                  <Text style={[styles.summaryValue, { color: COLORS.primary, fontWeight: '700' }]}>
+                    {isRTL ? `يبدأ من ${selectedIssue.estimatedPrice} ر.س` : `From ${selectedIssue.estimatedPrice} SAR`}
+                  </Text>
+                </View>
+              )}
+              {mediaFiles.length > 0 && (
+                <View style={styles.summaryRow}>
+                  <Text style={styles.summaryLabel}>{isRTL ? 'الصور' : 'Photos'}</Text>
+                  <Text style={styles.summaryValue}>{mediaFiles.length}</Text>
+                </View>
+              )}
+            </View>
+          </ScrollView>
         )}
       </Animated.View>
 
       <View style={styles.footer}>
-        <TouchableOpacity 
-          style={[styles.nextButton, (!canGoNext() || isSubmitting) && { opacity: 0.5 }]} 
+        <TouchableOpacity
+          style={[styles.nextButton, (!canGoNext() || isSubmitting) && { opacity: 0.5 }]}
           onPress={() => {
+            tapLight();
             if (currentStep < STEPS.length - 1) setCurrentStep(currentStep + 1);
             else handleSubmit();
           }}
           disabled={!canGoNext() || isSubmitting}
         >
           {isSubmitting ? (
-            <ActivityIndicator color="#fff" />
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <ActivityIndicator color="#fff" />
+              <Text style={styles.nextButtonText}>
+                {submitStage === 'uploading'
+                  ? (isRTL ? 'جاري رفع الصور...' : 'Uploading photos...')
+                  : (isRTL ? 'جاري الإرسال...' : 'Submitting...')}
+              </Text>
+            </View>
           ) : (
             <Text style={styles.nextButtonText}>
               {currentStep === STEPS.length - 1 ? (isRTL ? 'إرسال الطلب' : 'Submit Request') : (isRTL ? 'التالي' : 'Next')}
@@ -632,6 +710,11 @@ const createStyles = (COLORS: any, isRTL: boolean) => StyleSheet.create({
   addressText: { flex: 1, fontSize: 14, color: COLORS.text, textAlign: isRTL ? 'right' : 'left' },
   emptyState: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 40 },
   emptyStateText: { marginTop: 12, fontSize: 16, color: COLORS.gray },
+  summaryCard: { backgroundColor: '#fff', borderRadius: 12, padding: 16, marginTop: 12, borderWidth: 1, borderColor: COLORS.border },
+  summaryTitle: { fontSize: 16, fontWeight: '700', color: COLORS.text, marginBottom: 12, textAlign: isRTL ? 'right' : 'left' },
+  summaryRow: { flexDirection: isRTL ? 'row-reverse' : 'row', justifyContent: 'space-between', paddingVertical: 6, gap: 12 },
+  summaryLabel: { fontSize: 14, color: COLORS.gray },
+  summaryValue: { fontSize: 14, color: COLORS.text, fontWeight: '600', flex: 1, textAlign: isRTL ? 'left' : 'right' },
   footer: { padding: 16, backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: COLORS.border },
   nextButton: { backgroundColor: COLORS.primary, height: 56, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
   nextButtonText: { color: '#fff', fontSize: 18, fontWeight: 'bold' },

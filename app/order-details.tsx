@@ -229,6 +229,30 @@ export default function OrderDetailsScreen() {
                 {order.issue_description}
               </Text>
             </View>
+
+            {order.media_urls && order.media_urls.length > 0 && (
+              <>
+                <View style={[styles.divider, { backgroundColor: COLORS.border }]} />
+                <Text style={[styles.infoLabel, { color: COLORS.textSecondary, marginBottom: 8 }]}>
+                  {isRTL ? 'الصور المرفقة' : 'Attached photos'}
+                </Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 4 }}>
+                  {order.media_urls.map((url, idx) => (
+                    <TouchableOpacity
+                      key={idx}
+                      onPress={() => Linking.openURL(url)}
+                      activeOpacity={0.85}
+                      style={{ marginRight: 8 }}
+                    >
+                      <Image
+                        source={{ uri: url }}
+                        style={{ width: 90, height: 90, borderRadius: 12, backgroundColor: COLORS.border }}
+                      />
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </>
+            )}
           </View>
         </View>
 
