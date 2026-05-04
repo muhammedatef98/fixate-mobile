@@ -1,23 +1,40 @@
 # Store Readiness — manual steps
 
-Code is clean (typecheck + 48 tests green). The items below MUST be done by hand
-before submitting to App Store / Google Play. None can be done from CI.
+Code is clean (typecheck + 48 tests green). Most prep is automated now; only
+two items below need account access I don't have.
 
-## Blockers (will reject the build)
+## What's already done
 
-1. **App icon resolution.** `assets/icon.png`, `assets/splash.png`, and
-   `assets/adaptive-icon.png` are 288×319. App Store requires a square
-   1024×1024 icon; Play Console requires square 512×512. Replace these three
-   files with square exports of the wrench-and-phone mark. Splash should also
-   be at least 1242×2436 for iOS.
+- ✅ Icons resized to store-spec resolutions (`icon.png` 1024×1024,
+  `adaptive-icon.png` 1024×1024 with green safe-zone bg, `splash.png`
+  1242×2436, `notification-icon.png` 256×256, `favicon.png` 64×64). Originals
+  archived under `assets/_originals/` (gitignored). Replace any of these with
+  hand-designed exports later if you want crisper output — these are valid
+  for upload now.
+- ✅ `delete-account` Edge Function deployed live (project `fixate`,
+  ref `gpucisjxecupcyosumgy`, version 1, JWT verify on).
+- ✅ Security advisors cleaned (revoked anon/authenticated EXECUTE on
+  `user_has_role`; narrowed `storage.objects` policies on the `avatars`
+  bucket so listing is no longer broad). Migration committed under
+  `supabase/migrations/2026_05_03_harden_security_advisors.sql`.
+- ✅ Hard-coded Supabase URL + JWT anon key removed from `app.json`.
+- ✅ iOS `infoPlist`: camera/photos/location/mic strings + encryption flag
+  + `LSApplicationQueriesSchemes`.
+- ✅ Android: `READ_MEDIA_IMAGES` added; `RECORD_AUDIO` blocked.
 
-2. **Replace `REPLACE_WITH_APP_STORE_CONNECT_ID` in `eas.json`** with the
+## Still needs your hands (account access I don't have)
+
+1. **Replace `REPLACE_WITH_APP_STORE_CONNECT_ID` in `eas.json`** with the
    numeric `ascAppId` from App Store Connect (Apple → My Apps → App
    Information → Apple ID).
 
-3. **Place the Play service-account JSON at `secrets/play-service-account.json`**
+2. **Place the Play service-account JSON at `secrets/play-service-account.json`**
    (path is gitignored). Generate it from Play Console → Setup → API access →
    create service account → grant "Release manager" role.
+
+3. **Toggle on "Leaked password protection"** in Supabase Dashboard → Auth →
+   Providers (HaveIBeenPwned check). Dashboard-only setting, can't be done
+   from migration.
 
 ## Edge function secrets
 
