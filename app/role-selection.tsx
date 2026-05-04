@@ -38,9 +38,11 @@ export default function RoleSelectionScreen() {
   }, []);
 
   const handleRoleSelect = (role: 'customer' | 'technician') => {
-    // If already logged in, jump straight into that side of the app —
-    // useful for switching between customer and technician views without
-    // logging out (covers the case of test accounts or admins).
+    // The (technician) layout itself gates access — no row in `technicians`
+    // means the layout shows the "Start registration" screen and routes the
+    // user into onboarding. So even when isLoggedIn, jumping straight in is
+    // safe: an unverified or unregistered technician is funneled to the
+    // right place rather than seeing the dashboard.
     if (isLoggedIn) {
       router.replace(role === 'technician' ? '/(technician)' : '/(customer)');
       return;
