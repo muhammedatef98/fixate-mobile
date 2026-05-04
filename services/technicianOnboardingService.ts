@@ -49,11 +49,16 @@ export const submitTechnicianApplication = async (
       certPath = await uploadDoc(payload.userId, payload.certificateUri, 'cert');
     }
 
+    // Match the actual technicians schema:
+    //   specialization is text[], not a singular text "specialty"
+    //   available is the bool, not is_available
+    //   total_jobs is the counter, not completed_jobs
     const { error } = await supabase.from('technicians').upsert(
       {
         user_id: payload.userId,
+        full_name: payload.fullName.trim(),
         phone: normalizeSaudiPhone(payload.phone),
-        specialty: payload.specialty.trim(),
+        specialization: [payload.specialty.trim()],
         years_of_experience: payload.yearsOfExperience,
         national_id: idCheck.valid ? payload.nationalId.replace(/\D/g, '') : payload.nationalId,
         id_document_url: idDocPath,
@@ -61,8 +66,9 @@ export const submitTechnicianApplication = async (
         iban: payload.iban.replace(/\s/g, '').toUpperCase(),
         city: payload.city.trim(),
         bio: payload.bio.trim(),
-        is_available: false,
-        completed_jobs: 0,
+        available: false,
+        total_jobs: 0,
+        rating: 0,
         verification_status: 'submitted',
       },
       { onConflict: 'user_id' }
