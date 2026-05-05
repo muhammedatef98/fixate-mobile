@@ -108,7 +108,12 @@ export default function LoginScreen() {
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
-        <Animated.View style={[styles.content, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
+      <Animated.ScrollView
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={[styles.content, { opacity: fadeAnim as any, paddingBottom: 32 }]}
+        showsVerticalScrollIndicator={false}
+      >
+        <Animated.View style={[{ transform: [{ translateY: slideAnim }] }]}>
           <View style={styles.logoSection}>
             <View style={styles.logoCircle}>
               <Image 
@@ -205,6 +210,7 @@ export default function LoginScreen() {
 
           </View>
         </Animated.View>
+      </Animated.ScrollView>
       </KeyboardAvoidingView>
     </View>
   );

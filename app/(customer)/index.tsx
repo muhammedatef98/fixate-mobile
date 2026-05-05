@@ -18,6 +18,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { getColors, getShadows, SPACING, BORDER_RADIUS } from '../../constants/theme';
 import { useApp } from '../../contexts/AppContext';
+import { useAuth } from '../../contexts/AuthContext';
 import BottomNav from '../../components/BottomNav';
 import Sidebar from '../../components/Sidebar';
 import { requests } from '../../lib/supabase-api';
@@ -49,9 +50,11 @@ const WHY_US = [
 export default function CustomerHomeScreen() {
   const router = useRouter();
   const { language, setLanguage, isDark } = useApp();
+  const { userProfile } = useAuth();
   const COLORS = getColors(isDark);
   const SHADOWS = getShadows(isDark);
   const isRTL = language === 'ar';
+  const displayName = (userProfile?.name?.trim() || (userProfile?.email?.split('@')[0] ?? '')).split(' ')[0] || (isRTL ? 'صديقي' : 'there');
 
   const [sidebarVisible, setSidebarVisible] = useState(false);
   const [activeOrders, setActiveOrders] = useState<any[]>([]);
@@ -127,8 +130,8 @@ export default function CustomerHomeScreen() {
               <Text style={[styles.heroGreeting, { color: COLORS.textSecondary }]}>
                 {isRTL ? 'أهلاً بك' : 'Welcome back'}
               </Text>
-              <Text style={[styles.heroTitle, { color: COLORS.text }]}>
-                {isRTL ? 'محمد' : 'Mohamed'}
+              <Text style={[styles.heroTitle, { color: COLORS.text }]} numberOfLines={1}>
+                {displayName}
               </Text>
               <Text style={[styles.heroSubtitle, { color: COLORS.textSecondary }]}>
                 {isRTL ? 'كيف يمكننا مساعدتك اليوم؟' : 'How can we help you today?'}
