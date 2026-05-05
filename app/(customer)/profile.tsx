@@ -6,43 +6,48 @@ import { useApp } from '../../contexts/AppContext';
 import { useAuth } from '../../contexts/AuthContext';
 import BottomNav from '../../components/BottomNav';
 import { auth } from '../../lib/supabase-api';
+import { supabase } from '../../services/supabaseClient';
+import { getColors } from '../../constants/theme';
 import { RTLIonicon } from '../../components/RTLIcon';
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const { language } = useApp();
-  const { signOut } = useAuth();
+  const { language, isDark } = useApp();
+  const { signOut, user: authUser, userProfile } = useAuth();
   const isRTL = language === 'ar';
-  
+  const themeColors = getColors(isDark);
+
   const COLORS = {
-    primary: '#10b981',
-    background: '#f9fafb',
-    card: '#ffffff',
-    text: '#1f2937',
-    textSecondary: '#6b7280',
-    border: '#e5e7eb',
-    white: '#ffffff',
+    primary: themeColors.primary,
+    background: themeColors.background,
+    card: themeColors.card,
+    text: themeColors.text,
+    textSecondary: themeColors.textSecondary,
+    border: themeColors.border,
+    white: themeColors.card,
     danger: '#ef4444',
   };
 
-  const [user, setUser] = useState<any>(null);
+  const user = userProfile;
+  const [orderCount, setOrderCount] = useState<number>(0);
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(20)).current;
 
   useEffect(() => {
-    loadUser();
+    loadOrderCount();
     Animated.parallel([
       Animated.timing(fadeAnim, { toValue: 1, duration: 300, useNativeDriver: true }),
       Animated.timing(slideAnim, { toValue: 0, duration: 300, useNativeDriver: true }),
     ]).start();
-  }, []);
+  }, [authUser?.id]);
 
-  const loadUser = async () => {
-    const currentUser = await auth.getCurrentUser();
-    if (currentUser) {
-      const profile = await auth.getUserProfile(currentUser.id);
-      setUser(profile);
-    }
+  const loadOrderCount = async () => {
+    if (!authUser?.id) return;
+    const { count } = await supabase
+      .from('orders')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', authUser.id);
+    setOrderCount(count ?? 0);
   };
 
   const handleLogout = () => {
@@ -123,14 +128,14 @@ export default function ProfileScreen() {
             
             <View style={styles.statsRow}>
               <TouchableOpacity style={styles.statItem} onPress={() => router.push('/(customer)/orders')}>
-                <Text style={styles.statValue}>12</Text>
+                <Text style={styles.statValue}>{orderCount}</Text>
                 <Text style={styles.statLabel}>{isRTL ? 'طلب' : 'Orders'}</Text>
               </TouchableOpacity>
               <View style={styles.statDivider} />
-              <View style={styles.statItem}>
-                <Text style={styles.statValue}>4.9</Text>
-                <Text style={styles.statLabel}>{isRTL ? 'تقييم' : 'Rating'}</Text>
-              </View>
+              <TouchableOpacity style={styles.statItem} onPress={() => router.push('/wallet')}>
+                <Text style={styles.statValue}>•</Text>
+                <Text style={styles.statLabel}>{isRTL ? 'محفظتي' : 'Wallet'}</Text>
+              </TouchableOpacity>
             </View>
           </View>
 

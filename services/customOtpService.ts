@@ -11,12 +11,33 @@ export const sendOtp = async (
   const { data, error } = await supabase.functions.invoke('send-otp', {
     body: { email, purpose, lang },
   });
-  if (error) {
-    logger.error('send-otp invoke error', error);
-    throw new Error((data as any)?.error || error.message);
+
+  // Pull the server-side error string out of either the function response
+  // body or the Edge function context, then translate the most common
+  // Resend sandbox failure ("can only send to your own email address") into
+  // a friendly bilingual message so users in test mode aren't confused.
+  let serverMsg: string | undefined = (data as any)?.error;
+  if (!serverMsg && error) {
+    try {
+      const ctx: any = (error as any).context;
+      if (ctx?.body) {
+        const parsed = typeof ctx.body === 'string' ? JSON.parse(ctx.body) : ctx.body;
+        serverMsg = parsed?.error;
+      }
+    } catch {}
+    serverMsg = serverMsg || error.message;
   }
-  if ((data as any)?.error) {
-    throw new Error((data as any).error);
+
+  if (serverMsg) {
+    logger.warn('send-otp failed', serverMsg);
+    if (/can only send testing emails|verify a domain|sandbox/i.test(serverMsg)) {
+      throw new Error(
+        lang === 'ar'
+          ? 'خدمة البريد قيد الإعداد. الرجاء استخدام البريد الإلكتروني وكلمة المرور أو التواصل مع الدعم.'
+          : 'Email service is being set up. Please use email + password instead, or contact support.'
+      );
+    }
+    throw new Error(serverMsg);
   }
 };
 

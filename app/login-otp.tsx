@@ -32,7 +32,13 @@ export default function LoginOtpScreen() {
   const COLORS = getColors(isDark);
   const isRTL = language === 'ar';
 
-  const [method, setMethod] = useState<Method>((params.method as Method) === 'phone' ? 'phone' : 'email');
+  // Phone OTP requires a paid Saudi SMS provider on Supabase Auth, which
+  // isn't configured yet. Email OTP via Resend is free and works today,
+  // so we lock the screen to email and hide the toggle until SMS is wired.
+  const [method, _setMethod] = useState<Method>('email');
+  const setMethod = (m: Method) => _setMethod(m);
+  // tslint:disable-next-line — params reserved for future re-enable
+  void params;
   const [identifier, setIdentifier] = useState('');
   const [code, setCode] = useState('');
   const [step, setStep] = useState<'identifier' | 'otp'>('identifier');
@@ -136,43 +142,19 @@ export default function LoginOtpScreen() {
         <View style={styles.content}>
           {step === 'identifier' ? (
             <>
-              <View style={styles.tabs}>
-                <TouchableOpacity
-                  onPress={() => { setMethod('email'); setIdentifier(''); }}
-                  style={[styles.tab, method === 'email' && styles.tabActive]}
-                  accessibilityRole="tab"
-                  accessibilityState={{ selected: method === 'email' }}
-                >
-                  <Ionicons name="mail-outline" size={18} color={method === 'email' ? '#fff' : COLORS.text} />
-                  <Text style={[styles.tabText, method === 'email' && { color: '#fff' }]}>
-                    {isRTL ? 'بريد إلكتروني' : 'Email'}
-                  </Text>
-                  <View style={styles.freeBadge}>
-                    <Text style={styles.freeBadgeText}>{isRTL ? 'مجاني' : 'FREE'}</Text>
-                  </View>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={() => { setMethod('phone'); setIdentifier(''); }}
-                  style={[styles.tab, method === 'phone' && styles.tabActive]}
-                  accessibilityRole="tab"
-                  accessibilityState={{ selected: method === 'phone' }}
-                >
-                  <Ionicons name="phone-portrait-outline" size={18} color={method === 'phone' ? '#fff' : COLORS.text} />
-                  <Text style={[styles.tabText, method === 'phone' && { color: '#fff' }]}>
-                    {isRTL ? 'جوال' : 'Phone'}
-                  </Text>
-                </TouchableOpacity>
+              <View style={{ alignItems: 'center', marginBottom: 16 }}>
+                <View style={{
+                  width: 64, height: 64, borderRadius: 16, backgroundColor: COLORS.primary + '15',
+                  alignItems: 'center', justifyContent: 'center',
+                }}>
+                  <Ionicons name="mail-outline" size={32} color={COLORS.primary} />
+                </View>
               </View>
-
               <Text style={styles.bigTitle}>
-                {method === 'email'
-                  ? (isRTL ? 'أدخل بريدك الإلكتروني' : 'Enter your email')
-                  : (isRTL ? 'أدخل رقم جوالك' : 'Enter your phone')}
+                {isRTL ? 'الدخول برمز للبريد الإلكتروني' : 'Sign in with email code'}
               </Text>
               <Text style={styles.sub}>
-                {method === 'email'
-                  ? (isRTL ? 'سنرسل كود مكوّن من 6 أرقام إلى بريدك' : "We'll email you a 6-digit code")
-                  : (isRTL ? 'سنرسل كود التحقق برسالة نصية' : "We'll SMS you a verification code")}
+                {isRTL ? 'سنرسل كود مكوّن من 6 أرقام إلى بريدك الإلكتروني' : "We'll email you a 6-digit code"}
               </Text>
               <TextInput
                 value={identifier}
