@@ -8,6 +8,7 @@ export interface UserProfile {
   phone?: string;
   role: 'customer' | 'technician';
   avatar_url?: string;
+  is_admin?: boolean;
   created_at?: string;
 }
 

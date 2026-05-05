@@ -23,16 +23,18 @@ import { RTLIonicon } from '../components/RTLIcon';
 import { signInWithSocial, SocialProvider } from '../services/socialAuthService';
 import { signUpWithPhoneOrEmail } from '../services/authService';
 import { getFriendlyError } from '../utils/errorMessages';
+import { getColors } from '../constants/theme';
 
 const { width } = Dimensions.get('window');
 
 export default function TechnicianAuthScreen() {
   const router = useRouter();
-  const { language } = useApp();
+  const { language, isDark } = useApp();
   const isRTL = language === 'ar';
+  const themeColors = getColors(isDark);
   const [isLogin, setIsLogin] = useState(true);
   const [loading, setLoading] = useState(false);
-  
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
@@ -41,13 +43,13 @@ export default function TechnicianAuthScreen() {
   const [showPassword, setShowPassword] = useState(false);
 
   const COLORS = {
-    primary: '#10b981',
-    background: '#f9fafb',
-    white: '#ffffff',
-    text: '#1f2937',
-    gray: '#9ca3af',
-    lightGray: '#f3f4f6',
-    border: '#e5e7eb',
+    primary: themeColors.primary,
+    background: themeColors.background,
+    white: themeColors.card,
+    text: themeColors.text,
+    gray: themeColors.textSecondary,
+    lightGray: isDark ? '#1f2937' : '#f3f4f6',
+    border: themeColors.border,
   };
 
   const handleAuth = async () => {
