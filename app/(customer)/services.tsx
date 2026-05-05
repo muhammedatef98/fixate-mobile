@@ -6,6 +6,7 @@ import { MaterialIcons, MaterialCommunityIcons, Ionicons } from '@expo/vector-ic
 import { useApp } from '../../contexts/AppContext';
 import BottomNav from '../../components/BottomNav';
 import { RTLIonicon } from '../../components/RTLIcon';
+import { getColors } from '../../constants/theme';
 
 const { width } = Dimensions.get('window');
 
@@ -68,17 +69,18 @@ const SERVICES = [
 
 export default function ServicesScreen() {
   const router = useRouter();
-  const { language } = useApp();
+  const { language, isDark } = useApp();
   const isRTL = language === 'ar';
-  
+  const themeColors = getColors(isDark);
+
   const COLORS = {
-    primary: '#10b981',
-    background: '#f9fafb',
-    card: '#ffffff',
-    text: '#1f2937',
-    textSecondary: '#6b7280',
-    border: '#e5e7eb',
-    white: '#ffffff',
+    primary: themeColors.primary,
+    background: themeColors.background,
+    card: themeColors.card,
+    text: themeColors.text,
+    textSecondary: themeColors.textSecondary,
+    border: themeColors.border,
+    white: themeColors.card,
   };
 
   const fadeAnim = useRef(new Animated.Value(0)).current;

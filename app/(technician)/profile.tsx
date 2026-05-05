@@ -6,24 +6,30 @@ import { useApp } from '../../contexts/AppContext';
 import { useAuth } from '../../contexts/AuthContext';
 import BottomNavTech from '../../components/BottomNavTech';
 import { RTLIonicon } from '../../components/RTLIcon';
+import { getColors } from '../../constants/theme';
+import { supabase } from '../../services/supabaseClient';
 
 export default function TechnicianProfile() {
   const router = useRouter();
-  const { language } = useApp();
+  const { language, isDark } = useApp();
   const isRTL = language === 'ar';
-  
+  const themeColors = getColors(isDark);
+
   const COLORS = {
-    primary: '#10b981',
-    background: '#f9fafb',
-    card: '#ffffff',
-    text: '#1f2937',
-    textSecondary: '#6b7280',
-    border: '#e5e7eb',
-    white: '#ffffff',
+    primary: themeColors.primary,
+    background: themeColors.background,
+    card: themeColors.card,
+    text: themeColors.text,
+    textSecondary: themeColors.textSecondary,
+    border: themeColors.border,
+    white: themeColors.card,
     danger: '#ef4444',
   };
 
   const { user: authUser, userProfile, signOut } = useAuth();
+  const [stats, setStats] = useState<{ total: number; completed: number; rating: number; years: number }>({
+    total: 0, completed: 0, rating: 0, years: 0,
+  });
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(20)).current;
 
@@ -32,7 +38,23 @@ export default function TechnicianProfile() {
       Animated.timing(fadeAnim, { toValue: 1, duration: 300, useNativeDriver: true }),
       Animated.timing(slideAnim, { toValue: 0, duration: 300, useNativeDriver: true }),
     ]).start();
-  }, []);
+    loadStats();
+  }, [authUser?.id]);
+
+  const loadStats = async () => {
+    if (!authUser?.id) return;
+    const [{ count: total }, { count: completed }, { data: tech }] = await Promise.all([
+      supabase.from('orders').select('*', { count: 'exact', head: true }).eq('technician_id', authUser.id),
+      supabase.from('orders').select('*', { count: 'exact', head: true }).eq('technician_id', authUser.id).eq('status', 'completed'),
+      supabase.from('technicians').select('rating, years_of_experience').eq('user_id', authUser.id).maybeSingle(),
+    ]);
+    setStats({
+      total: total ?? 0,
+      completed: completed ?? 0,
+      rating: Number(tech?.rating ?? 0),
+      years: Number(tech?.years_of_experience ?? 0),
+    });
+  };
 
   const handleLogout = () => {
     Alert.alert(
@@ -85,17 +107,17 @@ export default function TechnicianProfile() {
             
             <View style={styles.statsRow}>
               <View style={styles.statItem}>
-                <Text style={styles.statValue}>156</Text>
-                <Text style={styles.statLabel}>{isRTL ? 'عملية' : 'Jobs'}</Text>
+                <Text style={styles.statValue}>{stats.completed}</Text>
+                <Text style={styles.statLabel}>{isRTL ? 'مكتملة' : 'Completed'}</Text>
               </View>
               <View style={styles.statDivider} />
               <View style={styles.statItem}>
-                <Text style={styles.statValue}>4.9</Text>
+                <Text style={styles.statValue}>{stats.rating > 0 ? stats.rating.toFixed(1) : '—'}</Text>
                 <Text style={styles.statLabel}>{isRTL ? 'تقييم' : 'Rating'}</Text>
               </View>
               <View style={styles.statDivider} />
               <View style={styles.statItem}>
-                <Text style={styles.statValue}>+2</Text>
+                <Text style={styles.statValue}>{stats.years > 0 ? `+${stats.years}` : '—'}</Text>
                 <Text style={styles.statLabel}>{isRTL ? 'سنة' : 'Years'}</Text>
               </View>
             </View>
