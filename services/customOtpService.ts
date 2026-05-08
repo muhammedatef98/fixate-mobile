@@ -3,14 +3,26 @@ import { logger } from '../utils/logger';
 
 export type OtpPurpose = 'login' | 'verify_email' | 'reset_password';
 
+// Race any Edge-Function invoke against a 10s timeout so a wedged request
+// can't trap the OTP send-button spinner forever on flaky networks.
+const withTimeout = <T>(p: PromiseLike<T>, ms: number, label: string): Promise<T> =>
+  Promise.race([
+    Promise.resolve(p),
+    new Promise<T>((_, reject) =>
+      setTimeout(() => reject(new Error(`${label} timed out`)), ms)
+    ),
+  ]);
+
 export const sendOtp = async (
   email: string,
   purpose: OtpPurpose = 'login',
   lang: 'ar' | 'en' = 'ar'
 ): Promise<void> => {
-  const { data, error } = await supabase.functions.invoke('send-otp', {
-    body: { email, purpose, lang },
-  });
+  const { data, error } = await withTimeout(
+    supabase.functions.invoke('send-otp', { body: { email, purpose, lang } }),
+    10000,
+    'send-otp'
+  );
 
   // Pull the server-side error string out of either the function response
   // body or the Edge function context, then translate the most common
@@ -50,11 +62,14 @@ export const verifyOtp = async (
   code: string,
   purpose: OtpPurpose = 'login'
 ): Promise<boolean> => {
-  const { data, error } = await supabase.functions.invoke<{
-    ok?: boolean;
-    token_hash?: string;
-    error?: string;
-  }>('verify-otp', { body: { email, code, purpose } });
+  const { data, error } = await withTimeout(
+    supabase.functions.invoke<{ ok?: boolean; token_hash?: string; error?: string }>(
+      'verify-otp',
+      { body: { email, code, purpose } }
+    ),
+    10000,
+    'verify-otp'
+  );
   if (error) {
     throw new Error((data as any)?.error || error.message);
   }
