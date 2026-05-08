@@ -46,20 +46,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     });
 
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    // Listen for auth changes — set state synchronously, fetch profile in
+    // background. If we awaited getUserProfile here a slow query would block
+    // every subsequent auth event, including signOut().
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
       setUser(session?.user ?? null);
       setIsAuthenticated(!!session);
-      
+      setLoading(false);
+
       if (session?.user) {
-        const profile = await userService.getUserProfile(session.user.id);
-        setUserProfile(profile);
+        userService
+          .getUserProfile(session.user.id)
+          .then(setUserProfile)
+          .catch(() => undefined);
       } else {
         setUserProfile(null);
       }
-      
-      setLoading(false);
     });
 
     return () => subscription.unsubscribe();
@@ -97,19 +100,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const login = async (email: string, password: string): Promise<'customer' | 'technician'> => {
+    // ONLY the auth call. No follow-up profile fetch — that was the source
+    // of the "login button spins forever" symptom: a second Supabase round-
+    // trip serialised behind the first, and any blip on the second one
+    // would trap the spinner. The role comes from user_metadata (set at
+    // signup), which arrives with the auth response itself. The profile
+    // hydrates in the background via onAuthStateChange — by the time the
+    // user reaches the home screen, userProfile in context is populated.
     const { user } = await authService.loginWithPhoneOrEmail({ email, password });
-    if (!user) return 'customer';
-    // The role lives in the auth user_metadata (set at signup) AND in the
-    // public.users row. Prefer the public.users row (source of truth) but
-    // fall back to user_metadata for the brief window before the trigger
-    // has populated the public.users row. Either way, return the role
-    // synchronously to the caller so navigation can happen without an
-    // extra round-trip — that round-trip was the cause of "login button
-    // spins forever" complaints on slow networks.
-    const profile = await userService.getUserProfile(user.id).catch(() => null);
-    setUserProfile(profile);
-    const metaRole = (user.user_metadata as any)?.role;
-    return profile?.role || (metaRole === 'technician' ? 'technician' : 'customer');
+    const metaRole = (user?.user_metadata as any)?.role;
+    return metaRole === 'technician' ? 'technician' : 'customer';
   };
 
   const signup = async (data: authService.SignUpData) => {
