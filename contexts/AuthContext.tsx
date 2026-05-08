@@ -13,7 +13,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   signOut: () => Promise<void>;
   deleteAccount: () => Promise<void>;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<'customer' | 'technician'>;
   signup: (data: authService.SignUpData) => Promise<void>;
   refreshUser: () => Promise<void>;
 }
@@ -96,12 +96,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await signOut();
   };
 
-  const login = async (email: string, password: string) => {
+  const login = async (email: string, password: string): Promise<'customer' | 'technician'> => {
     const { user } = await authService.loginWithPhoneOrEmail({ email, password });
-    if (user) {
-      const profile = await userService.getUserProfile(user.id);
-      setUserProfile(profile);
-    }
+    if (!user) return 'customer';
+    // The role lives in the auth user_metadata (set at signup) AND in the
+    // public.users row. Prefer the public.users row (source of truth) but
+    // fall back to user_metadata for the brief window before the trigger
+    // has populated the public.users row. Either way, return the role
+    // synchronously to the caller so navigation can happen without an
+    // extra round-trip — that round-trip was the cause of "login button
+    // spins forever" complaints on slow networks.
+    const profile = await userService.getUserProfile(user.id).catch(() => null);
+    setUserProfile(profile);
+    const metaRole = (user.user_metadata as any)?.role;
+    return profile?.role || (metaRole === 'technician' ? 'technician' : 'customer');
   };
 
   const signup = async (data: authService.SignUpData) => {

@@ -20,7 +20,7 @@ export const sendOtp = async (
 ): Promise<void> => {
   const { data, error } = await withTimeout(
     supabase.functions.invoke('send-otp', { body: { email, purpose, lang } }),
-    10000,
+    25000,
     'send-otp'
   );
 
@@ -67,7 +67,7 @@ export const verifyOtp = async (
       'verify-otp',
       { body: { email, code, purpose } }
     ),
-    10000,
+    25000,
     'verify-otp'
   );
   if (error) {
