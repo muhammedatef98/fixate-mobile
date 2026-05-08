@@ -24,25 +24,14 @@ export const createOrder = async (userId: string, orderData: CreateOrderData): P
     if (v !== undefined) cleanData[k] = v;
   }
 
-  // Race the insert against an 8s timeout so a wedged request can never
-  // freeze the submit button forever. The supabase JS client has no built-in
-  // request timeout, so this is the only safety net for flaky networks.
-  const insertPromise = supabase
+  // The supabase client (services/supabaseClient.ts) wraps fetch with a 12s
+  // AbortController timeout, so a wedged request will reject with AbortError
+  // here naturally — no extra Promise.race needed.
+  const { data, error } = await supabase
     .from('orders')
     .insert({ user_id: userId, ...cleanData, status: 'pending' as OrderStatus })
     .select()
     .single();
-
-  const result: any = await Promise.race([
-    insertPromise,
-    new Promise((_, reject) =>
-      setTimeout(
-        () => reject(new Error('Request timed out — check your internet connection')),
-        8000
-      )
-    ),
-  ]);
-  const { data, error } = result;
 
   if (error) {
     logger.warn('Create order DB error', error);
