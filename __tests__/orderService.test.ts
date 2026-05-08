@@ -52,7 +52,7 @@ jest.mock('../utils/logger', () => ({
 
 describe('orderService', () => {
   beforeEach(() => {
-    nextResult = { data: [], error: null };
+    setNext({ data: [], error: null });
   });
 
   describe('exports', () => {
