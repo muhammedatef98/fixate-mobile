@@ -44,7 +44,20 @@ function RootLayoutContent() {
     const isProtectedRoute = !!first && PROTECTED_GROUPS.has(first);
 
     if (user && inAuthFlow) {
-      const target = (userProfile as any)?.role === 'technician' ? '/(technician)' : '/(customer)';
+      // CRITICAL: don't auto-redirect until we know the role. userProfile loads
+      // asynchronously after the session is established; if we routed on a
+      // null profile we'd dump every user into /(customer) regardless of
+      // whether they were a technician — that's the "I tap technician portal,
+      // it sends me to customer portal" bug.
+      if (userProfile === null) return;
+      // technician-auth is the technician's signup/login screen. If a logged-in
+      // user lands there explicitly, respect the intent and route to /(technician).
+      // Otherwise route by their actual role.
+      const wantsTechnician = first === 'technician-auth';
+      const target =
+        wantsTechnician || (userProfile as any)?.role === 'technician'
+          ? '/(technician)'
+          : '/(customer)';
       router.replace(target as any);
       return;
     }
