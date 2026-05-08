@@ -23,7 +23,6 @@ import { getColors } from '../constants/theme';
 import { validateEmail } from '../utils/validation';
 import { getFriendlyError } from '../utils/errorMessages';
 import { RTLIonicon } from '../components/RTLIcon';
-import { supabase } from '../services/supabaseClient';
 
 const { width } = Dimensions.get('window');
 
@@ -72,17 +71,11 @@ export default function LoginScreen() {
 
     setLoading(true);
     try {
-      await authLogin(email.trim(), password);
-      // Route based on the user's actual role, not the screen they came from.
-      // A technician who happens to log in via /login (the customer screen)
-      // should still land in /(technician), not be dumped into the customer app.
-      const { data: { user } } = await supabase.auth.getUser();
-      let role: 'customer' | 'technician' = 'customer';
-      if (user) {
-        const { data: profile } = await supabase
-          .from('users').select('role').eq('id', user.id).maybeSingle();
-        if ((profile as any)?.role === 'technician') role = 'technician';
-      }
+      // authLogin now returns the user's role directly so we don't need any
+      // extra round-trips to figure out where to navigate. (The earlier
+      // implementation made two extra Supabase calls after sign-in, and on
+      // a slow network either of them could hang the login button forever.)
+      const role = await authLogin(email.trim(), password);
       router.replace(role === 'technician' ? '/(technician)' : '/(customer)');
     } catch (error: any) {
       Alert.alert(isRTL ? 'خطأ' : 'Error', getFriendlyError(error, language));

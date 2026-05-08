@@ -88,9 +88,7 @@ export default function AuthScreen() {
     }
   };
 
-  const handleGuestContinue = () => {
-    router.replace('/(customer)');
-  };
+  // Guest mode removed — every user must sign in or create an account.
 
   const handleGoogleLogin = async () => {
     try {
@@ -326,12 +324,7 @@ export default function AuthScreen() {
             </View>
           </View>
 
-          {/* Guest Option (Customer only) */}
-          {userRole === 'customer' && (
-            <TouchableOpacity onPress={handleGuestContinue} style={styles.guestButton}>
-              <Text style={styles.guestText}>{language === 'ar' ? 'المتابعة كضيف' : 'Continue as Guest'}</Text>
-            </TouchableOpacity>
-          )}
+          {/* Guest mode is intentionally absent. Sign in or sign up is required. */}
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
