@@ -47,26 +47,31 @@ export default function AdminVerificationsScreen() {
   const isRTL = language === 'ar';
 
   const [items, setItems] = useState<Submission[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
 
+  const profileLoaded = userProfile !== null;
   const isAdmin = (userProfile as any)?.is_admin === true;
 
   const load = useCallback(async () => {
     try {
       setLoading(true);
+      // Don't embed users:user_id(name, phone) — RLS on the users table only
+      // lets each user see their own row, so the embed would either return
+      // null fields or block the whole query for admins. The technicians row
+      // already carries full_name and phone after onboarding, so use those.
       const { data, error } = await supabase
         .from('technicians')
-        .select('*, users:user_id (name, phone)')
+        .select('*')
         .eq('verification_status', 'submitted')
         .order('created_at', { ascending: false });
       if (error) throw error;
       setItems(
         (data ?? []).map((d: any) => ({
           ...d,
-          user_name: d.users?.name,
-          user_phone: d.users?.phone,
+          user_name: d.full_name,
+          user_phone: d.phone,
         }))
       );
     } catch (e: any) {
@@ -75,11 +80,11 @@ export default function AdminVerificationsScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [language]);
+  }, [language, isRTL]);
 
   useEffect(() => {
-    if (isAdmin) load();
-  }, [isAdmin, load]);
+    if (profileLoaded && isAdmin) load();
+  }, [profileLoaded, isAdmin, load]);
 
   const decide = async (item: Submission, decision: 'approved' | 'rejected') => {
     setBusyId(item.id);
@@ -102,6 +107,16 @@ export default function AdminVerificationsScreen() {
   };
 
   const styles = createStyles(COLORS, isRTL);
+
+  if (!profileLoaded) {
+    // userProfile is still loading; show a spinner so admins don't briefly
+    // flash through the "Admins only" screen before the role check resolves.
+    return (
+      <SafeAreaView style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color={COLORS.primary} />
+      </SafeAreaView>
+    );
+  }
 
   if (!isAdmin) {
     return (
