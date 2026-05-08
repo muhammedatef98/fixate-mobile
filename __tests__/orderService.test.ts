@@ -1,22 +1,49 @@
 import * as orderService from '../services/orderService';
 
-// Break circular reference by typing mocks explicitly
-const mockSingle: jest.Mock = jest.fn();
-const mockOrder: jest.Mock = jest.fn(() => Promise.resolve({ data: [], error: null }));
-const mockIs: jest.Mock = jest.fn(() => ({ order: mockOrder, eq: mockEq }));
-const mockEq: jest.Mock = jest.fn(() => ({ select: mockSelect, single: mockSingle, order: mockOrder, is: mockIs }));
-const mockSelect: jest.Mock = jest.fn(() => ({ single: mockSingle, eq: mockEq, is: mockIs, order: mockOrder }));
-const mockInsert: jest.Mock = jest.fn(() => ({ select: mockSelect }));
-const mockUpdate: jest.Mock = jest.fn(() => ({ eq: mockEq, select: mockSelect }));
-const mockFrom: jest.Mock = jest.fn(() => ({
-  insert: mockInsert,
-  select: mockSelect,
-  update: mockUpdate,
-  eq: mockEq,
-}));
+// Build a minimal builder that resolves to {data,error}. Each terminal method
+// returns the Promise directly so the chain matches what supabase-js exposes.
+const makeBuilder = (result: { data: any; error: any }) => {
+  const builder: any = {};
+  const ret = (..._args: any[]) => builder;
+  builder.insert = ret;
+  builder.select = ret;
+  builder.update = ret;
+  builder.eq = ret;
+  builder.is = ret;
+  builder.order = (..._args: any[]) => Promise.resolve(result);
+  builder.single = () => Promise.resolve(result);
+  builder.maybeSingle = () => Promise.resolve(result);
+  builder.then = (resolve: any, reject: any) =>
+    Promise.resolve(result).then(resolve, reject);
+  return builder;
+};
+
+// jest.mock factories must not reference top-level vars (Jest hoists them
+// above any const). Stash mutable state on globalThis so the factory can
+// pull a fresh value from inside the prefix-allowed `mock` namespace.
+(globalThis as any).__mockNext = { data: [], error: null };
+const setNext = (result: { data: any; error: any }) => {
+  (globalThis as any).__mockNext = result;
+};
 
 jest.mock('../services/supabaseClient', () => ({
-  supabase: { from: mockFrom },
+  supabase: {
+    from: () => {
+      const r = (globalThis as any).__mockNext as { data: any; error: any };
+      const builder: any = {};
+      const ret = (..._args: any[]) => builder;
+      builder.insert = ret;
+      builder.select = ret;
+      builder.update = ret;
+      builder.eq = ret;
+      builder.is = ret;
+      builder.order = () => Promise.resolve(r);
+      builder.single = () => Promise.resolve(r);
+      builder.maybeSingle = () => Promise.resolve(r);
+      builder.then = (res: any, rej: any) => Promise.resolve(r).then(res, rej);
+      return builder;
+    },
+  },
 }));
 
 jest.mock('../utils/logger', () => ({
@@ -24,7 +51,9 @@ jest.mock('../utils/logger', () => ({
 }));
 
 describe('orderService', () => {
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => {
+    nextResult = { data: [], error: null };
+  });
 
   describe('exports', () => {
     it('exports all required functions', () => {
@@ -41,17 +70,13 @@ describe('orderService', () => {
 
   describe('getMyOrders', () => {
     it('returns empty array on database error', async () => {
-      mockEq.mockReturnValueOnce({
-        order: () => Promise.resolve({ data: null, error: new Error('DB error') }),
-      });
+      setNext({ data: null, error: new Error('DB error') });
       const result = await orderService.getMyOrders('user-1');
       expect(result).toEqual([]);
     });
 
     it('returns empty array when no orders found', async () => {
-      mockEq.mockReturnValueOnce({
-        order: () => Promise.resolve({ data: [], error: null }),
-      });
+      setNext({ data: [], error: null });
       const result = await orderService.getMyOrders('user-1');
       expect(result).toEqual([]);
     });
@@ -59,9 +84,7 @@ describe('orderService', () => {
 
   describe('getOrderById', () => {
     it('returns null on error', async () => {
-      mockEq.mockReturnValueOnce({
-        single: () => Promise.resolve({ data: null, error: new Error('Not found') }),
-      });
+      setNext({ data: null, error: new Error('Not found') });
       const result = await orderService.getOrderById('nonexistent-id');
       expect(result).toBeNull();
     });

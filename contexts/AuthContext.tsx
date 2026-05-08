@@ -28,33 +28,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   useEffect(() => {
-    // Get initial session
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
+    // Get initial session — fast path. Don't block on a profile fetch:
+    // mark loading=false immediately so navigation is responsive, then
+    // hydrate the profile in the background. A missing profile row is
+    // tolerated (getUserProfile uses maybeSingle() and returns null).
+    supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
       setIsAuthenticated(!!session);
+      setLoading(false);
 
       if (session?.user) {
-        const profile = await userService.getUserProfile(session.user.id);
-        setUserProfile(profile);
-
-        // If the JWT is still valid locally but the auth.users row was
-        // wiped on the server (DB reset, account deleted from another
-        // device), the next supabase.auth.getUser() call returns no user.
-        // Treat that as a hard logout so the app doesn't sit on a stale
-        // session and spam profile-not-found errors.
-        if (!profile) {
-          const { data: { user: serverUser } } = await supabase.auth.getUser().catch(() => ({ data: { user: null } as any }));
-          if (!serverUser) {
-            await supabase.auth.signOut({ scope: 'local' }).catch(() => undefined);
-            setSession(null);
-            setUser(null);
-            setIsAuthenticated(false);
-          }
-        }
+        userService
+          .getUserProfile(session.user.id)
+          .then(setUserProfile)
+          .catch(() => undefined);
       }
-
-      setLoading(false);
     });
 
     // Listen for auth changes
