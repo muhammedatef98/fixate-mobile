@@ -7,6 +7,7 @@ import { useApp } from '../contexts/AppContext';
 import { useAuth } from '../contexts/AuthContext';
 import { translations } from '../constants/translations';
 import { RTLMaterialIcon } from '../components/RTLIcon';
+import { safeBack } from '../utils/navigation';
 
 const MENU_ITEMS = [
   { id: 'account', title: 'تعديل الملف الشخصي', titleEn: 'Edit Profile', icon: 'person-outline' },
@@ -88,7 +89,7 @@ export default function ProfileScreen() {
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity accessibilityRole="button" accessibilityLabel={isRTL ? 'رجوع' : 'Back'} onPress={() => router.back()} style={[styles.backBtn, SHADOWS.neuSmall]}>
+          <TouchableOpacity accessibilityRole="button" accessibilityLabel={isRTL ? 'رجوع' : 'Back'} onPress={() => safeBack()} style={[styles.backBtn, SHADOWS.neuSmall]}>
             <RTLMaterialIcon name="arrow-back" size={24} color={COLORS.text} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>{isRTL ? 'الملف الشخصي' : 'Profile'}</Text>

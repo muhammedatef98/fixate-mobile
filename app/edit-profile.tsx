@@ -7,6 +7,7 @@ import { auth } from '../lib/supabase-api';
 import { logger } from '../utils/logger';
 import { RTLIonicon } from '../components/RTLIcon';
 import { getColors } from '../constants/theme';
+import { safeBack } from '../utils/navigation';
 
 export default function EditProfileScreen() {
   const router = useRouter();
@@ -81,7 +82,7 @@ export default function EditProfileScreen() {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.white} />
       <View style={styles.header}>
-        <TouchableOpacity accessibilityRole="button" accessibilityLabel={isRTL ? 'رجوع' : 'Back'} onPress={() => router.back()} style={styles.backButton}>
+        <TouchableOpacity accessibilityRole="button" accessibilityLabel={isRTL ? 'رجوع' : 'Back'} onPress={() => safeBack()} style={styles.backButton}>
           <RTLIonicon name="chevron-back" size={24} color={COLORS.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{isRTL ? 'تعديل الملف الشخصي' : 'Edit Profile'}</Text>

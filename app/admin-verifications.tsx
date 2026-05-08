@@ -20,6 +20,7 @@ import { RTLIonicon } from '../components/RTLIcon';
 import { supabase } from '../services/supabaseClient';
 import { getFriendlyError } from '../utils/errorMessages';
 import { success, warning } from '../utils/haptics';
+import { safeBack } from '../utils/navigation';
 
 interface Submission {
   id: string;
@@ -108,7 +109,7 @@ export default function AdminVerificationsScreen() {
         <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
         <View style={styles.header}>
           <TouchableOpacity
-            onPress={() => router.back()}
+            onPress={() => safeBack()}
             accessibilityRole="button"
             accessibilityLabel={isRTL ? 'رجوع' : 'Back'}
           >
@@ -137,7 +138,7 @@ export default function AdminVerificationsScreen() {
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
       <View style={styles.header}>
         <TouchableOpacity
-          onPress={() => router.back()}
+          onPress={() => safeBack()}
           accessibilityRole="button"
           accessibilityLabel={isRTL ? 'رجوع' : 'Back'}
         >
