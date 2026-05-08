@@ -23,6 +23,7 @@ import { RTLIonicon } from '../components/RTLIcon';
 import * as addressService from '../services/addressService';
 import { getFriendlyError } from '../utils/errorMessages';
 import ErrorState from '../components/ErrorState';
+import { safeBack } from '../utils/navigation';
 
 export default function AddressesScreen() {
   const router = useRouter();
@@ -141,7 +142,7 @@ export default function AddressesScreen() {
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
       <View style={styles.header}>
         <TouchableOpacity
-          onPress={() => router.back()}
+          onPress={() => safeBack()}
           accessibilityRole="button"
           accessibilityLabel={isRTL ? 'رجوع' : 'Back'}
         >

@@ -15,6 +15,7 @@ import { getColors, getShadows, SPACING, BORDER_RADIUS } from '../constants/them
 import { useApp } from '../contexts/AppContext';
 import { translations } from '../constants/translations';
 import { RTLIonicon } from '../components/RTLIcon';
+import { safeBack } from '../utils/navigation';
 
 const CONTACT_INFO = {
   phone: '0548940042',
@@ -50,7 +51,7 @@ export default function ContactScreen() {
     <SafeAreaView style={[styles.container, { backgroundColor: COLORS.background }]}>
       {/* Header */}
       <View style={[styles.header, { backgroundColor: COLORS.primary }]}>
-        <TouchableOpacity accessibilityRole="button" accessibilityLabel={isRTL ? 'رجوع' : 'Back'} onPress={() => router.back()} style={styles.backButton}>
+        <TouchableOpacity accessibilityRole="button" accessibilityLabel={isRTL ? 'رجوع' : 'Back'} onPress={() => safeBack()} style={styles.backButton}>
           <RTLIonicon name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{t.contact.title}</Text>

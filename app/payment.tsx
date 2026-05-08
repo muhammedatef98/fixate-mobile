@@ -14,6 +14,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { getColors, getShadows, SPACING, BORDER_RADIUS } from '../constants/theme';
 import { useApp } from '../contexts/AppContext';
 import { RTLMaterialIcon } from '../components/RTLIcon';
+import { safeBack } from '../utils/navigation';
 
 export default function PaymentScreen() {
   const router = useRouter();
@@ -60,7 +61,7 @@ export default function PaymentScreen() {
       [
         {
           text: language === 'ar' ? 'حسناً' : 'OK',
-          onPress: () => router.back(),
+          onPress: () => safeBack(),
         },
       ]
     );
@@ -70,7 +71,7 @@ export default function PaymentScreen() {
     <SafeAreaView style={[styles.container, { backgroundColor: COLORS.background }]}>
       {/* Header */}
       <View style={[styles.header, { backgroundColor: COLORS.card }, SHADOWS.small]}>
-        <TouchableOpacity accessibilityRole="button" accessibilityLabel={isRTL ? 'رجوع' : 'Back'} onPress={() => router.back()} style={styles.backButton}>
+        <TouchableOpacity accessibilityRole="button" accessibilityLabel={isRTL ? 'رجوع' : 'Back'} onPress={() => safeBack()} style={styles.backButton}>
           <RTLMaterialIcon name="arrow-back" 
             size={24} 
             color={COLORS.text} 

@@ -14,6 +14,7 @@ import {
 import { useRouter } from 'expo-router';
 import appConfig from '../app.json';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { safeBack } from '../utils/navigation';
 import { useApp } from '../contexts/AppContext';
 import { useAuth } from '../contexts/AuthContext';
 import { tapLight } from '../utils/haptics';
@@ -65,7 +66,7 @@ export default function SettingsScreen() {
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
       <View style={styles.header}>
         <TouchableOpacity
-          onPress={() => router.back()}
+          onPress={() => safeBack('/(customer)')}
           accessibilityRole="button"
           accessibilityLabel={isRTL ? 'رجوع' : 'Back'}
         >

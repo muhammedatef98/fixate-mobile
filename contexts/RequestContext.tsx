@@ -62,7 +62,9 @@ export function RequestProvider({ children }: { children: ReactNode }) {
         (data ?? []).map((o: any) => mapOrderToRequest(o, o.users?.name))
       );
     } catch (error) {
-      logger.error('RequestContext refresh error', error);
+      // Network blips on cold-start are expected on mobile. Log at warn so
+      // the dev-overlay doesn't show a red box for a recoverable failure.
+      logger.warn('RequestContext refresh failed', error);
     } finally {
       setLoading(false);
     }

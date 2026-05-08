@@ -18,6 +18,7 @@ import { getColors, SPACING, BORDER_RADIUS } from '../constants/theme';
 import { RTLIonicon } from '../components/RTLIcon';
 import * as preferencesService from '../services/preferencesService';
 import { getFriendlyError } from '../utils/errorMessages';
+import { safeBack } from '../utils/navigation';
 
 type Prefs = preferencesService.NotificationPreferences;
 
@@ -77,7 +78,7 @@ export default function NotificationSettingsScreen() {
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
       <View style={styles.header}>
         <TouchableOpacity
-          onPress={() => router.back()}
+          onPress={() => safeBack()}
           accessibilityRole="button"
           accessibilityLabel={isRTL ? 'رجوع' : 'Back'}
         >

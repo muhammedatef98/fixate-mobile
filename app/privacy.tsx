@@ -12,6 +12,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { getColors, SPACING } from '../constants/theme';
 import { useApp } from '../contexts/AppContext';
 import { RTLMaterialIcon } from '../components/RTLIcon';
+import { safeBack } from '../utils/navigation';
 
 export default function PrivacyScreen() {
   const router = useRouter();
@@ -273,7 +274,7 @@ For any privacy inquiries:
     <SafeAreaView style={[styles.container, { backgroundColor: COLORS.background }]}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity accessibilityRole="button" accessibilityLabel={isRTL ? 'رجوع' : 'Back'} onPress={() => router.back()} style={styles.backButton}>
+        <TouchableOpacity accessibilityRole="button" accessibilityLabel={isRTL ? 'رجوع' : 'Back'} onPress={() => safeBack()} style={styles.backButton}>
           <RTLMaterialIcon name="arrow-back" 
             size={24} 
             color={COLORS.text} 

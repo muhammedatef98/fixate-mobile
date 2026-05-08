@@ -19,6 +19,7 @@ import { RTLIonicon } from '../components/RTLIcon';
 import * as paymentService from '../services/paymentService';
 import { getFriendlyError } from '../utils/errorMessages';
 import ErrorState from '../components/ErrorState';
+import { safeBack } from '../utils/navigation';
 
 export default function WalletScreen() {
   const router = useRouter();
@@ -78,7 +79,7 @@ export default function WalletScreen() {
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
       <View style={styles.header}>
         <TouchableOpacity
-          onPress={() => router.back()}
+          onPress={() => safeBack()}
           accessibilityRole="button"
           accessibilityLabel={isRTL ? 'رجوع' : 'Back'}
         >
