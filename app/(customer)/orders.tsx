@@ -190,37 +190,52 @@ export default function OrdersScreen() {
           <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
             {orders.map((order) => {
               const status = getStatusInfo(order.status);
+              const dateStr = new Date(order.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
               return (
-                <TouchableOpacity key={order.id} style={styles.orderCard} onPress={() => router.push(`/order-details?id=${order.id}`)}>
-                  <View style={styles.orderHeader}>
-                    <View style={[styles.statusBadge, { backgroundColor: status.color + '15' }]}>
-                      <Ionicons name={status.icon as any} size={12} color={status.color} />
-                      <Text style={[styles.statusText, { color: status.color }]}>{status.label}</Text>
+                <TouchableOpacity
+                  key={order.id}
+                  style={[styles.orderCard, { borderLeftColor: status.color, borderLeftWidth: 4 }]}
+                  onPress={() => router.push(`/order-details?id=${order.id}`)}
+                  activeOpacity={0.85}
+                >
+                  {/* Top: status pill on the lead side, date at the trailing edge */}
+                  <View style={styles.cardTopRow}>
+                    <View style={[styles.statusPill, { backgroundColor: status.color + '15' }]}>
+                      <Ionicons name={status.icon as any} size={11} color={status.color} />
+                      <Text style={[styles.statusPillText, { color: status.color }]}>{status.label}</Text>
                     </View>
-                    <View style={styles.deviceInfo}>
-                      <View style={styles.deviceIcon}>
-                        <MaterialCommunityIcons name="cellphone" size={26} color={COLORS.primary} />
-                      </View>
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.deviceName} numberOfLines={1}>{order.device_brand} {order.device_model}</Text>
-                        <Text style={styles.orderDate}>{new Date(order.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })}</Text>
-                      </View>
-                    </View>
-                  </View>
-                  
-                  <View style={styles.orderBody}>
-                    <Text style={styles.issueText} numberOfLines={1}>{order.issue_description || (isRTL ? 'فحص عام' : 'General Check')}</Text>
-                    <View style={styles.priceRow}>
-                      <Text style={styles.priceLabel}>{isRTL ? 'السعر التقديري:' : 'Est. Price:'}</Text>
-                      <Text style={styles.priceValue}>{order.estimated_price} {isRTL ? 'ر.س' : 'SAR'}</Text>
-                    </View>
+                    <Text style={styles.cardDate}>{dateStr}</Text>
                   </View>
 
-                  <View style={styles.orderFooter}>
-                    <TouchableOpacity style={styles.detailsBtn} onPress={() => router.push(`/order-details?id=${order.id}`)}>
-                      <Text style={styles.detailsBtnText}>{isRTL ? 'عرض التفاصيل' : 'View Details'}</Text>
-                      <RTLIonicon name="chevron-forward" size={16} color={COLORS.primary} />
-                    </TouchableOpacity>
+                  {/* Device row: icon + name + chevron */}
+                  <View style={styles.cardDeviceRow}>
+                    <View style={styles.deviceIcon}>
+                      <MaterialCommunityIcons name="cellphone" size={22} color={COLORS.primary} />
+                    </View>
+                    <Text style={styles.deviceName} numberOfLines={1}>
+                      {order.device_brand} {order.device_model}
+                    </Text>
+                  </View>
+
+                  {/* Issue line */}
+                  <Text style={styles.issueText} numberOfLines={2}>
+                    {order.issue_description || (isRTL ? 'فحص عام' : 'General check')}
+                  </Text>
+
+                  {/* Price + CTA row */}
+                  <View style={styles.cardBottomRow}>
+                    <View>
+                      <Text style={styles.priceLabel}>
+                        {isRTL ? 'السعر التقديري' : 'Est. price'}
+                      </Text>
+                      <Text style={styles.priceValue}>
+                        {order.estimated_price ? `${order.estimated_price} ${isRTL ? 'ر.س' : 'SAR'}` : '—'}
+                      </Text>
+                    </View>
+                    <View style={styles.detailsBtn}>
+                      <Text style={styles.detailsBtnText}>{isRTL ? 'عرض التفاصيل' : 'View details'}</Text>
+                      <RTLIonicon name="chevron-forward" size={14} color={COLORS.primary} />
+                    </View>
                   </View>
                 </TouchableOpacity>
               );
@@ -256,20 +271,90 @@ const createStyles = (COLORS: any, isRTL: boolean) => StyleSheet.create({
   emptyText: { fontSize: 16, color: COLORS.textSecondary, marginTop: 16, marginBottom: 20 },
   loginPromptBtn: { backgroundColor: COLORS.primary, paddingHorizontal: 20, paddingVertical: 10, borderRadius: 12 },
   loginPromptText: { color: COLORS.white, fontWeight: 'bold', fontSize: 14 },
-  orderCard: { backgroundColor: COLORS.white, borderRadius: 20, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: COLORS.border, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 2 },
-  orderHeader: { flexDirection: isRTL ? 'row-reverse' : 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
-  deviceInfo: { flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 12, flex: 1 },
-  deviceIcon: { width: 48, height: 48, borderRadius: 14, backgroundColor: '#f0fdf4', justifyContent: 'center', alignItems: 'center' },
-  deviceName: { fontSize: 15, fontWeight: 'bold', color: COLORS.text, flexShrink: 1 },
-  orderDate: { fontSize: 11, color: COLORS.textSecondary, marginTop: 2 },
-  statusBadge: { flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, position: 'absolute', top: -8, [isRTL ? 'left' : 'right']: 0 },
-  statusText: { fontSize: 11, fontWeight: 'bold' },
-  orderBody: { paddingVertical: 12, borderTopWidth: 1, borderTopColor: '#f3f4f6', borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
-  issueText: { fontSize: 14, color: COLORS.text, marginBottom: 12, textAlign: isRTL ? 'right' : 'left', fontWeight: '500' },
-  priceRow: { flexDirection: isRTL ? 'row-reverse' : 'row', justifyContent: 'space-between', alignItems: 'center' },
-  priceLabel: { fontSize: 13, color: COLORS.textSecondary },
-  priceValue: { fontSize: 16, fontWeight: 'bold', color: COLORS.primary },
-  orderFooter: { marginTop: 12, flexDirection: isRTL ? 'row-reverse' : 'row', justifyContent: 'space-between', alignItems: 'center' },
-  detailsBtn: { flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 4, paddingVertical: 4 },
-  detailsBtnText: { fontSize: 14, fontWeight: '700', color: COLORS.primary },
+  orderCard: {
+    backgroundColor: COLORS.white,
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 1,
+  },
+  cardTopRow: {
+    flexDirection: isRTL ? 'row-reverse' : 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  statusPill: {
+    flexDirection: isRTL ? 'row-reverse' : 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 999,
+  },
+  statusPillText: { fontSize: 11, fontWeight: '700' },
+  cardDate: { fontSize: 11, color: COLORS.textSecondary, fontWeight: '500' },
+  cardDeviceRow: {
+    flexDirection: isRTL ? 'row-reverse' : 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 8,
+  },
+  deviceIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: '#f0fdf4',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  deviceName: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: '700',
+    color: COLORS.text,
+    textAlign: isRTL ? 'right' : 'left',
+  },
+  issueText: {
+    fontSize: 13,
+    color: COLORS.textSecondary,
+    lineHeight: 19,
+    marginBottom: 12,
+    textAlign: isRTL ? 'right' : 'left',
+  },
+  cardBottomRow: {
+    flexDirection: isRTL ? 'row-reverse' : 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: 10,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: COLORS.border,
+  },
+  priceLabel: {
+    fontSize: 11,
+    color: COLORS.textSecondary,
+    fontWeight: '500',
+    marginBottom: 2,
+    textAlign: isRTL ? 'right' : 'left',
+  },
+  priceValue: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: COLORS.primary,
+    textAlign: isRTL ? 'right' : 'left',
+  },
+  detailsBtn: {
+    flexDirection: isRTL ? 'row-reverse' : 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  detailsBtnText: { fontSize: 13, fontWeight: '700', color: COLORS.primary },
 });
