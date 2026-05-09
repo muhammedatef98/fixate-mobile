@@ -154,10 +154,7 @@ export default function TechnicianLayout() {
       <Stack.Screen name="my-orders" />
       <Stack.Screen name="earnings" />
       <Stack.Screen name="available-orders" />
-      <Stack.Screen
-        name="manage-order"
-        options={{ headerShown: true, title: isRTL ? 'إدارة الطلب' : 'Manage Order' }}
-      />
+      <Stack.Screen name="manage-order" options={{ headerShown: false }} />
       <Stack.Screen name="job/[id]" />
     </Stack>
   );

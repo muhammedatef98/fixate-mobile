@@ -539,27 +539,53 @@ export default function RequestScreen() {
                   provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
                   style={[styles.map, { opacity: mapReady ? 1 : 0 }]}
                   initialRegion={location}
-                  onRegionChangeComplete={(region) => {
+                  onRegionChangeComplete={async (region) => {
                     if (region && region.latitude) {
                       setLocation(region);
+                      try {
+                        const places = await Location.reverseGeocodeAsync({
+                          latitude: region.latitude,
+                          longitude: region.longitude,
+                        });
+                        const p = places?.[0];
+                        if (p) {
+                          const street = (p.street ?? '').trim();
+                          const district = (p.district ?? '').trim();
+                          const city = (p.city ?? '').trim();
+                          const composed = [street, district, city].filter(Boolean).join(', ');
+                          if (composed) setAddress(composed);
+                        }
+                      } catch {
+                        // reverse geocode is best-effort
+                      }
                     }
                   }}
                   onMapReady={() => setMapReady(true)}
-                >
-                  <Marker 
-                    coordinate={{
-                      latitude: location.latitude,
-                      longitude: location.longitude
-                    }} 
-                  />
-                </MapView>
+                />
               ) : (
                 <View style={styles.mapPlaceholder}>
                   <MaterialCommunityIcons name="map-marker-radius" size={64} color={COLORS.gray} />
                   <Text style={styles.mapPlaceholderText}>{isRTL ? 'الخريطة ستظهر هنا' : 'Map will appear here'}</Text>
                 </View>
               )}
-              
+
+              {/* Centered pin + drag hint — outside the ternary so they
+                  overlay the map without breaking JSX structure. */}
+              {mapReady && location && (
+                <>
+                  <View pointerEvents="none" style={styles.centerPinWrap}>
+                    <MaterialCommunityIcons name="map-marker" size={44} color={COLORS.primary} />
+                    <View style={styles.centerPinShadow} />
+                  </View>
+                  <View pointerEvents="none" style={styles.dragHint}>
+                    <Ionicons name="hand-left-outline" size={14} color="#fff" />
+                    <Text style={styles.dragHintText}>
+                      {isRTL ? 'اسحب الخريطة لتغيير الموقع' : 'Drag the map to set location'}
+                    </Text>
+                  </View>
+                </>
+              )}
+
               {!mapReady && location && (
                 <View style={[styles.mapPlaceholder, { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }]}>
                   <ActivityIndicator size="large" color={COLORS.primary} />
@@ -714,6 +740,34 @@ const createStyles = (COLORS: any, isRTL: boolean) => StyleSheet.create({
   mapPlaceholder: { flex: 1, backgroundColor: '#f3f4f6', justifyContent: 'center', alignItems: 'center' },
   mapPlaceholderText: { marginTop: 12, fontSize: 16, color: COLORS.gray },
   locationButton: { position: 'absolute', bottom: 16, left: 16, right: 16, backgroundColor: COLORS.primary, height: 48, borderRadius: 24, flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  centerPinWrap: {
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    marginLeft: -22,
+    marginTop: -44, // pin tip lands on the actual centre
+    alignItems: 'center',
+  },
+  centerPinShadow: {
+    width: 14,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: 'rgba(0,0,0,0.25)',
+    marginTop: -2,
+  },
+  dragHint: {
+    position: 'absolute',
+    top: 12,
+    alignSelf: 'center',
+    flexDirection: isRTL ? 'row-reverse' : 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
+    gap: 6,
+  },
+  dragHintText: { color: '#fff', fontSize: 11, fontWeight: '600' },
   locationButtonText: { color: '#fff', fontWeight: 'bold' },
   addressContainer: { flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', padding: 12, backgroundColor: '#ecfdf5', borderRadius: 12, gap: 8 },
   addressText: { flex: 1, fontSize: 14, color: COLORS.text, textAlign: isRTL ? 'right' : 'left' },
