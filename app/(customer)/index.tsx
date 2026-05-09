@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -6,264 +6,268 @@ import {
   ScrollView,
   TouchableOpacity,
   SafeAreaView,
-  Image,
   Dimensions,
   Animated,
-  I18nManager,
   StatusBar,
-  FlatList,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { getColors, getShadows, SPACING, BORDER_RADIUS } from '../../constants/theme';
+import { getColors, SPACING, BORDER_RADIUS } from '../../constants/theme';
 import { useApp } from '../../contexts/AppContext';
 import { useAuth } from '../../contexts/AuthContext';
 import BottomNav from '../../components/BottomNav';
 import Sidebar from '../../components/Sidebar';
-import { requests } from '../../lib/supabase-api';
+import { supabase } from '../../services/supabaseClient';
 import { logger } from '../../utils/logger';
-import { RTLIonicon } from '../../components/RTLIcon';
+import { RTLIonicon, RTLMaterialIcon } from '../../components/RTLIcon';
 
 const { width } = Dimensions.get('window');
 
 const DEVICE_CATEGORIES = [
-  { id: 1, titleEn: 'Smartphones', titleAr: 'هواتف ذكية', icon: 'cellphone', color: '#3B82F6' },
-  { id: 2, titleEn: 'Laptops', titleAr: 'لابتوبات', icon: 'laptop', color: '#8B5CF6' },
-  { id: 3, titleEn: 'Tablets', titleAr: 'تابلت', icon: 'tablet', color: '#EC4899' },
-  { id: 4, titleEn: 'Smartwatches', titleAr: 'ساعات ذكية', icon: 'watch', color: '#F59E0B' },
+  { id: 'phone', titleEn: 'Phones', titleAr: 'جوّالات', icon: 'cellphone', accent: '#10B981' },
+  { id: 'laptop', titleEn: 'Laptops', titleAr: 'لابتوب', icon: 'laptop', accent: '#3B82F6' },
+  { id: 'tablet', titleEn: 'Tablets', titleAr: 'تابلت', icon: 'tablet', accent: '#8B5CF6' },
+  { id: 'watch', titleEn: 'Watches', titleAr: 'ساعات', icon: 'watch-variant', accent: '#F59E0B' },
 ];
 
-const PROMO_SLIDES = [
-  { id: 1, titleEn: '6-Month Warranty', titleAr: 'ضمان 6 أشهر', descEn: 'On all repairs', descAr: 'على جميع الإصلاحات', color: '#10B981', icon: 'shield-check' },
-  { id: 2, titleEn: 'Same-Day Service', titleAr: 'خدمة في نفس اليوم', descEn: 'Fast & Reliable', descAr: 'سريع وموثوق', color: '#3B82F6', icon: 'lightning-bolt' },
-  { id: 3, titleEn: 'Home Pickup', titleAr: 'استلام من المنزل', descEn: 'Free delivery included', descAr: 'التوصيل مجاني', color: '#F59E0B', icon: 'truck-delivery' },
+const QUICK_ACTIONS = [
+  { id: 'calculator', titleAr: 'الحاسبة', titleEn: 'Calculator', icon: 'calculator-outline', route: '/(customer)/calculator' },
+  { id: 'services', titleAr: 'الخدمات', titleEn: 'Services', icon: 'tools', route: '/(customer)/services' },
+  { id: 'orders', titleAr: 'طلباتي', titleEn: 'My orders', icon: 'receipt-outline', route: '/(customer)/orders' },
+  { id: 'addresses', titleAr: 'عناويني', titleEn: 'Addresses', icon: 'location-outline', route: '/addresses' },
 ];
 
-const WHY_US = [
-  { id: 1, titleEn: 'Expert Technicians', titleAr: 'فنيون خبراء', icon: 'tools', color: '#10B981' },
-  { id: 2, titleEn: 'Transparent Pricing', titleAr: 'أسعار شفافة', icon: 'tag-multiple', color: '#3B82F6' },
-  { id: 3, titleEn: 'Quick Response', titleAr: 'رد سريع', icon: 'clock-fast', color: '#F59E0B' },
-  { id: 4, titleEn: '24/7 Support', titleAr: 'دعم 24/7', icon: 'headset', color: '#EC4899' },
+const TRUST_POINTS = [
+  { ar: 'ضمان 6 أشهر', en: '6-month warranty', icon: 'shield-check', color: '#10b981' },
+  { ar: 'استلام مجاني', en: 'Free pickup', icon: 'truck-fast-outline', color: '#3b82f6' },
+  { ar: 'فنيون معتمدون', en: 'Verified pros', icon: 'check-decagram', color: '#8b5cf6' },
 ];
 
 export default function CustomerHomeScreen() {
   const router = useRouter();
   const { language, setLanguage, isDark } = useApp();
-  const { userProfile } = useAuth();
+  const { user, userProfile } = useAuth();
   const COLORS = getColors(isDark);
-  const SHADOWS = getShadows(isDark);
   const isRTL = language === 'ar';
-  const displayName = (userProfile?.name?.trim() || (userProfile?.email?.split('@')[0] ?? '')).split(' ')[0] || (isRTL ? 'صديقي' : 'there');
 
   const [sidebarVisible, setSidebarVisible] = useState(false);
-  const [activeOrders, setActiveOrders] = useState<any[]>([]);
-  const [promoIndex, setPromoIndex] = useState(0);
+  const [activeOrder, setActiveOrder] = useState<any>(null);
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(20)).current;
-  const scrollX = useRef(new Animated.Value(0)).current;
 
-  useEffect(() => {
-    const sub = scrollX.addListener(({ value }) => {
-      setPromoIndex(Math.round(value / (width - 32)));
-    });
-    return () => scrollX.removeListener(sub);
-  }, [scrollX]);
+  const displayName =
+    (userProfile?.name?.trim() || user?.email?.split('@')[0] || '').split(' ')[0] ||
+    (isRTL ? 'صديقي' : 'there');
 
   useEffect(() => {
     Animated.parallel([
-      Animated.timing(fadeAnim, { toValue: 1, duration: 500, useNativeDriver: true }),
-      Animated.timing(slideAnim, { toValue: 0, duration: 500, useNativeDriver: true }),
+      Animated.timing(fadeAnim, { toValue: 1, duration: 400, useNativeDriver: true }),
+      Animated.spring(slideAnim, { toValue: 0, friction: 8, useNativeDriver: true }),
     ]).start();
-    loadActiveOrders();
-  }, []);
+    if (user?.id) loadActiveOrder();
+  }, [user?.id]);
 
-  const loadActiveOrders = async () => {
+  const loadActiveOrder = async () => {
+    if (!user?.id) return;
     try {
-      const orders = await requests.getUserOrders();
-      const active = orders.filter((o: any) => o.status !== 'completed' && o.status !== 'cancelled');
-      setActiveOrders(active.slice(0, 1));
-    } catch (error) {
-      logger.error('Error loading orders:', error);
+      const { data } = await supabase
+        .from('orders')
+        .select('id, status, device_brand, device_model')
+        .eq('user_id', user.id)
+        .in('status', ['pending', 'accepted', 'picking_up', 'diagnosing', 'waiting_parts', 'repairing', 'testing', 'delivering'])
+        .order('created_at', { ascending: false })
+        .limit(1);
+      setActiveOrder(data?.[0] ?? null);
+    } catch (e) {
+      logger.warn('home loadActiveOrder failed', e);
     }
   };
 
-  const handleCategoryPress = () => {
-    router.push('/request');
-  };
-
-  const styles = createStyles(COLORS, isRTL, SHADOWS);
+  const styles = makeStyles(COLORS, isRTL);
+  const greeting = (() => {
+    const h = new Date().getHours();
+    if (h < 12) return isRTL ? 'صباح الخير' : 'Good morning';
+    if (h < 18) return isRTL ? 'مساء الخير' : 'Good afternoon';
+    return isRTL ? 'مساء الخير' : 'Good evening';
+  })();
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: COLORS.background }]}>
+    <SafeAreaView style={styles.container}>
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={COLORS.background} />
 
       {/* Header */}
-      <View style={[styles.header, { backgroundColor: COLORS.card }]}>
-        <TouchableOpacity onPress={() => setSidebarVisible(true)} style={styles.iconButton}>
-          <Ionicons name="menu" size={24} color={COLORS.text} />
+      <View style={styles.header}>
+        <TouchableOpacity
+          onPress={() => setSidebarVisible(true)}
+          style={[styles.iconBtn, { backgroundColor: COLORS.card, borderColor: COLORS.border }]}
+          accessibilityRole="button"
+          accessibilityLabel={isRTL ? 'القائمة' : 'Menu'}
+        >
+          <Ionicons name="menu" size={20} color={COLORS.text} />
         </TouchableOpacity>
-        
+
         <Text style={[styles.logo, { color: COLORS.primary }]}>Fixate</Text>
-        
-        <View style={styles.headerRight}>
-          <TouchableOpacity 
-            onPress={() => setLanguage(language === 'ar' ? 'en' : 'ar')} 
-            style={styles.iconButton}
+
+        <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', gap: 8 }}>
+          <TouchableOpacity
+            onPress={() => setLanguage(language === 'ar' ? 'en' : 'ar')}
+            style={[styles.iconBtn, { backgroundColor: COLORS.card, borderColor: COLORS.border }]}
+            accessibilityRole="button"
+            accessibilityLabel={isRTL ? 'تبديل اللغة' : 'Toggle language'}
           >
-            <Ionicons name="language" size={22} color={COLORS.text} />
+            <Ionicons name="language" size={18} color={COLORS.text} />
           </TouchableOpacity>
-          <TouchableOpacity 
-            onPress={() => router.push('/notifications')} 
-            style={styles.iconButton}
+          <TouchableOpacity
+            onPress={() => router.push('/notifications')}
+            style={[styles.iconBtn, { backgroundColor: COLORS.card, borderColor: COLORS.border }]}
+            accessibilityRole="button"
+            accessibilityLabel={isRTL ? 'الإشعارات' : 'Notifications'}
           >
-            <Ionicons name="notifications-outline" size={22} color={COLORS.text} />
+            <Ionicons name="notifications-outline" size={18} color={COLORS.text} />
           </TouchableOpacity>
         </View>
       </View>
 
-      <ScrollView style={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
-          {/* Hero Section */}
-          <View style={[styles.heroSection, { backgroundColor: COLORS.primary + '10' }, SHADOWS.small]}>
-            <View style={styles.heroContent}>
-              <Text style={[styles.heroGreeting, { color: COLORS.textSecondary }]}>
-                {isRTL ? 'أهلاً بك' : 'Welcome back'}
-              </Text>
-              <Text style={[styles.heroTitle, { color: COLORS.text }]} numberOfLines={1}>
-                {displayName}
-              </Text>
-              <Text style={[styles.heroSubtitle, { color: COLORS.textSecondary }]}>
-                {isRTL ? 'كيف يمكننا مساعدتك اليوم؟' : 'How can we help you today?'}
-              </Text>
-            </View>
-            <View style={styles.heroIcon}>
-              <MaterialCommunityIcons name="hand-wave" size={48} color={COLORS.primary} />
-            </View>
-          </View>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 110 }}>
+        <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }], padding: SPACING.lg }}>
+          {/* Greeting */}
+          <Text style={[styles.greetingSmall, { color: COLORS.textSecondary }]}>{greeting} 👋</Text>
+          <Text style={[styles.greetingName, { color: COLORS.text }]} numberOfLines={1}>
+            {displayName}
+          </Text>
+          <Text style={[styles.greetingSub, { color: COLORS.textSecondary }]}>
+            {isRTL ? 'كيف نقدر نصلّح لك؟' : 'How can we fix things today?'}
+          </Text>
 
-          {/* Search Bar */}
-          <TouchableOpacity style={[styles.searchBar, { backgroundColor: COLORS.card }, SHADOWS.small]}>
-            <Ionicons name="search" size={20} color={COLORS.textSecondary} />
-            <Text style={[styles.searchPlaceholder, { color: COLORS.textSecondary }]}>
-              {isRTL ? 'ابحث عن جهازك...' : 'Search your device...'}
-            </Text>
+          {/* Primary CTA */}
+          <TouchableOpacity
+            onPress={() => router.push('/request')}
+            style={[styles.cta, { backgroundColor: COLORS.primary }]}
+            activeOpacity={0.92}
+            accessibilityRole="button"
+          >
+            <View style={{ flex: 1 }}>
+              <Text style={styles.ctaEyebrow}>
+                {isRTL ? 'صيانة سريعة وسهلة' : 'Quick & easy repair'}
+              </Text>
+              <Text style={styles.ctaTitle}>
+                {isRTL ? 'اطلب صيانة الآن' : 'Request a repair'}
+              </Text>
+              <View style={styles.ctaPill}>
+                <Text style={styles.ctaPillText}>
+                  {isRTL ? 'يصلك الفني خلال 30 دقيقة' : 'Tech arrives in 30 min'}
+                </Text>
+                <RTLIonicon name="arrow-forward" size={14} color={COLORS.primary} />
+              </View>
+            </View>
+            <View style={styles.ctaIconWrap}>
+              <MaterialCommunityIcons name="tools" size={68} color="#ffffff15" />
+            </View>
           </TouchableOpacity>
 
-          {/* Active Order Alert */}
-          {activeOrders.length > 0 && (
+          {/* Active order banner */}
+          {activeOrder && (
             <TouchableOpacity
-              style={[styles.activeOrderCard, { backgroundColor: COLORS.primary + '15' }, SHADOWS.small]}
-              onPress={() => router.push(`/order-details?id=${activeOrders[0].id}`)}
+              onPress={() => router.push(`/order-details?id=${activeOrder.id}`)}
+              style={[styles.activeOrder, { backgroundColor: COLORS.card, borderColor: COLORS.border }]}
+              activeOpacity={0.85}
             >
-              <View style={styles.activeOrderContent}>
-                <View style={[styles.activeOrderIcon, { backgroundColor: COLORS.primary }]}>
-                  <MaterialCommunityIcons name="clock-outline" size={20} color="#fff" />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.activeOrderTitle, { color: COLORS.text }]}>
-                    {isRTL ? 'طلب قيد المعالجة' : 'Order in Progress'}
-                  </Text>
-                  <Text style={[styles.activeOrderStatus, { color: COLORS.textSecondary }]}>
-                    {isRTL ? 'اضغط للتفاصيل' : 'Tap for details'}
-                  </Text>
-                </View>
-                <RTLIonicon name="chevron-forward" size={20} color={COLORS.primary} />
+              <View style={[styles.dot, { backgroundColor: '#f59e0b' }]} />
+              <View style={{ flex: 1, marginHorizontal: 12 }}>
+                <Text style={[styles.activeOrderTitle, { color: COLORS.text }]}>
+                  {isRTL ? 'لديك طلب جارٍ' : 'You have an active order'}
+                </Text>
+                <Text style={[styles.activeOrderSub, { color: COLORS.textSecondary }]} numberOfLines={1}>
+                  {activeOrder.device_brand} {activeOrder.device_model} · #{activeOrder.id.slice(0, 6)}
+                </Text>
               </View>
+              <RTLIonicon name="chevron-forward" size={18} color={COLORS.primary} />
             </TouchableOpacity>
           )}
 
-          {/* Promo Slider */}
-          <View style={styles.promoSection}>
-            <FlatList
-              data={PROMO_SLIDES}
-              renderItem={({ item }) => (
-                <View style={[styles.promoCard, { backgroundColor: item.color, width: width - 32 }]}>
-                  <View style={styles.promoCardContent}>
-                    <MaterialCommunityIcons name={item.icon as any} size={40} color="#fff" />
-                    <View style={{ marginLeft: isRTL ? 0 : 16, marginRight: isRTL ? 16 : 0, flex: 1 }}>
-                      <Text style={styles.promoCardTitle}>{isRTL ? item.titleAr : item.titleEn}</Text>
-                      <Text style={styles.promoCardDesc}>{isRTL ? item.descAr : item.descEn}</Text>
-                    </View>
-                  </View>
-                </View>
-              )}
-              keyExtractor={(item) => item.id.toString()}
-              horizontal
-              pagingEnabled
-              showsHorizontalScrollIndicator={false}
-              onScroll={Animated.event([{ nativeEvent: { contentOffset: { x: scrollX } } }], { useNativeDriver: false })}
-              scrollEventThrottle={16}
-            />
-            <View style={styles.promoDots}>
-              {PROMO_SLIDES.map((_, index) => (
-                <View
-                  key={index}
-                  style={[
-                    styles.promoDot,
-                    {
-                      backgroundColor: index === promoIndex ? COLORS.primary : COLORS.border,
-                    },
-                  ]}
-                />
-              ))}
-            </View>
+          {/* Section: Choose your device */}
+          <View style={styles.sectionHead}>
+            <Text style={[styles.sectionTitle, { color: COLORS.text }]}>
+              {isRTL ? 'اختر جهازك' : 'Choose device'}
+            </Text>
+            <TouchableOpacity onPress={() => router.push('/(customer)/services')}>
+              <Text style={{ color: COLORS.primary, fontSize: 13, fontWeight: '700' }}>
+                {isRTL ? 'كل الخدمات' : 'See all'}
+              </Text>
+            </TouchableOpacity>
           </View>
 
-          {/* Device Categories */}
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={[styles.sectionTitle, { color: COLORS.text }]}>
-                {isRTL ? 'اختر جهازك' : 'Choose Your Device'}
+          <View style={styles.deviceGrid}>
+            {DEVICE_CATEGORIES.map((cat) => (
+              <TouchableOpacity
+                key={cat.id}
+                style={[styles.deviceCard, { backgroundColor: COLORS.card, borderColor: COLORS.border }]}
+                onPress={() => router.push('/request')}
+                activeOpacity={0.85}
+                accessibilityRole="button"
+              >
+                <View style={[styles.deviceIcon, { backgroundColor: cat.accent + '15' }]}>
+                  <MaterialCommunityIcons name={cat.icon as any} size={26} color={cat.accent} />
+                </View>
+                <Text style={[styles.deviceLabel, { color: COLORS.text }]}>
+                  {isRTL ? cat.titleAr : cat.titleEn}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          {/* Quick actions row */}
+          <View style={styles.quickRow}>
+            {QUICK_ACTIONS.map((q) => (
+              <TouchableOpacity
+                key={q.id}
+                onPress={() => router.push(q.route as any)}
+                style={[styles.quickPill, { backgroundColor: COLORS.card, borderColor: COLORS.border }]}
+                activeOpacity={0.85}
+                accessibilityRole="button"
+              >
+                <MaterialCommunityIcons name={q.icon as any} size={18} color={COLORS.primary} />
+                <Text style={[styles.quickText, { color: COLORS.text }]} numberOfLines={1}>
+                  {isRTL ? q.titleAr : q.titleEn}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          {/* Trust strip */}
+          <View style={[styles.trustCard, { backgroundColor: COLORS.card, borderColor: COLORS.border }]}>
+            {TRUST_POINTS.map((t, i) => (
+              <View key={i} style={[styles.trustItem, i > 0 && { borderLeftWidth: StyleSheet.hairlineWidth, borderLeftColor: COLORS.border, paddingLeft: 12 }]}>
+                <View style={[styles.trustIcon, { backgroundColor: t.color + '15' }]}>
+                  <MaterialCommunityIcons name={t.icon as any} size={16} color={t.color} />
+                </View>
+                <Text style={[styles.trustText, { color: COLORS.text }]} numberOfLines={2}>
+                  {isRTL ? t.ar : t.en}
+                </Text>
+              </View>
+            ))}
+          </View>
+
+          {/* Support card */}
+          <TouchableOpacity
+            onPress={() => router.push('/support-chat')}
+            style={[styles.supportCard, { backgroundColor: COLORS.primary + '10', borderColor: COLORS.primary + '30' }]}
+            activeOpacity={0.85}
+            accessibilityRole="button"
+          >
+            <View style={[styles.supportIcon, { backgroundColor: COLORS.primary }]}>
+              <Ionicons name="chatbubble-ellipses" size={20} color="#fff" />
+            </View>
+            <View style={{ flex: 1, marginHorizontal: 12 }}>
+              <Text style={[styles.supportTitle, { color: COLORS.text }]}>
+                {isRTL ? 'تحتاج مساعدة؟' : 'Need help?'}
+              </Text>
+              <Text style={[styles.supportSub, { color: COLORS.textSecondary }]}>
+                {isRTL ? 'تواصل مع فريق الدعم مباشرة' : 'Chat with our support team'}
               </Text>
             </View>
-            <View style={styles.categoriesGrid}>
-              {DEVICE_CATEGORIES.map((category) => (
-                <TouchableOpacity
-                  key={category.id}
-                  style={[styles.categoryCard, { backgroundColor: COLORS.card }, SHADOWS.small]}
-                  onPress={handleCategoryPress}
-                >
-                  <View style={[styles.categoryIconContainer, { backgroundColor: category.color + '20' }]}>
-                    <MaterialCommunityIcons name={category.icon as any} size={32} color={category.color} />
-                  </View>
-                  <Text style={[styles.categoryLabel, { color: COLORS.text }]}>
-                    {isRTL ? category.titleAr : category.titleEn}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-
-          {/* Why Choose Us */}
-          <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: COLORS.text, marginBottom: 16 }]}>
-              {isRTL ? 'لماذا Fixate؟' : 'Why Choose Fixate?'}
-            </Text>
-            <View style={styles.whyUsGrid}>
-              {WHY_US.map((item) => (
-                <View key={item.id} style={[styles.whyUsCard, { backgroundColor: COLORS.card }, SHADOWS.small]}>
-                  <View style={[styles.whyUsIconContainer, { backgroundColor: item.color + '20' }]}>
-                    <MaterialCommunityIcons name={item.icon as any} size={28} color={item.color} />
-                  </View>
-                  <Text style={[styles.whyUsTitle, { color: COLORS.text }]}>
-                    {isRTL ? item.titleAr : item.titleEn}
-                  </Text>
-                </View>
-              ))}
-            </View>
-          </View>
-
-          {/* CTA Button */}
-          <TouchableOpacity
-            style={[styles.ctaButton, { backgroundColor: COLORS.primary }, SHADOWS.medium]}
-            onPress={handleCategoryPress}
-          >
-            <MaterialCommunityIcons name="plus-circle" size={24} color="#fff" />
-            <Text style={styles.ctaButtonText}>{isRTL ? 'طلب إصلاح جديد' : 'New Repair Request'}</Text>
+            <RTLMaterialIcon name="chevron-right" size={20} color={COLORS.primary} />
           </TouchableOpacity>
-
-          <View style={{ height: 100 }} />
         </Animated.View>
       </ScrollView>
 
@@ -273,138 +277,147 @@ export default function CustomerHomeScreen() {
   );
 }
 
-const createStyles = (COLORS: any, isRTL: boolean, SHADOWS: any) =>
+const makeStyles = (C: any, isRTL: boolean) =>
   StyleSheet.create({
-    container: { flex: 1, backgroundColor: COLORS.background },
+    container: { flex: 1, backgroundColor: C.background },
+
     header: {
       flexDirection: isRTL ? 'row-reverse' : 'row',
-      height: 60,
       alignItems: 'center',
       justifyContent: 'space-between',
       paddingHorizontal: 16,
-      borderBottomWidth: 1,
-      borderBottomColor: COLORS.border,
+      paddingVertical: 10,
     },
-    iconButton: { padding: 8 },
-    logo: { fontSize: 24, fontWeight: 'bold', position: 'absolute', left: width / 2 - 40 },
-    headerRight: { flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center' },
-    scrollContent: { padding: 16 },
+    iconBtn: {
+      width: 38, height: 38, borderRadius: 19,
+      alignItems: 'center', justifyContent: 'center',
+      borderWidth: 1,
+    },
+    logo: { fontSize: 22, fontWeight: '900', letterSpacing: 0.5 },
 
-    // Hero Section
-    heroSection: {
+    greetingSmall: { fontSize: 13, fontWeight: '500', textAlign: isRTL ? 'right' : 'left' },
+    greetingName: { fontSize: 26, fontWeight: '800', marginTop: 2, textAlign: isRTL ? 'right' : 'left' },
+    greetingSub: { fontSize: 13, marginTop: 4, marginBottom: 18, textAlign: isRTL ? 'right' : 'left' },
+
+    cta: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
+      borderRadius: 24,
+      padding: 22,
+      marginBottom: 14,
+      overflow: 'hidden',
+      shadowColor: C.primary,
+      shadowOpacity: 0.3,
+      shadowOffset: { width: 0, height: 10 },
+      shadowRadius: 20,
+      elevation: 8,
+      minHeight: 158,
+    },
+    ctaEyebrow: { color: '#ffffffcc', fontSize: 11, fontWeight: '700', letterSpacing: 1 },
+    ctaTitle: { color: '#fff', fontSize: 24, fontWeight: '800', marginTop: 4 },
+    ctaPill: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
+      gap: 8,
+      backgroundColor: '#fff',
+      paddingHorizontal: 12,
+      paddingVertical: 7,
+      borderRadius: 999,
+      alignSelf: isRTL ? 'flex-end' : 'flex-start',
+      marginTop: 14,
+    },
+    ctaPillText: { color: C.primary, fontSize: 12, fontWeight: '700' },
+    ctaIconWrap: { justifyContent: 'center', alignItems: 'center' },
+
+    activeOrder: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
+      borderRadius: 14,
+      borderWidth: 1,
+      padding: 14,
+      marginBottom: 22,
+    },
+    dot: { width: 10, height: 10, borderRadius: 5 },
+    activeOrderTitle: { fontSize: 13, fontWeight: '800' },
+    activeOrderSub: { fontSize: 11, marginTop: 2 },
+
+    sectionHead: {
       flexDirection: isRTL ? 'row-reverse' : 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
-      marginBottom: 24,
-      paddingHorizontal: 16,
-      paddingVertical: 20,
-      borderRadius: BORDER_RADIUS.lg,
+      marginBottom: 12,
+      marginTop: 4,
     },
-    heroContent: { flex: 1, alignItems: isRTL ? 'flex-end' : 'flex-start' },
-    heroGreeting: { fontSize: 14, fontWeight: '500' },
-    heroTitle: { fontSize: 28, fontWeight: 'bold', marginTop: 4 },
-    heroSubtitle: { fontSize: 14, marginTop: 8 },
-    heroIcon: { marginLeft: isRTL ? 16 : 0, marginRight: isRTL ? 0 : 16 },
+    sectionTitle: { fontSize: 16, fontWeight: '800' },
 
-    // Search Bar
-    searchBar: {
+    deviceGrid: {
       flexDirection: isRTL ? 'row-reverse' : 'row',
-      height: 50,
-      borderRadius: BORDER_RADIUS.lg,
-      paddingHorizontal: 16,
-      alignItems: 'center',
-      gap: 12,
-      marginBottom: 24,
-    },
-    searchPlaceholder: { fontSize: 14, fontWeight: '500' },
-
-    // Active Order Card
-    activeOrderCard: {
-      borderRadius: BORDER_RADIUS.lg,
-      padding: 16,
-      marginBottom: 24,
-      borderLeftWidth: 4,
-    },
-    activeOrderContent: {
-      flexDirection: isRTL ? 'row-reverse' : 'row',
-      alignItems: 'center',
-      gap: 12,
-    },
-    activeOrderIcon: { width: 48, height: 48, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
-    activeOrderTitle: { fontSize: 16, fontWeight: 'bold' },
-    activeOrderStatus: { fontSize: 12, marginTop: 4 },
-
-    // Promo Section
-    promoSection: { marginBottom: 24 },
-    promoCard: {
-      borderRadius: BORDER_RADIUS.lg,
-      padding: 20,
-      marginRight: 16,
-      justifyContent: 'center',
-    },
-    promoCardContent: {
-      flexDirection: 'row',
-      alignItems: 'center',
-    },
-    promoCardTitle: { fontSize: 18, fontWeight: 'bold', color: '#fff' },
-    promoCardDesc: { fontSize: 12, color: 'rgba(255,255,255,0.8)', marginTop: 4 },
-    promoDots: {
-      flexDirection: 'row',
-      justifyContent: 'center',
-      alignItems: 'center',
-      gap: 6,
-      marginTop: 12,
-    },
-    promoDot: { width: 8, height: 8, borderRadius: 4 },
-
-    // Section
-    section: { marginBottom: 24 },
-    sectionHeader: { flexDirection: isRTL ? 'row-reverse' : 'row', justifyContent: 'space-between', marginBottom: 16 },
-    sectionTitle: { fontSize: 18, fontWeight: 'bold' },
-
-    // Categories Grid
-    categoriesGrid: {
-      flexDirection: 'row',
       flexWrap: 'wrap',
       gap: 12,
-      justifyContent: 'space-between',
+      marginBottom: 22,
     },
-    categoryCard: {
-      width: (width - 32 - 36) / 2,
+    deviceCard: {
+      width: (width - SPACING.lg * 2 - 12) / 2,
       borderRadius: BORDER_RADIUS.lg,
+      borderWidth: 1,
       padding: 16,
       alignItems: 'center',
-      justifyContent: 'center',
+      gap: 10,
     },
-    categoryIconContainer: { width: 60, height: 60, borderRadius: 14, justifyContent: 'center', alignItems: 'center', marginBottom: 12 },
-    categoryLabel: { fontSize: 14, fontWeight: '600', textAlign: 'center' },
+    deviceIcon: {
+      width: 52, height: 52, borderRadius: 14,
+      alignItems: 'center', justifyContent: 'center',
+    },
+    deviceLabel: { fontSize: 14, fontWeight: '700' },
 
-    // Why Us Grid
-    whyUsGrid: {
-      flexDirection: 'row',
+    quickRow: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
       flexWrap: 'wrap',
-      gap: 12,
-      justifyContent: 'space-between',
+      gap: 8,
+      marginBottom: 22,
     },
-    whyUsCard: {
-      width: (width - 32 - 36) / 2,
-      borderRadius: BORDER_RADIUS.lg,
-      padding: 16,
+    quickPill: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
       alignItems: 'center',
-      justifyContent: 'center',
+      gap: 8,
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+      borderRadius: 999,
+      borderWidth: 1,
     },
-    whyUsIconContainer: { width: 56, height: 56, borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginBottom: 12 },
-    whyUsTitle: { fontSize: 13, fontWeight: '600', textAlign: 'center' },
+    quickText: { fontSize: 13, fontWeight: '600' },
 
-    // CTA Button
-    ctaButton: {
-      flexDirection: 'row',
-      height: 56,
+    trustCard: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
       borderRadius: BORDER_RADIUS.lg,
-      justifyContent: 'center',
-      alignItems: 'center',
-      gap: 12,
-      marginBottom: 24,
+      borderWidth: 1,
+      padding: 14,
+      marginBottom: 18,
+      gap: 4,
     },
-    ctaButtonText: { fontSize: 16, fontWeight: 'bold', color: '#fff' },
+    trustItem: {
+      flex: 1,
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
+      gap: 8,
+    },
+    trustIcon: {
+      width: 30, height: 30, borderRadius: 9,
+      alignItems: 'center', justifyContent: 'center',
+    },
+    trustText: { fontSize: 11, fontWeight: '600', flex: 1 },
+
+    supportCard: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
+      borderRadius: BORDER_RADIUS.lg,
+      borderWidth: 1,
+      padding: 14,
+    },
+    supportIcon: {
+      width: 42, height: 42, borderRadius: 12,
+      alignItems: 'center', justifyContent: 'center',
+    },
+    supportTitle: { fontSize: 14, fontWeight: '700' },
+    supportSub: { fontSize: 12, marginTop: 2 },
   });
