@@ -13,10 +13,11 @@ import ErrorBoundary from '../components/ErrorBoundary';
 import OfflineBanner from '../components/OfflineBanner';
 import {
   useFonts,
-  Cairo_400Regular,
-  Cairo_600SemiBold,
-  Cairo_700Bold,
-} from '@expo-google-fonts/cairo';
+  Tajawal_400Regular,
+  Tajawal_500Medium,
+  Tajawal_700Bold,
+  Tajawal_800ExtraBold,
+} from '@expo-google-fonts/tajawal';
 import '../i18n';
 
 function RootLayoutContent() {
@@ -218,9 +219,10 @@ function RootLayoutContent() {
 
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({
-    Cairo_400Regular,
-    Cairo_600SemiBold,
-    Cairo_700Bold,
+    Tajawal_400Regular,
+    Tajawal_500Medium,
+    Tajawal_700Bold,
+    Tajawal_800ExtraBold,
   });
 
   if (!fontsLoaded) {
@@ -231,13 +233,14 @@ export default function RootLayout() {
     );
   }
 
-  // Default Cairo for all Text/TextInput
+  // Tajawal is widely used by premium Saudi apps (Mrsool, Hunger Station,
+  // Tawakkalna). Crisp at small sizes, broad weight range, on-brand for KSA.
   const TextAny: any = Text;
   const TextInputAny: any = TextInput;
   TextAny.defaultProps = TextAny.defaultProps || {};
-  TextAny.defaultProps.style = [{ fontFamily: 'Cairo_400Regular' }, TextAny.defaultProps.style];
+  TextAny.defaultProps.style = [{ fontFamily: 'Tajawal_400Regular' }, TextAny.defaultProps.style];
   TextInputAny.defaultProps = TextInputAny.defaultProps || {};
-  TextInputAny.defaultProps.style = [{ fontFamily: 'Cairo_400Regular' }, TextInputAny.defaultProps.style];
+  TextInputAny.defaultProps.style = [{ fontFamily: 'Tajawal_400Regular' }, TextInputAny.defaultProps.style];
 
   return (
     <ErrorBoundary>

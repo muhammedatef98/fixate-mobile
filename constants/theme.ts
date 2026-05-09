@@ -101,10 +101,15 @@ export const SPACING = {
   xxxl: 64,
 };
 
+// Tajawal is the brand font. See app/_layout.tsx — Tajawal weights 400, 500,
+// 700, 800 are loaded once at boot and applied as the default fontFamily on
+// every Text and TextInput so individual screens don't need to set it.
 export const FONTS = {
-  regular: 'Cairo_400Regular',
-  semibold: 'Cairo_600SemiBold',
-  bold: 'Cairo_700Bold',
+  regular: 'Tajawal_400Regular',
+  medium: 'Tajawal_500Medium',
+  semibold: 'Tajawal_500Medium',
+  bold: 'Tajawal_700Bold',
+  extraBold: 'Tajawal_800ExtraBold',
 };
 
 export const TYPOGRAPHY = {
