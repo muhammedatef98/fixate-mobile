@@ -23,6 +23,7 @@ import { getColors } from '../constants/theme';
 import { validateEmail } from '../utils/validation';
 import { getFriendlyError } from '../utils/errorMessages';
 import { RTLIonicon } from '../components/RTLIcon';
+import { supabase } from '../services/supabaseClient';
 
 const { width } = Dimensions.get('window');
 
@@ -71,12 +72,19 @@ export default function LoginScreen() {
 
     setLoading(true);
     try {
-      // authLogin now returns the user's role directly so we don't need any
-      // extra round-trips to figure out where to navigate. (The earlier
-      // implementation made two extra Supabase calls after sign-in, and on
-      // a slow network either of them could hang the login button forever.)
+      // authLogin returns the user's role from user_metadata so navigation
+      // is fast (no second Supabase round-trip). To also support admin, do
+      // a single quick is_admin lookup right after.
       const role = await authLogin(email.trim(), password);
-      router.replace(role === 'technician' ? '/(technician)' : '/(customer)');
+      const { data: { user } } = await supabase.auth.getUser();
+      let target: '/admin' | '/(technician)' | '/(customer)' =
+        role === 'technician' ? '/(technician)' : '/(customer)';
+      if (user) {
+        const { data: profile } = await supabase
+          .from('users').select('is_admin').eq('id', user.id).maybeSingle();
+        if ((profile as any)?.is_admin === true) target = '/admin';
+      }
+      router.replace(target as any);
     } catch (error: any) {
       Alert.alert(isRTL ? 'خطأ' : 'Error', getFriendlyError(error, language));
     } finally {

@@ -51,13 +51,16 @@ function RootLayoutContent() {
       // it sends me to customer portal" bug.
       if (userProfile === null) return;
       // technician-auth is the technician's signup/login screen. If a logged-in
-      // user lands there explicitly, respect the intent and route to /(technician).
-      // Otherwise route by their actual role.
+      // user lands there explicitly, respect the intent and route to
+      // /(technician). Admins (is_admin=true) are sent straight to the admin
+      // dashboard. Otherwise route by stored role.
       const wantsTechnician = first === 'technician-auth';
-      const target =
-        wantsTechnician || (userProfile as any)?.role === 'technician'
-          ? '/(technician)'
-          : '/(customer)';
+      const isAdmin = (userProfile as any)?.is_admin === true;
+      const target = isAdmin
+        ? '/admin'
+        : wantsTechnician || (userProfile as any)?.role === 'technician'
+        ? '/(technician)'
+        : '/(customer)';
       router.replace(target as any);
       return;
     }
