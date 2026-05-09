@@ -53,7 +53,10 @@ export default function SettingsScreen() {
       cancelled = true;
     };
   }, [user?.id]);
-  const isAdmin = adminChecked === true || (userProfile as any)?.is_admin === true;
+  // Three independent admin signals — any one being true is enough so a
+  // failed DB lookup or stale context can't hide the admin card.
+  const metaAdmin = (user?.user_metadata as any)?.is_admin === true;
+  const isAdmin = adminChecked === true || (userProfile as any)?.is_admin === true || metaAdmin;
 
   const appVersion = (appConfig as any).expo?.version ?? '1.0.0';
 

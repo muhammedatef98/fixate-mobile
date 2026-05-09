@@ -113,8 +113,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const { user } = await authService.loginWithPhoneOrEmail({ email, password });
     if (!user) return 'customer';
 
-    let isAdmin = false;
-    let role: 'customer' | 'technician' = 'customer';
+    // Belt-and-braces: read is_admin from BOTH the user_metadata (cheap,
+    // attached to the auth response) and from public.users (canonical).
+    // Either being true is enough — protects against the public.users
+    // lookup failing on a flaky network.
+    let isAdmin = (user.user_metadata as any)?.is_admin === true;
+    let role: 'customer' | 'technician' =
+      (user.user_metadata as any)?.role === 'technician' ? 'technician' : 'customer';
+
     try {
       const { data } = await supabase
         .from('users')
@@ -122,16 +128,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         .eq('id', user.id)
         .maybeSingle();
       if (data) {
-        isAdmin = (data as any).is_admin === true;
+        if ((data as any).is_admin === true) isAdmin = true;
         if ((data as any).role === 'technician') role = 'technician';
-      } else {
-        // Profile row not yet present — fall back to user_metadata
-        const metaRole = (user.user_metadata as any)?.role;
-        if (metaRole === 'technician') role = 'technician';
       }
     } catch {
-      const metaRole = (user.user_metadata as any)?.role;
-      if (metaRole === 'technician') role = 'technician';
+      // user_metadata fallback already applied above
     }
 
     return isAdmin ? 'admin' : role;

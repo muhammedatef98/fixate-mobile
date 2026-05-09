@@ -61,7 +61,8 @@ export default function AdminDashboardScreen() {
     };
   }, [user?.id]);
 
-  const isAdmin = adminChecked === true || (userProfile as any)?.is_admin === true;
+  const metaAdmin = (user?.user_metadata as any)?.is_admin === true;
+  const isAdmin = adminChecked === true || (userProfile as any)?.is_admin === true || metaAdmin;
 
   const loadStats = async () => {
     try {

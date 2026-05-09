@@ -56,7 +56,8 @@ export default function AdminSupportScreen() {
     return () => { cancelled = true; };
   }, [user?.id]);
 
-  const isAdmin = adminChecked === true || (userProfile as any)?.is_admin === true;
+  const metaAdmin = (user?.user_metadata as any)?.is_admin === true;
+  const isAdmin = adminChecked === true || (userProfile as any)?.is_admin === true || metaAdmin;
 
   const loadThreads = async () => {
     try {
