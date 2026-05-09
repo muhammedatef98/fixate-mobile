@@ -13,7 +13,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   signOut: () => Promise<void>;
   deleteAccount: () => Promise<void>;
-  login: (email: string, password: string) => Promise<'customer' | 'technician'>;
+  login: (email: string, password: string) => Promise<'admin' | 'customer' | 'technician'>;
   signup: (data: authService.SignUpData) => Promise<void>;
   refreshUser: () => Promise<void>;
 }
@@ -99,17 +99,42 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await signOut();
   };
 
-  const login = async (email: string, password: string): Promise<'customer' | 'technician'> => {
-    // ONLY the auth call. No follow-up profile fetch — that was the source
-    // of the "login button spins forever" symptom: a second Supabase round-
-    // trip serialised behind the first, and any blip on the second one
-    // would trap the spinner. The role comes from user_metadata (set at
-    // signup), which arrives with the auth response itself. The profile
-    // hydrates in the background via onAuthStateChange — by the time the
-    // user reaches the home screen, userProfile in context is populated.
+  // login resolves with the routing target so callers don't have to make a
+  // second round-trip themselves. Order of preference:
+  //   1. is_admin → '/admin'
+  //   2. role === 'technician' → '/(technician)'
+  //   3. fallback → '/(customer)'
+  // The is_admin lookup hits the user's own row, which is allowed by the
+  // existing "Users can view their own profile" RLS policy.
+  const login = async (
+    email: string,
+    password: string
+  ): Promise<'admin' | 'customer' | 'technician'> => {
     const { user } = await authService.loginWithPhoneOrEmail({ email, password });
-    const metaRole = (user?.user_metadata as any)?.role;
-    return metaRole === 'technician' ? 'technician' : 'customer';
+    if (!user) return 'customer';
+
+    let isAdmin = false;
+    let role: 'customer' | 'technician' = 'customer';
+    try {
+      const { data } = await supabase
+        .from('users')
+        .select('role, is_admin')
+        .eq('id', user.id)
+        .maybeSingle();
+      if (data) {
+        isAdmin = (data as any).is_admin === true;
+        if ((data as any).role === 'technician') role = 'technician';
+      } else {
+        // Profile row not yet present — fall back to user_metadata
+        const metaRole = (user.user_metadata as any)?.role;
+        if (metaRole === 'technician') role = 'technician';
+      }
+    } catch {
+      const metaRole = (user.user_metadata as any)?.role;
+      if (metaRole === 'technician') role = 'technician';
+    }
+
+    return isAdmin ? 'admin' : role;
   };
 
   const signup = async (data: authService.SignUpData) => {
