@@ -186,11 +186,11 @@ function RootLayoutContent() {
             headerShown: false 
           }} 
         />
-        <Stack.Screen 
-          name="order-details" 
-          options={{ 
+        <Stack.Screen
+          name="order-details"
+          options={{
             title: language === 'ar' ? 'تفاصيل الطلب' : 'Order Details',
-            headerShown: true 
+            headerShown: false 
           }} 
         />
         <Stack.Screen

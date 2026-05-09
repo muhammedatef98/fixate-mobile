@@ -24,6 +24,7 @@ import * as addressService from '../services/addressService';
 import { getFriendlyError } from '../utils/errorMessages';
 import ErrorState from '../components/ErrorState';
 import { safeBack } from '../utils/navigation';
+import * as Location from 'expo-location';
 
 export default function AddressesScreen() {
   const router = useRouter();
@@ -41,6 +42,14 @@ export default function AddressesScreen() {
   const [label, setLabel] = useState('');
   const [address, setAddress] = useState('');
   const [city, setCity] = useState('');
+  const [district, setDistrict] = useState('');
+  const [shortCode, setShortCode] = useState('');
+  const [buildingNo, setBuildingNo] = useState('');
+  const [postalCode, setPostalCode] = useState('');
+  const [additionalNo, setAdditionalNo] = useState('');
+  const [latitude, setLatitude] = useState<number | undefined>(undefined);
+  const [longitude, setLongitude] = useState<number | undefined>(undefined);
+  const [locating, setLocating] = useState(false);
   const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
@@ -61,11 +70,22 @@ export default function AddressesScreen() {
     load();
   }, [load]);
 
-  const openNew = () => {
-    setEditing(null);
+  const resetForm = () => {
     setLabel('');
     setAddress('');
     setCity('');
+    setDistrict('');
+    setShortCode('');
+    setBuildingNo('');
+    setPostalCode('');
+    setAdditionalNo('');
+    setLatitude(undefined);
+    setLongitude(undefined);
+  };
+
+  const openNew = () => {
+    setEditing(null);
+    resetForm();
     setModalOpen(true);
   };
 
@@ -74,7 +94,44 @@ export default function AddressesScreen() {
     setLabel(a.label);
     setAddress(a.address);
     setCity(a.city ?? '');
+    setDistrict((a as any).district ?? '');
+    setShortCode((a as any).short_code ?? '');
+    setBuildingNo((a as any).building_no ?? '');
+    setPostalCode((a as any).postal_code ?? '');
+    setAdditionalNo((a as any).additional_no ?? '');
+    setLatitude(a.latitude);
+    setLongitude(a.longitude);
     setModalOpen(true);
+  };
+
+  const useMyLocation = async () => {
+    setLocating(true);
+    try {
+      const perm = await Location.requestForegroundPermissionsAsync();
+      if (perm.status !== 'granted') {
+        Alert.alert(isRTL ? 'إذن مرفوض' : 'Permission denied',
+          isRTL ? 'فعّل إذن الموقع من الإعدادات' : 'Enable location permission in settings');
+        return;
+      }
+      const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      setLatitude(loc.coords.latitude);
+      setLongitude(loc.coords.longitude);
+      const places = await Location.reverseGeocodeAsync(loc.coords);
+      const p = places?.[0];
+      if (p) {
+        const street = (p.street ?? '').trim();
+        const name = (p.name ?? '').trim();
+        const composed = [street, name].filter((s) => s && s !== street).join(' ').trim() || street || name;
+        if (composed) setAddress(composed);
+        if (p.district) setDistrict(p.district);
+        if (p.city) setCity(p.city);
+        if (p.postalCode) setPostalCode(p.postalCode);
+      }
+    } catch (e: any) {
+      Alert.alert(isRTL ? 'خطأ' : 'Error', getFriendlyError(e, language));
+    } finally {
+      setLocating(false);
+    }
   };
 
   const handleSave = async () => {
@@ -85,13 +142,23 @@ export default function AddressesScreen() {
     }
     setSaving(true);
     try {
+      const sharedFields = {
+        label: label.trim(),
+        address: address.trim(),
+        city: city.trim(),
+        district: district.trim() || undefined,
+        short_code: shortCode.trim().toUpperCase() || undefined,
+        building_no: buildingNo.trim() || undefined,
+        postal_code: postalCode.trim() || undefined,
+        additional_no: additionalNo.trim() || undefined,
+        latitude,
+        longitude,
+      };
       if (editing) {
-        await addressService.updateAddress(editing.id, { label: label.trim(), address: address.trim(), city: city.trim() });
+        await addressService.updateAddress(editing.id, sharedFields);
       } else {
         await addressService.createAddress(user.id, {
-          label: label.trim(),
-          address: address.trim(),
-          city: city.trim(),
+          ...sharedFields,
           is_default: addresses.length === 0,
         });
       }
@@ -214,35 +281,117 @@ export default function AddressesScreen() {
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
           <View style={styles.modalBackdrop}>
-            <View style={[styles.modalContent, { backgroundColor: COLORS.card }]}>
-              <Text style={styles.modalTitle}>
-                {editing ? (isRTL ? 'تعديل العنوان' : 'Edit address') : isRTL ? 'إضافة عنوان' : 'New address'}
-              </Text>
-              <TextInput
-                placeholder={isRTL ? 'الاسم (مثال: المنزل)' : 'Label (e.g. Home)'}
-                placeholderTextColor={COLORS.textSecondary}
-                value={label}
-                onChangeText={setLabel}
-                style={[styles.input, { color: COLORS.text, borderColor: COLORS.border }]}
-                textAlign={isRTL ? 'right' : 'left'}
-              />
-              <TextInput
-                placeholder={isRTL ? 'العنوان التفصيلي' : 'Full address'}
-                placeholderTextColor={COLORS.textSecondary}
-                value={address}
-                onChangeText={setAddress}
-                style={[styles.input, { color: COLORS.text, borderColor: COLORS.border, height: 80 }]}
-                multiline
-                textAlign={isRTL ? 'right' : 'left'}
-              />
-              <TextInput
-                placeholder={isRTL ? 'المدينة' : 'City'}
-                placeholderTextColor={COLORS.textSecondary}
-                value={city}
-                onChangeText={setCity}
-                style={[styles.input, { color: COLORS.text, borderColor: COLORS.border }]}
-                textAlign={isRTL ? 'right' : 'left'}
-              />
+            <View style={[styles.modalContent, { backgroundColor: COLORS.card, maxHeight: '90%' }]}>
+              <ScrollView showsVerticalScrollIndicator={false}>
+                <Text style={styles.modalTitle}>
+                  {editing ? (isRTL ? 'تعديل العنوان' : 'Edit address') : isRTL ? 'إضافة عنوان' : 'New address'}
+                </Text>
+
+                {/* Use my location — fills address/city/district/postal automatically */}
+                <TouchableOpacity
+                  onPress={useMyLocation}
+                  disabled={locating}
+                  style={[styles.input, {
+                    flexDirection: isRTL ? 'row-reverse' : 'row',
+                    alignItems: 'center', justifyContent: 'center', gap: 8,
+                    borderColor: COLORS.primary, backgroundColor: COLORS.primary + '10',
+                    height: 48, marginBottom: 12,
+                  }]}
+                  accessibilityRole="button"
+                >
+                  {locating ? (
+                    <ActivityIndicator color={COLORS.primary} />
+                  ) : (
+                    <>
+                      <Ionicons name="locate" size={18} color={COLORS.primary} />
+                      <Text style={{ color: COLORS.primary, fontWeight: '700' }}>
+                        {isRTL ? 'استخدم موقعي الحالي' : 'Use my current location'}
+                      </Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+
+                <TextInput
+                  placeholder={isRTL ? 'الاسم (مثال: المنزل)' : 'Label (e.g. Home)'}
+                  placeholderTextColor={COLORS.textSecondary}
+                  value={label}
+                  onChangeText={setLabel}
+                  style={[styles.input, { color: COLORS.text, borderColor: COLORS.border }]}
+                  textAlign={isRTL ? 'right' : 'left'}
+                />
+                <TextInput
+                  placeholder={isRTL ? 'العنوان التفصيلي (الشارع، الرقم)' : 'Street address'}
+                  placeholderTextColor={COLORS.textSecondary}
+                  value={address}
+                  onChangeText={setAddress}
+                  style={[styles.input, { color: COLORS.text, borderColor: COLORS.border, height: 70 }]}
+                  multiline
+                  textAlign={isRTL ? 'right' : 'left'}
+                />
+                <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', gap: 8 }}>
+                  <TextInput
+                    placeholder={isRTL ? 'الحي' : 'District'}
+                    placeholderTextColor={COLORS.textSecondary}
+                    value={district}
+                    onChangeText={setDistrict}
+                    style={[styles.input, { color: COLORS.text, borderColor: COLORS.border, flex: 1 }]}
+                    textAlign={isRTL ? 'right' : 'left'}
+                  />
+                  <TextInput
+                    placeholder={isRTL ? 'المدينة' : 'City'}
+                    placeholderTextColor={COLORS.textSecondary}
+                    value={city}
+                    onChangeText={setCity}
+                    style={[styles.input, { color: COLORS.text, borderColor: COLORS.border, flex: 1 }]}
+                    textAlign={isRTL ? 'right' : 'left'}
+                  />
+                </View>
+
+                {/* Saudi National Address — optional precision fields */}
+                <Text style={{ color: COLORS.textSecondary, fontSize: 12, marginTop: 6, marginBottom: 6, textAlign: isRTL ? 'right' : 'left' }}>
+                  {isRTL ? 'العنوان الوطني (اختياري)' : 'Saudi National Address (optional)'}
+                </Text>
+                <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', gap: 8 }}>
+                  <TextInput
+                    placeholder={isRTL ? 'الرمز (RUH)' : 'Code (RUH)'}
+                    placeholderTextColor={COLORS.textSecondary}
+                    value={shortCode}
+                    onChangeText={(v) => setShortCode(v.toUpperCase().slice(0, 4))}
+                    autoCapitalize="characters"
+                    style={[styles.input, { color: COLORS.text, borderColor: COLORS.border, flex: 1 }]}
+                    textAlign={isRTL ? 'right' : 'left'}
+                  />
+                  <TextInput
+                    placeholder={isRTL ? 'رقم المبنى' : 'Building #'}
+                    placeholderTextColor={COLORS.textSecondary}
+                    value={buildingNo}
+                    onChangeText={(v) => setBuildingNo(v.replace(/\D/g, '').slice(0, 4))}
+                    keyboardType="number-pad"
+                    style={[styles.input, { color: COLORS.text, borderColor: COLORS.border, flex: 1 }]}
+                    textAlign={isRTL ? 'right' : 'left'}
+                  />
+                </View>
+                <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', gap: 8 }}>
+                  <TextInput
+                    placeholder={isRTL ? 'الرمز البريدي' : 'Postal code'}
+                    placeholderTextColor={COLORS.textSecondary}
+                    value={postalCode}
+                    onChangeText={(v) => setPostalCode(v.replace(/\D/g, '').slice(0, 5))}
+                    keyboardType="number-pad"
+                    style={[styles.input, { color: COLORS.text, borderColor: COLORS.border, flex: 1 }]}
+                    textAlign={isRTL ? 'right' : 'left'}
+                  />
+                  <TextInput
+                    placeholder={isRTL ? 'الرقم الإضافي' : 'Additional #'}
+                    placeholderTextColor={COLORS.textSecondary}
+                    value={additionalNo}
+                    onChangeText={(v) => setAdditionalNo(v.replace(/\D/g, '').slice(0, 4))}
+                    keyboardType="number-pad"
+                    style={[styles.input, { color: COLORS.text, borderColor: COLORS.border, flex: 1 }]}
+                    textAlign={isRTL ? 'right' : 'left'}
+                  />
+                </View>
+              </ScrollView>
               <View style={styles.modalActions}>
                 <TouchableOpacity
                   onPress={() => setModalOpen(false)}

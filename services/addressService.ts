@@ -10,6 +10,11 @@ export interface UserAddress {
   district?: string;
   latitude?: number;
   longitude?: number;
+  // Saudi National Address fields (all optional)
+  short_code?: string;     // 4-letter city code (RUH, JED, DMM, ...)
+  building_no?: string;    // 4-digit building number
+  postal_code?: string;    // 5-digit postal code
+  additional_no?: string;  // 4-digit additional number
   is_default: boolean;
   created_at?: string;
   updated_at?: string;

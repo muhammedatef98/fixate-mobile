@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -22,6 +22,7 @@ import { getColors, SPACING, BORDER_RADIUS } from '../constants/theme';
 import { RTLIonicon } from '../components/RTLIcon';
 import { sendPasswordReset } from '../services/authService';
 import { getFriendlyError } from '../utils/errorMessages';
+import { supabase } from '../services/supabaseClient';
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -29,30 +30,41 @@ export default function SettingsScreen() {
   const { user, userProfile } = useAuth();
   const COLORS = getColors(isDark);
   const isRTL = language === 'ar';
-  const isAdmin = (userProfile as any)?.is_admin === true;
+  // Always re-check is_admin against the DB on screen mount. userProfile in
+  // context may be stale (out-of-band promotion) or still null on first
+  // render. This guarantees the Admin card surfaces for real admins.
+  const [adminChecked, setAdminChecked] = useState<boolean | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    if (!user?.id) {
+      setAdminChecked(false);
+      return;
+    }
+    Promise.resolve(
+      supabase.from('users').select('is_admin').eq('id', user.id).maybeSingle()
+    )
+      .then(({ data }: any) => {
+        if (!cancelled) setAdminChecked(data?.is_admin === true);
+      })
+      .catch(() => {
+        if (!cancelled) setAdminChecked(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id]);
+  const isAdmin = adminChecked === true || (userProfile as any)?.is_admin === true;
 
   const appVersion = (appConfig as any).expo?.version ?? '1.0.0';
 
-  const handleResetPassword = async () => {
-    if (!user?.email) return;
-    Alert.alert(
-      isRTL ? 'إعادة تعيين كلمة المرور' : 'Reset password',
-      isRTL ? `سيتم إرسال رابط إعادة التعيين إلى ${user.email}` : `A reset link will be sent to ${user.email}`,
-      [
-        { text: isRTL ? 'إلغاء' : 'Cancel', style: 'cancel' },
-        {
-          text: isRTL ? 'إرسال' : 'Send',
-          onPress: async () => {
-            try {
-              await sendPasswordReset(user.email!);
-              Alert.alert(isRTL ? 'تم' : 'Sent', isRTL ? 'تحقّق من بريدك' : 'Check your inbox');
-            } catch (e: any) {
-              Alert.alert(isRTL ? 'خطأ' : 'Error', getFriendlyError(e, language));
-            }
-          },
-        },
-      ]
-    );
+  const handleResetPassword = () => {
+    // Use the in-app OTP-based reset flow (forgot-password screen).
+    // The email-link flow needed Supabase project SMTP, which isn't
+    // configured. The OTP flow uses our send-otp Edge Function and works.
+    router.push({
+      pathname: '/forgot-password',
+      params: { email: user?.email ?? '' },
+    } as any);
   };
 
   const handleDeleteAccount = () => {
