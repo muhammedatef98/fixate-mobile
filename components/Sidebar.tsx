@@ -66,7 +66,8 @@ export default function Sidebar({ visible, onClose }: SidebarProps) {
     };
   }, [user?.id]);
 
-  const isAdmin = adminChecked === true || (userProfile as any)?.is_admin === true;
+  const metaAdmin = (user?.user_metadata as any)?.is_admin === true;
+  const isAdmin = adminChecked === true || (userProfile as any)?.is_admin === true || metaAdmin;
   const displayName = userProfile?.name?.trim() || user?.email?.split('@')[0] || (isRTL ? 'ضيف' : 'Guest');
   const displayEmail = userProfile?.email || user?.email || '';
 
