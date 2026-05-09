@@ -15,14 +15,19 @@ if (!supabaseUrl || !supabaseAnonKey) {
 // with an AbortController timeout so every supabase call is guaranteed to
 // settle within a bounded window.
 //
-// Edge Functions get a longer timeout (25s) because they may legitimately
-// take longer than a REST query — for example send-otp does Resend HTTP +
-// hashing + insert, and on a cold function start you can hit 12-15s easily.
-// REST/Auth queries get 12s because they should be fast.
+// Different paths get different ceilings because their legitimate work
+// envelopes differ a lot:
+//   - REST / Auth: short, idempotent, should finish in 1-2s. 15s ceiling.
+//   - Edge Functions: hashing + Resend HTTP + DB insert, cold-start prone.
+//     45s ceiling.
+//   - Storage upload/download: large binary over mobile networks; a 5 MB
+//     photo on weak 4G can take 30-50s. 90s ceiling, otherwise the user
+//     gets `StorageUnknownError: Aborted` halfway through their submit.
 const fetchWithTimeout: typeof fetch = (input, init) => {
   const url = typeof input === 'string' ? input : (input as Request).url || '';
   const isEdgeFunction = url.includes('/functions/v1/');
-  const ms = isEdgeFunction ? 25000 : 12000;
+  const isStorage = url.includes('/storage/v1/');
+  const ms = isStorage ? 90000 : isEdgeFunction ? 45000 : 15000;
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), ms);
   return fetch(input as any, { ...(init || {}), signal: controller.signal }).finally(() => {
