@@ -1,7 +1,7 @@
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
-import { I18nManager, View, ActivityIndicator, Text, TextInput } from 'react-native';
+import { I18nManager, View, ActivityIndicator } from 'react-native';
 import { RequestProvider } from '../contexts/RequestContext';
 import { ThemeProvider } from '../contexts/ThemeContext';
 import { AppProvider, useApp } from '../contexts/AppContext';
@@ -18,6 +18,7 @@ import {
   Tajawal_700Bold,
   Tajawal_800ExtraBold,
 } from '@expo-google-fonts/tajawal';
+import { applyTajawalToText } from '../utils/applyTajawal';
 import '../i18n';
 
 function RootLayoutContent() {
@@ -233,14 +234,15 @@ export default function RootLayout() {
     );
   }
 
-  // Tajawal is widely used by premium Saudi apps (Mrsool, Hunger Station,
-  // Tawakkalna). Crisp at small sizes, broad weight range, on-brand for KSA.
-  const TextAny: any = Text;
-  const TextInputAny: any = TextInput;
-  TextAny.defaultProps = TextAny.defaultProps || {};
-  TextAny.defaultProps.style = [{ fontFamily: 'Tajawal_400Regular' }, TextAny.defaultProps.style];
-  TextInputAny.defaultProps = TextInputAny.defaultProps || {};
-  TextInputAny.defaultProps.style = [{ fontFamily: 'Tajawal_400Regular' }, TextInputAny.defaultProps.style];
+  // Tajawal globally — but on iOS/Android, custom fonts don't auto-map
+  // fontWeight: 'bold' to a bold variant; you must name the family
+  // explicitly. Without this override every "bold" Text on screen would
+  // render in the regular weight, which is exactly the "the font isn't
+  // really applied" symptom users report.
+  //
+  // We intercept Text/TextInput's render once and rewrite the resolved
+  // style so the right Tajawal variant is picked based on fontWeight.
+  applyTajawalToText();
 
   return (
     <ErrorBoundary>
