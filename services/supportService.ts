@@ -46,19 +46,34 @@ export const getOrCreateMyThread = async (userId: string): Promise<SupportThread
 };
 
 export const listAllThreads = async (): Promise<(SupportThread & { user_name?: string; user_email?: string; last_preview?: string })[]> => {
-  const { data, error } = await supabase
+  // Don't use PostgREST embed — support_threads.user_id has a FK to
+  // auth.users (not public.users), so the embed silently returns null for
+  // every user. Fetch threads first, then resolve names/emails in a single
+  // follow-up query against public.users.
+  const { data: threads, error } = await supabase
     .from('support_threads')
-    .select('*, users:user_id (name, email)')
+    .select('*')
     .order('last_message_at', { ascending: false })
     .limit(200);
   if (error) {
     logger.warn('listAllThreads failed', error);
     return [];
   }
-  return (data ?? []).map((t: any) => ({
+  const list = threads ?? [];
+  if (!list.length) return [];
+
+  const userIds = Array.from(new Set(list.map((t: any) => t.user_id).filter(Boolean)));
+  const { data: users } = await supabase
+    .from('users')
+    .select('id, name, email')
+    .in('id', userIds);
+  const lookup = new Map<string, { name?: string; email?: string }>();
+  (users ?? []).forEach((u: any) => lookup.set(u.id, { name: u.name, email: u.email }));
+
+  return list.map((t: any) => ({
     ...t,
-    user_name: t.users?.name,
-    user_email: t.users?.email,
+    user_name: lookup.get(t.user_id)?.name,
+    user_email: lookup.get(t.user_id)?.email,
   }));
 };
 
