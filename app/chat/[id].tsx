@@ -22,17 +22,34 @@ import { logger } from '../../utils/logger';
 import { RTLIonicon } from '../../components/RTLIcon';
 import { safeBack } from '../../utils/navigation';
 
-const QUICK_REPLIES_AR = [
-  'في الطريق إليك',
-  'وصلت',
+// Quick-reply suggestions that match each side of the conversation. The
+// customer's prompts are questions / status checks; the technician's are
+// status updates the customer wants to hear.
+const QUICK_REPLIES_CUSTOMER_AR = [
   'كم المدة المتبقية؟',
-  'هل يمكن المساعدة؟',
+  'تواصل معي قبل الوصول',
+  'الموقع صحيح؟',
+  'هل تحتاج تفاصيل أكثر؟',
 ];
-const QUICK_REPLIES_EN = [
+const QUICK_REPLIES_CUSTOMER_EN = [
+  'How long left?',
+  'Call me before arriving',
+  'Is the location correct?',
+  'Need more details?',
+];
+const QUICK_REPLIES_TECHNICIAN_AR = [
+  'في الطريق إليك',
+  'وصلت لموقعك',
+  'بدأت الفحص',
+  'العطل تم تشخيصه',
+  'الإصلاح بحاجة قطعة غيار',
+];
+const QUICK_REPLIES_TECHNICIAN_EN = [
   'On my way',
   "I've arrived",
-  'How long left?',
-  'Can you help?',
+  'Started diagnosis',
+  'Issue identified',
+  'Parts needed',
 ];
 
 export default function ChatScreen() {
@@ -190,7 +207,12 @@ export default function ChatScreen() {
   }
 
   const initial = (otherPartyName?.[0] || '?').toUpperCase();
-  const quickReplies = isRTL ? QUICK_REPLIES_AR : QUICK_REPLIES_EN;
+  const meta = (currentUser?.user_metadata || {}) as { user_type?: string; role?: string };
+  const myRole = meta.user_type || meta.role;
+  const isTechnician = myRole === 'technician';
+  const quickReplies = isTechnician
+    ? (isRTL ? QUICK_REPLIES_TECHNICIAN_AR : QUICK_REPLIES_TECHNICIAN_EN)
+    : (isRTL ? QUICK_REPLIES_CUSTOMER_AR : QUICK_REPLIES_CUSTOMER_EN);
 
   return (
     <SafeAreaView style={styles.container}>

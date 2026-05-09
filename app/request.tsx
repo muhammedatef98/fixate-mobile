@@ -16,6 +16,7 @@ import { RTLIonicon } from '../components/RTLIcon';
 import { uploadOrderMedia } from '../services/storageService';
 import { getFriendlyError } from '../utils/errorMessages';
 import { tapLight } from '../utils/haptics';
+import { formatPrice } from '../utils/pricing';
 
 const { width } = Dimensions.get('window');
 
@@ -480,9 +481,10 @@ export default function RequestScreen() {
                   <View style={styles.issueInfo}>
                     <Text style={styles.issueName}>{isRTL ? issue.nameAr : issue.name}</Text>
                     <Text style={styles.issuePrice}>
-                      {issue.id === 'other' 
-                        ? (isRTL ? 'حسب العطل سيتم التقدير' : 'Price based on diagnosis')
-                        : (isRTL ? `يبدأ من ${issue.estimatedPrice} ر.س` : `Starts from ${issue.estimatedPrice} SAR`)}
+                      {formatPrice(
+                        { estimatedPrice: issue.estimatedPrice, range: issue.priceRange },
+                        isRTL ? 'ar' : 'en'
+                      )}
                     </Text>
                   </View>
                   <MaterialCommunityIcons name={issue.icon as any} size={24} color={selectedIssue?.id === issue.id ? COLORS.primary : COLORS.gray} />
@@ -605,11 +607,14 @@ export default function RequestScreen() {
                   {SERVICE_TYPES.find(s => s.id === selectedServiceType) ? (isRTL ? SERVICE_TYPES.find(s => s.id === selectedServiceType)!.name : SERVICE_TYPES.find(s => s.id === selectedServiceType)!.nameEn) : ''}
                 </Text>
               </View>
-              {selectedIssue && selectedIssue.id !== 'other' && (
+              {selectedIssue && selectedIssue.estimatedPrice > 0 && (
                 <View style={styles.summaryRow}>
                   <Text style={styles.summaryLabel}>{isRTL ? 'السعر التقديري' : 'Estimated price'}</Text>
                   <Text style={[styles.summaryValue, { color: COLORS.primary, fontWeight: '700' }]}>
-                    {isRTL ? `يبدأ من ${selectedIssue.estimatedPrice} ر.س` : `From ${selectedIssue.estimatedPrice} SAR`}
+                    {formatPrice(
+                      { estimatedPrice: selectedIssue.estimatedPrice, range: selectedIssue.priceRange },
+                      isRTL ? 'ar' : 'en'
+                    )}
                   </Text>
                 </View>
               )}
