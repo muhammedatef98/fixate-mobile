@@ -24,7 +24,11 @@ const uploadDoc = async (userId: string, uri: string, kind: 'id' | 'cert'): Prom
   const contentType = blob.type || (ext === 'pdf' ? 'application/pdf' : 'image/jpeg');
   const { error } = await supabase.storage
     .from('technician-docs')
-    .upload(path, blob, { contentType, upsert: true });
+    // upsert:false because the filename has Date.now() so it's already
+    // unique. With upsert:true Supabase Storage demands BOTH an INSERT and
+    // an UPDATE policy on the bucket folder, and we only have INSERT — that
+    // mismatch produced "ليس لديك صلاحية" (RLS denial) when submitting.
+    .upload(path, blob, { contentType, upsert: false });
   if (error) throw error;
   return path;
 };
