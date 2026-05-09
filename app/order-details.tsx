@@ -22,6 +22,8 @@ import { requests, auth } from '../lib/supabase-api';
 import type { Order } from '../lib/supabase-api';
 import { logger } from '../utils/logger';
 import LiveTrackingMap from '../components/LiveTrackingMap';
+import * as reviewService from '../services/reviewService';
+import { supabase } from '../services/supabaseClient';
 
 const ORDER_TIMELINE: { status: string; arLabel: string; enLabel: string; icon: string }[] = [
   { status: 'pending', arLabel: 'قيد الانتظار', enLabel: 'Pending', icon: 'clock-outline' },
@@ -47,6 +49,46 @@ export default function OrderDetailsScreen() {
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
   const [userType, setUserType] = useState<'customer' | 'technician'>('customer');
+  const [myRating, setMyRating] = useState<number>(0);
+  const [submittingRating, setSubmittingRating] = useState(false);
+  const [hasReviewed, setHasReviewed] = useState(false);
+
+  useEffect(() => {
+    if (!order?.id) return;
+    (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const review = await reviewService.getReviewByOrder(order.id, user.id);
+      if (review) {
+        setMyRating(review.rating);
+        setHasReviewed(true);
+      }
+    })();
+  }, [order?.id]);
+
+  const submitRating = async (rating: number) => {
+    if (!order || hasReviewed || submittingRating) return;
+    setSubmittingRating(true);
+    setMyRating(rating);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+      await reviewService.submitReview(order.id, user.id, order.technician_id ?? null, rating);
+      setHasReviewed(true);
+      Alert.alert(
+        isRTL ? 'شكراً لك ✓' : 'Thanks ✓',
+        isRTL ? 'تم استلام تقييمك بنجاح' : 'Your rating has been recorded'
+      );
+    } catch (e: any) {
+      setMyRating(0);
+      Alert.alert(
+        isRTL ? 'خطأ' : 'Error',
+        isRTL ? 'تعذّر إرسال التقييم. حاول مرة أخرى.' : 'Could not submit rating'
+      );
+    } finally {
+      setSubmittingRating(false);
+    }
+  };
 
   useEffect(() => {
     checkUserType();
@@ -381,16 +423,42 @@ export default function OrderDetailsScreen() {
         {/* Completed Order Rating */}
         {userType === 'customer' && order.status === 'completed' && (
           <View style={[styles.card, { backgroundColor: COLORS.card }, SHADOWS.small]}>
-            <Text style={[styles.cardTitle, { color: COLORS.text, marginBottom: 16 }]}>
-              {isRTL ? 'كيف كانت تجربتك؟' : 'Rate your experience'}
+            <Text style={[styles.cardTitle, { color: COLORS.text, marginBottom: 6 }]}>
+              {hasReviewed
+                ? (isRTL ? 'تقييمك ⭐' : 'Your rating ⭐')
+                : (isRTL ? 'كيف كانت تجربتك؟' : 'Rate your experience')}
+            </Text>
+            <Text style={{ color: COLORS.textSecondary, fontSize: 12, marginBottom: 14 }}>
+              {hasReviewed
+                ? (isRTL ? 'شكراً لمشاركة رأيك' : 'Thanks for your feedback')
+                : (isRTL ? 'اضغط على نجمة لتقييم خدمة الفني' : 'Tap a star to rate the technician')}
             </Text>
             <View style={styles.ratingContainer}>
-              {[1, 2, 3, 4, 5].map((star) => (
-                <TouchableOpacity key={star} style={styles.starButton}>
-                  <MaterialIcons name="star-outline" size={32} color={COLORS.border} />
-                </TouchableOpacity>
-              ))}
+              {[1, 2, 3, 4, 5].map((star) => {
+                const filled = star <= myRating;
+                return (
+                  <TouchableOpacity
+                    key={star}
+                    style={styles.starButton}
+                    onPress={() => submitRating(star)}
+                    disabled={hasReviewed || submittingRating}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${star} ${isRTL ? 'نجمة' : 'star'}`}
+                  >
+                    <MaterialIcons
+                      name={filled ? 'star' : 'star-outline'}
+                      size={36}
+                      color={filled ? '#f59e0b' : COLORS.border}
+                    />
+                  </TouchableOpacity>
+                );
+              })}
             </View>
+            {submittingRating && (
+              <Text style={{ color: COLORS.textSecondary, fontSize: 12, marginTop: 10, textAlign: 'center' }}>
+                {isRTL ? 'جارٍ الإرسال...' : 'Submitting...'}
+              </Text>
+            )}
           </View>
         )}
 

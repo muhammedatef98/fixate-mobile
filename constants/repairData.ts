@@ -307,70 +307,85 @@ export const BRANDS: Brand[] = [
   }
 ];
 
+// Pricing notes (Saudi market, 2026 Q2):
+// Each priceRange is benchmarked against the prevailing labour + parts cost
+// for the typical mid-tier device in Riyadh/Jeddah/Dammam, with the upper
+// bound covering flagships (iPhone Pro Max, Galaxy Ultra, MacBook Pro).
+// `estimatedPrice` is the median we surface as the "from" line in the UI.
+
 export const ISSUES: Issue[] = [
-  // Phone & Tablet Issues
+  // ── Phones ────────────────────────────────────────────────────────────
   {
     id: 'screen',
     name: 'Screen Repair',
     nameAr: 'إصلاح الشاشة',
     icon: 'cellphone-screenshot',
-    estimatedPrice: 250,
-    priceRange: { min: 150, max: 800 },
-    deviceType: 'phone'
+    estimatedPrice: 280,
+    priceRange: { min: 200, max: 1100 },
+    deviceType: 'phone',
   },
   {
     id: 'battery',
     name: 'Battery Replacement',
     nameAr: 'تبديل البطارية',
     icon: 'battery-charging',
-    estimatedPrice: 120,
-    priceRange: { min: 80, max: 250 },
-    deviceType: 'phone'
+    estimatedPrice: 160,
+    priceRange: { min: 120, max: 380 },
+    deviceType: 'phone',
   },
   {
     id: 'charging',
     name: 'Charging Port',
     nameAr: 'منفذ الشحن',
     icon: 'usb-port',
-    estimatedPrice: 100,
-    priceRange: { min: 70, max: 180 },
-    deviceType: 'phone'
+    estimatedPrice: 130,
+    priceRange: { min: 100, max: 220 },
+    deviceType: 'phone',
   },
   {
     id: 'camera',
     name: 'Camera Repair',
     nameAr: 'إصلاح الكاميرا',
     icon: 'camera',
-    estimatedPrice: 180,
-    priceRange: { min: 120, max: 450 },
-    deviceType: 'phone'
+    estimatedPrice: 220,
+    priceRange: { min: 180, max: 500 },
+    deviceType: 'phone',
+  },
+  {
+    id: 'speaker',
+    name: 'Speaker / Mic',
+    nameAr: 'سماعة / مايك',
+    icon: 'speaker',
+    estimatedPrice: 130,
+    priceRange: { min: 100, max: 220 },
+    deviceType: 'phone',
   },
   {
     id: 'back-glass',
     name: 'Back Glass',
     nameAr: 'الزجاج الخلفي',
     icon: 'cellphone-back',
-    estimatedPrice: 150,
-    priceRange: { min: 100, max: 350 },
-    deviceType: 'phone'
+    estimatedPrice: 200,
+    priceRange: { min: 150, max: 500 },
+    deviceType: 'phone',
   },
   {
     id: 'water-damage',
     name: 'Water Damage',
     nameAr: 'ضرر السوائل',
     icon: 'water-alert',
-    estimatedPrice: 300,
-    priceRange: { min: 150, max: 1000 },
-    deviceType: 'phone'
+    estimatedPrice: 350,
+    priceRange: { min: 250, max: 1000 },
+    deviceType: 'phone',
   },
   {
     id: 'software',
     name: 'Software Issue',
     nameAr: 'مشكلة برمجية',
     icon: 'cellphone-cog',
-    estimatedPrice: 80,
-    priceRange: { min: 50, max: 150 },
-    deviceType: 'phone'
+    estimatedPrice: 120,
+    priceRange: { min: 80, max: 200 },
+    deviceType: 'phone',
   },
   {
     id: 'other-phone',
@@ -378,54 +393,72 @@ export const ISSUES: Issue[] = [
     nameAr: 'أخرى',
     icon: 'dots-horizontal-circle-outline',
     estimatedPrice: 0,
-    deviceType: 'phone'
+    deviceType: 'phone',
   },
 
-  // Laptop Issues
+  // ── Laptops ───────────────────────────────────────────────────────────
   {
     id: 'laptop-screen',
     name: 'Screen Repair',
     nameAr: 'إصلاح الشاشة',
     icon: 'laptop-off',
-    estimatedPrice: 450,
-    priceRange: { min: 300, max: 1200 },
-    deviceType: 'laptop'
+    estimatedPrice: 550,
+    priceRange: { min: 450, max: 1300 },
+    deviceType: 'laptop',
   },
   {
     id: 'keyboard',
     name: 'Keyboard Repair',
     nameAr: 'إصلاح لوحة المفاتيح',
     icon: 'keyboard-outline',
-    estimatedPrice: 200,
-    priceRange: { min: 150, max: 450 },
-    deviceType: 'laptop'
+    estimatedPrice: 250,
+    priceRange: { min: 200, max: 500 },
+    deviceType: 'laptop',
   },
   {
     id: 'laptop-battery',
     name: 'Battery Replacement',
     nameAr: 'تبديل البطارية',
     icon: 'battery-charging',
-    estimatedPrice: 250,
-    priceRange: { min: 180, max: 450 },
-    deviceType: 'laptop'
+    estimatedPrice: 320,
+    priceRange: { min: 250, max: 550 },
+    deviceType: 'laptop',
   },
   {
     id: 'laptop-upgrade',
-    name: 'RAM/SSD Upgrade',
-    nameAr: 'ترقية الرام/الهارد',
+    name: 'RAM / SSD Upgrade',
+    nameAr: 'ترقية الرام / الهارد',
     icon: 'memory',
     estimatedPrice: 350,
-    priceRange: { min: 200, max: 800 },
-    deviceType: 'laptop'
+    priceRange: { min: 250, max: 850 },
+    deviceType: 'laptop',
+  },
+  {
+    id: 'laptop-os',
+    name: 'OS Reinstall',
+    nameAr: 'إعادة تنصيب النظام',
+    icon: 'desktop-tower-monitor',
+    estimatedPrice: 150,
+    priceRange: { min: 100, max: 220 },
+    deviceType: 'laptop',
   },
   {
     id: 'laptop-hinge',
     name: 'Hinge Repair',
     nameAr: 'إصلاح المفصلات',
     icon: 'laptop',
-    estimatedPrice: 180,
-    priceRange: { min: 120, max: 350 },
-    deviceType: 'laptop'
+    estimatedPrice: 250,
+    priceRange: { min: 200, max: 400 },
+    deviceType: 'laptop',
+  },
+  {
+    id: 'laptop-liquid',
+    name: 'Liquid Damage',
+    nameAr: 'ضرر السوائل',
+    icon: 'water-alert',
+    estimatedPrice: 500,
+    priceRange: { min: 350, max: 900 },
+    deviceType: 'laptop',
   },
   {
     id: 'other-laptop',
@@ -433,27 +466,82 @@ export const ISSUES: Issue[] = [
     nameAr: 'أخرى',
     icon: 'dots-horizontal-circle-outline',
     estimatedPrice: 0,
-    deviceType: 'laptop'
+    deviceType: 'laptop',
   },
 
-  // Watch Issues
+  // ── Tablets ───────────────────────────────────────────────────────────
+  {
+    id: 'tablet-screen',
+    name: 'Screen Repair',
+    nameAr: 'إصلاح الشاشة',
+    icon: 'tablet',
+    estimatedPrice: 500,
+    priceRange: { min: 400, max: 950 },
+    deviceType: 'tablet',
+  },
+  {
+    id: 'tablet-battery',
+    name: 'Battery Replacement',
+    nameAr: 'تبديل البطارية',
+    icon: 'battery-charging',
+    estimatedPrice: 320,
+    priceRange: { min: 250, max: 480 },
+    deviceType: 'tablet',
+  },
+  {
+    id: 'tablet-charging',
+    name: 'Charging Port',
+    nameAr: 'منفذ الشحن',
+    icon: 'usb-port',
+    estimatedPrice: 200,
+    priceRange: { min: 150, max: 320 },
+    deviceType: 'tablet',
+  },
+  {
+    id: 'tablet-software',
+    name: 'Software Issue',
+    nameAr: 'مشكلة برمجية',
+    icon: 'tablet-cellphone',
+    estimatedPrice: 150,
+    priceRange: { min: 100, max: 220 },
+    deviceType: 'tablet',
+  },
+  {
+    id: 'other-tablet',
+    name: 'Other Issue',
+    nameAr: 'أخرى',
+    icon: 'dots-horizontal-circle-outline',
+    estimatedPrice: 0,
+    deviceType: 'tablet',
+  },
+
+  // ── Watches ───────────────────────────────────────────────────────────
   {
     id: 'watch-screen',
     name: 'Screen Repair',
     nameAr: 'إصلاح الشاشة',
     icon: 'watch-variant',
-    estimatedPrice: 350,
-    priceRange: { min: 250, max: 700 },
-    deviceType: 'watch'
+    estimatedPrice: 380,
+    priceRange: { min: 280, max: 650 },
+    deviceType: 'watch',
   },
   {
     id: 'watch-battery',
     name: 'Battery Replacement',
     nameAr: 'تبديل البطارية',
     icon: 'battery-charging',
-    estimatedPrice: 150,
-    priceRange: { min: 100, max: 250 },
-    deviceType: 'watch'
+    estimatedPrice: 200,
+    priceRange: { min: 180, max: 320 },
+    deviceType: 'watch',
+  },
+  {
+    id: 'watch-crown',
+    name: 'Crown / Buttons',
+    nameAr: 'إصلاح الأزرار',
+    icon: 'circle-double',
+    estimatedPrice: 200,
+    priceRange: { min: 150, max: 280 },
+    deviceType: 'watch',
   },
   {
     id: 'other-watch',
@@ -461,7 +549,7 @@ export const ISSUES: Issue[] = [
     nameAr: 'أخرى',
     icon: 'dots-horizontal-circle-outline',
     estimatedPrice: 0,
-    deviceType: 'watch'
+    deviceType: 'watch',
   },
   
   // Printer Issues

@@ -17,19 +17,30 @@ const DEVICES = [
   { id: 'watch', nameAr: 'ساعة ذكية', nameEn: 'Smart Watch', icon: 'watch' },
 ];
 
-const ISSUES = [
-  { id: 'screen', deviceType: 'phone', nameAr: 'كسر الشاشة', nameEn: 'Screen Crack', basePrice: 250 },
-  { id: 'battery', deviceType: 'phone', nameAr: 'تغيير بطارية', nameEn: 'Battery Replacement', basePrice: 120 },
-  { id: 'charging', deviceType: 'phone', nameAr: 'مدخل الشحن', nameEn: 'Charging Port', basePrice: 100 },
-  { id: 'camera', deviceType: 'phone', nameAr: 'الكاميرا', nameEn: 'Camera', basePrice: 180 },
-  { id: 'software', deviceType: 'phone', nameAr: 'سوفتوير', nameEn: 'Software', basePrice: 80 },
-  { id: 'screen_tab', deviceType: 'tablet', nameAr: 'كسر الشاشة', nameEn: 'Screen Crack', basePrice: 350 },
-  { id: 'battery_tab', deviceType: 'tablet', nameAr: 'تغيير بطارية', nameEn: 'Battery Replacement', basePrice: 200 },
-  { id: 'screen_lap', deviceType: 'laptop', nameAr: 'كسر الشاشة', nameEn: 'Screen Crack', basePrice: 450 },
-  { id: 'battery_lap', deviceType: 'laptop', nameAr: 'تغيير بطارية', nameEn: 'Battery Replacement', basePrice: 300 },
-  { id: 'keyboard_lap', deviceType: 'laptop', nameAr: 'لوحة المفاتيح', nameEn: 'Keyboard', basePrice: 250 },
-  { id: 'screen_watch', deviceType: 'watch', nameAr: 'كسر الشاشة', nameEn: 'Screen Crack', basePrice: 200 },
-  { id: 'battery_watch', deviceType: 'watch', nameAr: 'تغيير بطارية', nameEn: 'Battery Replacement', basePrice: 150 },
+// Saudi-market 2026 price ranges (see utils/pricing.ts for sourcing notes).
+// Each entry has min/max so the calculator surfaces a realistic band rather
+// than a single number that would either under-quote flagships or over-quote
+// budget devices.
+const ISSUES: { id: string; deviceType: string; nameAr: string; nameEn: string; min: number; max: number }[] = [
+  // Phones
+  { id: 'screen', deviceType: 'phone', nameAr: 'كسر الشاشة', nameEn: 'Screen Repair', min: 200, max: 1100 },
+  { id: 'battery', deviceType: 'phone', nameAr: 'تغيير البطارية', nameEn: 'Battery Replacement', min: 120, max: 380 },
+  { id: 'charging', deviceType: 'phone', nameAr: 'منفذ الشحن', nameEn: 'Charging Port', min: 100, max: 220 },
+  { id: 'camera', deviceType: 'phone', nameAr: 'الكاميرا', nameEn: 'Camera', min: 180, max: 500 },
+  { id: 'back_glass', deviceType: 'phone', nameAr: 'الزجاج الخلفي', nameEn: 'Back Glass', min: 150, max: 500 },
+  { id: 'software', deviceType: 'phone', nameAr: 'مشكلة برمجية', nameEn: 'Software', min: 80, max: 200 },
+  // Tablets
+  { id: 'screen_tab', deviceType: 'tablet', nameAr: 'كسر الشاشة', nameEn: 'Screen Repair', min: 400, max: 950 },
+  { id: 'battery_tab', deviceType: 'tablet', nameAr: 'تغيير البطارية', nameEn: 'Battery Replacement', min: 250, max: 480 },
+  { id: 'charging_tab', deviceType: 'tablet', nameAr: 'منفذ الشحن', nameEn: 'Charging Port', min: 150, max: 320 },
+  // Laptops
+  { id: 'screen_lap', deviceType: 'laptop', nameAr: 'كسر الشاشة', nameEn: 'Screen Repair', min: 450, max: 1300 },
+  { id: 'battery_lap', deviceType: 'laptop', nameAr: 'تغيير البطارية', nameEn: 'Battery Replacement', min: 250, max: 550 },
+  { id: 'keyboard_lap', deviceType: 'laptop', nameAr: 'لوحة المفاتيح', nameEn: 'Keyboard', min: 200, max: 500 },
+  { id: 'os_lap', deviceType: 'laptop', nameAr: 'إعادة تنصيب النظام', nameEn: 'OS Reinstall', min: 100, max: 220 },
+  // Watches
+  { id: 'screen_watch', deviceType: 'watch', nameAr: 'كسر الشاشة', nameEn: 'Screen Repair', min: 280, max: 650 },
+  { id: 'battery_watch', deviceType: 'watch', nameAr: 'تغيير البطارية', nameEn: 'Battery Replacement', min: 180, max: 320 },
 ];
 
 export default function PriceCalculatorScreen() {
@@ -65,16 +76,25 @@ export default function PriceCalculatorScreen() {
   const filteredBrands = BRANDS.filter(b => b.deviceType === selectedDevice);
   const filteredIssues = ISSUES.filter(i => i.deviceType === selectedDevice);
 
-  const calculatePrice = () => {
-    if (!selectedIssue) return 0;
-    const issue = ISSUES.find(i => i.id === selectedIssue);
-    let price = issue?.basePrice || 0;
-    if (selectedBrand === 'apple') price *= 1.2;
-    if (selectedBrand === 'samsung') price *= 1.1;
-    return Math.round(price);
-  };
+  // Brand multiplier — Apple/Samsung flagships sit at the top of every band,
+  // so when those are selected we shift the whole range upwards. Other
+  // brands stay on the median band.
+  const brandMultiplier = selectedBrand === 'apple' ? 1.25 : selectedBrand === 'samsung' ? 1.15 : 1.0;
 
-  const totalPrice = calculatePrice();
+  const issueObj = selectedIssue ? ISSUES.find((i) => i.id === selectedIssue) : null;
+  const range = issueObj
+    ? {
+        min: Math.round(issueObj.min * brandMultiplier),
+        max: Math.round(issueObj.max * brandMultiplier),
+      }
+    : null;
+
+  // 15% platform commission — see utils/pricing.ts for sourcing.
+  const COMMISSION_RATE = 0.15;
+  const techMin = range ? Math.round(range.min * (1 - COMMISSION_RATE)) : 0;
+  const techMax = range ? Math.round(range.max * (1 - COMMISSION_RATE)) : 0;
+  const platformMin = range ? range.min - techMin : 0;
+  const platformMax = range ? range.max - techMax : 0;
   const styles = createStyles(COLORS, isRTL);
 
   return (
@@ -154,12 +174,48 @@ export default function PriceCalculatorScreen() {
 
       <View style={styles.priceFooter}>
         <View style={styles.priceRow}>
-          <Text style={styles.priceLabel}>{isRTL ? 'السعر التقديري' : 'Estimated Price'}</Text>
-          <Text style={styles.priceValue}>{totalPrice > 0 ? (isRTL ? `${totalPrice} ر.س` : `${totalPrice} SAR`) : '--'}</Text>
+          <Text style={styles.priceLabel}>{isRTL ? 'السعر التقديري' : 'Estimated price'}</Text>
+          <Text style={styles.priceValue}>
+            {range
+              ? isRTL
+                ? `من ${range.min} إلى ${range.max} ر.س`
+                : `${range.min} – ${range.max} SAR`
+              : '—'}
+          </Text>
         </View>
-        <TouchableOpacity 
-          style={[styles.bookButton, totalPrice === 0 && { opacity: 0.5 }]}
-          disabled={totalPrice === 0}
+
+        {/* Transparent breakdown — what the technician receives vs the
+            platform fee. Helps customers trust the price and lets
+            technicians see their take-home before accepting. */}
+        {range && (
+          <View style={styles.breakdownBox}>
+            <View style={styles.breakdownRow}>
+              <Text style={styles.breakdownLabel}>
+                {isRTL ? 'يستلمه الفني' : "Technician's payout"}
+              </Text>
+              <Text style={styles.breakdownValue}>
+                {isRTL ? `${techMin} – ${techMax} ر.س` : `${techMin} – ${techMax} SAR`}
+              </Text>
+            </View>
+            <View style={styles.breakdownRow}>
+              <Text style={styles.breakdownLabel}>
+                {isRTL ? 'رسوم المنصة (15%)' : 'Platform fee (15%)'}
+              </Text>
+              <Text style={[styles.breakdownValue, { color: COLORS.textSecondary }]}>
+                {isRTL ? `${platformMin} – ${platformMax} ر.س` : `${platformMin} – ${platformMax} SAR`}
+              </Text>
+            </View>
+            <Text style={styles.breakdownNote}>
+              {isRTL
+                ? 'السعر النهائي يتحدّد بعد فحص الجهاز ويشمل الضمان لمدة 6 أشهر'
+                : 'Final price is set after diagnosis and includes a 6-month warranty'}
+            </Text>
+          </View>
+        )}
+
+        <TouchableOpacity
+          style={[styles.bookButton, !range && { opacity: 0.5 }]}
+          disabled={!range}
           onPress={() => router.push('/request')}
         >
           <Text style={styles.bookButtonText}>{isRTL ? 'احجز الآن' : 'Book Now'}</Text>
@@ -193,8 +249,23 @@ const createStyles = (COLORS: any, isRTL: boolean) => StyleSheet.create({
   issueText: { fontSize: 15, color: COLORS.text },
   priceFooter: { position: 'absolute', bottom: 100, left: 20, right: 20, backgroundColor: COLORS.white, borderRadius: 24, padding: 20, elevation: 10, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 12 },
   priceRow: { flexDirection: isRTL ? 'row-reverse' : 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
-  priceLabel: { fontSize: 14, color: COLORS.textSecondary },
-  priceValue: { fontSize: 24, fontWeight: 'bold', color: COLORS.primary },
-  bookButton: { backgroundColor: COLORS.primary, height: 54, borderRadius: 16, flexDirection: isRTL ? 'row-reverse' : 'row', justifyContent: 'center', alignItems: 'center', gap: 8 },
-  bookButtonText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
+  priceLabel: { fontSize: 13, color: COLORS.textSecondary },
+  priceValue: { fontSize: 18, fontWeight: '800', color: COLORS.primary, textAlign: isRTL ? 'left' : 'right' },
+  breakdownBox: {
+    backgroundColor: COLORS.background,
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 14,
+    gap: 6,
+  },
+  breakdownRow: {
+    flexDirection: isRTL ? 'row-reverse' : 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  breakdownLabel: { fontSize: 12, color: COLORS.text, fontWeight: '500' },
+  breakdownValue: { fontSize: 13, color: COLORS.text, fontWeight: '700' },
+  breakdownNote: { fontSize: 11, color: COLORS.textSecondary, marginTop: 4, textAlign: isRTL ? 'right' : 'left' },
+  bookButton: { backgroundColor: COLORS.primary, height: 50, borderRadius: 16, flexDirection: isRTL ? 'row-reverse' : 'row', justifyContent: 'center', alignItems: 'center', gap: 8 },
+  bookButtonText: { color: '#fff', fontSize: 15, fontWeight: 'bold' },
 });
