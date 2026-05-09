@@ -3,11 +3,13 @@ import { decode } from 'base64-arraybuffer';
 // expo-file-system v19 routed the readAsStringAsync export through a
 // deprecation warning that runs on every call. Importing from the
 // `/legacy` path gets the same function without the deprecation noise.
-// (The new File class API is overkill here — we just need bytes for upload.)
 import { readAsStringAsync } from 'expo-file-system/legacy';
+import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
 import { logger } from '../utils/logger';
 
 const ORDERS_BUCKET = 'orders';
+
+const isImage = (uri: string) => /\.(jpe?g|png|webp|heic|heif)(\?.*)?$/i.test(uri);
 
 const guessContentType = (uri: string): string => {
   const lower = uri.toLowerCase();
@@ -35,50 +37,74 @@ const withTimeout = <T>(p: PromiseLike<T>, ms: number, label: string): Promise<T
     ),
   ]);
 
+/**
+ * Compress a single image so the upload payload stays small.
+ * - Resizes the longest edge to 1280 px (good detail for repair photos
+ *   without uploading a 12 MP iPhone original).
+ * - Re-encodes as JPEG at 0.6 quality (~70-80% size reduction vs source).
+ * Typical iPhone shot (~3.5 MB) drops to ~250-400 KB.
+ * Falls back to the original URI if compression fails.
+ */
+const compressImage = async (uri: string): Promise<string> => {
+  if (!isImage(uri)) return uri;
+  try {
+    const result = await manipulateAsync(
+      uri,
+      [{ resize: { width: 1280 } }],
+      { compress: 0.6, format: SaveFormat.JPEG }
+    );
+    return result.uri;
+  } catch (e) {
+    logger.warn('compressImage failed, using original', e);
+    return uri;
+  }
+};
+
+const uploadOne = async (
+  folder: string,
+  uri: string,
+  index: number
+): Promise<string | null> => {
+  try {
+    const compressedUri = await compressImage(uri);
+    const contentType = guessContentType(compressedUri);
+    const ext = guessExt(compressedUri, contentType);
+    const path = `${folder}/${index}-${Date.now()}.${ext}`;
+
+    const base64 = await withTimeout(
+      readAsStringAsync(compressedUri, { encoding: 'base64' }),
+      20000,
+      `Read ${compressedUri}`
+    );
+    const fileBytes = decode(base64);
+
+    const { error } = await withTimeout(
+      supabase.storage.from(ORDERS_BUCKET).upload(path, fileBytes, { contentType, upsert: false }),
+      85000,
+      `Upload ${path}`
+    );
+    if (error) throw error;
+
+    const { data: pub } = supabase.storage.from(ORDERS_BUCKET).getPublicUrl(path);
+    return pub?.publicUrl ?? null;
+  } catch (err) {
+    logger.error(`uploadOrderMedia failed for ${uri}`, err);
+    throw err;
+  }
+};
+
+/**
+ * Upload N photos in parallel. With 1280-px JPEG compression each photo
+ * sits at ~250-400 KB, so even three at a time finish in a few seconds
+ * instead of the per-photo 30-50s we used to see.
+ */
 export const uploadOrderMedia = async (
   userId: string,
   localUris: string[],
   folderHint?: string
 ): Promise<string[]> => {
   if (!localUris.length) return [];
-
   const folder = folderHint || `${userId}/${Date.now()}`;
-  const urls: string[] = [];
-
-  for (let i = 0; i < localUris.length; i++) {
-    const uri = localUris[i];
-    try {
-      const contentType = guessContentType(uri);
-      const ext = guessExt(uri, contentType);
-      const path = `${folder}/${i}-${Date.now()}.${ext}`;
-
-      // Read the file as base64 — local IO, fast.
-      const base64 = await withTimeout(
-        readAsStringAsync(uri, { encoding: 'base64' }),
-        20000,
-        `Read ${uri}`
-      );
-      const fileBytes = decode(base64);
-
-      // Upload — a 4-5 MB photo on patchy 4G can take 30-50s. The
-      // supabase fetch wrapper now allows up to 90s for /storage/v1/
-      // requests; keep this client wrapper looser than the fetch ceiling
-      // so the abort signal fires from one place only.
-      const { error } = await withTimeout(
-        supabase.storage.from(ORDERS_BUCKET).upload(path, fileBytes, { contentType, upsert: false }),
-        85000,
-        `Upload ${path}`
-      );
-      if (error) throw error;
-
-      const { data: pub } = supabase.storage.from(ORDERS_BUCKET).getPublicUrl(path);
-      if (pub?.publicUrl) urls.push(pub.publicUrl);
-    } catch (err) {
-      // Don't silently swallow — bubble up so the submit handler shows the user
-      logger.error(`uploadOrderMedia failed for ${uri}`, err);
-      throw err;
-    }
-  }
-
-  return urls;
+  const results = await Promise.all(localUris.map((uri, i) => uploadOne(folder, uri, i)));
+  return results.filter((u): u is string => !!u);
 };

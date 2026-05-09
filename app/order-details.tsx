@@ -24,6 +24,7 @@ import { logger } from '../utils/logger';
 import LiveTrackingMap from '../components/LiveTrackingMap';
 import * as reviewService from '../services/reviewService';
 import { supabase } from '../services/supabaseClient';
+import ImageViewer from '../components/ImageViewer';
 
 const ORDER_TIMELINE: { status: string; arLabel: string; enLabel: string; icon: string }[] = [
   { status: 'pending', arLabel: 'قيد الانتظار', enLabel: 'Pending', icon: 'clock-outline' },
@@ -52,6 +53,8 @@ export default function OrderDetailsScreen() {
   const [myRating, setMyRating] = useState<number>(0);
   const [submittingRating, setSubmittingRating] = useState(false);
   const [hasReviewed, setHasReviewed] = useState(false);
+  const [viewerOpen, setViewerOpen] = useState(false);
+  const [viewerIndex, setViewerIndex] = useState(0);
 
   useEffect(() => {
     if (!order?.id) return;
@@ -300,7 +303,7 @@ export default function OrderDetailsScreen() {
                   {order.media_urls.map((url, idx) => (
                     <TouchableOpacity
                       key={idx}
-                      onPress={() => Linking.openURL(url)}
+                      onPress={() => { setViewerIndex(idx); setViewerOpen(true); }}
                       activeOpacity={0.85}
                       style={{ marginRight: 8 }}
                     >
@@ -464,6 +467,12 @@ export default function OrderDetailsScreen() {
 
         <View style={{ height: 30 }} />
       </ScrollView>
+      <ImageViewer
+        visible={viewerOpen}
+        images={order?.media_urls ?? []}
+        initialIndex={viewerIndex}
+        onClose={() => setViewerOpen(false)}
+      />
     </SafeAreaView>
   );
 }
