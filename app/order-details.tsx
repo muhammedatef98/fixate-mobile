@@ -13,7 +13,9 @@ import {
   Alert,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { MaterialIcons, MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
+import { RTLIonicon } from '../components/RTLIcon';
+import { safeBack } from '../utils/navigation';
 import { getColors, getShadows, SPACING, BORDER_RADIUS } from '../constants/theme';
 import { useApp } from '../contexts/AppContext';
 import { requests, auth } from '../lib/supabase-api';
@@ -127,8 +129,24 @@ export default function OrderDetailsScreen() {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: COLORS.background }]}>
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={COLORS.background} />
-      
-      {/* Header removed to use Stack Header */}
+
+      <View style={[
+        { flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', justifyContent: 'space-between',
+          paddingHorizontal: 16, paddingVertical: 12, backgroundColor: COLORS.card, borderBottomWidth: 1, borderBottomColor: COLORS.border }
+      ]}>
+        <TouchableOpacity
+          onPress={() => safeBack('/(customer)/orders')}
+          style={{ padding: 6 }}
+          accessibilityRole="button"
+          accessibilityLabel={isRTL ? 'رجوع' : 'Back'}
+        >
+          <RTLIonicon name="chevron-back" size={26} color={COLORS.text} />
+        </TouchableOpacity>
+        <Text style={{ fontSize: 17, fontWeight: '700', color: COLORS.text }}>
+          {isRTL ? 'تفاصيل الطلب' : 'Order Details'}
+        </Text>
+        <View style={{ width: 32 }} />
+      </View>
 
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         {/* Prominent status hero */}

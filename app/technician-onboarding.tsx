@@ -24,6 +24,7 @@ import { RTLIonicon } from '../components/RTLIcon';
 import { validateSaudiId, validateSaudiIban, validatePhone } from '../utils/validation';
 import { submitTechnicianApplication } from '../services/technicianOnboardingService';
 import { getFriendlyError } from '../utils/errorMessages';
+import { safeBack } from '../utils/navigation';
 
 const SPECIALTIES = [
   { id: 'mobile', ar: 'جوالات', en: 'Mobile phones' },
@@ -124,7 +125,7 @@ export default function TechnicianOnboardingScreen() {
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
       <View style={styles.header}>
         <TouchableOpacity
-          onPress={() => (step > 1 ? setStep(step - 1) : router.back())}
+          onPress={() => (step > 1 ? setStep(step - 1) : safeBack('/role-selection'))}
           accessibilityRole="button"
           accessibilityLabel={isRTL ? 'رجوع' : 'Back'}
           style={{ padding: 6 }}

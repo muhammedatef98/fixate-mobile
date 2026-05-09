@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Animated, Easing } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Animated, Easing, Platform } from 'react-native';
 import { useRouter, usePathname } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
 import { COLORS, SPACING, BORDER_RADIUS, SHADOWS } from '../constants/theme';
@@ -151,14 +151,22 @@ export default function FloatingOrderStatus() {
 
 const styles = StyleSheet.create({
   container: {
+    // Pin above the BottomNav. BottomNav floats at bottom: 30 (iOS) / 20
+    // (Android) with height 70 → top of BottomNav ≈ 100/90. Add an 8px gap
+    // so the floating order card doesn't visually touch the nav.
     position: 'absolute',
-    bottom: 90, // Above bottom nav
+    bottom: Platform.OS === 'ios' ? 108 : 98,
     left: SPACING.lg,
     right: SPACING.lg,
     backgroundColor: '#FFFFFF',
     borderRadius: BORDER_RADIUS.lg,
     zIndex: 1000,
-    elevation: 5,
+    elevation: 8,
+    // iOS shadow so the card lifts off the BottomNav visually
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
   },
   content: {
     flexDirection: 'row',
