@@ -24,10 +24,12 @@ import { RTLIonicon, RTLMaterialIcon } from '../../components/RTLIcon';
 const { width } = Dimensions.get('window');
 
 const DEVICE_CATEGORIES = [
-  { id: 'phone', titleEn: 'Phones', titleAr: 'جوّالات', icon: 'cellphone', accent: '#10B981' },
-  { id: 'laptop', titleEn: 'Laptops', titleAr: 'لابتوب', icon: 'laptop', accent: '#3B82F6' },
-  { id: 'tablet', titleEn: 'Tablets', titleAr: 'تابلت', icon: 'tablet', accent: '#8B5CF6' },
-  { id: 'watch', titleEn: 'Watches', titleAr: 'ساعات', icon: 'watch-variant', accent: '#F59E0B' },
+  // fromPrice = lowest mid-tier KSA price for the cheapest issue per device
+  // (software/charging port). See docs/business/SAUDI_PRICING_2026.md.
+  { id: 'phone', titleEn: 'Phones', titleAr: 'جوّالات', icon: 'cellphone', accent: '#10B981', fromPrice: 80 },
+  { id: 'laptop', titleEn: 'Laptops', titleAr: 'لابتوب', icon: 'laptop', accent: '#3B82F6', fromPrice: 100 },
+  { id: 'tablet', titleEn: 'Tablets', titleAr: 'تابلت', icon: 'tablet', accent: '#8B5CF6', fromPrice: 100 },
+  { id: 'watch', titleEn: 'Watches', titleAr: 'ساعات', icon: 'watch-variant', accent: '#F59E0B', fromPrice: 150 },
 ];
 
 const QUICK_ACTIONS = [
@@ -52,6 +54,8 @@ export default function CustomerHomeScreen() {
 
   const [sidebarVisible, setSidebarVisible] = useState(false);
   const [activeOrder, setActiveOrder] = useState<any>(null);
+  const [recentOrder, setRecentOrder] = useState<any>(null);
+  const [stats, setStats] = useState<{ completed: number; rating: number; reviews: number } | null>(null);
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(20)).current;
 
@@ -64,7 +68,11 @@ export default function CustomerHomeScreen() {
       Animated.timing(fadeAnim, { toValue: 1, duration: 400, useNativeDriver: true }),
       Animated.spring(slideAnim, { toValue: 0, friction: 8, useNativeDriver: true }),
     ]).start();
-    if (user?.id) loadActiveOrder();
+    if (user?.id) {
+      loadActiveOrder();
+      loadRecentOrder();
+    }
+    loadGlobalStats();
   }, [user?.id]);
 
   const loadActiveOrder = async () => {
@@ -80,6 +88,41 @@ export default function CustomerHomeScreen() {
       setActiveOrder(data?.[0] ?? null);
     } catch (e) {
       logger.warn('home loadActiveOrder failed', e);
+    }
+  };
+
+  const loadRecentOrder = async () => {
+    if (!user?.id) return;
+    try {
+      // Most recent COMPLETED order — surfaces a one-tap "Repeat order" CTA
+      // for returning customers (raises repeat-rate without nagging).
+      const { data } = await supabase
+        .from('orders')
+        .select('id, device_brand, device_model, issue_description, status, estimated_price, created_at')
+        .eq('user_id', user.id)
+        .eq('status', 'completed')
+        .order('created_at', { ascending: false })
+        .limit(1);
+      setRecentOrder(data?.[0] ?? null);
+    } catch (e) {
+      logger.warn('home loadRecentOrder failed', e);
+    }
+  };
+
+  const loadGlobalStats = async () => {
+    // Platform-wide social proof: count of completed jobs + avg rating
+    // across the platform (not user-specific). Cached client-side via the
+    // 12 s fetch ceiling so it doesn't slow first paint.
+    try {
+      const [{ count: completed }, { data: reviews }] = await Promise.all([
+        supabase.from('orders').select('*', { count: 'exact', head: true }).eq('status', 'completed'),
+        supabase.from('reviews').select('rating'),
+      ]);
+      const ratings = (reviews ?? []).map((r: any) => r.rating).filter((n: any) => typeof n === 'number');
+      const avg = ratings.length ? ratings.reduce((a: number, b: number) => a + b, 0) / ratings.length : 0;
+      setStats({ completed: completed ?? 0, rating: Number(avg.toFixed(1)), reviews: ratings.length });
+    } catch (e) {
+      logger.warn('home loadGlobalStats failed', e);
     }
   };
 
@@ -185,6 +228,69 @@ export default function CustomerHomeScreen() {
             </TouchableOpacity>
           )}
 
+          {/* Social proof — global completed-job count + avg rating */}
+          {stats && (stats.completed > 0 || stats.reviews > 0) && (
+            <View style={[styles.socialProof, { backgroundColor: COLORS.card, borderColor: COLORS.border }]}>
+              <View style={styles.spItem}>
+                <View style={[styles.spIcon, { backgroundColor: '#10b98120' }]}>
+                  <MaterialCommunityIcons name="check-decagram" size={18} color="#10b981" />
+                </View>
+                <Text style={[styles.spValue, { color: COLORS.text }]}>
+                  {stats.completed >= 1000 ? `+${Math.floor(stats.completed / 100) / 10}K` : `+${stats.completed}`}
+                </Text>
+                <Text style={[styles.spLabel, { color: COLORS.textSecondary }]}>
+                  {isRTL ? 'إصلاح ناجح' : 'successful repairs'}
+                </Text>
+              </View>
+              <View style={[styles.spDivider, { backgroundColor: COLORS.border }]} />
+              <View style={styles.spItem}>
+                <View style={[styles.spIcon, { backgroundColor: '#f59e0b20' }]}>
+                  <MaterialCommunityIcons name="star" size={18} color="#f59e0b" />
+                </View>
+                <Text style={[styles.spValue, { color: COLORS.text }]}>
+                  {stats.rating > 0 ? stats.rating.toFixed(1) : '5.0'}
+                </Text>
+                <Text style={[styles.spLabel, { color: COLORS.textSecondary }]}>
+                  {isRTL
+                    ? `من ${stats.reviews || 0} تقييم`
+                    : `from ${stats.reviews || 0} reviews`}
+                </Text>
+              </View>
+            </View>
+          )}
+
+          {/* Recent order — one-tap repeat for returning customers */}
+          {recentOrder && (
+            <View style={[styles.recentCard, { backgroundColor: COLORS.card, borderColor: COLORS.border }]}>
+              <View style={styles.recentTop}>
+                <Text style={[styles.recentEyebrow, { color: COLORS.textSecondary }]}>
+                  {isRTL ? 'آخر طلب' : 'Last order'}
+                </Text>
+                <Text style={[styles.recentDate, { color: COLORS.textSecondary }]}>
+                  {new Date(recentOrder.created_at).toLocaleDateString(language === 'ar' ? 'ar-SA' : 'en-US', { day: '2-digit', month: 'short' })}
+                </Text>
+              </View>
+              <Text style={[styles.recentTitle, { color: COLORS.text }]} numberOfLines={1}>
+                {recentOrder.device_brand} {recentOrder.device_model}
+              </Text>
+              {recentOrder.issue_description && (
+                <Text style={[styles.recentIssue, { color: COLORS.textSecondary }]} numberOfLines={1}>
+                  {recentOrder.issue_description}
+                </Text>
+              )}
+              <TouchableOpacity
+                onPress={() => router.push('/request')}
+                style={[styles.recentBtn, { backgroundColor: COLORS.primary + '15' }]}
+                accessibilityRole="button"
+              >
+                <MaterialCommunityIcons name="repeat" size={16} color={COLORS.primary} />
+                <Text style={{ color: COLORS.primary, fontSize: 13, fontWeight: '700' }}>
+                  {isRTL ? 'اطلب نفس الإصلاح' : 'Repeat order'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
           {/* Section: Choose your device */}
           <View style={styles.sectionHead}>
             <Text style={[styles.sectionTitle, { color: COLORS.text }]}>
@@ -211,6 +317,9 @@ export default function CustomerHomeScreen() {
                 </View>
                 <Text style={[styles.deviceLabel, { color: COLORS.text }]}>
                   {isRTL ? cat.titleAr : cat.titleEn}
+                </Text>
+                <Text style={[styles.devicePrice, { color: COLORS.primary }]}>
+                  {isRTL ? `يبدأ من ${cat.fromPrice} ر.س` : `From ${cat.fromPrice} SAR`}
                 </Text>
               </TouchableOpacity>
             ))}
@@ -369,6 +478,54 @@ const makeStyles = (C: any, isRTL: boolean) =>
       alignItems: 'center', justifyContent: 'center',
     },
     deviceLabel: { fontSize: 14, fontWeight: '700' },
+    devicePrice: { fontSize: 11, fontWeight: '700', marginTop: 2 },
+
+    // Social proof
+    socialProof: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      borderRadius: BORDER_RADIUS.lg,
+      borderWidth: 1,
+      paddingVertical: 14,
+      paddingHorizontal: 8,
+      marginBottom: 16,
+      alignItems: 'center',
+    },
+    spItem: { flex: 1, alignItems: 'center', gap: 4 },
+    spIcon: {
+      width: 32, height: 32, borderRadius: 10,
+      alignItems: 'center', justifyContent: 'center', marginBottom: 4,
+    },
+    spValue: { fontSize: 19, fontWeight: '800' },
+    spLabel: { fontSize: 11, fontWeight: '500' },
+    spDivider: { width: StyleSheet.hairlineWidth, alignSelf: 'stretch', marginVertical: 6 },
+
+    // Recent activity card
+    recentCard: {
+      borderRadius: BORDER_RADIUS.lg,
+      borderWidth: 1,
+      padding: 14,
+      marginBottom: 22,
+    },
+    recentTop: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 6,
+    },
+    recentEyebrow: { fontSize: 11, fontWeight: '700', letterSpacing: 1 },
+    recentDate: { fontSize: 11, fontWeight: '500' },
+    recentTitle: { fontSize: 15, fontWeight: '800', textAlign: isRTL ? 'right' : 'left' },
+    recentIssue: { fontSize: 12, marginTop: 4, textAlign: isRTL ? 'right' : 'left' },
+    recentBtn: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
+      gap: 6,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      borderRadius: 999,
+      alignSelf: isRTL ? 'flex-end' : 'flex-start',
+      marginTop: 12,
+    },
 
     quickRow: {
       flexDirection: isRTL ? 'row-reverse' : 'row',
