@@ -52,16 +52,21 @@ export const uploadOrderMedia = async (
       const ext = guessExt(uri, contentType);
       const path = `${folder}/${i}-${Date.now()}.${ext}`;
 
+      // Read the file as base64 — local IO, fast.
       const base64 = await withTimeout(
         readAsStringAsync(uri, { encoding: 'base64' }),
-        15000,
+        20000,
         `Read ${uri}`
       );
       const fileBytes = decode(base64);
 
+      // Upload — a 4-5 MB photo on patchy 4G can take 30-50s. The
+      // supabase fetch wrapper now allows up to 90s for /storage/v1/
+      // requests; keep this client wrapper looser than the fetch ceiling
+      // so the abort signal fires from one place only.
       const { error } = await withTimeout(
         supabase.storage.from(ORDERS_BUCKET).upload(path, fileBytes, { contentType, upsert: false }),
-        20000,
+        85000,
         `Upload ${path}`
       );
       if (error) throw error;
