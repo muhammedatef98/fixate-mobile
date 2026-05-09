@@ -59,6 +59,38 @@ export default function ContactScreen() {
       </View>
 
       <ScrollView style={styles.content}>
+        {/* Live chat — primary CTA, opens support-chat with admin */}
+        <TouchableOpacity
+          onPress={() => router.push('/support-chat')}
+          style={{
+            flexDirection: isRTL ? 'row-reverse' : 'row',
+            alignItems: 'center',
+            backgroundColor: COLORS.primary,
+            padding: 16,
+            borderRadius: BORDER_RADIUS.lg,
+            margin: SPACING.md,
+            marginBottom: 8,
+            gap: 12,
+          }}
+          accessibilityRole="button"
+        >
+          <View style={{
+            width: 48, height: 48, borderRadius: 12,
+            backgroundColor: '#ffffff25', alignItems: 'center', justifyContent: 'center',
+          }}>
+            <Ionicons name="chatbubbles" size={24} color="#fff" />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={{ color: '#fff', fontWeight: '700', fontSize: 15 }}>
+              {isRTL ? 'محادثة مباشرة مع الدعم' : 'Live chat with support'}
+            </Text>
+            <Text style={{ color: '#ffffffcc', fontSize: 12, marginTop: 2 }}>
+              {isRTL ? 'تواصل معنا الآن — رد سريع داخل التطبيق' : 'Reach us now — fast in-app response'}
+            </Text>
+          </View>
+          <RTLIonicon name="chevron-forward" size={22} color="#fff" />
+        </TouchableOpacity>
+
         {/* Contact Methods */}
         <View style={styles.section}>
           <TouchableOpacity

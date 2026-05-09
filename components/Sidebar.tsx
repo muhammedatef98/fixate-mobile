@@ -182,22 +182,22 @@ export default function Sidebar({ visible, onClose }: SidebarProps) {
             {isAdmin && (
               <View style={{ paddingHorizontal: SPACING.md }}>
                 <TouchableOpacity
-                  onPress={() => goto('/admin-verifications')}
+                  onPress={() => goto('/admin')}
                   style={{
                     flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center',
                     backgroundColor: COLORS.primary, paddingHorizontal: 16, paddingVertical: 14,
                     borderRadius: BORDER_RADIUS.lg, gap: 12, marginBottom: SPACING.lg,
                   }}
                   accessibilityRole="button"
-                  accessibilityLabel={isRTL ? 'مراجعة طلبات الفنيين' : 'Technician verifications'}
+                  accessibilityLabel={isRTL ? 'لوحة الإدارة' : 'Admin panel'}
                 >
-                  <MaterialCommunityIcons name="account-check" size={22} color="#fff" />
+                  <MaterialCommunityIcons name="shield-star" size={22} color="#fff" />
                   <View style={{ flex: 1 }}>
                     <Text style={{ color: '#fff', fontWeight: '700', fontSize: 15 }}>
-                      {isRTL ? 'مراجعة طلبات الفنيين' : 'Technician verifications'}
+                      {isRTL ? 'لوحة الإدارة' : 'Admin panel'}
                     </Text>
                     <Text style={{ color: '#ffffffaa', fontSize: 12 }}>
-                      {isRTL ? 'قبول أو رفض الطلبات الجديدة' : 'Approve or reject new applications'}
+                      {isRTL ? 'فنيين، دعم، إحصائيات' : 'Verifications, support, stats'}
                     </Text>
                   </View>
                   <RTLMaterialIcon name="chevron-right" size={22} color="#fff" />

@@ -93,7 +93,7 @@ export default function SettingsScreen() {
             for users with users.is_admin = true. */}
         {isAdmin && (
           <TouchableOpacity
-            onPress={() => { tapLight(); router.push('/admin-verifications'); }}
+            onPress={() => { tapLight(); router.push('/admin'); }}
             style={{
               flexDirection: isRTL ? 'row-reverse' : 'row',
               alignItems: 'center',
@@ -104,15 +104,15 @@ export default function SettingsScreen() {
               gap: 12,
             }}
             accessibilityRole="button"
-            accessibilityLabel={isRTL ? 'مراجعة طلبات الفنيين' : 'Technician verifications'}
+            accessibilityLabel={isRTL ? 'لوحة الإدارة' : 'Admin panel'}
           >
-            <MaterialCommunityIcons name="account-check" size={24} color="#fff" />
+            <MaterialCommunityIcons name="shield-star" size={24} color="#fff" />
             <View style={{ flex: 1 }}>
               <Text style={{ color: '#fff', fontSize: 15, fontWeight: '700' }}>
-                {isRTL ? 'مراجعة طلبات الفنيين' : 'Technician verifications'}
+                {isRTL ? 'لوحة الإدارة' : 'Admin panel'}
               </Text>
               <Text style={{ color: '#ffffffcc', fontSize: 12, marginTop: 2 }}>
-                {isRTL ? 'لوحة الأدمن — قبول أو رفض طلبات الفنيين' : 'Admin panel — approve or reject submissions'}
+                {isRTL ? 'فنيين، دعم، إحصائيات وأكثر' : 'Verifications, support inbox, stats'}
               </Text>
             </View>
             <RTLIonicon name="chevron-forward" size={22} color="#fff" />
