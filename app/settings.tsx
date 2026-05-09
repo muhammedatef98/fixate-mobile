@@ -89,6 +89,36 @@ export default function SettingsScreen() {
       </View>
 
       <ScrollView contentContainerStyle={{ padding: SPACING.lg }}>
+        {/* Admin shortcut at the very top — bright, hard to miss. Only renders
+            for users with users.is_admin = true. */}
+        {isAdmin && (
+          <TouchableOpacity
+            onPress={() => { tapLight(); router.push('/admin-verifications'); }}
+            style={{
+              flexDirection: isRTL ? 'row-reverse' : 'row',
+              alignItems: 'center',
+              backgroundColor: COLORS.primary,
+              padding: 14,
+              borderRadius: BORDER_RADIUS.lg,
+              marginBottom: SPACING.lg,
+              gap: 12,
+            }}
+            accessibilityRole="button"
+            accessibilityLabel={isRTL ? 'مراجعة طلبات الفنيين' : 'Technician verifications'}
+          >
+            <MaterialCommunityIcons name="account-check" size={24} color="#fff" />
+            <View style={{ flex: 1 }}>
+              <Text style={{ color: '#fff', fontSize: 15, fontWeight: '700' }}>
+                {isRTL ? 'مراجعة طلبات الفنيين' : 'Technician verifications'}
+              </Text>
+              <Text style={{ color: '#ffffffcc', fontSize: 12, marginTop: 2 }}>
+                {isRTL ? 'لوحة الأدمن — قبول أو رفض طلبات الفنيين' : 'Admin panel — approve or reject submissions'}
+              </Text>
+            </View>
+            <RTLIonicon name="chevron-forward" size={22} color="#fff" />
+          </TouchableOpacity>
+        )}
+
         <Text style={styles.section}>{isRTL ? 'العامة' : 'General'}</Text>
 
         <View style={styles.row}>
