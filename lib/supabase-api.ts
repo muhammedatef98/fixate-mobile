@@ -66,6 +66,10 @@ export interface Message {
   content: string;
   created_at: string;
   is_read: boolean;
+  attachment_type?: 'image' | 'location' | null;
+  attachment_url?: string | null;
+  attachment_lat?: number | null;
+  attachment_lng?: number | null;
 }
 
 // Authentication API
@@ -322,17 +326,29 @@ export const requests = {
 
 // Chat API
 export const chat = {
-  sendMessage: async (orderId: string, content: string): Promise<Message | null> => {
+  sendMessage: async (
+    orderId: string,
+    content: string,
+    attachment?: { type: 'image' | 'location'; url?: string; lat?: number; lng?: number }
+  ): Promise<Message | null> => {
     const user = await auth.getCurrentUser();
     if (!user) return null;
 
+    const payload: any = {
+      order_id: orderId,
+      sender_id: user.id,
+      content,
+    };
+    if (attachment) {
+      payload.attachment_type = attachment.type;
+      if (attachment.url !== undefined) payload.attachment_url = attachment.url;
+      if (attachment.lat !== undefined) payload.attachment_lat = attachment.lat;
+      if (attachment.lng !== undefined) payload.attachment_lng = attachment.lng;
+    }
+
     const { data, error } = await supabase
       .from('messages')
-      .insert([{
-        order_id: orderId,
-        sender_id: user.id,
-        content: content,
-      }])
+      .insert([payload])
       .select()
       .single();
 

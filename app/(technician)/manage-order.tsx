@@ -21,6 +21,9 @@ import { useApp } from '../../contexts/AppContext';
 import { requests, auth } from '../../lib/supabase-api';
 import type { Order } from '../../lib/supabase-api';
 import { logger } from '../../utils/logger';
+import { safeBack } from '../../utils/navigation';
+import { RTLIonicon } from '../../components/RTLIcon';
+import ImageViewer from '../../components/ImageViewer';
 
 const STATUS_ACTIONS = [
   { status: 'accepted', arLabel: 'قبول الطلب', enLabel: 'Accept Order', icon: 'check-circle', color: '#10B981', description: 'تأكيد استلام الطلب والبدء في المعالجة' },
@@ -46,6 +49,8 @@ export default function ManageOrderScreen() {
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
   const [mapReady, setMapReady] = useState(false);
+  const [viewerOpen, setViewerOpen] = useState(false);
+  const [viewerIndex, setViewerIndex] = useState(0);
 
   useEffect(() => {
     loadOrderDetails();
@@ -181,7 +186,36 @@ export default function ManageOrderScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: COLORS.background }]}>
-      {/* Header removed to use Stack Header */}
+      {/* Custom header with safeBack — the native Stack header was leaving
+          the back button frozen on iOS when this screen was reached via a
+          replace from /(technician)/index. */}
+      <View style={{
+        flexDirection: isRTL ? 'row-reverse' : 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingHorizontal: 12,
+        paddingVertical: 10,
+        backgroundColor: COLORS.card,
+        borderBottomWidth: 1,
+        borderBottomColor: COLORS.border,
+      }}>
+        <TouchableOpacity
+          onPress={() => safeBack('/(technician)')}
+          style={{
+            width: 36, height: 36, borderRadius: 18,
+            backgroundColor: COLORS.background,
+            alignItems: 'center', justifyContent: 'center',
+          }}
+          accessibilityRole="button"
+          accessibilityLabel={isRTL ? 'رجوع' : 'Back'}
+        >
+          <RTLIonicon name="chevron-back" size={22} color={COLORS.text} />
+        </TouchableOpacity>
+        <Text style={{ fontSize: 17, fontWeight: '700', color: COLORS.text }}>
+          {isRTL ? 'إدارة الطلب' : 'Manage order'}
+        </Text>
+        <View style={{ width: 36 }} />
+      </View>
 
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         {/* Professional Workflow Control */}
@@ -418,25 +452,39 @@ export default function ManageOrderScreen() {
           </View>
         </View>
 
-        {/* Media */}
+        {/* Media — tap any photo to open the in-app full-screen viewer */}
         {order.media_urls && order.media_urls.length > 0 && (
           <View style={[styles.card, { backgroundColor: COLORS.card }, SHADOWS.medium]}>
             <Text style={[styles.cardTitle, { color: COLORS.text }]}>
-              {isRTL ? 'الصور المرفقة' : 'Attached Images'}
+              {isRTL ? 'الصور المرفقة' : 'Attached photos'}
             </Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
               {order.media_urls.map((url, index) => (
-                <Image
+                <TouchableOpacity
                   key={index}
-                  source={{ uri: url }}
-                  style={styles.mediaImage}
-                  resizeMode="cover"
-                />
+                  onPress={() => { setViewerIndex(index); setViewerOpen(true); }}
+                  activeOpacity={0.85}
+                  style={{ marginRight: 8 }}
+                  accessibilityRole="button"
+                >
+                  <Image
+                    source={{ uri: url }}
+                    style={styles.mediaImage}
+                    resizeMode="cover"
+                  />
+                </TouchableOpacity>
               ))}
             </ScrollView>
           </View>
         )}
       </ScrollView>
+
+      <ImageViewer
+        visible={viewerOpen}
+        images={order?.media_urls ?? []}
+        initialIndex={viewerIndex}
+        onClose={() => setViewerOpen(false)}
+      />
     </SafeAreaView>
   );
 }

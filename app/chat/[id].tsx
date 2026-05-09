@@ -12,15 +12,20 @@ import {
   ActivityIndicator,
   Alert,
   Linking,
+  Image,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
+import * as Location from 'expo-location';
 import { getColors, SPACING, BORDER_RADIUS } from '../../constants/theme';
 import { useApp } from '../../contexts/AppContext';
 import { chat, auth, requests } from '../../lib/supabase-api';
 import { logger } from '../../utils/logger';
 import { RTLIonicon } from '../../components/RTLIcon';
 import { safeBack } from '../../utils/navigation';
+import { uploadOrderMedia } from '../../services/storageService';
+import ImageViewer from '../../components/ImageViewer';
 
 // Quick-reply suggestions that match each side of the conversation. The
 // customer's prompts are questions / status checks; the technician's are
@@ -67,6 +72,9 @@ export default function ChatScreen() {
   const [order, setOrder] = useState<any>(null);
   const [otherPartyName, setOtherPartyName] = useState('');
   const [otherPartyPhone, setOtherPartyPhone] = useState<string | null>(null);
+  const [viewerOpen, setViewerOpen] = useState(false);
+  const [viewerImages, setViewerImages] = useState<string[]>([]);
+  const [viewerIndex, setViewerIndex] = useState(0);
 
   const flatListRef = useRef<FlatList>(null);
 
@@ -140,6 +148,74 @@ export default function ChatScreen() {
     }
   };
 
+  const sendImage = async () => {
+    if (!currentUser?.id) return;
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) {
+      Alert.alert(isRTL ? 'إذن مرفوض' : 'Permission denied', isRTL ? 'فعّل إذن المعرض من الإعدادات' : 'Enable gallery access in settings');
+      return;
+    }
+    const res = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.8,
+    });
+    if (res.canceled || !res.assets[0]?.uri) return;
+
+    const tempId = `temp-${Date.now()}`;
+    setMessages((prev) => [...prev, {
+      id: tempId, content: '', sender_id: currentUser.id, created_at: new Date().toISOString(),
+      attachment_type: 'image', attachment_url: res.assets[0].uri, is_temp: true,
+    }]);
+    setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 80);
+
+    try {
+      setSending(true);
+      const [url] = await uploadOrderMedia(currentUser.id, [res.assets[0].uri], `chat-${id}`);
+      if (!url) throw new Error('upload failed');
+      await chat.sendMessage(id as string, '', { type: 'image', url });
+    } catch (e) {
+      logger.warn('send image failed', e);
+      setMessages((prev) => prev.filter((m) => m.id !== tempId));
+      Alert.alert(isRTL ? 'خطأ' : 'Error', isRTL ? 'فشل إرسال الصورة' : 'Could not send image');
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const sendLocation = async () => {
+    if (!currentUser?.id) return;
+    const perm = await Location.requestForegroundPermissionsAsync();
+    if (perm.status !== 'granted') {
+      Alert.alert(isRTL ? 'إذن مرفوض' : 'Permission denied', isRTL ? 'فعّل إذن الموقع' : 'Enable location access');
+      return;
+    }
+    try {
+      setSending(true);
+      const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      await chat.sendMessage(id as string, '', {
+        type: 'location',
+        lat: loc.coords.latitude,
+        lng: loc.coords.longitude,
+      });
+    } catch (e) {
+      logger.warn('send location failed', e);
+      Alert.alert(isRTL ? 'خطأ' : 'Error', isRTL ? 'فشل إرسال الموقع' : 'Could not send location');
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const openImage = (url: string) => {
+    setViewerImages([url]);
+    setViewerIndex(0);
+    setViewerOpen(true);
+  };
+
+  const openLocation = (lat: number, lng: number) => {
+    const url = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
+    Linking.openURL(url);
+  };
+
   const renderMessage = ({ item, index }: { item: any; index: number }) => {
     const isMe = item.sender_id === currentUser?.id;
     const prev = messages[index - 1];
@@ -178,10 +254,62 @@ export default function ChatScreen() {
                   borderBottomRightRadius: !isRTL || !isLastInGroup ? 18 : 6,
                 },
             item.is_temp && { opacity: 0.7 },
+            item.attachment_type && { padding: 4 },
           ]}
         >
-          <Text style={{ color: isMe ? '#fff' : COLORS.text, fontSize: 14, lineHeight: 20 }}>{item.content}</Text>
-          <View style={{ flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-end', marginTop: 4, gap: 4 }}>
+          {/* Image attachment — tap to open in-app viewer */}
+          {item.attachment_type === 'image' && item.attachment_url && (
+            <TouchableOpacity
+              activeOpacity={0.85}
+              onPress={() => openImage(item.attachment_url)}
+              style={{ marginBottom: 4 }}
+              accessibilityRole="button"
+            >
+              <Image
+                source={{ uri: item.attachment_url }}
+                style={{ width: 220, height: 180, borderRadius: 14, backgroundColor: '#00000020' }}
+              />
+            </TouchableOpacity>
+          )}
+
+          {/* Location attachment — tap to open Google Maps */}
+          {item.attachment_type === 'location' && item.attachment_lat != null && item.attachment_lng != null && (
+            <TouchableOpacity
+              activeOpacity={0.85}
+              onPress={() => openLocation(item.attachment_lat, item.attachment_lng)}
+              style={{
+                width: 220, padding: 12, borderRadius: 14,
+                backgroundColor: isMe ? '#ffffff20' : COLORS.background,
+                flexDirection: isRTL ? 'row-reverse' : 'row',
+                alignItems: 'center', gap: 10,
+                marginBottom: item.content ? 8 : 4,
+              }}
+              accessibilityRole="button"
+            >
+              <View style={{
+                width: 44, height: 44, borderRadius: 22,
+                backgroundColor: isMe ? '#ffffff30' : COLORS.primary + '20',
+                alignItems: 'center', justifyContent: 'center',
+              }}>
+                <Ionicons name="location" size={22} color={isMe ? '#fff' : COLORS.primary} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: isMe ? '#fff' : COLORS.text, fontSize: 13, fontWeight: '700' }}>
+                  {isRTL ? 'تم مشاركة الموقع' : 'Location shared'}
+                </Text>
+                <Text style={{ color: isMe ? '#ffffffcc' : COLORS.textSecondary, fontSize: 11, marginTop: 2 }}>
+                  {isRTL ? 'اضغط للفتح في الخريطة' : 'Tap to open in Maps'}
+                </Text>
+              </View>
+            </TouchableOpacity>
+          )}
+
+          {item.content ? (
+            <Text style={{ color: isMe ? '#fff' : COLORS.text, fontSize: 14, lineHeight: 20, paddingHorizontal: item.attachment_type ? 6 : 0 }}>
+              {item.content}
+            </Text>
+          ) : null}
+          <View style={{ flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-end', marginTop: 4, gap: 4, paddingHorizontal: item.attachment_type ? 6 : 0 }}>
             <Text style={{ color: isMe ? '#ffffffaa' : COLORS.textSecondary, fontSize: 10 }}>{time}</Text>
             {isMe && (
               <Ionicons
@@ -298,6 +426,25 @@ export default function ChatScreen() {
         keyboardVerticalOffset={Platform.OS === 'ios' ? 80 : 0}
       >
         <View style={[styles.inputBar, { backgroundColor: COLORS.card, borderTopColor: COLORS.border }]}>
+          {/* Attachment menu — image + location */}
+          <TouchableOpacity
+            onPress={sendImage}
+            disabled={sending}
+            style={{ width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.primary + '15' }}
+            accessibilityRole="button"
+            accessibilityLabel={isRTL ? 'إرسال صورة' : 'Send photo'}
+          >
+            <Ionicons name="image-outline" size={20} color={COLORS.primary} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={sendLocation}
+            disabled={sending}
+            style={{ width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.primary + '15' }}
+            accessibilityRole="button"
+            accessibilityLabel={isRTL ? 'إرسال الموقع' : 'Send location'}
+          >
+            <Ionicons name="location-outline" size={20} color={COLORS.primary} />
+          </TouchableOpacity>
           <TextInput
             style={[styles.input, { color: COLORS.text, backgroundColor: COLORS.background, borderColor: COLORS.border }]}
             placeholder={isRTL ? 'اكتب رسالتك...' : 'Type a message...'}
@@ -323,6 +470,13 @@ export default function ChatScreen() {
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
+
+      <ImageViewer
+        visible={viewerOpen}
+        images={viewerImages}
+        initialIndex={viewerIndex}
+        onClose={() => setViewerOpen(false)}
+      />
     </SafeAreaView>
   );
 }
