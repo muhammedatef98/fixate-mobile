@@ -50,7 +50,8 @@ export default function RoleSelectionScreen() {
     if (role === 'technician') {
       router.replace('/technician-auth');
     } else {
-      router.replace('/login');
+      // Customers use phone-only OTP — no email/password option.
+      router.replace('/login-otp');
     }
   };
 
