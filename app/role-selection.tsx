@@ -50,7 +50,7 @@ export default function RoleSelectionScreen() {
     if (role === 'technician') {
       router.replace('/technician-auth');
     } else {
-      router.replace('/login');
+      router.replace('/login-otp');
     }
   };
 

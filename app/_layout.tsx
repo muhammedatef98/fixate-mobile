@@ -171,14 +171,12 @@ function RootLayoutContent() {
           options={{ title: 'الملف الشخصي' }} 
         />
         <Stack.Screen 
-          name="login" 
           options={{ 
             title: 'تسجيل الدخول',
             headerShown: false 
           }} 
         />
         <Stack.Screen 
-          name="signup" 
           options={{ 
             title: 'إنشاء حساب',
             headerShown: false 

@@ -133,7 +133,7 @@ export default function RequestScreen() {
         isRTL ? 'يجب عليك تسجيل الدخول لرفع طلب صيانة' : 'You must login to submit a repair request',
         [
           { text: isRTL ? 'إلغاء' : 'Cancel', onPress: () => router.replace('/(customer)'), style: 'cancel' },
-          { text: isRTL ? 'تسجيل الدخول' : 'Login', onPress: () => router.replace('/login') }
+          { text: isRTL ? 'تسجيل الدخول' : 'Login', onPress: () => router.replace('/login-otp') }
         ]
       );
     }
@@ -246,7 +246,7 @@ export default function RequestScreen() {
   const handleSubmit = async () => {
     if (!user) {
       Alert.alert(isRTL ? 'تنبيه' : 'Login Required', isRTL ? 'يجب تسجيل الدخول أولاً' : 'Please login first');
-      router.replace('/login');
+      router.replace('/login-otp');
       return;
     }
     if (!selectedBrand || !selectedModel || !selectedIssue) {

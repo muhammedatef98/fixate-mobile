@@ -107,7 +107,7 @@ export default function MyOrdersScreen() {
 
   useEffect(() => {
     if (!user) {
-      router.replace('/login');
+      router.replace('/login-otp');
     }
   }, [user]);
 
