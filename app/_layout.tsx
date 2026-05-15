@@ -36,12 +36,22 @@ function RootLayoutContent() {
     // pick which side of the app they want to enter, which is critical for
     // testing both flows from one account.
     const REDIRECT_AWAY_IF_LOGGED_IN = new Set([
-      'login', 'signup', 'auth', 'technician-auth',
+      'auth', 'technician-auth',
       'login-otp', 'forgot-password', 'onboarding',
     ]);
     const PROTECTED_GROUPS = new Set(['(customer)', '(technician)', 'request']);
+    // Legacy email/password screens were removed — customers are phone-OTP
+    // only. Anyone reaching these stale routes (deep link, bookmark) is
+    // sent to the phone-OTP screen regardless of auth state.
+    const LEGACY_AUTH_ROUTES = new Set(['login', 'signup']);
 
     const first = segments[0] as string | undefined;
+
+    if (!!first && LEGACY_AUTH_ROUTES.has(first)) {
+      router.replace('/login-otp');
+      return;
+    }
+
     const inAuthFlow = !!first && REDIRECT_AWAY_IF_LOGGED_IN.has(first);
     const isProtectedRoute = !!first && PROTECTED_GROUPS.has(first);
 
