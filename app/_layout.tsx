@@ -213,6 +213,10 @@ function RootLayoutContent() {
         <Stack.Screen name="login-otp" options={{ headerShown: false }} />
         <Stack.Screen name="forgot-password" options={{ headerShown: false }} />
         <Stack.Screen name="admin-verifications" options={{ headerShown: false }} />
+        <Stack.Screen name="admin-discount-codes" options={{ headerShown: false }} />
+        <Stack.Screen name="admin-market" options={{ headerShown: false }} />
+        <Stack.Screen name="market" options={{ headerShown: false }} />
+        <Stack.Screen name="market-new" options={{ headerShown: false }} />
       </Stack>
     </>
   );

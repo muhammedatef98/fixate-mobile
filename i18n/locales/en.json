@@ -173,5 +173,95 @@
     "version": "Version",
     "termsOfService": "Terms of Service",
     "privacyPolicy": "Privacy Policy"
+  },
+  "phoneOtp": {
+    "screenTitle": "Sign in with code",
+    "headline": "Quick sign-in",
+    "sendCodeHint": "We'll text you a 4-digit code",
+    "sendCode": "Send code",
+    "verify": "Verify & sign in",
+    "enterCode": "Enter verification code",
+    "sentTo": "Sent to {{phone}}",
+    "resendIn": "Resend in {{seconds}}s",
+    "resend": "Resend code",
+    "expired": "Code expired",
+    "validFor": "Valid for {{time}}",
+    "invalidPhone": "Invalid phone number",
+    "wrongCode": "Wrong code",
+    "termsHint": "By continuing you agree to the Terms and Privacy Policy."
+  },
+  "discount": {
+    "section": "Discount code",
+    "placeholder": "Enter code (optional)",
+    "apply": "Apply",
+    "remove": "Remove",
+    "youSave": "You save",
+    "invalid": "Invalid code",
+    "adminTitle": "Discount codes",
+    "adminEmpty": "No discount codes yet",
+    "adminNew": "New code",
+    "adminEdit": "Edit code",
+    "fields": {
+      "code": "Code",
+      "type": "Discount type",
+      "percent": "Percent %",
+      "fixed": "Fixed amount",
+      "value": "Value",
+      "maxDiscount": "Max discount (SAR)",
+      "minOrder": "Min order total (SAR)",
+      "totalLimit": "Total usage limit",
+      "perUserLimit": "Per-user limit",
+      "descriptionAr": "Description (Arabic)",
+      "descriptionEn": "Description (English)",
+      "active": "Active"
+    }
+  },
+  "sparePart": {
+    "section": "Spare-part quality",
+    "original": "Original",
+    "highQuality": "High Quality",
+    "economy": "Economy",
+    "originalDesc": "Genuine OEM parts from the manufacturer — top quality, longest warranty.",
+    "highQualityDesc": "Premium aftermarket parts at a lower price.",
+    "economyDesc": "Cheapest option — good for quick fixes and tight budgets."
+  },
+  "market": {
+    "title": "Fixate Market",
+    "tagline": "Buy and sell used devices, accessories, and spare parts",
+    "browse": "Browse",
+    "myListings": "My listings",
+    "categories": {
+      "all": "All",
+      "used_device": "Used devices",
+      "accessory": "Accessories",
+      "spare_part": "Spare parts",
+      "other": "Other"
+    },
+    "emptyBrowse": "No listings yet",
+    "emptyMine": "You have no listings yet",
+    "post": "Post a listing",
+    "newTitle": "New listing",
+    "submit": "Submit for review",
+    "submittedTitle": "Submitted",
+    "submittedBody": "Your listing is pending review and will appear once approved.",
+    "fields": {
+      "title": "Title",
+      "category": "Category",
+      "price": "Price (SAR)",
+      "description": "Description",
+      "city": "City",
+      "contact": "Contact phone"
+    },
+    "status": {
+      "pending": "Pending review",
+      "active": "Active",
+      "sold": "Sold",
+      "rejected": "Rejected",
+      "archived": "Archived"
+    },
+    "adminTitle": "Market moderation",
+    "approve": "Approve",
+    "reject": "Reject",
+    "archive": "Archive"
   }
 }

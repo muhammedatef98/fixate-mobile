@@ -186,7 +186,7 @@ export default function LoginScreen() {
 
             <View style={styles.altActions}>
               <TouchableOpacity onPress={() => router.push('/login-otp')} accessibilityRole="button">
-                <Text style={styles.altActionLink}>{isRTL ? 'الدخول بكود البريد' : 'Login with email code'}</Text>
+                <Text style={styles.altActionLink}>{isRTL ? 'الدخول بكود الجوال' : 'Login with phone code'}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.forgotPassword}

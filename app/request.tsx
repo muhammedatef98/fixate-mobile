@@ -17,6 +17,17 @@ import { uploadOrderMedia } from '../services/storageService';
 import { getFriendlyError } from '../utils/errorMessages';
 import { tapLight } from '../utils/haptics';
 import { formatPrice } from '../utils/pricing';
+import {
+  SPARE_PART_LABELS,
+  SPARE_PART_DESCRIPTIONS,
+  SPARE_PART_MULTIPLIERS,
+  type SparePartQuality,
+} from '../types/order';
+import {
+  validateDiscountCode,
+  recordDiscountRedemption,
+  type DiscountCode,
+} from '../services/discountService';
 
 const { width } = Dimensions.get('window');
 
@@ -79,6 +90,16 @@ export default function RequestScreen() {
   const [selectedIssue, setSelectedIssue] = useState<Issue | null>(null);
   const [issueDescription, setIssueDescription] = useState('');
   const [mediaFiles, setMediaFiles] = useState<string[]>([]);
+  const [sparePartQuality, setSparePartQuality] = useState<SparePartQuality>('original');
+
+  // Discount code state — applied lazily on the details step.
+  const [discountInput, setDiscountInput] = useState('');
+  const [appliedDiscount, setAppliedDiscount] = useState<{
+    code: DiscountCode;
+    amount: number;
+  } | null>(null);
+  const [discountChecking, setDiscountChecking] = useState(false);
+  const [discountError, setDiscountError] = useState<string | null>(null);
   
   const [brandSearch, setBrandSearch] = useState('');
   const [modelSearch, setModelSearch] = useState('');
@@ -254,6 +275,10 @@ export default function RequestScreen() {
         ? `${issueName}: ${issueDescription}`
         : issueName;
 
+      const baseEstimate = selectedIssue.estimatedPrice ?? 0;
+      const adjustedEstimate = Math.round(baseEstimate * SPARE_PART_MULTIPLIERS[sparePartQuality]);
+      const finalEstimate = Math.max(0, adjustedEstimate - (appliedDiscount?.amount ?? 0));
+
       const orderData = {
         device_brand: selectedBrand.name,
         device_model: selectedModel,
@@ -265,13 +290,28 @@ export default function RequestScreen() {
         longitude: location.longitude,
         notes: issueDescription || undefined,
         media_urls: mediaUrls,
-        estimated_price: selectedIssue.estimatedPrice,
+        estimated_price: finalEstimate,
         customer_phone: (userProfile as any)?.phone,
+        spare_part_quality: sparePartQuality,
+        discount_code: appliedDiscount?.code.code,
+        discount_amount: appliedDiscount?.amount ?? 0,
       };
 
       const result = await createOrder(orderData);
 
       if (!result) throw new Error('Failed to create request');
+
+      if (appliedDiscount && user) {
+        // Best-effort: record the redemption for admin reporting & per-user
+        // limit enforcement on subsequent attempts. Failure here doesn't
+        // unwind the order — the customer already got the discounted price.
+        recordDiscountRedemption(
+          appliedDiscount.code.id,
+          user.id,
+          result.id,
+          appliedDiscount.amount
+        ).catch((e) => logger.warn('record redemption failed', e));
+      }
 
       // 3. Best-effort technician notification — never blocks success
       const cityMatch = address?.match(/,\s*([^,]+)$/);
@@ -507,7 +547,119 @@ export default function RequestScreen() {
                 onChangeText={setIssueDescription}
                 textAlignVertical="top"
               />
-              
+
+              {/* Spare-part quality selector — applies a multiplier to the
+                  base estimate so customers can see the price difference. */}
+              <Text style={[styles.sectionTitle, { marginTop: 24 }]}>
+                {isRTL ? 'جودة قطعة الغيار' : 'Spare-part quality'}
+              </Text>
+              <View style={{ gap: 8 }}>
+                {(['original', 'high_quality', 'economy'] as SparePartQuality[]).map((q) => {
+                  const selected = sparePartQuality === q;
+                  const multiplier = SPARE_PART_MULTIPLIERS[q];
+                  const base = selectedIssue?.estimatedPrice ?? 0;
+                  const price = Math.round(base * multiplier);
+                  return (
+                    <TouchableOpacity
+                      key={q}
+                      onPress={() => setSparePartQuality(q)}
+                      style={{
+                        borderWidth: selected ? 2 : 1,
+                        borderColor: selected ? COLORS.primary : COLORS.border,
+                        backgroundColor: selected ? COLORS.lightGreen : COLORS.card,
+                        borderRadius: 12,
+                        padding: 12,
+                      }}
+                    >
+                      <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <Text style={{ fontWeight: '700', color: COLORS.text, fontSize: 15 }}>
+                          {isRTL ? SPARE_PART_LABELS[q].ar : SPARE_PART_LABELS[q].en}
+                        </Text>
+                        {base > 0 && (
+                          <Text style={{ color: COLORS.primary, fontWeight: '700' }}>
+                            ~{price} SAR
+                          </Text>
+                        )}
+                      </View>
+                      <Text style={{ color: COLORS.gray, fontSize: 12, marginTop: 4 }}>
+                        {isRTL ? SPARE_PART_DESCRIPTIONS[q].ar : SPARE_PART_DESCRIPTIONS[q].en}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              {/* Discount code: customer types & taps Apply; resolved against
+                  the active estimated price. */}
+              <Text style={[styles.sectionTitle, { marginTop: 24 }]}>
+                {isRTL ? 'كود الخصم' : 'Discount code'}
+              </Text>
+              <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', gap: 8 }}>
+                <TextInput
+                  style={[styles.textArea, { flex: 1, height: 48, padding: 12 }]}
+                  placeholder={isRTL ? 'أدخل الكود (اختياري)' : 'Enter code (optional)'}
+                  value={discountInput}
+                  autoCapitalize="characters"
+                  editable={!appliedDiscount}
+                  onChangeText={(v) => { setDiscountInput(v.toUpperCase()); setDiscountError(null); }}
+                />
+                <TouchableOpacity
+                  disabled={discountChecking || (!discountInput && !appliedDiscount)}
+                  onPress={async () => {
+                    if (appliedDiscount) {
+                      setAppliedDiscount(null);
+                      setDiscountInput('');
+                      setDiscountError(null);
+                      return;
+                    }
+                    if (!user) return;
+                    setDiscountChecking(true);
+                    setDiscountError(null);
+                    try {
+                      const base = selectedIssue?.estimatedPrice ?? 0;
+                      const total = Math.round(base * SPARE_PART_MULTIPLIERS[sparePartQuality]);
+                      const result = await validateDiscountCode(discountInput, total, user.id, language);
+                      if (!result.valid || !result.code) {
+                        setDiscountError(result.reason ?? (isRTL ? 'كود غير صالح' : 'Invalid code'));
+                      } else {
+                        setAppliedDiscount({ code: result.code, amount: result.amount_saved ?? 0 });
+                      }
+                    } catch (e: any) {
+                      setDiscountError(e?.message ?? String(e));
+                    } finally {
+                      setDiscountChecking(false);
+                    }
+                  }}
+                  style={{
+                    backgroundColor: appliedDiscount ? COLORS.error : COLORS.primary,
+                    paddingHorizontal: 18,
+                    borderRadius: 12,
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                  }}
+                >
+                  {discountChecking ? (
+                    <ActivityIndicator color="#fff" />
+                  ) : (
+                    <Text style={{ color: '#fff', fontWeight: '700' }}>
+                      {appliedDiscount
+                        ? (isRTL ? 'إزالة' : 'Remove')
+                        : (isRTL ? 'تطبيق' : 'Apply')}
+                    </Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+              {appliedDiscount && (
+                <View style={{ marginTop: 8, padding: 10, backgroundColor: COLORS.lightGreen, borderRadius: 10 }}>
+                  <Text style={{ color: COLORS.primary, fontWeight: '700' }}>
+                    {appliedDiscount.code.code} — {isRTL ? 'وفّرت' : 'You save'} {appliedDiscount.amount} SAR
+                  </Text>
+                </View>
+              )}
+              {discountError && (
+                <Text style={{ color: COLORS.error, marginTop: 6, fontSize: 13 }}>{discountError}</Text>
+              )}
+
               <Text style={[styles.sectionTitle, { marginTop: 24 }]}>{isRTL ? 'صور أو فيديو' : 'Photos or Video'}</Text>
               <View style={styles.mediaContainer}>
                 <TouchableOpacity style={styles.addMediaButton} onPress={pickImage}>
