@@ -154,5 +154,95 @@
     "comment": "أضف تعليقاً (اختياري)",
     "submit": "إرسال التقييم",
     "thankYou": "شكراً لتقييمك!"
+  },
+  "phoneOtp": {
+    "screenTitle": "دخول بكود",
+    "headline": "تسجيل دخول سريع",
+    "sendCodeHint": "سنرسل كوداً مكوّناً من 4 أرقام إلى رقم جوالك",
+    "sendCode": "إرسال الكود",
+    "verify": "تأكيد ودخول",
+    "enterCode": "أدخل كود التحقّق",
+    "sentTo": "أُرسل إلى {{phone}}",
+    "resendIn": "إعادة الإرسال خلال {{seconds}}ث",
+    "resend": "إعادة إرسال الكود",
+    "expired": "انتهت صلاحية الكود",
+    "validFor": "صالح لمدة {{time}}",
+    "invalidPhone": "رقم الجوال غير صحيح",
+    "wrongCode": "الكود غير صحيح",
+    "termsHint": "بمتابعتك توافق على شروط الاستخدام وسياسة الخصوصية."
+  },
+  "discount": {
+    "section": "كود الخصم",
+    "placeholder": "أدخل الكود (اختياري)",
+    "apply": "تطبيق",
+    "remove": "إزالة",
+    "youSave": "وفّرت",
+    "invalid": "كود غير صالح",
+    "adminTitle": "أكواد الخصم",
+    "adminEmpty": "لا توجد أكواد بعد",
+    "adminNew": "كود جديد",
+    "adminEdit": "تعديل الكود",
+    "fields": {
+      "code": "الكود",
+      "type": "نوع الخصم",
+      "percent": "نسبة %",
+      "fixed": "مبلغ ثابت",
+      "value": "القيمة",
+      "maxDiscount": "الحد الأعلى للخصم (SAR)",
+      "minOrder": "الحد الأدنى للطلب (SAR)",
+      "totalLimit": "حد الاستخدام الكلي",
+      "perUserLimit": "الحد لكل مستخدم",
+      "descriptionAr": "وصف (عربي)",
+      "descriptionEn": "وصف (إنجليزي)",
+      "active": "مفعّل"
+    }
+  },
+  "sparePart": {
+    "section": "جودة قطعة الغيار",
+    "original": "أصلي",
+    "highQuality": "جودة عالية",
+    "economy": "اقتصادي",
+    "originalDesc": "قطع غيار أصلية من الشركة المصنّعة، أعلى جودة وأطول ضمان.",
+    "highQualityDesc": "قطع غيار بديلة ذات جودة عالية بسعر أوفر.",
+    "economyDesc": "الخيار الأرخص — مناسب لإصلاحات سريعة وميزانية محدودة."
+  },
+  "market": {
+    "title": "سوق Fixate",
+    "tagline": "بيع واشترِ أجهزة مستعملة وإكسسوارات وقطع غيار",
+    "browse": "تصفّح",
+    "myListings": "إعلاناتي",
+    "categories": {
+      "all": "الكل",
+      "used_device": "أجهزة مستعملة",
+      "accessory": "إكسسوارات",
+      "spare_part": "قطع غيار",
+      "other": "أخرى"
+    },
+    "emptyBrowse": "لا توجد إعلانات حالياً",
+    "emptyMine": "لم تنشر أي إعلان بعد",
+    "post": "انشر إعلاناً",
+    "newTitle": "إعلان جديد",
+    "submit": "إرسال للمراجعة",
+    "submittedTitle": "تم الإرسال",
+    "submittedBody": "إعلانك بانتظار المراجعة وسيظهر بعد الموافقة.",
+    "fields": {
+      "title": "العنوان",
+      "category": "التصنيف",
+      "price": "السعر (SAR)",
+      "description": "الوصف",
+      "city": "المدينة",
+      "contact": "رقم التواصل"
+    },
+    "status": {
+      "pending": "بانتظار الموافقة",
+      "active": "مفعّل",
+      "sold": "تم البيع",
+      "rejected": "مرفوض",
+      "archived": "مؤرشف"
+    },
+    "adminTitle": "مراجعة السوق",
+    "approve": "موافقة",
+    "reject": "رفض",
+    "archive": "أرشفة"
   }
 }
