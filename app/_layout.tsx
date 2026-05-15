@@ -170,21 +170,7 @@ function RootLayoutContent() {
           name="profile" 
           options={{ title: 'الملف الشخصي' }} 
         />
-        <Stack.Screen 
-          name="login" 
-          options={{ 
-            title: 'تسجيل الدخول',
-            headerShown: false 
-          }} 
-        />
-        <Stack.Screen 
-          name="signup" 
-          options={{ 
-            title: 'إنشاء حساب',
-            headerShown: false 
-          }} 
-        />
-        <Stack.Screen 
+        <Stack.Screen
           name="technician-auth" 
           options={{ 
             title: language === 'ar' ? 'تسجيل دخول الفني' : 'Technician Login',
