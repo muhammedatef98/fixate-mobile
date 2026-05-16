@@ -7,6 +7,7 @@ import { ThemeProvider } from '../contexts/ThemeContext';
 import { AppProvider, useApp } from '../contexts/AppContext';
 import { AuthProvider, useAuth } from '../contexts/AuthContext';
 import { OrdersProvider } from '../contexts/OrdersContext';
+import { LoyaltyProvider } from '../contexts/LoyaltyContext';
 import { useRouter, useSegments } from 'expo-router';
 import { supabase } from '../lib/supabase';
 import ErrorBoundary from '../components/ErrorBoundary';
@@ -213,6 +214,7 @@ function RootLayoutContent() {
         <Stack.Screen name="login-otp" options={{ headerShown: false }} />
         <Stack.Screen name="forgot-password" options={{ headerShown: false }} />
         <Stack.Screen name="admin-verifications" options={{ headerShown: false }} />
+        <Stack.Screen name="loyalty" options={{ headerShown: false }} />
       </Stack>
     </>
   );
@@ -249,11 +251,13 @@ export default function RootLayout() {
       <AppProvider>
         <AuthProvider>
           <OrdersProvider>
-            <ThemeProvider>
-              <RequestProvider>
-                <RootLayoutContent />
-              </RequestProvider>
-            </ThemeProvider>
+            <LoyaltyProvider>
+              <ThemeProvider>
+                <RequestProvider>
+                  <RootLayoutContent />
+                </RequestProvider>
+              </ThemeProvider>
+            </LoyaltyProvider>
           </OrdersProvider>
         </AuthProvider>
       </AppProvider>

@@ -337,6 +337,28 @@ export default function OrderDetailsScreen() {
                 {order.estimated_price} {isRTL ? 'ر.س' : 'SAR'}
               </Text>
             </View>
+
+            {!!(order as any).delivery_fee && (order as any).delivery_fee > 0 && (
+              <View style={styles.priceRow}>
+                <Text style={[styles.priceLabel, { color: COLORS.textSecondary }]}>
+                  {isRTL ? 'رسوم التوصيل' : 'Delivery fee'}
+                </Text>
+                <Text style={[styles.priceAmount, { color: COLORS.text, fontSize: 16 }]}>
+                  {(order as any).delivery_fee} {isRTL ? 'ر.س' : 'SAR'}
+                </Text>
+              </View>
+            )}
+
+            {!!(order as any).loyalty_points_earned && (order as any).loyalty_points_earned > 0 && (
+              <View style={styles.priceRow}>
+                <Text style={[styles.priceLabel, { color: COLORS.textSecondary }]}>
+                  {isRTL ? 'نقاط الولاء المكتسبة' : 'Loyalty points earned'}
+                </Text>
+                <Text style={[styles.priceAmount, { color: COLORS.primary, fontSize: 16 }]}>
+                  +{(order as any).loyalty_points_earned}
+                </Text>
+              </View>
+            )}
           </View>
         </View>
 
