@@ -14,7 +14,8 @@ export type ServiceType = 'mobile' | 'pickup';
 
 export type SparePartQuality = 'original' | 'high_quality' | 'economy';
 
-// Customer-facing payment options. 'online' is UI-ready only for now — no
+// Customer-facing payment options. The 'online' id is kept (DB-compatible)
+// but surfaced to the user as "Apple Pay (Coming Soon)" — UI-ready only, no
 // real gateway is wired; the choice is stored so it can be activated later.
 export type PaymentMethod = 'cash' | 'card' | 'online';
 
@@ -23,10 +24,11 @@ export const PAYMENT_METHODS: {
   labelAr: string;
   labelEn: string;
   icon: string;
+  comingSoon?: boolean;
 }[] = [
   { id: 'cash', labelAr: 'نقداً عند الاستلام', labelEn: 'Cash on delivery', icon: 'cash' },
   { id: 'card', labelAr: 'بطاقة / فيزا', labelEn: 'Card / Visa', icon: 'credit-card-outline' },
-  { id: 'online', labelAr: 'الدفع الإلكتروني', labelEn: 'Online payment', icon: 'cellphone-check' },
+  { id: 'online', labelAr: 'Apple Pay (قريبًا)', labelEn: 'Apple Pay (Coming Soon)', icon: 'apple', comingSoon: true },
 ];
 
 // A selectable optional item (accessory or protection add-on). Kept generic

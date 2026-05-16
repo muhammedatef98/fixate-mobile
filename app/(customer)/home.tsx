@@ -5,6 +5,7 @@ import { COLORS, SPACING, SHADOWS } from '../../constants/theme';
 import { MaterialIcons, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../../contexts/AuthContext';
+import { useApp } from '../../contexts/AppContext';
 
 const { width } = Dimensions.get('window');
 
@@ -50,7 +51,14 @@ const PROMOTIONS = [
 export default function CustomerHomeScreen() {
   const router = useRouter();
   const { userProfile } = useAuth();
-  const firstName = userProfile?.name?.split(' ')[0] || 'بك';
+  const { language } = useApp();
+  const isRTL = language !== 'en';
+  const hour = new Date().getHours();
+  const greetingWord = isRTL
+    ? hour < 12 ? 'صباح الخير' : hour < 18 ? 'مساء الخير' : 'مساءك سعيد'
+    : hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
+  const firstName =
+    userProfile?.name?.split(' ')[0] || (isRTL ? 'صديقنا' : 'there');
 
   return (
     <SafeAreaView style={styles.container}>
@@ -59,7 +67,10 @@ export default function CustomerHomeScreen() {
         {/* Header Section */}
         <View style={styles.header}>
           <View>
-            <Text style={styles.greeting}>{`مرحباً، ${firstName} 👋`}</Text>
+            <Text style={styles.greeting}>{`${greetingWord}، ${firstName} 👋`}</Text>
+            <Text style={styles.greetingSub}>
+              {isRTL ? 'كيف نقدر نساعدك اليوم؟' : 'How can we help you today?'}
+            </Text>
             <View style={styles.locationContainer}>
               <MaterialIcons name="location-on" size={16} color={COLORS.primary} />
               <Text style={styles.location}>الرياض، حي الملقا</Text>
@@ -203,10 +214,15 @@ const styles = StyleSheet.create({
     paddingTop: SPACING.xl,
   },
   greeting: {
-    fontSize: 22,
+    fontSize: 23,
     fontWeight: 'bold',
     color: COLORS.text,
-    marginBottom: 4,
+    marginBottom: 2,
+  },
+  greetingSub: {
+    fontSize: 13,
+    color: COLORS.textSecondary,
+    marginBottom: 6,
   },
   locationContainer: {
     flexDirection: 'row',

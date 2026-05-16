@@ -161,9 +161,22 @@ export default function MarketScreen() {
           </View>
         ) : (
           listings.map((l) => (
-            <View key={l.id} style={styles.card}>
+            <TouchableOpacity
+              key={l.id}
+              style={styles.card}
+              activeOpacity={0.7}
+              onPress={() => router.push({ pathname: '/market-detail', params: { id: l.id } })}
+            >
               {l.images?.[0] ? (
-                <Image source={{ uri: l.images[0] }} style={styles.thumb} />
+                <View>
+                  <Image source={{ uri: l.images[0] }} style={styles.thumb} />
+                  {l.images.length > 1 && (
+                    <View style={styles.imgCount}>
+                      <Ionicons name="images" size={11} color="#fff" />
+                      <Text style={styles.imgCountText}>{l.images.length}</Text>
+                    </View>
+                  )}
+                </View>
               ) : (
                 <View style={[styles.thumb, { alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.card }]}>
                   <MaterialCommunityIcons name="image-off" size={28} color={COLORS.textSecondary} />
@@ -184,7 +197,7 @@ export default function MarketScreen() {
                   </Text>
                 )}
               </View>
-            </View>
+            </TouchableOpacity>
           ))
         )}
       </ScrollView>
@@ -246,6 +259,19 @@ const createStyles = (C: any, isRTL: boolean) => StyleSheet.create({
     borderColor: C.border,
   },
   thumb: { width: 72, height: 72, borderRadius: BORDER_RADIUS.md, backgroundColor: C.background },
+  imgCount: {
+    position: 'absolute',
+    bottom: 4,
+    right: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 999,
+  },
+  imgCountText: { color: '#fff', fontSize: 10, fontWeight: '700' },
   cardTitle: { fontSize: 15, fontWeight: '700', color: C.text },
   cardDesc: { fontSize: 12, color: C.textSecondary, marginTop: 2 },
   cardMeta: { flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 8 },

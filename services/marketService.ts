@@ -30,6 +30,62 @@ export interface CreateListingInput {
   images?: string[];
 }
 
+export interface ListingComment {
+  id: string;
+  listing_id: string;
+  user_id: string;
+  content: string;
+  created_at: string;
+  author_name?: string | null;
+}
+
+export const getListing = async (id: string): Promise<MarketListing | null> => {
+  const { data, error } = await supabase
+    .from('market_listings')
+    .select('*')
+    .eq('id', id)
+    .maybeSingle();
+  if (error) {
+    logger.warn('getListing failed', error);
+    return null;
+  }
+  return (data ?? null) as MarketListing | null;
+};
+
+export const listComments = async (listingId: string): Promise<ListingComment[]> => {
+  const { data, error } = await supabase
+    .from('market_comments')
+    .select('*, users:user_id(name)')
+    .eq('listing_id', listingId)
+    .order('created_at', { ascending: true });
+  if (error) {
+    logger.warn('listComments failed', error);
+    return [];
+  }
+  return (data ?? []).map((c: any) => ({
+    id: c.id,
+    listing_id: c.listing_id,
+    user_id: c.user_id,
+    content: c.content,
+    created_at: c.created_at,
+    author_name: c.users?.name ?? null,
+  }));
+};
+
+export const addComment = async (
+  listingId: string,
+  userId: string,
+  content: string
+): Promise<ListingComment> => {
+  const { data, error } = await supabase
+    .from('market_comments')
+    .insert({ listing_id: listingId, user_id: userId, content: content.trim() })
+    .select()
+    .single();
+  if (error) throw error;
+  return data as ListingComment;
+};
+
 export const browseListings = async (
   filters?: { category?: ListingCategory; city?: string }
 ): Promise<MarketListing[]> => {

@@ -108,6 +108,14 @@ export default function RequestScreen() {
   const [selectedAccessories, setSelectedAccessories] = useState<AddonItem[]>([]);
   const [selectedProtection, setSelectedProtection] = useState<AddonItem[]>([]);
 
+  // Card form (UI-only — no real gateway). Used for a masked review summary.
+  const [cardName, setCardName] = useState('');
+  const [cardNumber, setCardNumber] = useState('');
+  const [cardExpiry, setCardExpiry] = useState('');
+  const [cardCvv, setCardCvv] = useState('');
+  const cardLast4 = cardNumber.replace(/\D/g, '').slice(-4);
+  const maskedCard = cardLast4 ? `•••• •••• •••• ${cardLast4}` : '';
+
   const isOtherDevice = selectedDeviceType === 'other';
 
   // Discount code state — applied lazily on the details step.
@@ -514,6 +522,7 @@ export default function RequestScreen() {
             <TextInput
               style={[styles.textArea, { height: 52, padding: 14 }]}
               placeholder={isRTL ? 'مثال: مكنسة روبوت، راوتر، كاميرا...' : 'e.g. Robot vacuum, Router, Camera...'}
+              placeholderTextColor={COLORS.gray}
               value={otherDeviceName}
               onChangeText={setOtherDeviceName}
             />
@@ -526,6 +535,7 @@ export default function RequestScreen() {
             <TextInput
               style={[styles.textArea, { height: 52, padding: 14 }]}
               placeholder={isRTL ? 'الموديل أو رقم الطراز' : 'Model or part number'}
+              placeholderTextColor={COLORS.gray}
               value={otherDeviceModel}
               onChangeText={setOtherDeviceModel}
             />
@@ -539,6 +549,7 @@ export default function RequestScreen() {
               <TextInput
                 placeholder={isRTL ? 'ابحث عن الماركة...' : 'Search brand...'}
                 style={styles.searchInput}
+                placeholderTextColor={COLORS.gray}
                 value={brandSearch}
                 onChangeText={setBrandSearch}
               />
@@ -551,11 +562,19 @@ export default function RequestScreen() {
                   onPress={() => setSelectedBrand(brand)}
                 >
                   <View style={styles.brandLogoContainer}>
-                    <Image 
-                      source={typeof brand.logo === 'string' ? { uri: brand.logo } : brand.logo} 
-                      style={styles.brandLogo} 
-                      resizeMode="contain" 
-                    />
+                    {brand.icon ? (
+                      <MaterialCommunityIcons
+                        name={brand.icon as any}
+                        size={38}
+                        color={selectedBrand?.id === brand.id ? COLORS.primary : COLORS.text}
+                      />
+                    ) : (
+                      <Image
+                        source={typeof brand.logo === 'string' ? { uri: brand.logo } : brand.logo}
+                        style={styles.brandLogo}
+                        resizeMode="contain"
+                      />
+                    )}
                   </View>
                   <Text style={styles.brandNameText}>{brand.name}</Text>
                 </TouchableOpacity>
@@ -571,6 +590,7 @@ export default function RequestScreen() {
               <TextInput
                 placeholder={isRTL ? 'ابحث عن الموديل...' : 'Search model...'}
                 style={styles.searchInput}
+                placeholderTextColor={COLORS.gray}
                 value={modelSearch}
                 onChangeText={setModelSearch}
               />
@@ -597,6 +617,7 @@ export default function RequestScreen() {
               <TextInput 
                 placeholder={isRTL ? 'ابحث عن العطل...' : 'Search issue...'}
                 style={styles.searchInput}
+                placeholderTextColor={COLORS.gray}
                 value={issueSearch}
                 onChangeText={setIssueSearch}
               />
@@ -629,10 +650,11 @@ export default function RequestScreen() {
             <ScrollView>
               <Text style={styles.sectionTitle}>{isRTL ? 'تفاصيل إضافية' : 'Additional Details'}</Text>
               <TextInput
-                style={styles.textArea}
+                style={[styles.textArea, { minHeight: 150 }]}
                 placeholder={isRTL ? 'اشرح العطل بالتفصيل (اختياري)...' : 'Describe the issue in detail (optional)...'}
+                placeholderTextColor={COLORS.gray}
                 multiline
-                numberOfLines={6}
+                numberOfLines={8}
                 value={issueDescription}
                 onChangeText={setIssueDescription}
                 textAlignVertical="top"
@@ -687,7 +709,8 @@ export default function RequestScreen() {
               <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', gap: 8 }}>
                 <TextInput
                   style={[styles.textArea, { flex: 1, height: 48, padding: 12 }]}
-                  placeholder={isRTL ? 'أدخل الكود (اختياري)' : 'Enter code (optional)'}
+                  placeholder={isRTL ? 'ادخل كود الخصم' : 'Enter discount code'}
+                  placeholderTextColor={COLORS.gray}
                   value={discountInput}
                   autoCapitalize="characters"
                   editable={!appliedDiscount}
@@ -781,10 +804,12 @@ export default function RequestScreen() {
                       <Text style={{ flex: 1, fontWeight: '700', color: COLORS.text, textAlign: isRTL ? 'right' : 'left' }}>
                         {isRTL ? pm.labelAr : pm.labelEn}
                       </Text>
-                      {pm.id === 'online' && (
-                        <Text style={{ fontSize: 11, color: COLORS.gray }}>
-                          {isRTL ? 'قريباً' : 'Soon'}
-                        </Text>
+                      {pm.comingSoon && (
+                        <View style={{ backgroundColor: COLORS.border, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999 }}>
+                          <Text style={{ fontSize: 10, color: COLORS.gray, fontWeight: '700' }}>
+                            {isRTL ? 'قريبًا' : 'Coming Soon'}
+                          </Text>
+                        </View>
                       )}
                       {selected && (
                         <Ionicons name="checkmark-circle" size={20} color={COLORS.primary} />
@@ -793,6 +818,54 @@ export default function RequestScreen() {
                   );
                 })}
               </View>
+
+              {/* Card / Visa form — UI only, no real gateway. Captured just
+                  for a masked review summary before submission. */}
+              {paymentMethod === 'card' && (
+                <View style={{ marginTop: 12, gap: 10, padding: 14, backgroundColor: COLORS.card, borderRadius: 12, borderWidth: 1, borderColor: COLORS.border }}>
+                  <TextInput
+                    style={[styles.textArea, { height: 48, padding: 12 }]}
+                    placeholder={isRTL ? 'اسم حامل البطاقة' : 'Cardholder name'}
+                    placeholderTextColor={COLORS.gray}
+                    value={cardName}
+                    onChangeText={setCardName}
+                  />
+                  <TextInput
+                    style={[styles.textArea, { height: 48, padding: 12 }]}
+                    placeholder={isRTL ? 'رقم البطاقة' : 'Card number'}
+                    placeholderTextColor={COLORS.gray}
+                    keyboardType="number-pad"
+                    maxLength={19}
+                    value={cardNumber}
+                    onChangeText={setCardNumber}
+                  />
+                  <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', gap: 10 }}>
+                    <TextInput
+                      style={[styles.textArea, { flex: 1, height: 48, padding: 12 }]}
+                      placeholder={isRTL ? 'تاريخ الانتهاء (MM/YY)' : 'Expiry (MM/YY)'}
+                      placeholderTextColor={COLORS.gray}
+                      maxLength={5}
+                      value={cardExpiry}
+                      onChangeText={setCardExpiry}
+                    />
+                    <TextInput
+                      style={[styles.textArea, { flex: 1, height: 48, padding: 12 }]}
+                      placeholder={isRTL ? 'CVV' : 'CVV'}
+                      placeholderTextColor={COLORS.gray}
+                      keyboardType="number-pad"
+                      maxLength={4}
+                      secureTextEntry
+                      value={cardCvv}
+                      onChangeText={setCardCvv}
+                    />
+                  </View>
+                  <Text style={{ fontSize: 11, color: COLORS.gray, textAlign: isRTL ? 'right' : 'left' }}>
+                    {isRTL
+                      ? 'لن يتم الخصم الآن — تفاصيل البطاقة للعرض فقط حتى تفعيل بوابة الدفع.'
+                      : 'No charge now — card details are display-only until the payment gateway is enabled.'}
+                  </Text>
+                </View>
+              )}
 
               {/* Accessory suggestions — context-aware by device type. */}
               <Text style={[styles.sectionTitle, { marginTop: 24 }]}>
@@ -819,7 +892,7 @@ export default function RequestScreen() {
                     >
                       {selected && <Ionicons name="checkmark" size={14} color={COLORS.primary} />}
                       <Text style={{ color: selected ? COLORS.primary : COLORS.text, fontWeight: '600', fontSize: 13 }}>
-                        {isRTL ? acc.name_ar : acc.name_en} · {acc.price} SAR
+                        {isRTL ? acc.name_ar : acc.name_en} · {isRTL ? `تبدأ من ${acc.price} ر.س` : `Starts from ${acc.price} SAR`}
                       </Text>
                     </TouchableOpacity>
                   );
@@ -858,7 +931,9 @@ export default function RequestScreen() {
                           {isRTL ? p.name_ar : p.name_en}
                         </Text>
                       </View>
-                      <Text style={{ color: COLORS.primary, fontWeight: '700' }}>+{p.price} SAR</Text>
+                      <Text style={{ color: COLORS.primary, fontWeight: '700' }}>
+                        {isRTL ? `تبدأ من ${p.price} ر.س` : `Starts from ${p.price} SAR`}
+                      </Text>
                     </TouchableOpacity>
                   );
                 })}
@@ -990,6 +1065,20 @@ export default function RequestScreen() {
                   })()}
                 </Text>
               </View>
+              {paymentMethod === 'card' && maskedCard ? (
+                <View style={styles.summaryRow}>
+                  <Text style={styles.summaryLabel}>{isRTL ? 'البطاقة' : 'Card'}</Text>
+                  <Text style={styles.summaryValue}>
+                    {maskedCard}{cardName ? ` · ${cardName}` : ''}
+                  </Text>
+                </View>
+              ) : null}
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>{isRTL ? 'قطعة الغيار' : 'Spare part'}</Text>
+                <Text style={styles.summaryValue}>
+                  {isRTL ? SPARE_PART_LABELS[sparePartQuality].ar : SPARE_PART_LABELS[sparePartQuality].en}
+                </Text>
+              </View>
               {selectedAccessories.length > 0 && (
                 <View style={styles.summaryRow}>
                   <Text style={styles.summaryLabel}>{isRTL ? 'إكسسوارات' : 'Accessories'}</Text>
@@ -1030,10 +1119,17 @@ export default function RequestScreen() {
                 </View>
               )}
               {mediaFiles.length > 0 && (
-                <View style={styles.summaryRow}>
-                  <Text style={styles.summaryLabel}>{isRTL ? 'الصور' : 'Photos'}</Text>
-                  <Text style={styles.summaryValue}>{mediaFiles.length}</Text>
-                </View>
+                <>
+                  <View style={styles.summaryRow}>
+                    <Text style={styles.summaryLabel}>{isRTL ? 'الصور' : 'Photos'}</Text>
+                    <Text style={styles.summaryValue}>{mediaFiles.length}</Text>
+                  </View>
+                  <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', flexWrap: 'wrap', gap: 8, marginTop: 4 }}>
+                    {mediaFiles.slice(0, 6).map((uri, i) => (
+                      <Image key={i} source={{ uri }} style={{ width: 56, height: 56, borderRadius: 8 }} />
+                    ))}
+                  </View>
+                </>
               )}
             </View>
           </ScrollView>

@@ -12,13 +12,23 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import { Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import { useApp } from '../contexts/AppContext';
 import { useAuth } from '../contexts/AuthContext';
 import { getColors, SPACING, BORDER_RADIUS } from '../constants/theme';
 import { RTLIonicon } from '../components/RTLIcon';
 import { createListing, type ListingCategory } from '../services/marketService';
+import { uploadOrderMedia } from '../services/storageService';
+
+const CONDITIONS: { id: string; ar: string; en: string }[] = [
+  { id: 'new', ar: 'جديد', en: 'New' },
+  { id: 'like_new', ar: 'شبه جديد', en: 'Like new' },
+  { id: 'used', ar: 'مستعمل', en: 'Used' },
+  { id: 'for_parts', ar: 'قطع غيار', en: 'For parts' },
+];
 
 const CATEGORY_OPTIONS: { id: ListingCategory; ar: string; en: string }[] = [
   { id: 'used_device', ar: 'جهاز مستعمل', en: 'Used device' },
@@ -40,7 +50,25 @@ export default function MarketNewScreen() {
   const [price, setPrice] = useState('');
   const [city, setCity] = useState('');
   const [contactPhone, setContactPhone] = useState((userProfile as any)?.phone ?? '');
+  const [condition, setCondition] = useState<string>('used');
+  const [images, setImages] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
+
+  const addImages = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert(isRTL ? 'تنبيه' : 'Alert', isRTL ? 'نحتاج إذن الوصول للصور' : 'Gallery permission is required');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsMultipleSelection: true,
+      quality: 0.7,
+    });
+    if (!result.canceled) {
+      setImages((prev) => [...prev, ...result.assets.map((a) => a.uri)].slice(0, 8));
+    }
+  };
 
   const submit = async () => {
     if (!user) {
@@ -56,13 +84,25 @@ export default function MarketNewScreen() {
     }
     setSubmitting(true);
     try {
+      let uploaded: string[] = [];
+      if (images.length > 0) {
+        uploaded = await uploadOrderMedia(user.id, images, `market/${user.id}/${Date.now()}`);
+      }
+      const conditionLabel = CONDITIONS.find((c) => c.id === condition);
+      const conditionLine = conditionLabel
+        ? (isRTL ? `الحالة: ${conditionLabel.ar}` : `Condition: ${conditionLabel.en}`)
+        : '';
+      const fullDescription = [conditionLine, description.trim()]
+        .filter(Boolean)
+        .join('\n');
       await createListing(user.id, {
         title: title.trim(),
-        description: description.trim() || undefined,
+        description: fullDescription || undefined,
         category,
         price: Number(price),
         city: city.trim() || undefined,
         contact_phone: contactPhone.trim() || undefined,
+        images: uploaded,
       });
       Alert.alert(
         isRTL ? 'تم الإرسال' : 'Submitted',
@@ -102,6 +142,50 @@ export default function MarketNewScreen() {
             />
           </Field>
 
+          <Field label={isRTL ? 'الصور' : 'Photos'} COLORS={COLORS}>
+            <View style={styles.chipsWrap}>
+              <TouchableOpacity onPress={addImages} style={styles.addImg}>
+                <Ionicons name="camera" size={22} color={COLORS.textSecondary} />
+                <Text style={{ color: COLORS.textSecondary, fontSize: 11, marginTop: 2 }}>
+                  {isRTL ? 'إضافة' : 'Add'}
+                </Text>
+              </TouchableOpacity>
+              {images.map((uri, i) => (
+                <View key={i} style={{ position: 'relative' }}>
+                  <Image source={{ uri }} style={styles.imgThumb} />
+                  <TouchableOpacity
+                    style={styles.imgRemove}
+                    onPress={() => setImages(images.filter((_, idx) => idx !== i))}
+                  >
+                    <Ionicons name="close-circle" size={20} color="#ef4444" />
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </View>
+            <Text style={{ color: COLORS.textSecondary, fontSize: 11, marginTop: 4 }}>
+              {isRTL ? 'يمكنك إضافة حتى 8 صور' : 'You can add up to 8 photos'}
+            </Text>
+          </Field>
+
+          <Field label={isRTL ? 'الحالة' : 'Condition'} COLORS={COLORS}>
+            <View style={styles.chipsWrap}>
+              {CONDITIONS.map((c) => (
+                <TouchableOpacity
+                  key={c.id}
+                  onPress={() => setCondition(c.id)}
+                  style={[
+                    styles.chip,
+                    condition === c.id && { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
+                  ]}
+                >
+                  <Text style={[styles.chipText, condition === c.id && { color: '#fff' }]}>
+                    {isRTL ? c.ar : c.en}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </Field>
+
           <Field label={isRTL ? 'التصنيف' : 'Category'} COLORS={COLORS}>
             <View style={styles.chipsWrap}>
               {CATEGORY_OPTIONS.map((c) => (
@@ -135,8 +219,12 @@ export default function MarketNewScreen() {
               value={description}
               onChangeText={setDescription}
               multiline
-              numberOfLines={4}
-              style={[styles.input, { color: COLORS.text, minHeight: 100, textAlignVertical: 'top' }]}
+              numberOfLines={5}
+              placeholder={isRTL
+                ? 'اكتب تفاصيل أكثر: الحالة، الملحقات، سبب البيع، قابلية التفاوض...'
+                : 'Add more details: condition, accessories, reason for selling, negotiable...'}
+              placeholderTextColor={COLORS.textSecondary}
+              style={[styles.input, { color: COLORS.text, minHeight: 120, textAlignVertical: 'top' }]}
             />
           </Field>
 
@@ -213,7 +301,20 @@ const createStyles = (C: any, isRTL: boolean) => StyleSheet.create({
     fontSize: 15,
     backgroundColor: C.card,
   },
-  chipsWrap: { flexDirection: isRTL ? 'row-reverse' : 'row', flexWrap: 'wrap', gap: 8 },
+  chipsWrap: { flexDirection: isRTL ? 'row-reverse' : 'row', flexWrap: 'wrap', gap: 8, alignItems: 'center' },
+  addImg: {
+    width: 72,
+    height: 72,
+    borderRadius: BORDER_RADIUS.md,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: C.border,
+    backgroundColor: C.card,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  imgThumb: { width: 72, height: 72, borderRadius: BORDER_RADIUS.md },
+  imgRemove: { position: 'absolute', top: -8, right: -8, backgroundColor: C.card, borderRadius: 10 },
   chip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999, borderWidth: 1, borderColor: C.border, backgroundColor: C.card },
   chipText: { color: C.text, fontWeight: '600', fontSize: 13 },
   submit: { paddingVertical: 14, borderRadius: BORDER_RADIUS.md, alignItems: 'center', marginTop: 16 },
