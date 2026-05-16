@@ -79,6 +79,17 @@ const SERVICES: Service[] = [
     fromPrice: 150,
   },
   {
+    id: 'gaming',
+    nameAr: 'أجهزة الألعاب',
+    nameEn: 'Gaming Devices',
+    icon: 'gamepad-variant',
+    color: '#6366f1',
+    descAr: 'بلايستيشن، إكس بوكس، نينتندو وملحقاتها',
+    descEn: 'PlayStation, Xbox, Nintendo & accessories',
+    available: true,
+    fromPrice: 120,
+  },
+  {
     id: 'printer',
     nameAr: 'الطابعات',
     nameEn: 'Printers',
@@ -247,9 +258,14 @@ export default function ServicesScreen() {
           </View>
 
           {/* Fixate Market — lives inside Services (not a homepage block). */}
+          <View style={[styles.sectionRow, { marginTop: 26 }]}>
+            <Text style={[styles.sectionTitle, { color: COLORS.text }]}>
+              {isRTL ? 'المزيد في Fixate' : 'More on Fixate'}
+            </Text>
+          </View>
           <TouchableOpacity
             onPress={() => router.push('/market')}
-            style={[styles.helpCard, { backgroundColor: COLORS.card, borderColor: COLORS.border, marginTop: 22 }]}
+            style={[styles.helpCard, { backgroundColor: COLORS.card, borderColor: COLORS.border, marginTop: 4 }]}
             accessibilityRole="button"
             accessibilityLabel={isRTL ? 'سوق Fixate' : 'Fixate Market'}
           >

@@ -13,6 +13,7 @@ import { useApp } from '../contexts/AppContext';
 import { useAuth } from '../contexts/AuthContext';
 import { logger } from '../utils/logger';
 import { RTLIonicon } from '../components/RTLIcon';
+import { BrandLogo } from '../components/BrandLogo';
 import { uploadOrderMedia } from '../services/storageService';
 import { getFriendlyError } from '../utils/errorMessages';
 import { tapLight } from '../utils/haptics';
@@ -556,27 +557,21 @@ export default function RequestScreen() {
             </View>
             <ScrollView contentContainerStyle={styles.brandGrid}>
               {filteredBrands.length > 0 ? filteredBrands.map((brand) => (
-                <TouchableOpacity 
-                  key={brand.id} 
+                <TouchableOpacity
+                  key={brand.id}
+                  activeOpacity={0.7}
                   style={[styles.brandCard, selectedBrand?.id === brand.id && styles.selectedCard]}
                   onPress={() => setSelectedBrand(brand)}
                 >
+                  {selectedBrand?.id === brand.id && (
+                    <View style={styles.brandCheck}>
+                      <Ionicons name="checkmark-circle" size={18} color={COLORS.primary} />
+                    </View>
+                  )}
                   <View style={styles.brandLogoContainer}>
-                    {brand.icon ? (
-                      <MaterialCommunityIcons
-                        name={brand.icon as any}
-                        size={38}
-                        color={selectedBrand?.id === brand.id ? COLORS.primary : COLORS.text}
-                      />
-                    ) : (
-                      <Image
-                        source={typeof brand.logo === 'string' ? { uri: brand.logo } : brand.logo}
-                        style={styles.brandLogo}
-                        resizeMode="contain"
-                      />
-                    )}
+                    <BrandLogo brandId={brand.id} name={brand.name} size={48} />
                   </View>
-                  <Text style={styles.brandNameText}>{brand.name}</Text>
+                  <Text style={styles.brandNameText} numberOfLines={1}>{brand.name}</Text>
                 </TouchableOpacity>
               )) : renderEmptyState(isRTL ? 'لا توجد نتائج' : 'No results found')}
             </ScrollView>
@@ -1196,11 +1191,12 @@ const createStyles = (COLORS: any, isRTL: boolean) => StyleSheet.create({
   comingSoonText: { fontSize: 10, color: '#9ca3af' },
   searchBar: { flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', backgroundColor: '#fff', paddingHorizontal: 12, height: 48, borderRadius: 12, borderWidth: 1, borderColor: COLORS.border, marginBottom: 16 },
   searchInput: { flex: 1, marginHorizontal: 8, textAlign: isRTL ? 'right' : 'left' },
-  brandGrid: { flexDirection: isRTL ? 'row-reverse' : 'row', flexWrap: 'wrap', gap: 12 },
-  brandCard: { width: (width - 56) / 3, backgroundColor: '#fff', padding: 12, borderRadius: 12, alignItems: 'center', borderWidth: 1, borderColor: COLORS.border },
-  brandLogoContainer: { width: 50, height: 50, justifyContent: 'center', alignItems: 'center', marginBottom: 8 },
+  brandGrid: { flexDirection: isRTL ? 'row-reverse' : 'row', flexWrap: 'wrap', gap: 12, paddingBottom: 24 },
+  brandCard: { width: (width - 56) / 3, backgroundColor: '#fff', paddingVertical: 16, paddingHorizontal: 8, borderRadius: 16, alignItems: 'center', borderWidth: 1, borderColor: COLORS.border },
+  brandCheck: { position: 'absolute', top: 6, ...(isRTL ? { left: 6 } : { right: 6 }) },
+  brandLogoContainer: { width: 48, height: 48, justifyContent: 'center', alignItems: 'center', marginBottom: 10 },
   brandLogo: { width: 40, height: 40 },
-  brandNameText: { fontSize: 12, fontWeight: '600', color: COLORS.text },
+  brandNameText: { fontSize: 12, fontWeight: '700', color: COLORS.text, textAlign: 'center' },
   listItem: { flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, backgroundColor: '#fff', borderRadius: 12, marginBottom: 8, borderWidth: 1, borderColor: COLORS.border },
   selectedListItem: { borderColor: COLORS.primary, backgroundColor: '#ecfdf5' },
   listItemText: { fontSize: 16, color: COLORS.text },
