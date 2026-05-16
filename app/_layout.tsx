@@ -166,24 +166,12 @@ function RootLayoutContent() {
           name="track/[id]" 
           options={{ title: 'تتبع الطلب' }} 
         />
-        <Stack.Screen 
-          name="profile" 
-          options={{ title: 'الملف الشخصي' }} 
+        <Stack.Screen
+          name="profile"
+          options={{ title: 'الملف الشخصي' }}
         />
-        <Stack.Screen 
-          options={{ 
-            title: 'تسجيل الدخول',
-            headerShown: false 
-          }} 
-        />
-        <Stack.Screen 
-          options={{ 
-            title: 'إنشاء حساب',
-            headerShown: false 
-          }} 
-        />
-        <Stack.Screen 
-          name="technician-auth" 
+        <Stack.Screen
+          name="technician-auth"
           options={{ 
             title: language === 'ar' ? 'تسجيل دخول الفني' : 'Technician Login',
             headerShown: false 
