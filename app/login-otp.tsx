@@ -124,7 +124,17 @@ export default function LoginOtpScreen() {
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
       <View style={styles.header}>
         <TouchableOpacity
-          onPress={() => (step === 'otp' ? setStep('phone') : router.back())}
+          onPress={() => {
+            if (step === 'otp') {
+              setStep('phone');
+            } else if (router.canGoBack()) {
+              router.back();
+            } else {
+              // login-otp is often reached via router.replace (role-selection,
+              // legacy /login redirect), so there is no history to pop.
+              router.replace('/role-selection');
+            }
+          }}
           accessibilityRole="button"
           accessibilityLabel={isRTL ? 'رجوع' : 'Back'}
         >
