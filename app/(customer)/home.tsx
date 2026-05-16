@@ -130,37 +130,8 @@ export default function CustomerHomeScreen() {
           ))}
         </ScrollView>
 
-        {/* Fixate Market — primary entry point on the home page */}
-        <TouchableOpacity
-          style={[styles.calculatorBanner, SHADOWS.medium]}
-          onPress={() => router.push('/market')}
-          accessibilityRole="button"
-          accessibilityLabel="Fixate Market"
-        >
-          <LinearGradient
-            colors={['#7C3AED', '#4338CA']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.calculatorGradient}
-          >
-            <View style={styles.calculatorContent}>
-              <Text style={styles.calculatorTitle}>سوق Fixate</Text>
-              <Text style={styles.calculatorSubtitle}>
-                بيع واشترِ أجهزة مستعملة وإكسسوارات وقطع غيار
-              </Text>
-              <View style={styles.calculatorBtn}>
-                <Text style={[styles.calculatorBtnText, { color: '#4338CA' }]}>تصفّح السوق</Text>
-                <MaterialIcons name="arrow-back" size={16} color="#4338CA" />
-              </View>
-            </View>
-            <MaterialCommunityIcons
-              name="storefront"
-              size={80}
-              color="rgba(255,255,255,0.2)"
-              style={styles.calculatorIcon}
-            />
-          </LinearGradient>
-        </TouchableOpacity>
+        {/* Fixate Market now lives inside the Services section (see
+            app/(customer)/services.tsx), not as a homepage main block. */}
 
         {/* Services Grid */}
         <View style={styles.sectionHeader}>
