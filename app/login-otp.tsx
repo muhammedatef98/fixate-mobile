@@ -72,10 +72,22 @@ export default function LoginOtpScreen() {
     }
     setLoading(true);
     try {
-      const { expiresIn: ttl } = await sendPhoneOtp(phone, language);
+      const { expiresIn: ttl, devCode } = await sendPhoneOtp(phone, language);
       tapMedium();
       setStep('otp');
       startTimers(ttl);
+      // TEMPORARY (test mode): no real SMS provider yet, so the backend
+      // returns the code and we prefill + show it. Disappears automatically
+      // once a real SMS provider is configured.
+      if (devCode) {
+        setCode(devCode);
+        Alert.alert(
+          isRTL ? 'وضع الاختبار' : 'Test mode',
+          isRTL
+            ? `لا يوجد مزوّد رسائل بعد. كود التحقق: ${devCode}`
+            : `No SMS provider yet. Verification code: ${devCode}`
+        );
+      }
     } catch (e: any) {
       Alert.alert(isRTL ? 'خطأ' : 'Error', e?.message ?? String(e));
     } finally {

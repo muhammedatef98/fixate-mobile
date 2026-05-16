@@ -65,7 +65,7 @@ const friendly = (key: string | undefined, lang: 'ar' | 'en') => {
 export const sendPhoneOtp = async (
   rawPhone: string,
   lang: 'ar' | 'en' = 'ar'
-): Promise<{ expiresIn: number }> => {
+): Promise<{ expiresIn: number; devCode?: string }> => {
   const phone = normalizeSaudiPhone(rawPhone);
   const { data, error } = await withTimeout(
     supabase.functions.invoke('send-phone-otp', { body: { phone, lang } }),
@@ -77,7 +77,11 @@ export const sendPhoneOtp = async (
     logger.warn('send-phone-otp failed', msg);
     throw new Error(friendly(msg, lang));
   }
-  return { expiresIn: (data as any)?.expires_in ?? OTP_TTL_SECONDS };
+  return {
+    expiresIn: (data as any)?.expires_in ?? OTP_TTL_SECONDS,
+    // Present only while no real SMS provider is configured (dev mode).
+    devCode: (data as any)?.dev_code,
+  };
 };
 
 export const verifyPhoneOtp = async (

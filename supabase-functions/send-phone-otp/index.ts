@@ -53,7 +53,10 @@ const sendSms = async (phone: string, code: string, lang: 'ar' | 'en') => {
     // Dev mode: log the code so it can be retrieved from the function logs.
     // In production set SMS_PROVIDER_URL so this branch is never hit.
     console.log(`[send-phone-otp] DEV MODE — phone=${phone} code=${code}`);
-    return { delivered: false, dev: true };
+    // TEMPORARY: echo the code back so the app can show it while no real SMS
+    // provider is configured. This branch is unreachable once a valid
+    // SMS_PROVIDER_URL secret is set, so it self-disables for production.
+    return { delivered: false, dev: true, dev_code: code };
   }
 
   const res = await fetch(providerUrl, {
