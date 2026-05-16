@@ -156,6 +156,7 @@ export default function TechnicianLayout() {
       <Stack.Screen name="available-orders" />
       <Stack.Screen name="manage-order" options={{ headerShown: false }} />
       <Stack.Screen name="job/[id]" />
+      <Stack.Screen name="service-availability" options={{ headerShown: false }} />
     </Stack>
   );
 }

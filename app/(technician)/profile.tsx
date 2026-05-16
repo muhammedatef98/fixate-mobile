@@ -72,6 +72,7 @@ export default function TechnicianProfile() {
 
   const MENU_ITEMS = [
     { id: 'my-orders', icon: 'clipboard-outline', labelAr: 'طلباتي المكتملة', labelEn: 'Completed Jobs' },
+    { id: 'availability', icon: 'toggle-outline', labelAr: 'الخدمات المتاحة', labelEn: 'Service Availability' },
     { id: 'earnings', icon: 'wallet-outline', labelAr: 'سجل الأرباح', labelEn: 'Earnings History' },
     { id: 'skills', icon: 'construct-outline', labelAr: 'المهارات والخبرات', labelEn: 'Skills & Experience' },
     { id: 'notifications', icon: 'notifications-outline', labelAr: 'الإشعارات', labelEn: 'Notifications' },
@@ -127,7 +128,8 @@ export default function TechnicianProfile() {
           <View style={styles.menuSection}>
             {MENU_ITEMS.map((item) => (
               <TouchableOpacity key={item.id} style={styles.menuItem} onPress={() => {
-                if (item.id === 'earnings') router.push('/(technician)/earnings');
+                if (item.id === 'availability') router.push('/(technician)/service-availability');
+                else if (item.id === 'earnings') router.push('/(technician)/earnings');
                 else if (item.id === 'my-orders') router.push('/(technician)/my-orders');
                 else if (item.id === 'notifications') router.push('/notifications-settings');
                 else if (item.id === 'settings') router.push('/settings');

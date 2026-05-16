@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../../contexts/AppContext';
 import { useAuth } from '../../contexts/AuthContext';
 import BottomNav from '../../components/BottomNav';
+import { useLoyalty } from '../../contexts/LoyaltyContext';
 import { auth } from '../../lib/supabase-api';
 import { supabase } from '../../services/supabaseClient';
 import { getColors, SPACING, BORDER_RADIUS } from '../../constants/theme';
@@ -34,6 +35,7 @@ export default function ProfileScreen() {
   const router = useRouter();
   const { language, isDark } = useApp();
   const { user, userProfile, signOut } = useAuth();
+  const { summary: loyaltySummary } = useLoyalty();
   const isRTL = language === 'ar';
   const COLORS = getColors(isDark);
 
@@ -84,6 +86,7 @@ export default function ProfileScreen() {
 
   const accountRows: MenuRow[] = [
     { id: 'orders', icon: 'receipt-outline', labelAr: 'طلباتي', labelEn: 'My orders', hintAr: 'كل الطلبات والحالة', hintEn: 'All orders and status' },
+    { id: 'loyalty', icon: 'star-outline', iconColor: '#f59e0b', labelAr: 'نقاط الولاء', labelEn: 'Loyalty points', hintAr: `${loyaltySummary.balance} نقطة متاحة`, hintEn: `${loyaltySummary.balance} points available` },
     { id: 'wallet', icon: 'wallet-outline', labelAr: 'محفظتي', labelEn: 'Wallet', hintAr: 'سجل المدفوعات', hintEn: 'Payment history' },
     { id: 'addresses', icon: 'location-outline', labelAr: 'عناويني', labelEn: 'Addresses', hintAr: `${stats.addresses} ${isRTL ? 'عنوان محفوظ' : 'saved'}`, hintEn: `${stats.addresses} saved` },
     { id: 'edit', icon: 'person-circle-outline', labelAr: 'تعديل البيانات', labelEn: 'Edit profile', hintAr: 'الاسم، الجوال، الصورة', hintEn: 'Name, phone, photo' },
@@ -99,6 +102,7 @@ export default function ProfileScreen() {
   const handleRow = (id: string) => {
     switch (id) {
       case 'orders': goto('/(customer)/orders'); break;
+      case 'loyalty': goto('/loyalty'); break;
       case 'wallet': goto('/wallet'); break;
       case 'addresses': goto('/addresses'); break;
       case 'edit': goto('/edit-profile'); break;
