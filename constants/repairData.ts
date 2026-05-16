@@ -3,7 +3,9 @@
 export interface Brand {
   id: string;
   name: string;
-  logo: any; // Can be string (URL) or require
+  logo?: any; // Optional raw asset/URL. UI renders a consistent brand chip
+              // via <BrandLogo brandId={id} /> regardless, so new brands do
+              // not need an image asset.
   models: string[];
   deviceType?: string; // 'phone', 'tablet', 'laptop', 'printer', 'watch', 'gaming'
   // Optional MaterialCommunityIcons name. When set (e.g. gaming brands with
@@ -178,7 +180,85 @@ export const BRANDS: Brand[] = [
       'Honor X9b', 'Honor X8b', 'Honor X7b'
     ]
   },
-  
+  {
+    id: 'nokia',
+    name: 'Nokia',
+    deviceType: 'phone',
+    models: [
+      'Nokia G42', 'Nokia G22', 'Nokia X30', 'Nokia XR21', 'Nokia C32',
+      'Nokia C22', 'Nokia 8.3', 'Nokia 5.4', 'Nokia 3.4', 'Nokia 105'
+    ]
+  },
+  {
+    id: 'motorola',
+    name: 'Motorola',
+    deviceType: 'phone',
+    models: [
+      'Edge 50 Ultra', 'Edge 40 Pro', 'Edge 40', 'Edge 30',
+      'Moto G84', 'Moto G54', 'Moto G34', 'Moto G73', 'Moto G53',
+      'Razr 40 Ultra', 'Razr 40', 'Moto E13'
+    ]
+  },
+  {
+    id: 'sony',
+    name: 'Sony Xperia',
+    deviceType: 'phone',
+    models: [
+      'Xperia 1 VI', 'Xperia 1 V', 'Xperia 5 V', 'Xperia 10 VI',
+      'Xperia 10 V', 'Xperia 1 IV', 'Xperia 5 IV', 'Xperia Pro-I'
+    ]
+  },
+  {
+    id: 'nothing',
+    name: 'Nothing',
+    deviceType: 'phone',
+    models: ['Phone (2a) Plus', 'Phone (2a)', 'Phone (2)', 'Phone (1)']
+  },
+  {
+    id: 'infinix',
+    name: 'Infinix',
+    deviceType: 'phone',
+    models: [
+      'Note 40 Pro+', 'Note 40 Pro', 'Note 40', 'Note 30 Pro',
+      'Zero 30', 'Hot 40 Pro', 'Hot 40', 'Smart 8', 'GT 10 Pro'
+    ]
+  },
+  {
+    id: 'tecno',
+    name: 'Tecno',
+    deviceType: 'phone',
+    models: [
+      'Phantom V Flip', 'Phantom V Fold', 'Camon 30 Pro', 'Camon 20 Pro',
+      'Spark 20 Pro', 'Spark 20', 'Pova 6 Pro', 'Pova 5', 'Pop 8'
+    ]
+  },
+  {
+    id: 'lg',
+    name: 'LG',
+    deviceType: 'phone',
+    models: [
+      'LG Velvet', 'LG Wing', 'LG V60 ThinQ', 'LG G8 ThinQ',
+      'LG K92', 'LG K62', 'LG K52', 'LG Q70'
+    ]
+  },
+  {
+    id: 'zte',
+    name: 'ZTE',
+    deviceType: 'phone',
+    models: [
+      'ZTE Axon 50 Ultra', 'ZTE Axon 40 Ultra', 'ZTE Blade V50',
+      'ZTE Blade A73', 'ZTE Nubia Z60 Ultra', 'ZTE Nubia Flip'
+    ]
+  },
+  {
+    id: 'lenovo',
+    name: 'Lenovo',
+    deviceType: 'phone',
+    models: [
+      'Legion Y90', 'Legion Phone Duel 2', 'Lenovo K14 Plus', 'Lenovo K15'
+    ]
+  },
+
   // Tablet Brands
   {
     id: 'apple-tablet',
@@ -211,6 +291,30 @@ export const BRANDS: Brand[] = [
       'MatePad Pro 13.2', 'MatePad Pro 12.6', 'MatePad Pro 11',
       'MatePad 11.5', 'MatePad 11', 'MatePad SE', 'MatePad T10'
     ]
+  },
+  {
+    id: 'xiaomi-tablet',
+    name: 'Xiaomi Pad',
+    deviceType: 'tablet',
+    models: ['Pad 6S Pro', 'Pad 6 Pro', 'Pad 6', 'Pad 5 Pro', 'Pad 5', 'Redmi Pad SE', 'Redmi Pad']
+  },
+  {
+    id: 'lenovo-tablet',
+    name: 'Lenovo Tab',
+    deviceType: 'tablet',
+    models: ['Tab Extreme', 'Tab P12', 'Tab P11 Pro', 'Tab P11', 'Tab M11', 'Tab M10', 'Yoga Tab 13']
+  },
+  {
+    id: 'microsoft-tablet',
+    name: 'Microsoft Surface',
+    deviceType: 'tablet',
+    models: ['Surface Pro 10', 'Surface Pro 9', 'Surface Pro 8', 'Surface Go 4', 'Surface Go 3']
+  },
+  {
+    id: 'honor-tablet',
+    name: 'Honor Pad',
+    deviceType: 'tablet',
+    models: ['Pad 9', 'Pad X9', 'Pad X8 Pro', 'Pad X8', 'Pad 8']
   },
 
   // Laptop Brands
@@ -276,6 +380,48 @@ export const BRANDS: Brand[] = [
       'Galaxy Book 2 Pro', 'Galaxy Book 2'
     ]
   },
+  {
+    id: 'lenovo-laptop',
+    name: 'Lenovo',
+    deviceType: 'laptop',
+    models: [
+      'ThinkPad X1 Carbon', 'ThinkPad T14', 'ThinkPad E14', 'Yoga Slim 7',
+      'Yoga 9i', 'IdeaPad Pro 5', 'IdeaPad Slim 3', 'Legion Pro 7', 'Legion 5', 'LOQ 15'
+    ]
+  },
+  {
+    id: 'acer-laptop',
+    name: 'Acer',
+    deviceType: 'laptop',
+    models: [
+      'Swift Go', 'Swift X', 'Aspire 7', 'Aspire 5', 'Aspire 3',
+      'Predator Helios', 'Nitro 5', 'TravelMate', 'Chromebook'
+    ]
+  },
+  {
+    id: 'msi-laptop',
+    name: 'MSI',
+    deviceType: 'laptop',
+    models: [
+      'Titan GT77', 'Raider GE78', 'Stealth 16', 'Vector GP68',
+      'Katana 15', 'Cyborg 15', 'Modern 14', 'Prestige 13'
+    ]
+  },
+  {
+    id: 'microsoft-laptop',
+    name: 'Microsoft Surface',
+    deviceType: 'laptop',
+    models: [
+      'Surface Laptop 6', 'Surface Laptop 5', 'Surface Laptop Studio 2',
+      'Surface Laptop Go 3', 'Surface Book 3'
+    ]
+  },
+  {
+    id: 'razer-laptop',
+    name: 'Razer',
+    deviceType: 'laptop',
+    models: ['Blade 18', 'Blade 16', 'Blade 15', 'Blade 14', 'Book 13']
+  },
 
   // Watch Brands
   {
@@ -311,9 +457,41 @@ export const BRANDS: Brand[] = [
       'Watch Fit 3', 'Watch Fit 2'
     ]
   },
+  {
+    id: 'garmin-watch',
+    name: 'Garmin',
+    deviceType: 'watch',
+    models: [
+      'Fenix 7 Pro', 'Fenix 7', 'Epix Pro', 'Forerunner 965', 'Forerunner 265',
+      'Venu 3', 'Venu 2 Plus', 'Instinct 2', 'vívoactive 5'
+    ]
+  },
+  {
+    id: 'amazfit-watch',
+    name: 'Amazfit',
+    deviceType: 'watch',
+    models: ['Balance', 'GTR 4', 'GTS 4', 'T-Rex 3', 'T-Rex Ultra', 'Bip 5', 'Active']
+  },
+  {
+    id: 'xiaomi-watch',
+    name: 'Xiaomi Watch',
+    deviceType: 'watch',
+    models: ['Watch S3', 'Watch 2 Pro', 'Watch S1 Pro', 'Smart Band 9', 'Smart Band 8', 'Redmi Watch 4']
+  },
+  {
+    id: 'fitbit-watch',
+    name: 'Fitbit',
+    deviceType: 'watch',
+    models: ['Sense 2', 'Versa 4', 'Charge 6', 'Charge 5', 'Inspire 3', 'Luxe']
+  },
+  {
+    id: 'honor-watch',
+    name: 'Honor Watch',
+    deviceType: 'watch',
+    models: ['Watch 4 Pro', 'Watch 4', 'Watch GS 3', 'Watch ES', 'Band 9']
+  },
 
   // ── Gaming Devices ────────────────────────────────────────────────────
-  // Logos use a neutral local placeholder until brand assets are added.
   {
     id: 'playstation',
     name: 'PlayStation',
@@ -358,6 +536,19 @@ export const BRANDS: Brand[] = [
       'Controller', 'Headset', 'Charging Dock',
       'Cable', 'Cooling Stand', 'Other Accessory'
     ]
+  },
+  {
+    id: 'steam',
+    name: 'Steam Deck',
+    deviceType: 'gaming',
+    icon: 'steam',
+    models: ['Steam Deck OLED', 'Steam Deck LCD (512GB)', 'Steam Deck LCD (256GB)', 'Steam Deck LCD (64GB)']
+  },
+  {
+    id: 'asus-gaming',
+    name: 'ASUS ROG',
+    deviceType: 'gaming',
+    models: ['ROG Ally X', 'ROG Ally', 'ROG Raikiri Controller']
   }
 ];
 
