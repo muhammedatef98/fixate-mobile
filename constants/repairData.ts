@@ -5,7 +5,10 @@ export interface Brand {
   name: string;
   logo: any; // Can be string (URL) or require
   models: string[];
-  deviceType?: string; // 'phone', 'tablet', 'laptop', 'printer', 'watch'
+  deviceType?: string; // 'phone', 'tablet', 'laptop', 'printer', 'watch', 'gaming'
+  // Optional MaterialCommunityIcons name. When set (e.g. gaming brands with
+  // no logo asset) the UI renders this icon instead of the logo image.
+  icon?: string;
 }
 
 export interface Issue {
@@ -30,6 +33,7 @@ export const BRANDS: Brand[] = [
     deviceType: 'phone',
     logo: require('../assets/apple-logo.png'),
     models: [
+      'iPhone 16 Pro Max', 'iPhone 16 Pro', 'iPhone 16 Plus', 'iPhone 16',
       'iPhone 15 Pro Max', 'iPhone 15 Pro', 'iPhone 15 Plus', 'iPhone 15',
       'iPhone 14 Pro Max', 'iPhone 14 Pro', 'iPhone 14 Plus', 'iPhone 14',
       'iPhone 13 Pro Max', 'iPhone 13 Pro', 'iPhone 13', 'iPhone 13 Mini',
@@ -37,7 +41,8 @@ export const BRANDS: Brand[] = [
       'iPhone 11 Pro Max', 'iPhone 11 Pro', 'iPhone 11',
       'iPhone XS Max', 'iPhone XS', 'iPhone XR', 'iPhone X',
       'iPhone 8 Plus', 'iPhone 8', 'iPhone 7 Plus', 'iPhone 7',
-      'iPhone SE (2022)', 'iPhone SE (2020)'
+      'iPhone 6s Plus', 'iPhone 6s', 'iPhone 6 Plus', 'iPhone 6',
+      'iPhone SE (2022)', 'iPhone SE (2020)', 'iPhone SE (2016)'
     ]
   },
   {
@@ -46,12 +51,13 @@ export const BRANDS: Brand[] = [
     deviceType: 'phone',
     logo: require('../assets/samsung-logo.png'),
     models: [
-      'Galaxy S24 Ultra', 'Galaxy S24+', 'Galaxy S24',
-      'Galaxy S23 Ultra', 'Galaxy S23+', 'Galaxy S23',
+      'Galaxy S25 Ultra', 'Galaxy S25+', 'Galaxy S25',
+      'Galaxy S24 Ultra', 'Galaxy S24+', 'Galaxy S24', 'Galaxy S24 FE',
+      'Galaxy S23 Ultra', 'Galaxy S23+', 'Galaxy S23', 'Galaxy S23 FE',
       'Galaxy S22 Ultra', 'Galaxy S22+', 'Galaxy S22',
       'Galaxy S21 Ultra', 'Galaxy S21+', 'Galaxy S21',
-      'Galaxy Z Fold 5', 'Galaxy Z Fold 4', 'Galaxy Z Fold 3',
-      'Galaxy Z Flip 5', 'Galaxy Z Flip 4', 'Galaxy Z Flip 3',
+      'Galaxy Z Fold 6', 'Galaxy Z Fold 5', 'Galaxy Z Fold 4', 'Galaxy Z Fold 3',
+      'Galaxy Z Flip 6', 'Galaxy Z Flip 5', 'Galaxy Z Flip 4', 'Galaxy Z Flip 3',
       'Galaxy A54', 'Galaxy A53', 'Galaxy A52', 'Galaxy A51',
       'Galaxy A34', 'Galaxy A33', 'Galaxy A32', 'Galaxy A31',
       'Galaxy A24', 'Galaxy A23', 'Galaxy A22', 'Galaxy A21',
@@ -313,6 +319,7 @@ export const BRANDS: Brand[] = [
     name: 'PlayStation',
     deviceType: 'gaming',
     logo: require('../assets/logo.png'),
+    icon: 'sony-playstation',
     models: [
       'PlayStation 5 Pro', 'PlayStation 5 Slim', 'PlayStation 5',
       'PlayStation 4 Pro', 'PlayStation 4 Slim', 'PlayStation 4',
@@ -324,6 +331,7 @@ export const BRANDS: Brand[] = [
     name: 'Xbox',
     deviceType: 'gaming',
     logo: require('../assets/logo.png'),
+    icon: 'microsoft-xbox',
     models: [
       'Xbox Series X', 'Xbox Series S', 'Xbox One X',
       'Xbox One S', 'Xbox One', 'Xbox Wireless Controller'
@@ -334,6 +342,7 @@ export const BRANDS: Brand[] = [
     name: 'Nintendo',
     deviceType: 'gaming',
     logo: require('../assets/logo.png'),
+    icon: 'nintendo-switch',
     models: [
       'Switch 2', 'Switch OLED', 'Switch', 'Switch Lite',
       'Joy-Con Controllers', 'Pro Controller'
@@ -344,6 +353,7 @@ export const BRANDS: Brand[] = [
     name: 'Gaming Accessories',
     deviceType: 'gaming',
     logo: require('../assets/logo.png'),
+    icon: 'gamepad-variant',
     models: [
       'Controller', 'Headset', 'Charging Dock',
       'Cable', 'Cooling Stand', 'Other Accessory'

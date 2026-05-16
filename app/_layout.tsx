@@ -203,6 +203,7 @@ function RootLayoutContent() {
         <Stack.Screen name="admin-market" options={{ headerShown: false }} />
         <Stack.Screen name="market" options={{ headerShown: false }} />
         <Stack.Screen name="market-new" options={{ headerShown: false }} />
+        <Stack.Screen name="market-detail" options={{ headerShown: false }} />
       </Stack>
     </>
   );
