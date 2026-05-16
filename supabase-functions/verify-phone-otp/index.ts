@@ -78,7 +78,9 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    const matches = await bcrypt.compare(code, otp.code_hash);
+    // compareSync (not compare): the async API spawns a Web Worker, which the
+    // Supabase Edge Runtime does not provide ("Worker is not defined").
+    const matches = bcrypt.compareSync(code, otp.code_hash);
     if (!matches) {
       await supabase
         .from('phone_otps')

@@ -45,7 +45,11 @@ const sendSms = async (phone: string, code: string, lang: 'ar' | 'en') => {
     ? `رمز التحقق الخاص بك في Fixate: ${code}\nصالح لمدة ${OTP_TTL_MINUTES} دقائق.`
     : `Your Fixate verification code: ${code}\nValid for ${OTP_TTL_MINUTES} minutes.`;
 
-  if (!providerUrl) {
+  // Treat a missing OR non-http(s) provider URL (e.g. a leftover placeholder
+  // secret) as dev mode rather than crashing on `new URL(...)`.
+  const providerUrlValid = !!providerUrl && /^https?:\/\//i.test(providerUrl);
+
+  if (!providerUrlValid) {
     // Dev mode: log the code so it can be retrieved from the function logs.
     // In production set SMS_PROVIDER_URL so this branch is never hit.
     console.log(`[send-phone-otp] DEV MODE — phone=${phone} code=${code}`);
@@ -106,7 +110,9 @@ Deno.serve(async (req: Request) => {
     }
 
     const code = generateCode();
-    const codeHash = await bcrypt.hash(code);
+    // hashSync (not hash): the async API spawns a Web Worker, which the
+    // Supabase Edge Runtime does not provide ("Worker is not defined").
+    const codeHash = bcrypt.hashSync(code);
     const expiresAt = new Date(Date.now() + OTP_TTL_MINUTES * 60 * 1000).toISOString();
 
     // Invalidate any prior live OTPs for this phone so only the latest is valid.
