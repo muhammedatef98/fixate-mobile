@@ -21,7 +21,12 @@ import {
   SPARE_PART_LABELS,
   SPARE_PART_DESCRIPTIONS,
   SPARE_PART_MULTIPLIERS,
+  PAYMENT_METHODS,
+  PROTECTION_ADDONS,
+  getAccessorySuggestions,
   type SparePartQuality,
+  type PaymentMethod,
+  type AddonItem,
 } from '../types/order';
 import {
   validateDiscountCode,
@@ -55,6 +60,8 @@ const DEVICE_TYPES = [
   { id: 'tablet', name: 'تابلت', nameEn: 'Tablet', icon: 'tablet', available: true },
   { id: 'laptop', name: 'لابتوب', nameEn: 'Laptop', icon: 'laptop', available: true },
   { id: 'watch', name: 'ساعة ذكية', nameEn: 'Smart Watch', icon: 'watch', available: true },
+  { id: 'gaming', name: 'أجهزة الألعاب', nameEn: 'Gaming Devices', icon: 'gamepad-variant', available: true },
+  { id: 'other', name: 'أجهزة أخرى', nameEn: 'Other Devices', icon: 'devices', available: true },
   { id: 'printer', name: 'طابعة', nameEn: 'Printer', icon: 'printer', available: false },
   { id: 'headphones', name: 'سماعات', nameEn: 'Headphones', icon: 'headphones', available: false },
   { id: 'tv', name: 'شاشة/تلفاز', nameEn: 'TV/Monitor', icon: 'television', available: false },
@@ -91,6 +98,17 @@ export default function RequestScreen() {
   const [issueDescription, setIssueDescription] = useState('');
   const [mediaFiles, setMediaFiles] = useState<string[]>([]);
   const [sparePartQuality, setSparePartQuality] = useState<SparePartQuality>('original');
+
+  // "Other Devices" free-text entry (used when selectedDeviceType === 'other').
+  const [otherDeviceName, setOtherDeviceName] = useState('');
+  const [otherDeviceModel, setOtherDeviceModel] = useState('');
+
+  // Payment + optional upsells captured in the Details step.
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash');
+  const [selectedAccessories, setSelectedAccessories] = useState<AddonItem[]>([]);
+  const [selectedProtection, setSelectedProtection] = useState<AddonItem[]>([]);
+
+  const isOtherDevice = selectedDeviceType === 'other';
 
   // Discount code state — applied lazily on the details step.
   const [discountInput, setDiscountInput] = useState('');
@@ -222,7 +240,7 @@ export default function RequestScreen() {
     }
   };
 
-  const pickImage = async () => {
+  const pickFromGallery = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
       Alert.alert(isRTL ? 'تنبيه' : 'Alert', isRTL ? 'نحتاج إذن الوصول للصور' : 'Permission to access gallery is required');
@@ -241,6 +259,49 @@ export default function RequestScreen() {
     }
   };
 
+  const takePhoto = async () => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert(isRTL ? 'تنبيه' : 'Alert', isRTL ? 'نحتاج إذن الوصول للكاميرا' : 'Permission to access camera is required');
+      return;
+    }
+
+    let result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.7,
+    });
+
+    if (!result.canceled) {
+      const uris = result.assets.map(asset => asset.uri);
+      setMediaFiles([...mediaFiles, ...uris]);
+    }
+  };
+
+  // Simple, mobile-friendly chooser: camera vs gallery.
+  const pickImage = () => {
+    Alert.alert(
+      isRTL ? 'إضافة صورة' : 'Add photo',
+      isRTL ? 'اختر طريقة إضافة الصورة' : 'Choose how to add the photo',
+      [
+        { text: isRTL ? 'التقاط صورة' : 'Take Photo', onPress: takePhoto },
+        { text: isRTL ? 'اختيار من المعرض' : 'Choose from Gallery', onPress: pickFromGallery },
+        { text: isRTL ? 'إلغاء' : 'Cancel', style: 'cancel' },
+      ]
+    );
+  };
+
+  const toggleAddon = (
+    list: AddonItem[],
+    setList: (v: AddonItem[]) => void,
+    item: AddonItem
+  ) => {
+    if (list.some((x) => x.id === item.id)) {
+      setList(list.filter((x) => x.id !== item.id));
+    } else {
+      setList([...list, item]);
+    }
+  };
+
   const [submitStage, setSubmitStage] = useState<'idle' | 'uploading' | 'creating'>('idle');
 
   const handleSubmit = async () => {
@@ -249,7 +310,9 @@ export default function RequestScreen() {
       router.replace('/login-otp');
       return;
     }
-    if (!selectedBrand || !selectedModel || !selectedIssue) {
+    const deviceBrandValue = isOtherDevice ? otherDeviceName.trim() : selectedBrand?.name;
+    const deviceModelValue = isOtherDevice ? otherDeviceModel.trim() : selectedModel;
+    if (!deviceBrandValue || !deviceModelValue || !selectedIssue) {
       Alert.alert(isRTL ? 'تنبيه' : 'Alert', isRTL ? 'الرجاء استكمال جميع الخطوات' : 'Please complete all steps');
       return;
     }
@@ -280,8 +343,8 @@ export default function RequestScreen() {
       const finalEstimate = Math.max(0, adjustedEstimate - (appliedDiscount?.amount ?? 0));
 
       const orderData = {
-        device_brand: selectedBrand.name,
-        device_model: selectedModel,
+        device_brand: deviceBrandValue,
+        device_model: deviceModelValue,
         issue_description: composedDescription,
         service_type: selectedServiceType as 'mobile' | 'pickup',
         service_id: selectedIssue.id,
@@ -295,6 +358,9 @@ export default function RequestScreen() {
         spare_part_quality: sparePartQuality,
         discount_code: appliedDiscount?.code.code,
         discount_amount: appliedDiscount?.amount ?? 0,
+        payment_method: paymentMethod,
+        accessories: selectedAccessories,
+        protection_addons: selectedProtection,
       };
 
       const result = await createOrder(orderData);
@@ -356,8 +422,8 @@ export default function RequestScreen() {
   const canGoNext = () => {
     if (currentStep === 0) return !!selectedServiceType;
     if (currentStep === 1) return !!selectedDeviceType;
-    if (currentStep === 2) return !!selectedBrand;
-    if (currentStep === 3) return !!selectedModel;
+    if (currentStep === 2) return isOtherDevice ? !!otherDeviceName.trim() : !!selectedBrand;
+    if (currentStep === 3) return isOtherDevice ? !!otherDeviceModel.trim() : !!selectedModel;
     if (currentStep === 4) return !!selectedIssue;
     if (currentStep === 5) return true; // Details are optional
     if (currentStep === 6) return !!location;
@@ -442,11 +508,35 @@ export default function RequestScreen() {
           </ScrollView>
         )}
 
-        {currentStep === 2 && (
+        {currentStep === 2 && isOtherDevice && (
+          <ScrollView>
+            <Text style={styles.sectionTitle}>{isRTL ? 'اسم الجهاز' : 'Device name'}</Text>
+            <TextInput
+              style={[styles.textArea, { height: 52, padding: 14 }]}
+              placeholder={isRTL ? 'مثال: مكنسة روبوت، راوتر، كاميرا...' : 'e.g. Robot vacuum, Router, Camera...'}
+              value={otherDeviceName}
+              onChangeText={setOtherDeviceName}
+            />
+          </ScrollView>
+        )}
+
+        {currentStep === 3 && isOtherDevice && (
+          <ScrollView>
+            <Text style={styles.sectionTitle}>{isRTL ? 'الموديل' : 'Device model'}</Text>
+            <TextInput
+              style={[styles.textArea, { height: 52, padding: 14 }]}
+              placeholder={isRTL ? 'الموديل أو رقم الطراز' : 'Model or part number'}
+              value={otherDeviceModel}
+              onChangeText={setOtherDeviceModel}
+            />
+          </ScrollView>
+        )}
+
+        {currentStep === 2 && !isOtherDevice && (
           <View style={{ flex: 1 }}>
             <View style={styles.searchBar}>
               <Ionicons name="search" size={20} color={COLORS.gray} />
-              <TextInput 
+              <TextInput
                 placeholder={isRTL ? 'ابحث عن الماركة...' : 'Search brand...'}
                 style={styles.searchInput}
                 value={brandSearch}
@@ -474,11 +564,11 @@ export default function RequestScreen() {
           </View>
         )}
 
-        {currentStep === 3 && (
+        {currentStep === 3 && !isOtherDevice && (
           <View style={{ flex: 1 }}>
             <View style={styles.searchBar}>
               <Ionicons name="search" size={20} color={COLORS.gray} />
-              <TextInput 
+              <TextInput
                 placeholder={isRTL ? 'ابحث عن الموديل...' : 'Search model...'}
                 style={styles.searchInput}
                 value={modelSearch}
@@ -660,6 +750,120 @@ export default function RequestScreen() {
                 <Text style={{ color: COLORS.error, marginTop: 6, fontSize: 13 }}>{discountError}</Text>
               )}
 
+              {/* Payment method — Cash / Card / Online (online is UI-ready
+                  only for now; the choice is stored with the request). */}
+              <Text style={[styles.sectionTitle, { marginTop: 24 }]}>
+                {isRTL ? 'طريقة الدفع' : 'Payment method'}
+              </Text>
+              <View style={{ gap: 8 }}>
+                {PAYMENT_METHODS.map((pm) => {
+                  const selected = paymentMethod === pm.id;
+                  return (
+                    <TouchableOpacity
+                      key={pm.id}
+                      onPress={() => setPaymentMethod(pm.id)}
+                      style={{
+                        flexDirection: isRTL ? 'row-reverse' : 'row',
+                        alignItems: 'center',
+                        gap: 12,
+                        borderWidth: selected ? 2 : 1,
+                        borderColor: selected ? COLORS.primary : COLORS.border,
+                        backgroundColor: selected ? COLORS.lightGreen : COLORS.card,
+                        borderRadius: 12,
+                        padding: 14,
+                      }}
+                    >
+                      <MaterialCommunityIcons
+                        name={pm.icon as any}
+                        size={24}
+                        color={selected ? COLORS.primary : COLORS.gray}
+                      />
+                      <Text style={{ flex: 1, fontWeight: '700', color: COLORS.text, textAlign: isRTL ? 'right' : 'left' }}>
+                        {isRTL ? pm.labelAr : pm.labelEn}
+                      </Text>
+                      {pm.id === 'online' && (
+                        <Text style={{ fontSize: 11, color: COLORS.gray }}>
+                          {isRTL ? 'قريباً' : 'Soon'}
+                        </Text>
+                      )}
+                      {selected && (
+                        <Ionicons name="checkmark-circle" size={20} color={COLORS.primary} />
+                      )}
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              {/* Accessory suggestions — context-aware by device type. */}
+              <Text style={[styles.sectionTitle, { marginTop: 24 }]}>
+                {isRTL ? 'إكسسوارات مقترحة (اختياري)' : 'Suggested accessories (optional)'}
+              </Text>
+              <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', flexWrap: 'wrap', gap: 8 }}>
+                {getAccessorySuggestions(selectedDeviceType).map((acc) => {
+                  const selected = selectedAccessories.some((x) => x.id === acc.id);
+                  return (
+                    <TouchableOpacity
+                      key={acc.id}
+                      onPress={() => toggleAddon(selectedAccessories, setSelectedAccessories, acc)}
+                      style={{
+                        flexDirection: isRTL ? 'row-reverse' : 'row',
+                        alignItems: 'center',
+                        gap: 6,
+                        borderWidth: selected ? 2 : 1,
+                        borderColor: selected ? COLORS.primary : COLORS.border,
+                        backgroundColor: selected ? COLORS.lightGreen : COLORS.card,
+                        borderRadius: 999,
+                        paddingHorizontal: 14,
+                        paddingVertical: 9,
+                      }}
+                    >
+                      {selected && <Ionicons name="checkmark" size={14} color={COLORS.primary} />}
+                      <Text style={{ color: selected ? COLORS.primary : COLORS.text, fontWeight: '600', fontSize: 13 }}>
+                        {isRTL ? acc.name_ar : acc.name_en} · {acc.price} SAR
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              {/* Protection add-ons / packages — optional upsell. */}
+              <Text style={[styles.sectionTitle, { marginTop: 24 }]}>
+                {isRTL ? 'حماية إضافية (اختياري)' : 'Protection add-ons (optional)'}
+              </Text>
+              <View style={{ gap: 8 }}>
+                {PROTECTION_ADDONS.map((p) => {
+                  const selected = selectedProtection.some((x) => x.id === p.id);
+                  return (
+                    <TouchableOpacity
+                      key={p.id}
+                      onPress={() => toggleAddon(selectedProtection, setSelectedProtection, p)}
+                      style={{
+                        flexDirection: isRTL ? 'row-reverse' : 'row',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        borderWidth: selected ? 2 : 1,
+                        borderColor: selected ? COLORS.primary : COLORS.border,
+                        backgroundColor: selected ? COLORS.lightGreen : COLORS.card,
+                        borderRadius: 12,
+                        padding: 14,
+                      }}
+                    >
+                      <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 10, flex: 1 }}>
+                        <MaterialCommunityIcons
+                          name="shield-check"
+                          size={22}
+                          color={selected ? COLORS.primary : COLORS.gray}
+                        />
+                        <Text style={{ color: COLORS.text, fontWeight: '700', flex: 1, textAlign: isRTL ? 'right' : 'left' }}>
+                          {isRTL ? p.name_ar : p.name_en}
+                        </Text>
+                      </View>
+                      <Text style={{ color: COLORS.primary, fontWeight: '700' }}>+{p.price} SAR</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
               <Text style={[styles.sectionTitle, { marginTop: 24 }]}>{isRTL ? 'صور أو فيديو' : 'Photos or Video'}</Text>
               <View style={styles.mediaContainer}>
                 <TouchableOpacity style={styles.addMediaButton} onPress={pickImage}>
@@ -771,8 +975,37 @@ export default function RequestScreen() {
               <Text style={styles.summaryTitle}>{isRTL ? 'مراجعة الطلب' : 'Review Request'}</Text>
               <View style={styles.summaryRow}>
                 <Text style={styles.summaryLabel}>{isRTL ? 'الجهاز' : 'Device'}</Text>
-                <Text style={styles.summaryValue}>{selectedBrand?.name} {selectedModel}</Text>
+                <Text style={styles.summaryValue}>
+                  {isOtherDevice
+                    ? `${otherDeviceName} ${otherDeviceModel}`
+                    : `${selectedBrand?.name ?? ''} ${selectedModel ?? ''}`}
+                </Text>
               </View>
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>{isRTL ? 'طريقة الدفع' : 'Payment'}</Text>
+                <Text style={styles.summaryValue}>
+                  {(() => {
+                    const pm = PAYMENT_METHODS.find((p) => p.id === paymentMethod);
+                    return pm ? (isRTL ? pm.labelAr : pm.labelEn) : '';
+                  })()}
+                </Text>
+              </View>
+              {selectedAccessories.length > 0 && (
+                <View style={styles.summaryRow}>
+                  <Text style={styles.summaryLabel}>{isRTL ? 'إكسسوارات' : 'Accessories'}</Text>
+                  <Text style={styles.summaryValue} numberOfLines={2}>
+                    {selectedAccessories.map((a) => (isRTL ? a.name_ar : a.name_en)).join('، ')}
+                  </Text>
+                </View>
+              )}
+              {selectedProtection.length > 0 && (
+                <View style={styles.summaryRow}>
+                  <Text style={styles.summaryLabel}>{isRTL ? 'حماية' : 'Protection'}</Text>
+                  <Text style={styles.summaryValue} numberOfLines={2}>
+                    {selectedProtection.map((a) => (isRTL ? a.name_ar : a.name_en)).join('، ')}
+                  </Text>
+                </View>
+              )}
               <View style={styles.summaryRow}>
                 <Text style={styles.summaryLabel}>{isRTL ? 'العطل' : 'Issue'}</Text>
                 <Text style={styles.summaryValue} numberOfLines={2}>

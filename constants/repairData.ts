@@ -304,6 +304,50 @@ export const BRANDS: Brand[] = [
       'Watch GT 4', 'Watch GT 3 Pro', 'Watch GT 3',
       'Watch Fit 3', 'Watch Fit 2'
     ]
+  },
+
+  // ── Gaming Devices ────────────────────────────────────────────────────
+  // Logos use a neutral local placeholder until brand assets are added.
+  {
+    id: 'playstation',
+    name: 'PlayStation',
+    deviceType: 'gaming',
+    logo: require('../assets/logo.png'),
+    models: [
+      'PlayStation 5 Pro', 'PlayStation 5 Slim', 'PlayStation 5',
+      'PlayStation 4 Pro', 'PlayStation 4 Slim', 'PlayStation 4',
+      'PS VR2', 'DualSense Controller', 'DualShock 4 Controller'
+    ]
+  },
+  {
+    id: 'xbox',
+    name: 'Xbox',
+    deviceType: 'gaming',
+    logo: require('../assets/logo.png'),
+    models: [
+      'Xbox Series X', 'Xbox Series S', 'Xbox One X',
+      'Xbox One S', 'Xbox One', 'Xbox Wireless Controller'
+    ]
+  },
+  {
+    id: 'nintendo',
+    name: 'Nintendo',
+    deviceType: 'gaming',
+    logo: require('../assets/logo.png'),
+    models: [
+      'Switch 2', 'Switch OLED', 'Switch', 'Switch Lite',
+      'Joy-Con Controllers', 'Pro Controller'
+    ]
+  },
+  {
+    id: 'gaming-accessories',
+    name: 'Gaming Accessories',
+    deviceType: 'gaming',
+    logo: require('../assets/logo.png'),
+    models: [
+      'Controller', 'Headset', 'Charging Dock',
+      'Cable', 'Cooling Stand', 'Other Accessory'
+    ]
   }
 ];
 
@@ -630,6 +674,79 @@ export const ISSUES: Issue[] = [
     icon: 'dots-horizontal-circle-outline',
     estimatedPrice: 0,
     deviceType: 'appliance'
+  },
+
+  // ── Gaming Devices ────────────────────────────────────────────────────
+  {
+    id: 'gaming-no-power',
+    name: 'Not Powering On',
+    nameAr: 'لا يعمل / لا يشتغل',
+    icon: 'power-plug-off',
+    estimatedPrice: 250,
+    priceRange: { min: 150, max: 600 },
+    deviceType: 'gaming',
+  },
+  {
+    id: 'gaming-hdmi',
+    name: 'HDMI / Display Port',
+    nameAr: 'منفذ HDMI / الصورة',
+    icon: 'video-input-hdmi',
+    estimatedPrice: 300,
+    priceRange: { min: 200, max: 700 },
+    deviceType: 'gaming',
+  },
+  {
+    id: 'gaming-overheat',
+    name: 'Overheating / Fan Noise',
+    nameAr: 'سخونة / صوت المروحة',
+    icon: 'fan',
+    estimatedPrice: 200,
+    priceRange: { min: 120, max: 450 },
+    deviceType: 'gaming',
+  },
+  {
+    id: 'gaming-disc',
+    name: 'Disc Drive Issue',
+    nameAr: 'مشكلة محرك الأقراص',
+    icon: 'disc',
+    estimatedPrice: 280,
+    priceRange: { min: 180, max: 550 },
+    deviceType: 'gaming',
+  },
+  {
+    id: 'gaming-controller',
+    name: 'Controller Repair',
+    nameAr: 'إصلاح يد التحكم',
+    icon: 'gamepad-variant',
+    estimatedPrice: 120,
+    priceRange: { min: 60, max: 300 },
+    deviceType: 'gaming',
+  },
+  {
+    id: 'other-gaming',
+    name: 'Other Issue',
+    nameAr: 'أخرى',
+    icon: 'dots-horizontal-circle-outline',
+    estimatedPrice: 0,
+    deviceType: 'gaming',
+  },
+
+  // ── Other / Custom devices ────────────────────────────────────────────
+  {
+    id: 'other-general-diagnose',
+    name: 'Diagnosis / Inspection',
+    nameAr: 'فحص وتشخيص',
+    icon: 'magnify-scan',
+    estimatedPrice: 0,
+    deviceType: 'other',
+  },
+  {
+    id: 'other-general',
+    name: 'Other Issue',
+    nameAr: 'أخرى',
+    icon: 'dots-horizontal-circle-outline',
+    estimatedPrice: 0,
+    deviceType: 'other',
   }
 ];
 

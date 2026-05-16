@@ -14,6 +14,82 @@ export type ServiceType = 'mobile' | 'pickup';
 
 export type SparePartQuality = 'original' | 'high_quality' | 'economy';
 
+// Customer-facing payment options. 'online' is UI-ready only for now — no
+// real gateway is wired; the choice is stored so it can be activated later.
+export type PaymentMethod = 'cash' | 'card' | 'online';
+
+export const PAYMENT_METHODS: {
+  id: PaymentMethod;
+  labelAr: string;
+  labelEn: string;
+  icon: string;
+}[] = [
+  { id: 'cash', labelAr: 'نقداً عند الاستلام', labelEn: 'Cash on delivery', icon: 'cash' },
+  { id: 'card', labelAr: 'بطاقة / فيزا', labelEn: 'Card / Visa', icon: 'credit-card-outline' },
+  { id: 'online', labelAr: 'الدفع الإلكتروني', labelEn: 'Online payment', icon: 'cellphone-check' },
+];
+
+// A selectable optional item (accessory or protection add-on). Kept generic
+// so the same shape can later be backed by an admin-managed catalog table.
+export interface AddonItem {
+  id: string;
+  name_ar: string;
+  name_en: string;
+  price: number;
+}
+
+// Accessory suggestions keyed by device type. Falls back to a generic list
+// for device types without specific entries (e.g. 'other').
+export const ACCESSORY_SUGGESTIONS: Record<string, AddonItem[]> = {
+  phone: [
+    { id: 'charger', name_ar: 'شاحن', name_en: 'Charger', price: 60 },
+    { id: 'cable', name_ar: 'كيبل شحن', name_en: 'Charging cable', price: 25 },
+    { id: 'adapter', name_ar: 'محول', name_en: 'Adapter', price: 40 },
+    { id: 'case', name_ar: 'جراب حماية', name_en: 'Protective case', price: 35 },
+    { id: 'screen_protector', name_ar: 'واقي شاشة', name_en: 'Screen protector', price: 30 },
+  ],
+  tablet: [
+    { id: 'charger', name_ar: 'شاحن', name_en: 'Charger', price: 70 },
+    { id: 'cable', name_ar: 'كيبل شحن', name_en: 'Charging cable', price: 30 },
+    { id: 'case', name_ar: 'جراب حماية', name_en: 'Protective case', price: 55 },
+    { id: 'screen_protector', name_ar: 'واقي شاشة', name_en: 'Screen protector', price: 45 },
+    { id: 'stylus', name_ar: 'قلم', name_en: 'Stylus pen', price: 90 },
+  ],
+  laptop: [
+    { id: 'charger', name_ar: 'شاحن', name_en: 'Charger / adapter', price: 130 },
+    { id: 'case', name_ar: 'حقيبة', name_en: 'Laptop sleeve', price: 70 },
+    { id: 'mouse', name_ar: 'ماوس', name_en: 'Mouse', price: 50 },
+    { id: 'keyboard', name_ar: 'لوحة مفاتيح', name_en: 'Keyboard accessory', price: 80 },
+    { id: 'cooling_pad', name_ar: 'قاعدة تبريد', name_en: 'Cooling pad', price: 75 },
+  ],
+  watch: [
+    { id: 'charger', name_ar: 'شاحن', name_en: 'Charger', price: 45 },
+    { id: 'strap', name_ar: 'سوار', name_en: 'Watch strap', price: 40 },
+    { id: 'screen_protector', name_ar: 'واقي شاشة', name_en: 'Screen protector', price: 25 },
+  ],
+  gaming: [
+    { id: 'controller', name_ar: 'يد تحكم', name_en: 'Controller', price: 180 },
+    { id: 'cable', name_ar: 'كيبل', name_en: 'Cable', price: 30 },
+    { id: 'charging_dock', name_ar: 'قاعدة شحن', name_en: 'Charging dock', price: 90 },
+    { id: 'headset', name_ar: 'سماعة', name_en: 'Gaming headset', price: 150 },
+  ],
+  generic: [
+    { id: 'charger', name_ar: 'شاحن', name_en: 'Charger', price: 50 },
+    { id: 'cable', name_ar: 'كيبل', name_en: 'Cable', price: 25 },
+    { id: 'case', name_ar: 'حافظة', name_en: 'Case', price: 35 },
+  ],
+};
+
+export const getAccessorySuggestions = (deviceType?: string | null): AddonItem[] =>
+  (deviceType && ACCESSORY_SUGGESTIONS[deviceType]) || ACCESSORY_SUGGESTIONS.generic;
+
+// Optional protection add-ons / packages offered as an upsell in the flow.
+export const PROTECTION_ADDONS: AddonItem[] = [
+  { id: 'screen_protector', name_ar: 'واقي شاشة مركّب', name_en: 'Installed screen protector', price: 40 },
+  { id: 'protective_case', name_ar: 'كفر حماية', name_en: 'Protective case', price: 50 },
+  { id: 'full_protection', name_ar: 'باقة الحماية الشاملة', name_en: 'Full protection package', price: 120 },
+];
+
 // Pricing multiplier applied on top of the issue's base estimated price.
 // Originals are the reference (1.0x); high quality is ~80% of original parts;
 // economy parts are the cheapest (~55%). The technician can adjust the final
@@ -69,6 +145,9 @@ export interface Order {
   spare_part_quality?: SparePartQuality;
   discount_code?: string;
   discount_amount?: number;
+  payment_method?: PaymentMethod;
+  accessories?: AddonItem[];
+  protection_addons?: AddonItem[];
   created_at?: string;
   updated_at?: string;
 }
@@ -89,6 +168,9 @@ export interface CreateOrderData {
   spare_part_quality?: SparePartQuality;
   discount_code?: string;
   discount_amount?: number;
+  payment_method?: PaymentMethod;
+  accessories?: AddonItem[];
+  protection_addons?: AddonItem[];
 }
 
 export const ORDER_STATUS_LABELS_AR: Record<OrderStatus, string> = {

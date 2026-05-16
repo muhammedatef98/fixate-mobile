@@ -246,6 +246,29 @@ export default function ServicesScreen() {
             ))}
           </View>
 
+          {/* Fixate Market — lives inside Services (not a homepage block). */}
+          <TouchableOpacity
+            onPress={() => router.push('/market')}
+            style={[styles.helpCard, { backgroundColor: COLORS.card, borderColor: COLORS.border, marginTop: 22 }]}
+            accessibilityRole="button"
+            accessibilityLabel={isRTL ? 'سوق Fixate' : 'Fixate Market'}
+          >
+            <View style={[styles.helpIcon, { backgroundColor: '#7C3AED15' }]}>
+              <MaterialCommunityIcons name="storefront-outline" size={22} color="#7C3AED" />
+            </View>
+            <View style={{ flex: 1, marginHorizontal: 12 }}>
+              <Text style={[styles.helpTitle, { color: COLORS.text }]}>
+                {isRTL ? 'سوق Fixate' : 'Fixate Market'}
+              </Text>
+              <Text style={[styles.helpSub, { color: COLORS.textSecondary }]}>
+                {isRTL
+                  ? 'بيع واشترِ أجهزة مستعملة وإكسسوارات وقطع غيار'
+                  : 'Buy & sell used devices, accessories and spare parts'}
+              </Text>
+            </View>
+            <RTLIonicon name="chevron-forward" size={20} color="#7C3AED" />
+          </TouchableOpacity>
+
           {/* Help card — opens in-app live support */}
           <TouchableOpacity
             onPress={() => router.push('/support-chat')}
