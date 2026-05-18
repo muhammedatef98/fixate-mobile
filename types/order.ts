@@ -33,6 +33,14 @@ export interface Order {
   media_urls?: string[];
   customer_phone?: string;
   technician_phone?: string;
+  // Delivery pricing by region (pickup & delivery service). Optional so
+  // existing rows / on-site mobile orders are unaffected.
+  delivery_region?: string | null;
+  delivery_area?: string | null;
+  delivery_fee?: number | null;
+  // Loyalty: points the customer earns for this order (snapshot at create
+  // time). Source of truth remains the loyalty ledger once backend is ready.
+  loyalty_points_earned?: number | null;
   created_at?: string;
   updated_at?: string;
 }
@@ -50,6 +58,10 @@ export interface CreateOrderData {
   media_urls?: string[];
   customer_phone?: string;
   estimated_price?: number;
+  delivery_region?: string | null;
+  delivery_area?: string | null;
+  delivery_fee?: number | null;
+  loyalty_points_earned?: number | null;
 }
 
 export const ORDER_STATUS_LABELS_AR: Record<OrderStatus, string> = {
