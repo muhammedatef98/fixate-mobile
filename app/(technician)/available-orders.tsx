@@ -50,6 +50,7 @@ export default function AvailableOrdersScreen() {
   const SHADOWS = getShadows(isDark);
   const t = translations[language];
   const isRTL = language === 'ar';
+  const styles = makeStyles(COLORS, isRTL, SHADOWS);
 
   const [orders, setOrders] = useState<orderService.Order[]>([]);
   const [loading, setLoading] = useState(true);
@@ -363,20 +364,22 @@ export default function AvailableOrdersScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (COLORS: any, isRTL: boolean, SHADOWS: any) => StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: COLORS.background,
   },
   header: {
-    flexDirection: 'row',
+    flexDirection: isRTL ? 'row-reverse' : 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.m,
+    paddingVertical: SPACING.m,
   },
   headerTitle: {
-    fontSize: 20,
-    fontWeight: '700',
+    fontSize: 22,
+    fontWeight: '800',
+    color: COLORS.text,
   },
   categoryScroll: {
     maxHeight: 50,
@@ -392,12 +395,12 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING.sm,
     borderRadius: 20,
     marginRight: SPACING.sm,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: COLORS.cardAlt,
   },
   categoryText: {
     fontSize: 14,
     marginLeft: SPACING.xs,
-    color: '#64748B',
+    color: COLORS.textSecondary,
   },
   categoryTextActive: {
     color: '#FFF',
@@ -453,12 +456,12 @@ const styles = StyleSheet.create({
   orderDevice: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#1F2937',
+    color: COLORS.text,
   },
   distanceBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#10B981' + '20',
+    backgroundColor: COLORS.primary + '20',
     paddingHorizontal: SPACING.sm,
     paddingVertical: SPACING.xs,
     borderRadius: 12,
@@ -466,12 +469,12 @@ const styles = StyleSheet.create({
   distanceText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#10B981',
+    color: COLORS.primary,
     marginLeft: SPACING.xs,
   },
   orderDescription: {
     fontSize: 14,
-    color: '#64748B',
+    color: COLORS.textSecondary,
     marginBottom: SPACING.md,
     lineHeight: 20,
   },
@@ -486,21 +489,23 @@ const styles = StyleSheet.create({
   },
   priceLabel: {
     fontSize: 12,
-    color: '#64748B',
+    color: COLORS.textSecondary,
     marginBottom: SPACING.xs,
   },
   priceValue: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#10B981',
+    color: COLORS.primary,
   },
   acceptButton: {
-    flexDirection: 'row',
+    flexDirection: isRTL ? 'row-reverse' : 'row',
     alignItems: 'center',
-    backgroundColor: '#10B981',
-    paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.sm,
-    borderRadius: 12,
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: SPACING.l,
+    minHeight: 44,
+    justifyContent: 'center',
+    borderRadius: BORDER_RADIUS.sm,
+    ...SHADOWS.small,
   },
   acceptButtonText: {
     fontSize: 14,
@@ -514,11 +519,11 @@ const styles = StyleSheet.create({
     marginTop: SPACING.sm,
     paddingTop: SPACING.sm,
     borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
+    borderTopColor: COLORS.border,
   },
   locationText: {
     fontSize: 12,
-    color: '#64748B',
+    color: COLORS.textSecondary,
     marginLeft: SPACING.xs,
     flex: 1,
   },

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, Switch, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, Switch, Alert, StatusBar } from 'react-native';
 import { useRouter } from 'expo-router';
-import { COLORS, SPACING, SHADOWS } from '../../constants/theme';
+import { getColors, getShadows, SPACING, BORDER_RADIUS } from '../../constants/theme';
 import { Card } from '../../components/ui/Card';
 import { MaterialIcons, Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import { useRequests } from '../../contexts/RequestContext';
@@ -23,10 +23,13 @@ export default function TechnicianDashboard() {
   const router = useRouter();
   const { requests: pendingOrders, updateRequestStatus } = useRequests();
   const [technicianName, setTechnicianName] = useState('فني');
-  const { language } = useApp();
+  const { language, isDark } = useApp();
   const { user, userProfile } = useAuth();
   const [isOnline, setIsOnline] = useState(true);
   const isRTL = language === 'ar';
+  const COLORS = getColors(isDark);
+  const SHADOWS = getShadows(isDark);
+  const styles = makeStyles(COLORS, isRTL, SHADOWS);
 
   // Local state to hide rejected requests temporarily
   const [rejectedRequestIds, setRejectedRequestIds] = useState<string[]>([]);
@@ -124,7 +127,8 @@ export default function TechnicianDashboard() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={COLORS.background} />
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 32 }}>
         {/* Header */}
         <View style={[styles.header, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
           <View style={{ alignItems: isRTL ? 'flex-end' : 'flex-start' }}>
@@ -213,13 +217,15 @@ export default function TechnicianDashboard() {
               </View>
 
               <View style={[styles.actions, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-                <TouchableOpacity 
+                <TouchableOpacity
+                  activeOpacity={0.85}
                   style={[styles.actionBtn, styles.rejectBtn]}
                   onPress={() => handleReject(req.id)}
                 >
                   <Text style={styles.rejectText}>{isRTL ? 'رفض' : 'Reject'}</Text>
                 </TouchableOpacity>
-                <TouchableOpacity 
+                <TouchableOpacity
+                  activeOpacity={0.85}
                   style={[styles.actionBtn, styles.acceptBtn]}
                   onPress={() => handleAccept(req.id)}
                 >
@@ -241,7 +247,7 @@ export default function TechnicianDashboard() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (COLORS: any, isRTL: boolean, SHADOWS: any) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
@@ -249,14 +255,13 @@ const styles = StyleSheet.create({
   header: {
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: SPACING.l,
-    backgroundColor: COLORS.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    paddingHorizontal: SPACING.m,
+    paddingVertical: SPACING.m,
+    backgroundColor: COLORS.background,
   },
   greeting: {
-    fontSize: 20,
-    fontWeight: 'bold',
+    fontSize: 22,
+    fontWeight: '800',
     color: COLORS.text,
   },
   statusContainer: {
@@ -274,14 +279,15 @@ const styles = StyleSheet.create({
   },
   statsGrid: {
     justifyContent: 'space-between',
-    padding: SPACING.l,
+    paddingHorizontal: SPACING.m,
+    paddingVertical: SPACING.m,
     gap: SPACING.m,
   },
   statCard: {
     flex: 1,
-    backgroundColor: COLORS.surface,
+    backgroundColor: COLORS.card,
     padding: SPACING.m,
-    borderRadius: 16,
+    borderRadius: BORDER_RADIUS.md,
     alignItems: 'center',
   },
   statIcon: {
@@ -305,13 +311,13 @@ const styles = StyleSheet.create({
   sectionHeader: {
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: SPACING.l,
+    paddingHorizontal: SPACING.m,
     marginTop: SPACING.m,
     marginBottom: SPACING.s,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
+    fontSize: 20,
+    fontWeight: '800',
     color: COLORS.text,
   },
   seeAll: {
@@ -320,8 +326,9 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   requestCard: {
-    marginHorizontal: SPACING.l,
+    marginHorizontal: SPACING.m,
     marginBottom: SPACING.m,
+    borderRadius: BORDER_RADIUS.md,
   },
   reqHeader: {
     justifyContent: 'space-between',
@@ -380,27 +387,29 @@ const styles = StyleSheet.create({
   },
   actionBtn: {
     flex: 1,
-    paddingVertical: 12,
-    borderRadius: 12,
+    minHeight: 48,
+    paddingVertical: 13,
+    borderRadius: BORDER_RADIUS.sm,
     alignItems: 'center',
     justifyContent: 'center',
   },
   acceptBtn: {
     backgroundColor: COLORS.primary,
     flex: 2,
+    ...SHADOWS.small,
   },
   rejectBtn: {
-    backgroundColor: '#FEE2E2',
+    backgroundColor: COLORS.errorSoft,
     flex: 1,
   },
   acceptText: {
     color: '#FFF',
-    fontWeight: 'bold',
+    fontWeight: '800',
     fontSize: 16,
   },
   rejectText: {
-    color: '#EF4444',
-    fontWeight: 'bold',
+    color: COLORS.error,
+    fontWeight: '800',
     fontSize: 16,
   },
   emptyState: {

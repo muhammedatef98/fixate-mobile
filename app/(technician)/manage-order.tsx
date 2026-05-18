@@ -540,17 +540,17 @@ const styles = StyleSheet.create({
     padding: SPACING.s,
   },
   headerTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
+    fontSize: 22,
+    fontWeight: '800',
   },
   scrollView: {
     flex: 1,
-    padding: SPACING.l,
+    padding: SPACING.m,
   },
   card: {
-    borderRadius: BORDER_RADIUS.l,
+    borderRadius: BORDER_RADIUS.md,
     padding: SPACING.l,
-    marginBottom: SPACING.l,
+    marginBottom: SPACING.m,
   },
   cardTitle: {
     fontSize: 18,
