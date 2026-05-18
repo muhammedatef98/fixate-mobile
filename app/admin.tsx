@@ -156,7 +156,7 @@ export default function AdminDashboardScreen() {
       </View>
 
       <ScrollView
-        contentContainerStyle={{ padding: SPACING.lg, paddingBottom: 80 }}
+        contentContainerStyle={{ padding: SPACING.m, paddingBottom: 80 }}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -269,16 +269,23 @@ export default function AdminDashboardScreen() {
   );
 }
 
+const CARD_SHADOW = {
+  shadowColor: '#000',
+  shadowOffset: { width: 0, height: 2 },
+  shadowOpacity: 0.06,
+  shadowRadius: 8,
+  elevation: 2,
+};
+
 function StatTile({ icon, label, value, color, COLORS, loading }: any) {
   return (
     <View
       style={{
         width: '47%',
         backgroundColor: COLORS.card,
-        borderColor: COLORS.border,
-        borderWidth: 1,
-        borderRadius: BORDER_RADIUS.lg,
-        padding: 14,
+        borderRadius: BORDER_RADIUS.md,
+        padding: 16,
+        ...CARD_SHADOW,
       }}
     >
       <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: color + '20', alignItems: 'center', justifyContent: 'center', marginBottom: 8 }}>
@@ -302,12 +309,11 @@ function ActionCard({ icon, title, subtitle, badge, onPress, COLORS, isRTL, high
         flexDirection: isRTL ? 'row-reverse' : 'row',
         alignItems: 'center',
         backgroundColor: highlight ? COLORS.primary : COLORS.card,
-        borderColor: highlight ? COLORS.primary : COLORS.border,
-        borderWidth: 1,
-        borderRadius: BORDER_RADIUS.lg,
+        borderRadius: BORDER_RADIUS.md,
         padding: 16,
         marginBottom: 12,
         gap: 12,
+        ...CARD_SHADOW,
       }}
       accessibilityRole="button"
     >
@@ -349,19 +355,17 @@ const styles = (C: any, isRTL: boolean) =>
       flexDirection: isRTL ? 'row-reverse' : 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      paddingHorizontal: 12,
-      paddingVertical: 10,
-      backgroundColor: C.card,
-      borderBottomWidth: 1,
-      borderBottomColor: C.border,
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      backgroundColor: C.background,
     },
-    title: { fontSize: 17, fontWeight: '700' },
+    title: { fontSize: 22, fontWeight: '800' },
     hero: {
       flexDirection: isRTL ? 'row-reverse' : 'row',
       alignItems: 'center',
       borderWidth: 1,
-      borderRadius: BORDER_RADIUS.lg,
+      borderRadius: BORDER_RADIUS.md,
       padding: 16,
-      marginBottom: 16,
+      marginBottom: 20,
     },
   });

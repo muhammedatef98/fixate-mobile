@@ -8,9 +8,10 @@ import BottomNav from '../../components/BottomNav';
 import ErrorState from '../../components/ErrorState';
 import { SkeletonOrderCard } from '../../components/SkeletonLoader';
 import { logger } from '../../utils/logger';
-import { getColors } from '../../constants/theme';
+import { getColors, getShadows, BORDER_RADIUS } from '../../constants/theme';
 import { getFriendlyError } from '../../utils/errorMessages';
 import { RTLIonicon } from '../../components/RTLIcon';
+import { PressableScale } from '../../components/ui/PressableScale';
 import RatingModal from '../../components/RatingModal';
 import { getReviewByOrder } from '../../services/reviewService';
 import { useAuth } from '../../contexts/AuthContext';
@@ -21,11 +22,14 @@ export default function OrdersScreen() {
   const { language, isDark } = useApp();
   const isRTL = language === 'ar';
   const themeColors = getColors(isDark);
+  const SHADOWS = getShadows(isDark);
 
   const COLORS = {
     primary: themeColors.primary,
+    primarySoft: themeColors.primarySoft,
     background: themeColors.background,
     card: themeColors.card,
+    cardAlt: themeColors.cardAlt,
     text: themeColors.text,
     textSecondary: themeColors.textSecondary,
     border: themeColors.border,
@@ -129,11 +133,11 @@ export default function OrdersScreen() {
     }
   };
 
-  const styles = createStyles(COLORS, isRTL);
+  const styles = createStyles(COLORS, isRTL, SHADOWS);
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={COLORS.white} />
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={COLORS.background} />
       
       <View style={styles.header}>
         <Text style={styles.headerTitle}>{isRTL ? 'طلباتي' : 'My Orders'}</Text>
@@ -192,11 +196,11 @@ export default function OrdersScreen() {
               const status = getStatusInfo(order.status);
               const dateStr = new Date(order.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
               return (
-                <TouchableOpacity
+                <PressableScale
                   key={order.id}
+                  to={0.985}
                   style={[styles.orderCard, { borderLeftColor: status.color, borderLeftWidth: 4 }]}
                   onPress={() => router.push(`/order-details?id=${order.id}`)}
-                  activeOpacity={0.85}
                 >
                   {/* Top: status pill on the lead side, date at the trailing edge */}
                   <View style={styles.cardTopRow}>
@@ -237,7 +241,7 @@ export default function OrdersScreen() {
                       <RTLIonicon name="chevron-forward" size={14} color={COLORS.primary} />
                     </View>
                   </View>
-                </TouchableOpacity>
+                </PressableScale>
               );
             })}
           </Animated.View>
@@ -257,32 +261,26 @@ export default function OrdersScreen() {
   );
 }
 
-const createStyles = (COLORS: any, isRTL: boolean) => StyleSheet.create({
+const createStyles = (COLORS: any, isRTL: boolean, SHADOWS: any) => StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
-  header: { height: 60, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.white, borderBottomWidth: 1, borderBottomColor: COLORS.border },
-  headerTitle: { fontSize: 18, fontWeight: 'bold', color: COLORS.text },
-  filterBar: { flexDirection: isRTL ? 'row-reverse' : 'row', padding: 12, backgroundColor: COLORS.white, gap: 8 },
-  filterTab: { flex: 1, paddingVertical: 8, alignItems: 'center', borderRadius: 12, backgroundColor: '#f3f4f6' },
+  header: { paddingHorizontal: 16, paddingTop: 14, paddingBottom: 8, backgroundColor: COLORS.background },
+  headerTitle: { fontSize: 24, fontWeight: '800', color: COLORS.text, textAlign: isRTL ? 'right' : 'left' },
+  filterBar: { flexDirection: isRTL ? 'row-reverse' : 'row', paddingHorizontal: 16, paddingVertical: 12, backgroundColor: COLORS.background, gap: 8 },
+  filterTab: { flex: 1, paddingVertical: 11, alignItems: 'center', borderRadius: 999, backgroundColor: COLORS.cardAlt },
   activeFilterTab: { backgroundColor: COLORS.primary },
-  filterText: { fontSize: 13, fontWeight: '600', color: COLORS.textSecondary },
-  activeFilterText: { color: COLORS.white },
-  scrollContent: { padding: 16 },
+  filterText: { fontSize: 14, fontWeight: '700', color: COLORS.textSecondary },
+  activeFilterText: { color: '#fff' },
+  scrollContent: { paddingHorizontal: 16, paddingTop: 8 },
   emptyState: { alignItems: 'center', marginTop: 80 },
   emptyText: { fontSize: 16, color: COLORS.textSecondary, marginTop: 16, marginBottom: 20 },
-  loginPromptBtn: { backgroundColor: COLORS.primary, paddingHorizontal: 20, paddingVertical: 10, borderRadius: 12 },
-  loginPromptText: { color: COLORS.white, fontWeight: 'bold', fontSize: 14 },
+  loginPromptBtn: { backgroundColor: COLORS.primary, paddingHorizontal: 24, minHeight: 48, justifyContent: 'center', borderRadius: BORDER_RADIUS.sm, ...SHADOWS.small },
+  loginPromptText: { color: '#fff', fontWeight: '700', fontSize: 15 },
   orderCard: {
-    backgroundColor: COLORS.white,
-    borderRadius: 16,
-    padding: 14,
+    backgroundColor: COLORS.card,
+    borderRadius: BORDER_RADIUS.md,
+    padding: 16,
     marginBottom: 12,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-    elevation: 1,
+    ...SHADOWS.small,
   },
   cardTopRow: {
     flexDirection: isRTL ? 'row-reverse' : 'row',
@@ -310,7 +308,7 @@ const createStyles = (COLORS: any, isRTL: boolean) => StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 10,
-    backgroundColor: '#f0fdf4',
+    backgroundColor: COLORS.primarySoft,
     justifyContent: 'center',
     alignItems: 'center',
   },

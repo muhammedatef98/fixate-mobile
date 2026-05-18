@@ -15,7 +15,8 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import { useApp } from '../contexts/AppContext';
-import { getColors, SPACING, BORDER_RADIUS } from '../constants/theme';
+import { getColors, getShadows, SPACING, BORDER_RADIUS } from '../constants/theme';
+import { PressableScale } from '../components/ui/PressableScale';
 import { RTLIonicon } from '../components/RTLIcon';
 import { safeBack } from '../utils/navigation';
 import { supabase } from '../services/supabaseClient';
@@ -111,7 +112,8 @@ export default function PaymentScreen() {
     }
   };
 
-  const styles = makeStyles(COLORS, isRTL);
+  const SHADOWS = getShadows(isDark);
+  const styles = makeStyles(COLORS, isRTL, SHADOWS);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -127,7 +129,7 @@ export default function PaymentScreen() {
         <View style={{ width: 36 }} />
       </View>
 
-      <ScrollView contentContainerStyle={{ padding: SPACING.lg, paddingBottom: 40 }}>
+      <ScrollView contentContainerStyle={{ padding: SPACING.m, paddingBottom: 40 }}>
         {/* Amount card */}
         {amount ? (
           <View style={[styles.amountCard, { backgroundColor: COLORS.primary + '12', borderColor: COLORS.primary + '30' }]}>
@@ -157,6 +159,7 @@ export default function PaymentScreen() {
           recommended
           COLORS={COLORS}
           isRTL={isRTL}
+          SHADOWS={SHADOWS}
         />
 
         {/* Bank transfer */}
@@ -171,6 +174,7 @@ export default function PaymentScreen() {
           }
           COLORS={COLORS}
           isRTL={isRTL}
+          SHADOWS={SHADOWS}
         />
 
         {/* Bank-transfer details, only when selected */}
@@ -229,6 +233,7 @@ export default function PaymentScreen() {
           comingSoon
           COLORS={COLORS}
           isRTL={isRTL}
+          SHADOWS={SHADOWS}
         />
 
         {/* Trust note */}
@@ -277,20 +282,23 @@ function PaymentRow({
   comingSoon,
   COLORS,
   isRTL,
+  SHADOWS,
 }: any) {
   return (
-    <TouchableOpacity
+    <PressableScale
       onPress={onPress}
+      to={0.985}
       style={{
         flexDirection: isRTL ? 'row-reverse' : 'row',
         alignItems: 'center',
         backgroundColor: COLORS.card,
-        borderColor: selected ? COLORS.primary : COLORS.border,
-        borderWidth: selected ? 2 : 1,
-        borderRadius: BORDER_RADIUS.lg,
-        padding: 14,
-        marginBottom: 10,
+        borderColor: selected ? COLORS.primary : 'transparent',
+        borderWidth: selected ? 2 : 0,
+        borderRadius: BORDER_RADIUS.md,
+        padding: 16,
+        marginBottom: 12,
         gap: 12,
+        ...SHADOWS.small,
       }}
       accessibilityRole="radio"
       accessibilityState={{ selected }}
@@ -328,22 +336,20 @@ function PaymentRow({
       >
         {selected && <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: COLORS.primary }} />}
       </View>
-    </TouchableOpacity>
+    </PressableScale>
   );
 }
 
-const makeStyles = (C: any, isRTL: boolean) =>
+const makeStyles = (C: any, isRTL: boolean, SHADOWS: any) =>
   StyleSheet.create({
     container: { flex: 1, backgroundColor: C.background },
     header: {
       flexDirection: isRTL ? 'row-reverse' : 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      paddingHorizontal: 12,
-      paddingVertical: 10,
-      backgroundColor: C.card,
-      borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: C.border,
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      backgroundColor: C.background,
     },
     backBtn: {
       width: 36,
@@ -353,31 +359,32 @@ const makeStyles = (C: any, isRTL: boolean) =>
       alignItems: 'center',
       justifyContent: 'center',
     },
-    title: { fontSize: 17, fontWeight: '700' },
+    title: { fontSize: 22, fontWeight: '800' },
 
     amountCard: {
-      borderRadius: BORDER_RADIUS.lg,
+      borderRadius: BORDER_RADIUS.md,
       borderWidth: 1,
-      padding: 18,
+      padding: 20,
       alignItems: 'center',
-      marginBottom: 18,
+      marginBottom: 20,
     },
     amountLabel: { fontSize: 12, fontWeight: '500' },
     amountValue: { fontSize: 30, fontWeight: '800', marginTop: 4 },
 
     sectionLabel: {
-      fontSize: 13,
-      fontWeight: '700',
-      marginBottom: 10,
+      fontSize: 18,
+      fontWeight: '800',
+      marginBottom: 12,
+      color: C.text,
       textAlign: isRTL ? 'right' : 'left',
     },
 
     transferBox: {
-      borderRadius: BORDER_RADIUS.lg,
-      borderWidth: 1,
-      padding: 14,
+      borderRadius: BORDER_RADIUS.md,
+      padding: 16,
       marginBottom: 10,
       gap: 10,
+      ...SHADOWS.small,
     },
     transferRow: {
       flexDirection: isRTL ? 'row-reverse' : 'row',
@@ -408,9 +415,12 @@ const makeStyles = (C: any, isRTL: boolean) =>
     trustText: { flex: 1, fontSize: 12, lineHeight: 17, textAlign: isRTL ? 'right' : 'left' },
 
     confirmBtn: {
-      paddingVertical: 16,
-      borderRadius: BORDER_RADIUS.md,
+      minHeight: 52,
+      paddingVertical: 15,
+      borderRadius: BORDER_RADIUS.sm,
       alignItems: 'center',
+      justifyContent: 'center',
+      ...SHADOWS.small,
     },
     confirmText: { color: '#fff', fontSize: 16, fontWeight: '800' },
   });
