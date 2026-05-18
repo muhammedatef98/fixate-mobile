@@ -1,55 +1,60 @@
-import React from 'react';
-import { View, StyleSheet, ViewStyle, TouchableOpacity } from 'react-native';
-import { COLORS, SPACING, SHADOWS } from '../../constants/theme';
+import React, { useRef } from 'react';
+import { View, StyleSheet, ViewStyle, Animated, Pressable } from 'react-native';
+import { getColors, getShadows, SPACING, BORDER_RADIUS } from '../../constants/theme';
+import { useApp } from '../../contexts/AppContext';
 
 interface CardProps {
   children: React.ReactNode;
   style?: ViewStyle;
   onPress?: () => void;
   variant?: 'elevated' | 'outlined' | 'flat';
+  padding?: number;
 }
 
-export const Card: React.FC<CardProps> = ({ 
-  children, 
-  style, 
+export const Card: React.FC<CardProps> = ({
+  children,
+  style,
   onPress,
-  variant = 'elevated' 
+  variant = 'elevated',
+  padding,
 }) => {
-  const Container = onPress ? TouchableOpacity : View;
+  const { isDark } = useApp();
+  const C = getColors(isDark);
+  const SHADOWS = getShadows(isDark);
+  const scale = useRef(new Animated.Value(1)).current;
 
-  const getStyle = () => {
-    switch (variant) {
-      case 'elevated': return [styles.container, SHADOWS.small];
-      case 'outlined': return [styles.container, styles.outlined];
-      case 'flat': return [styles.container, styles.flat];
-      default: return [styles.container, SHADOWS.small];
-    }
+  const base: ViewStyle = {
+    backgroundColor: variant === 'flat' ? C.cardAlt : C.card,
+    borderRadius: BORDER_RADIUS.md,
+    padding: padding ?? SPACING.m,
+    marginBottom: SPACING.m,
   };
+  const variantStyle =
+    variant === 'elevated'
+      ? SHADOWS.small
+      : variant === 'outlined'
+      ? { borderWidth: 1, borderColor: C.border, backgroundColor: 'transparent' as const }
+      : {};
+
+  if (!onPress) {
+    return <View style={[base, variantStyle, style]}>{children}</View>;
+  }
+
+  const animate = (to: number) =>
+    Animated.spring(scale, { toValue: to, useNativeDriver: true, friction: 7, tension: 120 }).start();
 
   return (
-    <Container 
-      style={[getStyle(), style]} 
-      activeOpacity={onPress ? 0.7 : 1}
-      onPress={onPress}
-    >
-      {children}
-    </Container>
+    <Animated.View style={{ transform: [{ scale }] }}>
+      <Pressable
+        onPress={onPress}
+        onPressIn={() => animate(0.985)}
+        onPressOut={() => animate(1)}
+        style={[base, variantStyle, style]}
+      >
+        {children}
+      </Pressable>
+    </Animated.View>
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    backgroundColor: COLORS.surface,
-    borderRadius: 16,
-    padding: SPACING.m,
-    marginBottom: SPACING.m,
-  },
-  outlined: {
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    backgroundColor: 'transparent',
-  },
-  flat: {
-    backgroundColor: COLORS.background,
-  },
-});
+const styles = StyleSheet.create({});

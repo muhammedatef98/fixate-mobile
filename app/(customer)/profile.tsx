@@ -18,8 +18,9 @@ import BottomNav from '../../components/BottomNav';
 import { useLoyalty } from '../../contexts/LoyaltyContext';
 import { auth } from '../../lib/supabase-api';
 import { supabase } from '../../services/supabaseClient';
-import { getColors, SPACING, BORDER_RADIUS } from '../../constants/theme';
+import { getColors, getShadows, SPACING, BORDER_RADIUS } from '../../constants/theme';
 import { RTLIonicon } from '../../components/RTLIcon';
+import { PressableScale } from '../../components/ui/PressableScale';
 
 interface MenuRow {
   id: string;
@@ -38,6 +39,7 @@ export default function ProfileScreen() {
   const { summary: loyaltySummary } = useLoyalty();
   const isRTL = language === 'ar';
   const COLORS = getColors(isDark);
+  const SHADOWS = getShadows(isDark);
 
   const [stats, setStats] = useState({ total: 0, completed: 0, addresses: 0 });
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -113,7 +115,7 @@ export default function ProfileScreen() {
     }
   };
 
-  const styles = makeStyles(COLORS, isRTL);
+  const styles = makeStyles(COLORS, isRTL, SHADOWS);
   const displayName = userProfile?.name?.trim() || user?.email?.split('@')[0] || (isRTL ? 'مرحبًا' : 'Welcome');
   const displayEmail = userProfile?.email || user?.email || '';
   const initial = (displayName[0] || '?').toUpperCase();
@@ -130,7 +132,7 @@ export default function ProfileScreen() {
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
-        <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }], padding: SPACING.lg }}>
+        <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }], paddingHorizontal: SPACING.m, paddingTop: SPACING.m, paddingBottom: SPACING.l }}>
           {/* Profile hero */}
           <View style={[styles.hero, { backgroundColor: COLORS.primary }]}>
             <View style={styles.avatar}>
@@ -200,14 +202,14 @@ function Stat({ label, value, COLORS, accent }: any) {
 function Row({ row, isLast, onPress, COLORS, isRTL }: { row: MenuRow; isLast: boolean; onPress: () => void; COLORS: any; isRTL: boolean }) {
   const accent = row.iconColor || COLORS.primary;
   return (
-    <TouchableOpacity
+    <PressableScale
       onPress={onPress}
-      activeOpacity={0.7}
+      to={0.985}
       style={{
         flexDirection: isRTL ? 'row-reverse' : 'row',
         alignItems: 'center',
-        paddingVertical: 14,
-        paddingHorizontal: 14,
+        paddingVertical: 16,
+        paddingHorizontal: 16,
         gap: 14,
         borderBottomWidth: isLast ? 0 : StyleSheet.hairlineWidth,
         borderBottomColor: COLORS.border,
@@ -232,11 +234,11 @@ function Row({ row, isLast, onPress, COLORS, isRTL }: { row: MenuRow; isLast: bo
         )}
       </View>
       <RTLIonicon name="chevron-forward" size={16} color={COLORS.textSecondary} />
-    </TouchableOpacity>
+    </PressableScale>
   );
 }
 
-const makeStyles = (C: any, isRTL: boolean) =>
+const makeStyles = (C: any, isRTL: boolean, SHADOWS: any) =>
   StyleSheet.create({
     container: { flex: 1, backgroundColor: C.background },
     header: {
@@ -289,11 +291,10 @@ const makeStyles = (C: any, isRTL: boolean) =>
     statsRow: {
       flexDirection: isRTL ? 'row-reverse' : 'row',
       backgroundColor: C.card,
-      borderColor: C.border,
-      borderWidth: 1,
-      borderRadius: BORDER_RADIUS.lg,
-      paddingVertical: 16,
-      marginBottom: 22,
+      borderRadius: BORDER_RADIUS.md,
+      paddingVertical: 18,
+      marginBottom: 24,
+      ...SHADOWS.small,
     },
     statSeparator: { width: StyleSheet.hairlineWidth, marginVertical: 4 },
 
@@ -308,11 +309,10 @@ const makeStyles = (C: any, isRTL: boolean) =>
     },
     menuCard: {
       backgroundColor: C.card,
-      borderRadius: BORDER_RADIUS.lg,
-      borderWidth: 1,
-      borderColor: C.border,
-      marginBottom: 22,
+      borderRadius: BORDER_RADIUS.md,
+      marginBottom: 24,
       overflow: 'hidden',
+      ...SHADOWS.small,
     },
 
     logoutBtn: {

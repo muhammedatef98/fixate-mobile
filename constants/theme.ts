@@ -1,44 +1,74 @@
 // Neumorphism Design System - Inspired by Web Version with Dark Mode Support
 
+// Neutral scale — single source of truth for greys. Used by the new design
+// language so spacing/contrast stay consistent app-wide. Adding these is
+// purely additive; existing keys below are preserved for back-compat.
+const NEUTRAL = {
+  gray50: '#F8FAFC',
+  gray100: '#F1F5F9',
+  gray200: '#E8ECF1',
+  gray300: '#D9DFE7',
+  gray400: '#B6BFCB',
+  gray500: '#8A94A3',
+  gray600: '#646E7E',
+  gray700: '#48515E',
+  gray800: '#2C333D',
+  gray900: '#181D24',
+};
+
 // Light Mode Colors
 const LIGHT_COLORS = {
   primary: '#10B981',
   primaryLight: '#ECFDF5',
   primaryDark: '#059669',
   primaryForeground: '#FFFFFF',
-  
-  background: '#F3F4F6',
-  surface: '#F3F4F6',
-  card: '#F3F4F6',
-  
-  text: '#1F2937',
-  textSecondary: '#6B7280',
-  textLight: '#9CA3AF',
-  foreground: '#1F2937',
-  secondary: '#6B7280',
+  // Soft brand tint for selected/active surfaces
+  primarySoft: '#E7F7F0',
+
+  // Background is a soft warm-cool neutral; cards are clean white so they
+  // visibly lift off the page (the old theme made both #F3F4F6 — flat).
+  background: '#F6F8FA',
+  surface: '#FFFFFF',
+  card: '#FFFFFF',
+  // A slightly tinted card for nested/secondary surfaces
+  cardAlt: '#F1F4F8',
+  cardElevated: '#FFFFFF',
+
+  text: '#10151B',
+  textSecondary: '#5B6573',
+  textLight: '#9099A6',
+  foreground: '#10151B',
+  secondary: '#5B6573',
   disabled: '#D1D5DB',
 
   white: '#FFFFFF',
   black: '#000000',
-  border: '#E5E7EB',
-  input: '#E5E7EB',
-  
-  success: '#10B981',
-  error: '#EF4444',
-  warning: '#F59E0B',
-  info: '#3B82F6',
-  
+  border: '#E8ECF1',
+  borderStrong: '#D9DFE7',
+  input: '#E8ECF1',
+
+  success: '#16A34A',
+  successSoft: '#E8F6EC',
+  error: '#DC2626',
+  errorSoft: '#FCEBEB',
+  warning: '#D97706',
+  warningSoft: '#FBF0E2',
+  info: '#2563EB',
+  infoSoft: '#E8F0FE',
+
   blue: '#3B82F6',
   purple: '#8B5CF6',
   pink: '#EC4899',
   orange: '#F59E0B',
-  
+
   gradientStart: '#10B981',
   gradientEnd: '#059669',
-  
-  overlay: 'rgba(0, 0, 0, 0.5)',
+
+  overlay: 'rgba(15, 23, 32, 0.45)',
   shadowDark: '#D1D5DB',
   shadowLight: '#FFFFFF',
+
+  ...NEUTRAL,
 };
 
 // Dark Mode Colors
@@ -47,39 +77,59 @@ const DARK_COLORS = {
   primaryLight: '#064E3B',
   primaryDark: '#34D399',
   primaryForeground: '#FFFFFF',
-  
-  background: '#111827',
-  surface: '#1F2937',
-  card: '#1F2937',
-  
-  text: '#F9FAFB',
-  textSecondary: '#9CA3AF',
-  textLight: '#6B7280',
-  foreground: '#F9FAFB',
-  secondary: '#9CA3AF',
+  primarySoft: '#0E3A30',
+
+  // Modern slate dark — card lifts clearly off background.
+  background: '#0F141A',
+  surface: '#181F29',
+  card: '#181F29',
+  cardAlt: '#212A36',
+  cardElevated: '#1E2630',
+
+  text: '#F4F6F8',
+  textSecondary: '#9AA5B4',
+  textLight: '#6B7686',
+  foreground: '#F4F6F8',
+  secondary: '#9AA5B4',
   disabled: '#4B5563',
 
   white: '#FFFFFF',
   black: '#000000',
-  border: '#374151',
-  input: '#374151',
-  
-  success: '#10B981',
-  error: '#EF4444',
-  warning: '#F59E0B',
-  info: '#3B82F6',
-  
+  border: '#283341',
+  borderStrong: '#36424F',
+  input: '#283341',
+
+  success: '#22C55E',
+  successSoft: '#10291B',
+  error: '#F87171',
+  errorSoft: '#2E1718',
+  warning: '#FBBF24',
+  warningSoft: '#2C2310',
+  info: '#60A5FA',
+  infoSoft: '#13233D',
+
   blue: '#60A5FA',
   purple: '#A78BFA',
   pink: '#F472B6',
   orange: '#FB923C',
-  
+
   gradientStart: '#10B981',
   gradientEnd: '#059669',
-  
+
   overlay: 'rgba(0, 0, 0, 0.7)',
   shadowDark: '#000000',
   shadowLight: '#374151',
+
+  gray50: '#1A212B',
+  gray100: '#1F2731',
+  gray200: '#283341',
+  gray300: '#36424F',
+  gray400: '#4B5563',
+  gray500: '#6B7686',
+  gray600: '#9AA5B4',
+  gray700: '#C2CAD4',
+  gray800: '#E2E7EC',
+  gray900: '#F4F6F8',
 };
 
 // Export function to get colors based on theme

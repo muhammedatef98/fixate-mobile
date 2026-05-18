@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, TextInput, Text, StyleSheet, TextInputProps } from 'react-native';
-import { COLORS, SPACING } from '../../constants/theme';
+import { getColors, SPACING, BORDER_RADIUS } from '../../constants/theme';
+import { useApp } from '../../contexts/AppContext';
 
 interface InputProps extends TextInputProps {
   label?: string;
@@ -8,65 +9,76 @@ interface InputProps extends TextInputProps {
   icon?: React.ReactNode;
 }
 
-export const Input: React.FC<InputProps> = ({ 
-  label, 
-  error, 
-  icon,
-  style,
-  ...props 
-}) => {
+export const Input: React.FC<InputProps> = ({ label, error, icon, style, ...props }) => {
+  const { isDark, language } = useApp();
+  const C = getColors(isDark);
+  const isRTL = language === 'ar';
+  const [focused, setFocused] = useState(false);
+
+  const borderColor = error ? C.error : focused ? C.primary : C.border;
+
   return (
-    <View style={styles.container}>
-      {label && <Text style={styles.label}>{label}</Text>}
-      <View style={[
-        styles.inputContainer,
-        error ? { borderColor: COLORS.error } : null,
-        style
-      ]}>
-        {icon && <View style={styles.iconContainer}>{icon}</View>}
+    <View style={{ marginBottom: SPACING.m }}>
+      {label && (
+        <Text
+          style={{
+            fontSize: 14,
+            fontWeight: '600',
+            color: C.text,
+            marginBottom: 6,
+            textAlign: isRTL ? 'right' : 'left',
+          }}
+        >
+          {label}
+        </Text>
+      )}
+      <View
+        style={[
+          styles.inputContainer,
+          {
+            borderColor,
+            backgroundColor: C.card,
+            borderWidth: focused ? 1.5 : 1,
+            flexDirection: isRTL ? 'row-reverse' : 'row',
+          },
+          style,
+        ]}
+      >
+        {icon && <View style={{ marginHorizontal: SPACING.s }}>{icon}</View>}
         <TextInput
-          style={styles.input}
-          placeholderTextColor={COLORS.textSecondary}
+          style={[styles.input, { color: C.text, textAlign: isRTL ? 'right' : 'left' }]}
+          placeholderTextColor={C.textLight}
+          onFocus={(e) => {
+            setFocused(true);
+            props.onFocus?.(e);
+          }}
+          onBlur={(e) => {
+            setFocused(false);
+            props.onBlur?.(e);
+          }}
           {...props}
         />
       </View>
-      {error && <Text style={styles.errorText}>{error}</Text>}
+      {error && (
+        <Text style={{ color: C.error, fontSize: 12, marginTop: 4, textAlign: isRTL ? 'right' : 'left' }}>
+          {error}
+        </Text>
+      )}
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    marginBottom: SPACING.m,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: COLORS.text,
-    marginBottom: SPACING.xs,
-  },
   inputContainer: {
-    flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: 12,
-    backgroundColor: COLORS.surface,
-    height: 50,
+    borderRadius: BORDER_RADIUS.sm,
+    minHeight: 48,
     paddingHorizontal: SPACING.s,
-  },
-  iconContainer: {
-    marginRight: SPACING.s,
   },
   input: {
     flex: 1,
-    color: COLORS.text,
     fontSize: 16,
     height: '100%',
-  },
-  errorText: {
-    color: COLORS.error,
-    fontSize: 12,
-    marginTop: SPACING.xs,
+    paddingVertical: 10,
   },
 });
