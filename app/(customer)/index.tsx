@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { getColors, SPACING, BORDER_RADIUS } from '../../constants/theme';
+import { getColors, getShadows, SPACING, BORDER_RADIUS } from '../../constants/theme';
 import { useApp } from '../../contexts/AppContext';
 import { useAuth } from '../../contexts/AuthContext';
 import BottomNav from '../../components/BottomNav';
@@ -20,6 +20,8 @@ import Sidebar from '../../components/Sidebar';
 import { supabase } from '../../services/supabaseClient';
 import { logger } from '../../utils/logger';
 import { RTLIonicon, RTLMaterialIcon } from '../../components/RTLIcon';
+import { PressableScale } from '../../components/ui/PressableScale';
+import { Skeleton } from '../../components/ui/Skeleton';
 
 const { width } = Dimensions.get('window');
 
@@ -50,12 +52,14 @@ export default function CustomerHomeScreen() {
   const { language, setLanguage, isDark } = useApp();
   const { user, userProfile } = useAuth();
   const COLORS = getColors(isDark);
+  const SHADOWS = getShadows(isDark);
   const isRTL = language === 'ar';
 
   const [sidebarVisible, setSidebarVisible] = useState(false);
   const [activeOrder, setActiveOrder] = useState<any>(null);
   const [recentOrder, setRecentOrder] = useState<any>(null);
   const [stats, setStats] = useState<{ completed: number; rating: number; reviews: number } | null>(null);
+  const [loading, setLoading] = useState(true);
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(20)).current;
 
@@ -68,11 +72,17 @@ export default function CustomerHomeScreen() {
       Animated.timing(fadeAnim, { toValue: 1, duration: 400, useNativeDriver: true }),
       Animated.spring(slideAnim, { toValue: 0, friction: 8, useNativeDriver: true }),
     ]).start();
-    if (user?.id) {
-      loadActiveOrder();
-      loadRecentOrder();
-    }
-    loadGlobalStats();
+    (async () => {
+      try {
+        await Promise.allSettled([
+          user?.id ? loadActiveOrder() : Promise.resolve(),
+          user?.id ? loadRecentOrder() : Promise.resolve(),
+          loadGlobalStats(),
+        ]);
+      } finally {
+        setLoading(false);
+      }
+    })();
   }, [user?.id]);
 
   const loadActiveOrder = async () => {
@@ -126,7 +136,7 @@ export default function CustomerHomeScreen() {
     }
   };
 
-  const styles = makeStyles(COLORS, isRTL);
+  const styles = makeStyles(COLORS, isRTL, SHADOWS);
   const greeting = (() => {
     const h = new Date().getHours();
     if (h < 12) return isRTL ? 'صباح الخير' : 'Good morning';
@@ -172,7 +182,7 @@ export default function CustomerHomeScreen() {
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 110 }}>
-        <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }], padding: SPACING.lg }}>
+        <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }], paddingHorizontal: SPACING.m, paddingTop: SPACING.s, paddingBottom: SPACING.m }}>
           {/* Greeting */}
           <Text style={[styles.greetingSmall, { color: COLORS.textSecondary }]}>{greeting} 👋</Text>
           <Text style={[styles.greetingName, { color: COLORS.text }]} numberOfLines={1}>
@@ -207,6 +217,17 @@ export default function CustomerHomeScreen() {
               <MaterialCommunityIcons name="tools" size={68} color="#ffffff15" />
             </View>
           </TouchableOpacity>
+
+          {/* First-load skeleton (replaces blank flash before data lands) */}
+          {loading && !activeOrder && !recentOrder && !stats && (
+            <View style={{ marginTop: 4 }}>
+              <Skeleton height={64} radius={14} style={{ marginBottom: 16 }} />
+              <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', gap: 12, marginBottom: 22 }}>
+                <Skeleton height={120} radius={12} style={{ flex: 1 }} />
+                <Skeleton height={120} radius={12} style={{ flex: 1 }} />
+              </View>
+            </View>
+          )}
 
           {/* Active order banner */}
           {activeOrder && (
@@ -305,11 +326,10 @@ export default function CustomerHomeScreen() {
 
           <View style={styles.deviceGrid}>
             {DEVICE_CATEGORIES.map((cat) => (
-              <TouchableOpacity
+              <PressableScale
                 key={cat.id}
-                style={[styles.deviceCard, { backgroundColor: COLORS.card, borderColor: COLORS.border }]}
+                style={[styles.deviceCard, { backgroundColor: COLORS.card }]}
                 onPress={() => router.push('/request')}
-                activeOpacity={0.85}
                 accessibilityRole="button"
               >
                 <View style={[styles.deviceIcon, { backgroundColor: cat.accent + '15' }]}>
@@ -321,25 +341,24 @@ export default function CustomerHomeScreen() {
                 <Text style={[styles.devicePrice, { color: COLORS.primary }]}>
                   {isRTL ? `يبدأ من ${cat.fromPrice} ر.س` : `From ${cat.fromPrice} SAR`}
                 </Text>
-              </TouchableOpacity>
+              </PressableScale>
             ))}
           </View>
 
           {/* Quick actions row */}
           <View style={styles.quickRow}>
             {QUICK_ACTIONS.map((q) => (
-              <TouchableOpacity
+              <PressableScale
                 key={q.id}
                 onPress={() => router.push(q.route as any)}
-                style={[styles.quickPill, { backgroundColor: COLORS.card, borderColor: COLORS.border }]}
-                activeOpacity={0.85}
+                style={[styles.quickPill, { backgroundColor: COLORS.card }]}
                 accessibilityRole="button"
               >
-                <MaterialCommunityIcons name={q.icon as any} size={18} color={COLORS.primary} />
+                <MaterialCommunityIcons name={q.icon as any} size={20} color={COLORS.primary} />
                 <Text style={[styles.quickText, { color: COLORS.text }]} numberOfLines={1}>
                   {isRTL ? q.titleAr : q.titleEn}
                 </Text>
-              </TouchableOpacity>
+              </PressableScale>
             ))}
           </View>
 
@@ -386,7 +405,7 @@ export default function CustomerHomeScreen() {
   );
 }
 
-const makeStyles = (C: any, isRTL: boolean) =>
+const makeStyles = (C: any, isRTL: boolean, SHADOWS: any) =>
   StyleSheet.create({
     container: { flex: 1, backgroundColor: C.background },
 
@@ -404,9 +423,9 @@ const makeStyles = (C: any, isRTL: boolean) =>
     },
     logo: { fontSize: 22, fontWeight: '900', letterSpacing: 0.5 },
 
-    greetingSmall: { fontSize: 13, fontWeight: '500', textAlign: isRTL ? 'right' : 'left' },
-    greetingName: { fontSize: 26, fontWeight: '800', marginTop: 2, textAlign: isRTL ? 'right' : 'left' },
-    greetingSub: { fontSize: 13, marginTop: 4, marginBottom: 18, textAlign: isRTL ? 'right' : 'left' },
+    greetingSmall: { fontSize: 14, fontWeight: '600', textAlign: isRTL ? 'right' : 'left' },
+    greetingName: { fontSize: 28, fontWeight: '800', marginTop: 2, textAlign: isRTL ? 'right' : 'left' },
+    greetingSub: { fontSize: 14, marginTop: 4, marginBottom: 20, textAlign: isRTL ? 'right' : 'left' },
 
     cta: {
       flexDirection: isRTL ? 'row-reverse' : 'row',
@@ -441,10 +460,10 @@ const makeStyles = (C: any, isRTL: boolean) =>
     activeOrder: {
       flexDirection: isRTL ? 'row-reverse' : 'row',
       alignItems: 'center',
-      borderRadius: 14,
-      borderWidth: 1,
-      padding: 14,
-      marginBottom: 22,
+      borderRadius: BORDER_RADIUS.md,
+      padding: 16,
+      marginBottom: 24,
+      ...SHADOWS.small,
     },
     dot: { width: 10, height: 10, borderRadius: 5 },
     activeOrderTitle: { fontSize: 13, fontWeight: '800' },
@@ -454,24 +473,24 @@ const makeStyles = (C: any, isRTL: boolean) =>
       flexDirection: isRTL ? 'row-reverse' : 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
-      marginBottom: 12,
-      marginTop: 4,
+      marginBottom: 14,
+      marginTop: 8,
     },
-    sectionTitle: { fontSize: 16, fontWeight: '800' },
+    sectionTitle: { fontSize: 20, fontWeight: '800' },
 
     deviceGrid: {
       flexDirection: isRTL ? 'row-reverse' : 'row',
       flexWrap: 'wrap',
       gap: 12,
-      marginBottom: 22,
+      marginBottom: 24,
     },
     deviceCard: {
-      width: (width - SPACING.lg * 2 - 12) / 2,
-      borderRadius: BORDER_RADIUS.lg,
-      borderWidth: 1,
+      width: (width - SPACING.m * 2 - 12) / 2,
+      borderRadius: BORDER_RADIUS.md,
       padding: 16,
       alignItems: 'center',
       gap: 10,
+      ...SHADOWS.small,
     },
     deviceIcon: {
       width: 52, height: 52, borderRadius: 14,
@@ -483,12 +502,12 @@ const makeStyles = (C: any, isRTL: boolean) =>
     // Social proof
     socialProof: {
       flexDirection: isRTL ? 'row-reverse' : 'row',
-      borderRadius: BORDER_RADIUS.lg,
-      borderWidth: 1,
-      paddingVertical: 14,
+      borderRadius: BORDER_RADIUS.md,
+      paddingVertical: 16,
       paddingHorizontal: 8,
       marginBottom: 16,
       alignItems: 'center',
+      ...SHADOWS.small,
     },
     spItem: { flex: 1, alignItems: 'center', gap: 4 },
     spIcon: {
@@ -501,10 +520,10 @@ const makeStyles = (C: any, isRTL: boolean) =>
 
     // Recent activity card
     recentCard: {
-      borderRadius: BORDER_RADIUS.lg,
-      borderWidth: 1,
-      padding: 14,
-      marginBottom: 22,
+      borderRadius: BORDER_RADIUS.md,
+      padding: 16,
+      marginBottom: 24,
+      ...SHADOWS.small,
     },
     recentTop: {
       flexDirection: isRTL ? 'row-reverse' : 'row',
@@ -538,19 +557,19 @@ const makeStyles = (C: any, isRTL: boolean) =>
       alignItems: 'center',
       gap: 8,
       paddingHorizontal: 14,
-      paddingVertical: 10,
+      paddingVertical: 12,
       borderRadius: 999,
-      borderWidth: 1,
+      ...SHADOWS.small,
     },
-    quickText: { fontSize: 13, fontWeight: '600' },
+    quickText: { fontSize: 14, fontWeight: '600' },
 
     trustCard: {
       flexDirection: isRTL ? 'row-reverse' : 'row',
-      borderRadius: BORDER_RADIUS.lg,
-      borderWidth: 1,
-      padding: 14,
+      borderRadius: BORDER_RADIUS.md,
+      padding: 16,
       marginBottom: 18,
       gap: 4,
+      ...SHADOWS.small,
     },
     trustItem: {
       flex: 1,
@@ -567,9 +586,9 @@ const makeStyles = (C: any, isRTL: boolean) =>
     supportCard: {
       flexDirection: isRTL ? 'row-reverse' : 'row',
       alignItems: 'center',
-      borderRadius: BORDER_RADIUS.lg,
+      borderRadius: BORDER_RADIUS.md,
       borderWidth: 1,
-      padding: 14,
+      padding: 16,
     },
     supportIcon: {
       width: 42, height: 42, borderRadius: 12,

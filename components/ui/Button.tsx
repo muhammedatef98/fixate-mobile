@@ -1,6 +1,15 @@
-import React from 'react';
-import { TouchableOpacity, Text, StyleSheet, ActivityIndicator, ViewStyle, TextStyle } from 'react-native';
-import { COLORS, SPACING, SHADOWS } from '../../constants/theme';
+import React, { useRef } from 'react';
+import {
+  Animated,
+  Pressable,
+  Text,
+  StyleSheet,
+  ActivityIndicator,
+  ViewStyle,
+  TextStyle,
+} from 'react-native';
+import { getColors, getShadows, BORDER_RADIUS } from '../../constants/theme';
+import { useApp } from '../../contexts/AppContext';
 
 interface ButtonProps {
   title: string;
@@ -9,6 +18,7 @@ interface ButtonProps {
   size?: 'small' | 'medium' | 'large';
   loading?: boolean;
   disabled?: boolean;
+  fullWidth?: boolean;
   style?: ViewStyle;
   textStyle?: TextStyle;
   icon?: React.ReactNode;
@@ -21,83 +31,96 @@ export const Button: React.FC<ButtonProps> = ({
   size = 'medium',
   loading = false,
   disabled = false,
+  fullWidth = false,
   style,
   textStyle,
   icon,
 }) => {
-  const getBackgroundColor = () => {
-    if (disabled) return COLORS.border;
+  const { isDark } = useApp();
+  const C = getColors(isDark);
+  const SHADOWS = getShadows(isDark);
+  const scale = useRef(new Animated.Value(1)).current;
+
+  const animate = (to: number) =>
+    Animated.spring(scale, { toValue: to, useNativeDriver: true, friction: 7, tension: 120 }).start();
+
+  const bg = () => {
+    if (disabled) return C.border;
     switch (variant) {
-      case 'primary': return COLORS.primary;
-      case 'secondary': return COLORS.secondary;
+      case 'primary': return C.primary;
+      case 'secondary': return C.cardAlt;
       case 'outline': return 'transparent';
       case 'ghost': return 'transparent';
-      default: return COLORS.primary;
+      default: return C.primary;
     }
   };
-
-  const getTextColor = () => {
-    if (disabled) return COLORS.textSecondary;
+  const fg = () => {
+    if (disabled) return C.textSecondary;
     switch (variant) {
-      case 'primary': return '#FFFFFF';
-      case 'secondary': return '#FFFFFF';
-      case 'outline': return COLORS.primary;
-      case 'ghost': return COLORS.textSecondary;
-      default: return '#FFFFFF';
+      case 'primary': return C.primaryForeground;
+      case 'secondary': return C.text;
+      case 'outline': return C.primary;
+      case 'ghost': return C.textSecondary;
+      default: return C.primaryForeground;
     }
   };
-
-  const getPadding = () => {
+  // Min 48px height for medium/large per the design spec.
+  const pad = () => {
     switch (size) {
-      case 'small': return { paddingVertical: 8, paddingHorizontal: 12 };
-      case 'medium': return { paddingVertical: 12, paddingHorizontal: 20 };
-      case 'large': return { paddingVertical: 16, paddingHorizontal: 24 };
-      default: return { paddingVertical: 12, paddingHorizontal: 20 };
+      case 'small': return { minHeight: 38, paddingVertical: 8, paddingHorizontal: 14 };
+      case 'large': return { minHeight: 54, paddingVertical: 15, paddingHorizontal: 24 };
+      default: return { minHeight: 48, paddingVertical: 13, paddingHorizontal: 20 };
     }
   };
 
   return (
-    <TouchableOpacity
-      onPress={onPress}
-      disabled={disabled || loading}
-      style={[
-        styles.container,
-        { backgroundColor: getBackgroundColor() },
-        variant === 'outline' && { borderWidth: 1, borderColor: COLORS.primary },
-        getPadding(),
-        variant === 'primary' && SHADOWS.small,
-        style,
-      ]}
-      activeOpacity={0.8}
-    >
-      {loading ? (
-        <ActivityIndicator color={getTextColor()} />
-      ) : (
-        <>
-          {icon}
-          <Text style={[
-            styles.text,
-            { color: getTextColor(), fontSize: size === 'large' ? 18 : 16 },
-            icon ? { marginLeft: 8 } : null,
-            textStyle
-          ]}>
-            {title}
-          </Text>
-        </>
-      )}
-    </TouchableOpacity>
+    <Animated.View style={[{ transform: [{ scale }] }, fullWidth && { alignSelf: 'stretch' }]}>
+      <Pressable
+        onPress={onPress}
+        disabled={disabled || loading}
+        onPressIn={() => animate(0.97)}
+        onPressOut={() => animate(1)}
+        accessibilityRole="button"
+        style={[
+          styles.container,
+          { backgroundColor: bg() },
+          variant === 'outline' && { borderWidth: 1.5, borderColor: disabled ? C.border : C.primary },
+          pad(),
+          variant === 'primary' && !disabled && SHADOWS.small,
+          style,
+        ]}
+      >
+        {loading ? (
+          <ActivityIndicator color={fg()} />
+        ) : (
+          <>
+            {icon}
+            <Text
+              style={[
+                styles.text,
+                { color: fg(), fontSize: size === 'large' ? 17 : size === 'small' ? 14 : 16 },
+                icon ? { marginHorizontal: 8 } : null,
+                textStyle,
+              ]}
+            >
+              {title}
+            </Text>
+          </>
+        )}
+      </Pressable>
+    </Animated.View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
-    borderRadius: 12,
+    borderRadius: BORDER_RADIUS.sm,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
   },
   text: {
-    fontWeight: '600',
+    fontWeight: '700',
     textAlign: 'center',
   },
 });
