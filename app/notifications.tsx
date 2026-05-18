@@ -9,17 +9,21 @@ import {
   StatusBar,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { getColors, SPACING, BORDER_RADIUS } from '../constants/theme';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { getColors, getShadows, SPACING, BORDER_RADIUS } from '../constants/theme';
 import { useApp } from '../contexts/AppContext';
 import { RTLIonicon } from '../components/RTLIcon';
 import { safeBack } from '../utils/navigation';
+import { PressableScale } from '../components/ui/PressableScale';
+import { EmptyState } from '../components/ui/EmptyState';
 
 export default function NotificationsScreen() {
   const router = useRouter();
   const { language, isDark } = useApp();
   const COLORS = getColors(isDark);
+  const SHADOWS = getShadows(isDark);
   const isRTL = language === 'ar';
+  const styles = makeStyles(COLORS, isRTL, SHADOWS);
 
   const NOTIFICATIONS = [
     {
@@ -31,7 +35,7 @@ export default function NotificationsScreen() {
       timeEn: '2 hours ago',
       timeAr: 'منذ ساعتين',
       icon: 'check-circle',
-      color: '#10B981',
+      color: COLORS.success,
     },
     {
       id: 2,
@@ -42,54 +46,56 @@ export default function NotificationsScreen() {
       timeEn: '1 hour ago',
       timeAr: 'منذ ساعة',
       icon: 'account-check',
-      color: '#3B82F6',
+      color: COLORS.info,
     },
   ];
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: COLORS.background }]}>
-      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
-      
-      {/* Header */}
-      <View style={[styles.header, { borderBottomColor: COLORS.border }]}>
-        <TouchableOpacity accessibilityRole="button" accessibilityLabel={isRTL ? 'رجوع' : 'Back'} onPress={() => safeBack()} style={styles.backButton}>
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={COLORS.background} />
+
+      <View style={styles.header}>
+        <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel={isRTL ? 'رجوع' : 'Back'}
+          onPress={() => safeBack()}
+          style={styles.backButton}
+        >
           <RTLIonicon name="arrow-back" size={24} color={COLORS.text} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: COLORS.text }]}>
-          {isRTL ? 'الإشعارات' : 'Notifications'}
-        </Text>
+        <Text style={styles.headerTitle}>{isRTL ? 'الإشعارات' : 'Notifications'}</Text>
         <View style={{ width: 40 }} />
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ padding: SPACING.m, paddingBottom: 40 }}
+        showsVerticalScrollIndicator={false}
+      >
         {NOTIFICATIONS.length > 0 ? (
           NOTIFICATIONS.map((item) => (
-            <TouchableOpacity 
-              key={item.id} 
-              style={[styles.notificationCard, { backgroundColor: COLORS.card, borderBottomColor: COLORS.border }]}
-            >
-              <View style={[styles.iconContainer, { backgroundColor: item.color + '15' }]}>
+            <PressableScale key={item.id} to={0.985} style={styles.notificationCard}>
+              <View style={[styles.iconContainer, { backgroundColor: item.color + '20' }]}>
                 <MaterialCommunityIcons name={item.icon as any} size={24} color={item.color} />
               </View>
               <View style={styles.notificationInfo}>
-                <Text style={[styles.notificationTitle, { color: COLORS.text }]}>
-                  {isRTL ? item.titleAr : item.titleEn}
-                </Text>
-                <Text style={[styles.notificationDesc, { color: COLORS.textSecondary }]}>
-                  {isRTL ? item.descAr : item.descEn}
-                </Text>
-                <Text style={[styles.notificationTime, { color: COLORS.textSecondary }]}>
-                  {isRTL ? item.timeAr : item.timeEn}
-                </Text>
+                <Text style={styles.notificationTitle}>{isRTL ? item.titleAr : item.titleEn}</Text>
+                <Text style={styles.notificationDesc}>{isRTL ? item.descAr : item.descEn}</Text>
+                <Text style={styles.notificationTime}>{isRTL ? item.timeAr : item.timeEn}</Text>
               </View>
-            </TouchableOpacity>
+            </PressableScale>
           ))
         ) : (
-          <View style={styles.emptyContainer}>
-            <MaterialCommunityIcons name="bell-off-outline" size={80} color={COLORS.border} />
-            <Text style={[styles.emptyText, { color: COLORS.textSecondary }]}>
-              {isRTL ? 'لا توجد إشعارات حالياً' : 'No notifications yet'}
-            </Text>
+          <View style={{ marginTop: 60 }}>
+            <EmptyState
+              icon="bell-off-outline"
+              title={isRTL ? 'لا توجد إشعارات حالياً' : 'No notifications yet'}
+              description={
+                isRTL
+                  ? 'سنخبرك هنا بكل تحديثات طلباتك أولاً بأول.'
+                  : "We'll let you know here as soon as your orders update."
+              }
+            />
           </View>
         )}
       </ScrollView>
@@ -97,42 +103,49 @@ export default function NotificationsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1 },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    height: 60,
-    borderBottomWidth: 1,
-  },
-  backButton: { padding: 8 },
-  headerTitle: { fontSize: 18, fontWeight: 'bold' },
-  content: { flex: 1 },
-  notificationCard: {
-    flexDirection: 'row',
-    padding: 16,
-    borderBottomWidth: 1,
-    alignItems: 'center',
-  },
-  iconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 16,
-  },
-  notificationInfo: { flex: 1 },
-  notificationTitle: { fontSize: 16, fontWeight: 'bold', marginBottom: 4 },
-  notificationDesc: { fontSize: 14, marginBottom: 4 },
-  notificationTime: { fontSize: 12 },
-  emptyContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 100,
-  },
-  emptyText: { fontSize: 16, marginTop: 16 },
-});
+const makeStyles = (C: any, isRTL: boolean, SHADOWS: any) =>
+  StyleSheet.create({
+    container: { flex: 1, backgroundColor: C.background },
+    header: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      backgroundColor: C.background,
+    },
+    backButton: { padding: 8 },
+    headerTitle: { fontSize: 22, fontWeight: '800', color: C.text },
+    notificationCard: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      padding: 16,
+      marginBottom: 12,
+      alignItems: 'center',
+      backgroundColor: C.card,
+      borderRadius: BORDER_RADIUS.md,
+      gap: 14,
+      ...SHADOWS.small,
+    },
+    iconContainer: {
+      width: 48,
+      height: 48,
+      borderRadius: 14,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    notificationInfo: { flex: 1 },
+    notificationTitle: {
+      fontSize: 16,
+      fontWeight: '700',
+      marginBottom: 4,
+      color: C.text,
+      textAlign: isRTL ? 'right' : 'left',
+    },
+    notificationDesc: {
+      fontSize: 14,
+      marginBottom: 4,
+      color: C.textSecondary,
+      textAlign: isRTL ? 'right' : 'left',
+    },
+    notificationTime: { fontSize: 12, color: C.textLight, textAlign: isRTL ? 'right' : 'left' },
+  });

@@ -6,7 +6,8 @@ import { useApp } from '../../contexts/AppContext';
 import { useAuth } from '../../contexts/AuthContext';
 import BottomNavTech from '../../components/BottomNavTech';
 import { RTLIonicon } from '../../components/RTLIcon';
-import { getColors } from '../../constants/theme';
+import { getColors, getShadows, BORDER_RADIUS } from '../../constants/theme';
+import { PressableScale } from '../../components/ui/PressableScale';
 import { supabase } from '../../services/supabaseClient';
 
 export default function TechnicianProfile() {
@@ -23,7 +24,10 @@ export default function TechnicianProfile() {
     textSecondary: themeColors.textSecondary,
     border: themeColors.border,
     white: themeColors.card,
-    danger: '#ef4444',
+    cardAlt: themeColors.cardAlt,
+    primarySoft: themeColors.primarySoft,
+    errorSoft: themeColors.errorSoft,
+    danger: themeColors.error,
   };
 
   const { user: authUser, userProfile, signOut } = useAuth();
@@ -80,7 +84,8 @@ export default function TechnicianProfile() {
     { id: 'help', icon: 'help-circle-outline', labelAr: 'الدعم الفني', labelEn: 'Tech Support' },
   ];
 
-  const styles = createStyles(COLORS, isRTL);
+  const SHADOWS = getShadows(isDark);
+  const styles = createStyles(COLORS, isRTL, SHADOWS);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -127,7 +132,7 @@ export default function TechnicianProfile() {
           {/* Menu Items */}
           <View style={styles.menuSection}>
             {MENU_ITEMS.map((item) => (
-              <TouchableOpacity key={item.id} style={styles.menuItem} onPress={() => {
+              <PressableScale key={item.id} to={0.985} style={styles.menuItem} onPress={() => {
                 if (item.id === 'availability') router.push('/(technician)/service-availability');
                 else if (item.id === 'earnings') router.push('/(technician)/earnings');
                 else if (item.id === 'my-orders') router.push('/(technician)/my-orders');
@@ -142,16 +147,16 @@ export default function TechnicianProfile() {
                   </View>
                   <Text style={styles.menuLabel}>{isRTL ? item.labelAr : item.labelEn}</Text>
                 </View>
-                <RTLIonicon name="chevron-forward" size={18} color={COLORS.border} />
-              </TouchableOpacity>
+                <RTLIonicon name="chevron-forward" size={18} color={COLORS.textSecondary} />
+              </PressableScale>
             ))}
           </View>
 
           {/* Logout Button */}
-          <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+          <PressableScale to={0.985} style={styles.logoutButton} onPress={handleLogout}>
             <Ionicons name="log-out-outline" size={22} color={COLORS.danger} />
             <Text style={styles.logoutText}>{isRTL ? 'تسجيل الخروج' : 'Logout'}</Text>
-          </TouchableOpacity>
+          </PressableScale>
         </Animated.View>
         
         <View style={{ height: 100 }} />
@@ -162,14 +167,14 @@ export default function TechnicianProfile() {
   );
 }
 
-const createStyles = (COLORS: any, isRTL: boolean) => StyleSheet.create({
+const createStyles = (COLORS: any, isRTL: boolean, SHADOWS: any) => StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
-  header: { height: 60, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.white, borderBottomWidth: 1, borderBottomColor: COLORS.border },
-  headerTitle: { fontSize: 18, fontWeight: 'bold', color: COLORS.text },
+  header: { paddingHorizontal: 16, paddingVertical: 14, alignItems: isRTL ? 'flex-end' : 'flex-start', justifyContent: 'center', backgroundColor: COLORS.background },
+  headerTitle: { fontSize: 22, fontWeight: '800', color: COLORS.text },
   scrollContent: { padding: 16 },
-  profileCard: { backgroundColor: COLORS.white, borderRadius: 24, padding: 24, alignItems: 'center', marginBottom: 24, borderWidth: 1, borderColor: COLORS.border },
+  profileCard: { backgroundColor: COLORS.white, borderRadius: BORDER_RADIUS.xxl, padding: 24, alignItems: 'center', marginBottom: 24, ...SHADOWS.small },
   avatarContainer: { position: 'relative', marginBottom: 16 },
-  avatar: { width: 100, height: 100, borderRadius: 50, borderWidth: 4, borderColor: '#ecfdf5' },
+  avatar: { width: 100, height: 100, borderRadius: 50, borderWidth: 4, borderColor: COLORS.primarySoft },
   verifiedBadge: { position: 'absolute', bottom: 0, right: 0, width: 28, height: 28, borderRadius: 14, backgroundColor: COLORS.primary, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: COLORS.white },
   userName: { fontSize: 22, fontWeight: 'bold', color: COLORS.text },
   userEmail: { fontSize: 14, color: COLORS.textSecondary, marginTop: 4 },
@@ -178,11 +183,11 @@ const createStyles = (COLORS: any, isRTL: boolean) => StyleSheet.create({
   statValue: { fontSize: 20, fontWeight: 'bold', color: COLORS.primary },
   statLabel: { fontSize: 12, color: COLORS.textSecondary, marginTop: 4 },
   statDivider: { width: 1, height: 30, backgroundColor: COLORS.border },
-  menuSection: { backgroundColor: COLORS.white, borderRadius: 24, padding: 8, marginBottom: 24, borderWidth: 1, borderColor: COLORS.border },
-  menuItem: { flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, borderBottomWidth: 1, borderBottomColor: '#f9fafb' },
+  menuSection: { backgroundColor: COLORS.white, borderRadius: BORDER_RADIUS.md, padding: 6, marginBottom: 24, ...SHADOWS.small },
+  menuItem: { flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, borderBottomWidth: 1, borderBottomColor: COLORS.border },
   menuItemLeft: { flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 16 },
-  menuIconContainer: { width: 40, height: 40, borderRadius: 12, backgroundColor: '#f9fafb', justifyContent: 'center', alignItems: 'center' },
+  menuIconContainer: { width: 40, height: 40, borderRadius: 12, backgroundColor: COLORS.cardAlt, justifyContent: 'center', alignItems: 'center' },
   menuLabel: { fontSize: 16, fontWeight: '600', color: COLORS.text },
-  logoutButton: { flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', justifyContent: 'center', gap: 12, padding: 16, backgroundColor: '#fef2f2', borderRadius: 20, marginBottom: 24 },
+  logoutButton: { flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', justifyContent: 'center', gap: 12, minHeight: 52, backgroundColor: COLORS.errorSoft, borderRadius: BORDER_RADIUS.md, marginBottom: 24 },
   logoutText: { fontSize: 16, fontWeight: 'bold', color: COLORS.danger },
 });

@@ -211,8 +211,8 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING.md,
   },
   headerTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
+    fontSize: 22,
+    fontWeight: '800',
   },
   tabs: {
     flexDirection: 'row',
@@ -236,8 +236,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.lg,
   },
   orderCard: {
-    padding: SPACING.lg,
-    borderRadius: BORDER_RADIUS.lg,
+    padding: SPACING.l,
+    borderRadius: BORDER_RADIUS.md,
     marginBottom: SPACING.md,
   },
   orderHeader: {
@@ -288,8 +288,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    minHeight: 48,
     paddingVertical: SPACING.md,
-    borderRadius: BORDER_RADIUS.md,
+    borderRadius: BORDER_RADIUS.sm,
     gap: SPACING.xs,
   },
   actionButtonText: {

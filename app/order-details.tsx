@@ -561,7 +561,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     marginBottom: 16,
     padding: 16,
-    borderRadius: 16,
+    borderRadius: BORDER_RADIUS.md,
   },
   timelineContainer: {
     flexDirection: 'row',
@@ -589,7 +589,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     marginBottom: 12,
     padding: 16,
-    borderRadius: 16,
+    borderRadius: BORDER_RADIUS.md,
   },
 
   cardHeader: {
@@ -598,7 +598,7 @@ const styles = StyleSheet.create({
     gap: 12,
     marginBottom: 16,
   },
-  cardTitle: { fontSize: 16, fontWeight: '600', flex: 1 },
+  cardTitle: { fontSize: 18, fontWeight: '700', flex: 1 },
 
   deviceInfo: { gap: 12 },
   infoRow: {
@@ -635,11 +635,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    minHeight: 48,
     paddingVertical: 14,
-    borderRadius: 12,
+    borderRadius: BORDER_RADIUS.sm,
     gap: 8,
   },
-  actionButtonText: { color: '#fff', fontSize: 15, fontWeight: '600' },
+  actionButtonText: { color: '#fff', fontSize: 15, fontWeight: '700' },
 
   ratingContainer: {
     flexDirection: 'row',
