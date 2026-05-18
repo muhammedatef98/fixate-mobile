@@ -14,7 +14,7 @@ import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useApp } from '../../contexts/AppContext';
 import { useAuth } from '../../contexts/AuthContext';
-import { getColors, SPACING, BORDER_RADIUS } from '../../constants/theme';
+import { getColors, getShadows, SPACING, BORDER_RADIUS } from '../../constants/theme';
 import { RTLIonicon } from '../../components/RTLIcon';
 import { SERVICE_CATALOG } from '../../constants/serviceCatalog';
 import * as availabilityService from '../../services/serviceAvailabilityService';
@@ -26,7 +26,8 @@ export default function ServiceAvailabilityScreen() {
   const { user } = useAuth();
   const isRTL = language === 'ar';
   const C = getColors(isDark);
-  const styles = makeStyles(C, isRTL);
+  const SHADOWS = getShadows(isDark);
+  const styles = makeStyles(C, isRTL, SHADOWS);
 
   const [map, setMap] = useState<AvailabilityMap>(availabilityService.getDefaultAvailability());
   const [loading, setLoading] = useState(true);
@@ -122,7 +123,7 @@ export default function ServiceAvailabilityScreen() {
   );
 }
 
-const makeStyles = (C: any, isRTL: boolean) =>
+const makeStyles = (C: any, isRTL: boolean, SHADOWS: any) =>
   StyleSheet.create({
     container: { flex: 1, backgroundColor: C.background },
     center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
@@ -130,14 +131,12 @@ const makeStyles = (C: any, isRTL: boolean) =>
       flexDirection: isRTL ? 'row-reverse' : 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      paddingHorizontal: 14,
+      paddingHorizontal: 16,
       paddingVertical: 12,
-      backgroundColor: C.card,
-      borderBottomWidth: 1,
-      borderBottomColor: C.border,
+      backgroundColor: C.background,
     },
     backBtn: { padding: 8 },
-    headerTitle: { fontSize: 18, fontWeight: 'bold', color: C.text },
+    headerTitle: { fontSize: 22, fontWeight: '800', color: C.text },
     intro: { color: C.textSecondary, fontSize: 13, lineHeight: 20, marginBottom: 16, textAlign: isRTL ? 'right' : 'left' },
     summaryPill: {
       flexDirection: isRTL ? 'row-reverse' : 'row',
@@ -156,11 +155,10 @@ const makeStyles = (C: any, isRTL: boolean) =>
       alignItems: 'center',
       gap: 14,
       backgroundColor: C.card,
-      borderWidth: 1,
-      borderColor: C.border,
-      borderRadius: BORDER_RADIUS.lg,
-      padding: 14,
+      borderRadius: BORDER_RADIUS.md,
+      padding: 16,
       marginBottom: 10,
+      ...SHADOWS.small,
     },
     rowIcon: {
       width: 40,
@@ -174,11 +172,9 @@ const makeStyles = (C: any, isRTL: boolean) =>
     noteBox: {
       flexDirection: isRTL ? 'row-reverse' : 'row',
       gap: 8,
-      backgroundColor: C.card,
-      borderWidth: 1,
-      borderColor: C.border,
+      backgroundColor: C.cardAlt,
       borderRadius: BORDER_RADIUS.md,
-      padding: 12,
+      padding: 14,
       marginTop: 16,
       alignItems: 'flex-start',
     },

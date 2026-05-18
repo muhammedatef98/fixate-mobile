@@ -157,13 +157,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#f5f5f5',
   },
   header: {
-    backgroundColor: '#5DBEAA',
+    backgroundColor: '#10B981',
     padding: 20,
     paddingTop: 60,
   },
   headerTitle: {
     fontSize: 24,
-    fontWeight: 'bold',
+    fontWeight: '800',
     color: '#fff',
     textAlign: 'center',
   },
