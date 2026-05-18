@@ -15,7 +15,7 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useApp } from '../contexts/AppContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useLoyalty } from '../contexts/LoyaltyContext';
-import { getColors, SPACING, BORDER_RADIUS } from '../constants/theme';
+import { getColors, getShadows, SPACING, BORDER_RADIUS } from '../constants/theme';
 import { RTLIonicon } from '../components/RTLIcon';
 import { LOYALTY_CONFIG } from '../constants/loyalty';
 import * as loyaltyService from '../services/loyaltyService';
@@ -27,7 +27,8 @@ export default function LoyaltyScreen() {
   const { summary, loading, refresh } = useLoyalty();
   const isRTL = language === 'ar';
   const C = getColors(isDark);
-  const styles = makeStyles(C, isRTL);
+  const SHADOWS = getShadows(isDark);
+  const styles = makeStyles(C, isRTL, SHADOWS);
 
   const [redeeming, setRedeeming] = useState<string | null>(null);
 
@@ -174,26 +175,25 @@ export default function LoyaltyScreen() {
   );
 }
 
-const makeStyles = (C: any, isRTL: boolean) =>
+const makeStyles = (C: any, isRTL: boolean, SHADOWS: any) =>
   StyleSheet.create({
     container: { flex: 1, backgroundColor: C.background },
     header: {
       flexDirection: isRTL ? 'row-reverse' : 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      paddingHorizontal: 14,
+      paddingHorizontal: 16,
       paddingVertical: 12,
-      backgroundColor: C.card,
-      borderBottomWidth: 1,
-      borderBottomColor: C.border,
+      backgroundColor: C.background,
     },
     backBtn: { padding: 8 },
-    headerTitle: { fontSize: 18, fontWeight: 'bold', color: C.text },
+    headerTitle: { fontSize: 22, fontWeight: '800', color: C.text },
     balanceCard: {
       borderRadius: 24,
       padding: 24,
       alignItems: 'center',
       marginBottom: 16,
+      ...SHADOWS.medium,
     },
     balanceValue: { color: '#fff', fontSize: 44, fontWeight: '800', marginTop: 6 },
     balanceLabel: { color: '#ffffffdd', fontSize: 14, marginTop: 2 },
@@ -201,21 +201,20 @@ const makeStyles = (C: any, isRTL: boolean) =>
     noteBox: {
       flexDirection: isRTL ? 'row-reverse' : 'row',
       gap: 8,
-      backgroundColor: C.card,
-      borderWidth: 1,
-      borderColor: C.border,
+      backgroundColor: C.cardAlt,
       borderRadius: BORDER_RADIUS.md,
-      padding: 12,
-      marginBottom: 18,
+      padding: 14,
+      marginBottom: 20,
       alignItems: 'flex-start',
     },
     noteText: { flex: 1, color: C.textSecondary, fontSize: 12, lineHeight: 18, textAlign: isRTL ? 'right' : 'left' },
     sectionLabel: {
-      fontSize: 11,
+      fontSize: 13,
       fontWeight: '800',
       color: C.textSecondary,
       letterSpacing: 1.2,
-      marginBottom: 8,
+      marginBottom: 10,
+      marginTop: 4,
       textAlign: isRTL ? 'right' : 'left',
     },
     infoCard: {
@@ -223,11 +222,10 @@ const makeStyles = (C: any, isRTL: boolean) =>
       alignItems: 'center',
       gap: 12,
       backgroundColor: C.card,
-      borderWidth: 1,
-      borderColor: C.border,
-      borderRadius: BORDER_RADIUS.lg,
+      borderRadius: BORDER_RADIUS.md,
       padding: 16,
-      marginBottom: 22,
+      marginBottom: 24,
+      ...SHADOWS.small,
     },
     infoText: { color: C.text, fontSize: 15, fontWeight: '700' },
     tierCard: {
@@ -235,11 +233,10 @@ const makeStyles = (C: any, isRTL: boolean) =>
       alignItems: 'center',
       gap: 12,
       backgroundColor: C.card,
-      borderWidth: 1,
-      borderColor: C.border,
-      borderRadius: BORDER_RADIUS.lg,
-      padding: 14,
+      borderRadius: BORDER_RADIUS.md,
+      padding: 16,
       marginBottom: 12,
+      ...SHADOWS.small,
     },
     tierIcon: {
       width: 42,
@@ -254,10 +251,11 @@ const makeStyles = (C: any, isRTL: boolean) =>
     tierPoints: { color: C.primary, fontSize: 13, fontWeight: '800', marginTop: 6, textAlign: isRTL ? 'right' : 'left' },
     redeemBtn: {
       backgroundColor: C.primary,
-      paddingHorizontal: 16,
-      paddingVertical: 10,
+      paddingHorizontal: 18,
+      minHeight: 44,
+      justifyContent: 'center',
       borderRadius: 999,
-      minWidth: 80,
+      minWidth: 84,
       alignItems: 'center',
     },
     redeemBtnText: { color: '#fff', fontWeight: '700', fontSize: 13 },
