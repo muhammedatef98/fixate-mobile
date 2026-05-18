@@ -15,7 +15,8 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useApp } from '../../contexts/AppContext';
 import BottomNav from '../../components/BottomNav';
 import { RTLIonicon } from '../../components/RTLIcon';
-import { getColors, SPACING, BORDER_RADIUS } from '../../constants/theme';
+import { getColors, getShadows, SPACING, BORDER_RADIUS } from '../../constants/theme';
+import { PressableScale } from '../../components/ui/PressableScale';
 import { safeBack } from '../../utils/navigation';
 
 const { width } = Dimensions.get('window');
@@ -112,7 +113,8 @@ export default function ServicesScreen() {
   const { language, isDark } = useApp();
   const isRTL = language === 'ar';
   const COLORS = getColors(isDark);
-  const styles = makeStyles(COLORS, isRTL);
+  const SHADOWS = getShadows(isDark);
+  const styles = makeStyles(COLORS, isRTL, SHADOWS);
 
   const fade = useRef(new Animated.Value(0)).current;
   const slide = useRef(new Animated.Value(20)).current;
@@ -144,7 +146,7 @@ export default function ServicesScreen() {
 
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ padding: SPACING.lg, paddingBottom: 100 }}
+        contentContainerStyle={{ padding: SPACING.m, paddingBottom: 100 }}
       >
         <Animated.View style={{ opacity: fade, transform: [{ translateY: slide }] }}>
           {/* Hero — friendly intro + CTA */}
@@ -204,11 +206,12 @@ export default function ServicesScreen() {
           {/* Service grid (2 columns) */}
           <View style={styles.grid}>
             {SERVICES.map((s) => (
-              <TouchableOpacity
+              <PressableScale
                 key={s.id}
+                to={0.97}
                 style={[
                   styles.tile,
-                  { backgroundColor: COLORS.card, borderColor: COLORS.border },
+                  { backgroundColor: COLORS.card },
                   !s.available && { opacity: 0.6 },
                 ]}
                 onPress={() => {
@@ -242,14 +245,15 @@ export default function ServicesScreen() {
                     </View>
                   )}
                 </View>
-              </TouchableOpacity>
+              </PressableScale>
             ))}
           </View>
 
           {/* Help card — opens in-app live support */}
-          <TouchableOpacity
+          <PressableScale
             onPress={() => router.push('/support-chat')}
-            style={[styles.helpCard, { backgroundColor: COLORS.card, borderColor: COLORS.border }]}
+            to={0.985}
+            style={[styles.helpCard, { backgroundColor: COLORS.card }]}
             accessibilityRole="button"
           >
             <View style={[styles.helpIcon, { backgroundColor: COLORS.primary + '15' }]}>
@@ -266,7 +270,7 @@ export default function ServicesScreen() {
               </Text>
             </View>
             <RTLIonicon name="chevron-forward" size={20} color={COLORS.primary} />
-          </TouchableOpacity>
+          </PressableScale>
         </Animated.View>
       </ScrollView>
 
@@ -275,18 +279,16 @@ export default function ServicesScreen() {
   );
 }
 
-const makeStyles = (C: any, isRTL: boolean) =>
+const makeStyles = (C: any, isRTL: boolean, SHADOWS: any) =>
   StyleSheet.create({
     container: { flex: 1, backgroundColor: C.background },
     header: {
       flexDirection: isRTL ? 'row-reverse' : 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      paddingHorizontal: 12,
-      paddingVertical: 10,
-      backgroundColor: C.card,
-      borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: C.border,
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      backgroundColor: C.background,
     },
     backBtn: {
       width: 36,
@@ -296,7 +298,7 @@ const makeStyles = (C: any, isRTL: boolean) =>
       alignItems: 'center',
       justifyContent: 'center',
     },
-    headerTitle: { fontSize: 17, fontWeight: '700', color: C.text },
+    headerTitle: { fontSize: 22, fontWeight: '800', color: C.text },
 
     // Hero
     hero: {
@@ -339,14 +341,14 @@ const makeStyles = (C: any, isRTL: boolean) =>
       marginBottom: 22,
     },
     featureItem: {
-      width: (width - SPACING.lg * 2 - 8) / 2,
+      width: (width - SPACING.m * 2 - 8) / 2,
       flexDirection: isRTL ? 'row-reverse' : 'row',
       alignItems: 'center',
       gap: 8,
-      paddingHorizontal: 10,
-      paddingVertical: 10,
-      borderRadius: 12,
-      borderWidth: 1,
+      paddingHorizontal: 12,
+      paddingVertical: 12,
+      borderRadius: BORDER_RADIUS.md,
+      ...SHADOWS.small,
     },
     featureIconWrap: {
       width: 32,
@@ -364,8 +366,8 @@ const makeStyles = (C: any, isRTL: boolean) =>
       alignItems: 'center',
       marginBottom: 12,
     },
-    sectionTitle: { fontSize: 16, fontWeight: '800' },
-    sectionMeta: { fontSize: 12, fontWeight: '500' },
+    sectionTitle: { fontSize: 20, fontWeight: '800' },
+    sectionMeta: { fontSize: 13, fontWeight: '500' },
 
     // Grid
     grid: {
@@ -374,11 +376,11 @@ const makeStyles = (C: any, isRTL: boolean) =>
       gap: 12,
     },
     tile: {
-      width: (width - SPACING.lg * 2 - 12) / 2,
-      borderRadius: BORDER_RADIUS.lg,
-      borderWidth: 1,
-      padding: 14,
+      width: (width - SPACING.m * 2 - 12) / 2,
+      borderRadius: BORDER_RADIUS.md,
+      padding: 16,
       minHeight: 160,
+      ...SHADOWS.small,
     },
     tileIconWrap: {
       width: 44,
@@ -404,10 +406,10 @@ const makeStyles = (C: any, isRTL: boolean) =>
     helpCard: {
       flexDirection: isRTL ? 'row-reverse' : 'row',
       alignItems: 'center',
-      borderRadius: BORDER_RADIUS.lg,
-      borderWidth: 1,
-      padding: 14,
-      marginTop: 22,
+      borderRadius: BORDER_RADIUS.md,
+      padding: 16,
+      marginTop: 24,
+      ...SHADOWS.small,
     },
     helpIcon: {
       width: 44,
