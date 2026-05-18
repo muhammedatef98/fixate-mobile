@@ -22,6 +22,7 @@ import { pointsForSpend } from '../constants/loyalty';
 import * as loyaltyService from '../services/loyaltyService';
 import { useLoyalty } from '../contexts/LoyaltyContext';
 import { supabase } from '../services/supabaseClient';
+import { PressableScale } from '../components/ui/PressableScale';
 
 const { width } = Dimensions.get('window');
 
@@ -71,18 +72,21 @@ export default function RequestScreen() {
   const selectedRegion = DELIVERY_REGIONS.find((r) => r.id === selectedRegionId) ?? null;
   const deliveryFee = resolveDeliveryFee(selectedRegionId, selectedAreaId);
   
+  const tc = getColors(isDark);
+  const SHADOWS = getShadows(isDark);
   const COLORS = {
-    primary: '#10b981',
-    background: '#f9fafb',
-    card: '#ffffff',
-    text: '#1f2937',
-    gray: '#6b7280',
-    border: '#e5e7eb',
-    lightGreen: '#ecfdf5',
-    error: '#ef4444',
+    primary: tc.primary,
+    background: tc.background,
+    card: tc.card,
+    cardAlt: tc.cardAlt,
+    text: tc.text,
+    gray: tc.textSecondary,
+    border: tc.border,
+    lightGreen: tc.primarySoft,
+    error: tc.error,
   };
-  
-  const styles = createStyles(COLORS, isRTL);
+
+  const styles = createStyles(COLORS, isRTL, SHADOWS);
   const [currentStep, setCurrentStep] = useState(0);
   const stepperScrollRef = useRef<ScrollView>(null);
   
@@ -405,8 +409,9 @@ export default function RequestScreen() {
           <ScrollView>
             <Text style={styles.sectionTitle}>{isRTL ? 'اختر نوع الخدمة' : 'Select Service Type'}</Text>
             {SERVICE_TYPES.map((type) => (
-              <TouchableOpacity 
-                key={type.id} 
+              <PressableScale
+                key={type.id}
+                to={0.985}
                 style={[styles.serviceCard, selectedServiceType === type.id && styles.selectedCard]}
                 onPress={() => setSelectedServiceType(type.id)}
               >
@@ -415,7 +420,7 @@ export default function RequestScreen() {
                   <Text style={styles.serviceName}>{isRTL ? type.name : type.nameEn}</Text>
                   <Text style={styles.serviceDesc}>{isRTL ? type.description : type.descriptionEn}</Text>
                 </View>
-              </TouchableOpacity>
+              </PressableScale>
             ))}
           </ScrollView>
         )}
@@ -425,8 +430,9 @@ export default function RequestScreen() {
             <Text style={styles.sectionTitle}>{isRTL ? 'اختر نوع الجهاز' : 'Select Device Type'}</Text>
             <View style={styles.deviceGrid}>
               {DEVICE_TYPES.map((device) => (
-                <TouchableOpacity 
-                  key={device.id} 
+                <PressableScale
+                  key={device.id}
+                  to={0.97}
                   style={[styles.deviceCard, selectedDeviceType === device.id && styles.selectedCard]}
                   onPress={() => {
                     if (device.available) {
@@ -439,7 +445,7 @@ export default function RequestScreen() {
                   <MaterialCommunityIcons name={device.icon as any} size={32} color={selectedDeviceType === device.id ? COLORS.primary : COLORS.gray} />
                   <Text style={styles.deviceName}>{isRTL ? device.name : device.nameEn}</Text>
                   {!device.available && <View style={styles.comingSoonBadge}><Text style={styles.comingSoonText}>{isRTL ? 'قريباً' : 'Soon'}</Text></View>}
-                </TouchableOpacity>
+                </PressableScale>
               ))}
             </View>
           </ScrollView>
@@ -458,20 +464,21 @@ export default function RequestScreen() {
             </View>
             <ScrollView contentContainerStyle={styles.brandGrid}>
               {filteredBrands.length > 0 ? filteredBrands.map((brand) => (
-                <TouchableOpacity 
-                  key={brand.id} 
+                <PressableScale
+                  key={brand.id}
+                  to={0.97}
                   style={[styles.brandCard, selectedBrand?.id === brand.id && styles.selectedCard]}
                   onPress={() => setSelectedBrand(brand)}
                 >
                   <View style={styles.brandLogoContainer}>
-                    <Image 
-                      source={typeof brand.logo === 'string' ? { uri: brand.logo } : brand.logo} 
-                      style={styles.brandLogo} 
-                      resizeMode="contain" 
+                    <Image
+                      source={typeof brand.logo === 'string' ? { uri: brand.logo } : brand.logo}
+                      style={styles.brandLogo}
+                      resizeMode="contain"
                     />
                   </View>
                   <Text style={styles.brandNameText}>{brand.name}</Text>
-                </TouchableOpacity>
+                </PressableScale>
               )) : renderEmptyState(isRTL ? 'لا توجد نتائج' : 'No results found')}
             </ScrollView>
           </View>
@@ -490,14 +497,15 @@ export default function RequestScreen() {
             </View>
             <ScrollView>
               {filteredModels.length > 0 ? filteredModels.map((model, index) => (
-                <TouchableOpacity 
-                  key={index} 
+                <PressableScale
+                  key={index}
+                  to={0.985}
                   style={[styles.listItem, selectedModel === model && styles.selectedListItem]}
                   onPress={() => setSelectedModel(model)}
                 >
                   <Text style={[styles.listItemText, selectedModel === model && styles.selectedListItemText]}>{model}</Text>
                   {selectedModel === model && <Ionicons name="checkmark-circle" size={24} color={COLORS.primary} />}
-                </TouchableOpacity>
+                </PressableScale>
               )) : renderEmptyState(isRTL ? 'لا توجد نتائج' : 'No results found')}
             </ScrollView>
           </View>
@@ -516,8 +524,9 @@ export default function RequestScreen() {
             </View>
             <ScrollView>
               {filteredIssues.length > 0 ? filteredIssues.map((issue) => (
-                <TouchableOpacity 
-                  key={issue.id} 
+                <PressableScale
+                  key={issue.id}
+                  to={0.985}
                   style={[styles.issueCard, selectedIssue?.id === issue.id && styles.selectedCard]}
                   onPress={() => setSelectedIssue(issue)}
                 >
@@ -531,7 +540,7 @@ export default function RequestScreen() {
                     </Text>
                   </View>
                   <MaterialCommunityIcons name={issue.icon as any} size={24} color={selectedIssue?.id === issue.id ? COLORS.primary : COLORS.gray} />
-                </TouchableOpacity>
+                </PressableScale>
               )) : renderEmptyState(isRTL ? 'لا توجد نتائج' : 'No results found')}
             </ScrollView>
           </View>
@@ -779,59 +788,59 @@ export default function RequestScreen() {
   );
 }
 
-const createStyles = (COLORS: any, isRTL: boolean) => StyleSheet.create({
+const createStyles = (COLORS: any, isRTL: boolean, SHADOWS: any) => StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
-  header: { flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, backgroundColor: '#fff' },
-  headerTitle: { fontSize: 18, fontWeight: 'bold', color: COLORS.text },
+  header: { flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, backgroundColor: COLORS.card },
+  headerTitle: { fontSize: 22, fontWeight: '800', color: COLORS.text },
   backButton: { padding: 8 },
-  stepperContainer: { backgroundColor: '#fff', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: COLORS.border },
+  stepperContainer: { backgroundColor: COLORS.card, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: COLORS.border },
   stepperContent: { paddingHorizontal: 16 },
   stepItem: { flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', marginHorizontal: 8 },
-  stepCircle: { width: 28, height: 28, borderRadius: 14, backgroundColor: '#e5e7eb', justifyContent: 'center', alignItems: 'center', marginHorizontal: 4 },
+  stepCircle: { width: 28, height: 28, borderRadius: 14, backgroundColor: COLORS.border, justifyContent: 'center', alignItems: 'center', marginHorizontal: 4 },
   activeStepCircle: { backgroundColor: COLORS.primary },
   stepNumber: { fontSize: 12, color: COLORS.gray, fontWeight: 'bold' },
   activeStepNumber: { color: '#fff' },
   stepLabel: { fontSize: 12, color: COLORS.gray, marginHorizontal: 4 },
   activeStepLabel: { color: COLORS.primary, fontWeight: 'bold' },
-  stepLine: { width: 20, height: 2, backgroundColor: '#e5e7eb', marginHorizontal: 4 },
+  stepLine: { width: 20, height: 2, backgroundColor: COLORS.border, marginHorizontal: 4 },
   activeStepLine: { backgroundColor: COLORS.primary },
   content: { flex: 1, padding: 16 },
   sectionTitle: { fontSize: 20, fontWeight: 'bold', color: COLORS.text, marginBottom: 16, textAlign: isRTL ? 'right' : 'left' },
-  serviceCard: { flexDirection: isRTL ? 'row-reverse' : 'row', backgroundColor: '#fff', padding: 16, borderRadius: 12, marginBottom: 12, borderWidth: 1, borderColor: COLORS.border, alignItems: 'center' },
-  selectedCard: { borderColor: COLORS.primary, backgroundColor: '#ecfdf5' },
+  serviceCard: { flexDirection: isRTL ? 'row-reverse' : 'row', backgroundColor: COLORS.card, padding: 16, borderRadius: 12, marginBottom: 12, borderWidth: 1, borderColor: COLORS.border, alignItems: 'center', ...SHADOWS.small },
+  selectedCard: { borderColor: COLORS.primary, backgroundColor: COLORS.lightGreen },
   serviceInfo: { flex: 1, marginHorizontal: 12 },
   serviceName: { fontSize: 16, fontWeight: 'bold', color: COLORS.text, textAlign: isRTL ? 'right' : 'left' },
   serviceDesc: { fontSize: 12, color: COLORS.gray, marginTop: 4, textAlign: isRTL ? 'right' : 'left' },
   deviceGrid: { flexDirection: isRTL ? 'row-reverse' : 'row', flexWrap: 'wrap', gap: 12 },
-  deviceCard: { width: (width - 44) / 2, backgroundColor: '#fff', padding: 16, borderRadius: 12, alignItems: 'center', borderWidth: 1, borderColor: COLORS.border },
+  deviceCard: { width: (width - 44) / 2, backgroundColor: COLORS.card, padding: 16, borderRadius: 12, alignItems: 'center', borderWidth: 1, borderColor: COLORS.border, ...SHADOWS.small },
   deviceName: { marginTop: 8, fontSize: 14, fontWeight: '600', color: COLORS.text },
-  comingSoonBadge: { position: 'absolute', top: 8, right: 8, backgroundColor: '#f3f4f6', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
-  comingSoonText: { fontSize: 10, color: '#9ca3af' },
-  searchBar: { flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', backgroundColor: '#fff', paddingHorizontal: 12, height: 48, borderRadius: 12, borderWidth: 1, borderColor: COLORS.border, marginBottom: 16 },
+  comingSoonBadge: { position: 'absolute', top: 8, right: 8, backgroundColor: COLORS.cardAlt, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
+  comingSoonText: { fontSize: 10, color: COLORS.gray },
+  searchBar: { flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', backgroundColor: COLORS.card, paddingHorizontal: 12, height: 48, borderRadius: 12, borderWidth: 1, borderColor: COLORS.border, marginBottom: 16 },
   searchInput: { flex: 1, marginHorizontal: 8, textAlign: isRTL ? 'right' : 'left' },
   brandGrid: { flexDirection: isRTL ? 'row-reverse' : 'row', flexWrap: 'wrap', gap: 12 },
-  brandCard: { width: (width - 56) / 3, backgroundColor: '#fff', padding: 12, borderRadius: 12, alignItems: 'center', borderWidth: 1, borderColor: COLORS.border },
+  brandCard: { width: (width - 56) / 3, backgroundColor: COLORS.card, padding: 12, borderRadius: 12, alignItems: 'center', borderWidth: 1, borderColor: COLORS.border, ...SHADOWS.small },
   brandLogoContainer: { width: 50, height: 50, justifyContent: 'center', alignItems: 'center', marginBottom: 8 },
   brandLogo: { width: 40, height: 40 },
   brandNameText: { fontSize: 12, fontWeight: '600', color: COLORS.text },
-  listItem: { flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, backgroundColor: '#fff', borderRadius: 12, marginBottom: 8, borderWidth: 1, borderColor: COLORS.border },
-  selectedListItem: { borderColor: COLORS.primary, backgroundColor: '#ecfdf5' },
+  listItem: { flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, backgroundColor: COLORS.card, borderRadius: 12, marginBottom: 8, borderWidth: 1, borderColor: COLORS.border, ...SHADOWS.small },
+  selectedListItem: { borderColor: COLORS.primary, backgroundColor: COLORS.lightGreen },
   listItemText: { fontSize: 16, color: COLORS.text },
   selectedListItemText: { fontWeight: 'bold', color: COLORS.primary },
-  issueCard: { flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, backgroundColor: '#fff', borderRadius: 12, marginBottom: 12, borderWidth: 1, borderColor: COLORS.border },
+  issueCard: { flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, backgroundColor: COLORS.card, borderRadius: 12, marginBottom: 12, borderWidth: 1, borderColor: COLORS.border, ...SHADOWS.small },
   issueInfo: { flex: 1 },
   issueName: { fontSize: 16, fontWeight: 'bold', color: COLORS.text, textAlign: isRTL ? 'right' : 'left' },
   issuePrice: { fontSize: 14, color: COLORS.primary, marginTop: 4, textAlign: isRTL ? 'right' : 'left' },
-  textArea: { backgroundColor: '#fff', borderRadius: 12, padding: 16, borderWidth: 1, borderColor: COLORS.border, fontSize: 16, color: COLORS.text, textAlign: isRTL ? 'right' : 'left' },
+  textArea: { backgroundColor: COLORS.card, borderRadius: 12, padding: 16, borderWidth: 1, borderColor: COLORS.border, fontSize: 16, color: COLORS.text, textAlign: isRTL ? 'right' : 'left' },
   mediaContainer: { flexDirection: isRTL ? 'row-reverse' : 'row', flexWrap: 'wrap', gap: 12, marginTop: 12 },
   addMediaButton: { width: 80, height: 80, borderRadius: 12, borderStyle: 'dashed', borderWidth: 2, borderColor: COLORS.border, justifyContent: 'center', alignItems: 'center' },
   addMediaText: { fontSize: 12, color: COLORS.gray, marginTop: 4 },
   mediaWrapper: { position: 'relative' },
   mediaThumb: { width: 80, height: 80, borderRadius: 12 },
-  removeMediaBtn: { position: 'absolute', top: -8, right: -8, backgroundColor: '#fff', borderRadius: 10 },
+  removeMediaBtn: { position: 'absolute', top: -8, right: -8, backgroundColor: COLORS.card, borderRadius: 10 },
   mapContainer: { flex: 1, borderRadius: 16, overflow: 'hidden', marginBottom: 16 },
   map: { flex: 1 },
-  mapPlaceholder: { flex: 1, backgroundColor: '#f3f4f6', justifyContent: 'center', alignItems: 'center' },
+  mapPlaceholder: { flex: 1, backgroundColor: COLORS.cardAlt, justifyContent: 'center', alignItems: 'center' },
   mapPlaceholderText: { marginTop: 12, fontSize: 16, color: COLORS.gray },
   locationButton: { position: 'absolute', bottom: 16, left: 16, right: 16, backgroundColor: COLORS.primary, height: 48, borderRadius: 24, flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
   centerPinWrap: {
@@ -863,26 +872,26 @@ const createStyles = (COLORS: any, isRTL: boolean) => StyleSheet.create({
   },
   dragHintText: { color: '#fff', fontSize: 11, fontWeight: '600' },
   locationButtonText: { color: '#fff', fontWeight: 'bold' },
-  addressContainer: { flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', padding: 12, backgroundColor: '#ecfdf5', borderRadius: 12, gap: 8 },
+  addressContainer: { flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', padding: 12, backgroundColor: COLORS.lightGreen, borderRadius: 12, gap: 8 },
   addressText: { flex: 1, fontSize: 14, color: COLORS.text, textAlign: isRTL ? 'right' : 'left' },
   emptyState: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 40 },
   emptyStateText: { marginTop: 12, fontSize: 16, color: COLORS.gray },
-  deliveryCard: { backgroundColor: '#fff', borderRadius: 12, padding: 16, marginTop: 12, borderWidth: 1, borderColor: COLORS.border },
+  deliveryCard: { backgroundColor: COLORS.card, borderRadius: 12, padding: 16, marginTop: 12, ...SHADOWS.small },
   deliveryHeader: { flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 8 },
   deliveryTitle: { fontSize: 16, fontWeight: '700', color: COLORS.text },
   deliveryRegionName: { fontSize: 14, fontWeight: '600', color: COLORS.primary, marginTop: 8, textAlign: isRTL ? 'right' : 'left' },
   areaChips: { flexDirection: isRTL ? 'row-reverse' : 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 },
-  areaChip: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, borderWidth: 1, borderColor: COLORS.border, backgroundColor: '#f9fafb' },
-  areaChipActive: { borderColor: COLORS.primary, backgroundColor: '#ecfdf5' },
+  areaChip: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, borderWidth: 1, borderColor: COLORS.border, backgroundColor: COLORS.cardAlt },
+  areaChipActive: { borderColor: COLORS.primary, backgroundColor: COLORS.lightGreen },
   areaChipText: { fontSize: 12, color: COLORS.gray },
   areaChipTextActive: { color: COLORS.primary, fontWeight: '700' },
   deliveryFeeRow: { flexDirection: isRTL ? 'row-reverse' : 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 14, paddingTop: 12, borderTopWidth: 1, borderTopColor: COLORS.border },
-  summaryCard: { backgroundColor: '#fff', borderRadius: 12, padding: 16, marginTop: 12, borderWidth: 1, borderColor: COLORS.border },
+  summaryCard: { backgroundColor: COLORS.card, borderRadius: 12, padding: 16, marginTop: 12, ...SHADOWS.small },
   summaryTitle: { fontSize: 16, fontWeight: '700', color: COLORS.text, marginBottom: 12, textAlign: isRTL ? 'right' : 'left' },
   summaryRow: { flexDirection: isRTL ? 'row-reverse' : 'row', justifyContent: 'space-between', paddingVertical: 6, gap: 12 },
   summaryLabel: { fontSize: 14, color: COLORS.gray },
   summaryValue: { fontSize: 14, color: COLORS.text, fontWeight: '600', flex: 1, textAlign: isRTL ? 'left' : 'right' },
-  footer: { padding: 16, backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: COLORS.border },
-  nextButton: { backgroundColor: COLORS.primary, height: 56, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
+  footer: { padding: 16, backgroundColor: COLORS.card, borderTopWidth: 1, borderTopColor: COLORS.border },
+  nextButton: { backgroundColor: COLORS.primary, height: 54, borderRadius: BORDER_RADIUS.sm, justifyContent: 'center', alignItems: 'center', ...SHADOWS.small },
   nextButtonText: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
 });
