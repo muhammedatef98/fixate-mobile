@@ -17,6 +17,11 @@ import { uploadOrderMedia } from '../services/storageService';
 import { getFriendlyError } from '../utils/errorMessages';
 import { tapLight } from '../utils/haptics';
 import { formatPrice } from '../utils/pricing';
+import { DELIVERY_REGIONS, resolveDeliveryFee, type DeliveryRegion } from '../constants/deliveryPricing';
+import { pointsForSpend } from '../constants/loyalty';
+import * as loyaltyService from '../services/loyaltyService';
+import { useLoyalty } from '../contexts/LoyaltyContext';
+import { supabase } from '../services/supabaseClient';
 
 const { width } = Dimensions.get('window');
 
@@ -55,7 +60,16 @@ export default function RequestScreen() {
   const { createOrder } = useOrders();
   const { language, isDark } = useApp();
   const { user, userProfile } = useAuth();
+  const { refresh: refreshLoyalty } = useLoyalty();
   const isRTL = language === 'ar';
+
+  // First enabled delivery region is auto-selected (Al Qatif during rollout).
+  const defaultRegion: DeliveryRegion | null =
+    DELIVERY_REGIONS.find((r) => r.enabled) ?? null;
+  const [selectedRegionId] = useState<string | null>(defaultRegion?.id ?? null);
+  const [selectedAreaId, setSelectedAreaId] = useState<string | null>(null);
+  const selectedRegion = DELIVERY_REGIONS.find((r) => r.id === selectedRegionId) ?? null;
+  const deliveryFee = resolveDeliveryFee(selectedRegionId, selectedAreaId);
   
   const COLORS = {
     primary: '#10b981',
@@ -272,6 +286,35 @@ export default function RequestScreen() {
       const result = await createOrder(orderData);
 
       if (!result) throw new Error('Failed to create request');
+
+      const pointsEarned = pointsForSpend((selectedIssue.estimatedPrice || 0) + deliveryFee);
+
+      // Best-effort persistence of delivery + loyalty snapshot. These columns
+      // arrive with a pending migration; until then this update silently
+      // no-ops so the (already-created) order is never affected.
+      supabase
+        .from('orders')
+        .update({
+          delivery_region: selectedRegionId,
+          delivery_area: selectedAreaId,
+          delivery_fee: deliveryFee,
+          loyalty_points_earned: pointsEarned,
+        })
+        .eq('id', result.id)
+        .then(({ error }) => {
+          if (error) logger.warn('delivery/loyalty columns not ready (expected during rollout)', error);
+        });
+
+      // Best-effort loyalty earn — never blocks success. Placeholder balance
+      // already reflects completed-order spend if the ledger isn't ready yet.
+      loyaltyService
+        .recordEarn(
+          user.id,
+          (selectedIssue.estimatedPrice || 0) + deliveryFee,
+          `${orderData.device_brand} ${orderData.device_model}`
+        )
+        .then(() => refreshLoyalty())
+        .catch((e) => logger.warn('loyalty earn failed', e));
 
       // 3. Best-effort technician notification — never blocks success
       const cityMatch = address?.match(/,\s*([^,]+)$/);
@@ -614,6 +657,43 @@ export default function RequestScreen() {
               </View>
             ) : null}
 
+            {/* Delivery area — pricing by region (config-driven, scalable) */}
+            {selectedRegion && (
+              <View style={styles.deliveryCard}>
+                <View style={styles.deliveryHeader}>
+                  <MaterialCommunityIcons name="truck-delivery-outline" size={20} color={COLORS.primary} />
+                  <Text style={styles.deliveryTitle}>
+                    {isRTL ? 'منطقة التوصيل' : 'Delivery area'}
+                  </Text>
+                </View>
+                <Text style={styles.deliveryRegionName}>
+                  {isRTL ? selectedRegion.nameAr : selectedRegion.nameEn}
+                </Text>
+                <View style={styles.areaChips}>
+                  {selectedRegion.areas.map((area) => {
+                    const active = selectedAreaId === area.id;
+                    return (
+                      <TouchableOpacity
+                        key={area.id}
+                        style={[styles.areaChip, active && styles.areaChipActive]}
+                        onPress={() => setSelectedAreaId(active ? null : area.id)}
+                      >
+                        <Text style={[styles.areaChipText, active && styles.areaChipTextActive]}>
+                          {isRTL ? area.nameAr : area.nameEn} · {area.fee} {isRTL ? 'ر.س' : 'SAR'}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+                <View style={styles.deliveryFeeRow}>
+                  <Text style={styles.summaryLabel}>{isRTL ? 'رسوم التوصيل' : 'Delivery fee'}</Text>
+                  <Text style={[styles.summaryValue, { color: COLORS.primary, fontWeight: '700' }]}>
+                    {deliveryFee} {isRTL ? 'ر.س' : 'SAR'}
+                  </Text>
+                </View>
+              </View>
+            )}
+
             {/* Pre-submit review summary so user can double-check before sending */}
             <View style={styles.summaryCard}>
               <Text style={styles.summaryTitle}>{isRTL ? 'مراجعة الطلب' : 'Review Request'}</Text>
@@ -648,6 +728,20 @@ export default function RequestScreen() {
                 <View style={styles.summaryRow}>
                   <Text style={styles.summaryLabel}>{isRTL ? 'الصور' : 'Photos'}</Text>
                   <Text style={styles.summaryValue}>{mediaFiles.length}</Text>
+                </View>
+              )}
+              {deliveryFee > 0 && (
+                <View style={styles.summaryRow}>
+                  <Text style={styles.summaryLabel}>{isRTL ? 'رسوم التوصيل' : 'Delivery fee'}</Text>
+                  <Text style={styles.summaryValue}>{deliveryFee} {isRTL ? 'ر.س' : 'SAR'}</Text>
+                </View>
+              )}
+              {selectedIssue && selectedIssue.estimatedPrice > 0 && (
+                <View style={styles.summaryRow}>
+                  <Text style={styles.summaryLabel}>{isRTL ? 'نقاط الولاء المتوقعة' : 'Loyalty points earned'}</Text>
+                  <Text style={[styles.summaryValue, { color: COLORS.primary, fontWeight: '700' }]}>
+                    +{pointsForSpend((selectedIssue.estimatedPrice || 0) + deliveryFee)}
+                  </Text>
                 </View>
               )}
             </View>
@@ -773,6 +867,16 @@ const createStyles = (COLORS: any, isRTL: boolean) => StyleSheet.create({
   addressText: { flex: 1, fontSize: 14, color: COLORS.text, textAlign: isRTL ? 'right' : 'left' },
   emptyState: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 40 },
   emptyStateText: { marginTop: 12, fontSize: 16, color: COLORS.gray },
+  deliveryCard: { backgroundColor: '#fff', borderRadius: 12, padding: 16, marginTop: 12, borderWidth: 1, borderColor: COLORS.border },
+  deliveryHeader: { flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 8 },
+  deliveryTitle: { fontSize: 16, fontWeight: '700', color: COLORS.text },
+  deliveryRegionName: { fontSize: 14, fontWeight: '600', color: COLORS.primary, marginTop: 8, textAlign: isRTL ? 'right' : 'left' },
+  areaChips: { flexDirection: isRTL ? 'row-reverse' : 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 },
+  areaChip: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, borderWidth: 1, borderColor: COLORS.border, backgroundColor: '#f9fafb' },
+  areaChipActive: { borderColor: COLORS.primary, backgroundColor: '#ecfdf5' },
+  areaChipText: { fontSize: 12, color: COLORS.gray },
+  areaChipTextActive: { color: COLORS.primary, fontWeight: '700' },
+  deliveryFeeRow: { flexDirection: isRTL ? 'row-reverse' : 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 14, paddingTop: 12, borderTopWidth: 1, borderTopColor: COLORS.border },
   summaryCard: { backgroundColor: '#fff', borderRadius: 12, padding: 16, marginTop: 12, borderWidth: 1, borderColor: COLORS.border },
   summaryTitle: { fontSize: 16, fontWeight: '700', color: COLORS.text, marginBottom: 12, textAlign: isRTL ? 'right' : 'left' },
   summaryRow: { flexDirection: isRTL ? 'row-reverse' : 'row', justifyContent: 'space-between', paddingVertical: 6, gap: 12 },
