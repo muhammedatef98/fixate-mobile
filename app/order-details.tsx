@@ -25,6 +25,8 @@ import LiveTrackingMap from '../components/LiveTrackingMap';
 import * as reviewService from '../services/reviewService';
 import { supabase } from '../services/supabaseClient';
 import ImageViewer from '../components/ImageViewer';
+import { getPlatformSettings } from '../services/platformSettingsService';
+import { computeCancellationFee } from '../constants/fees';
 
 const ORDER_TIMELINE: { status: string; arLabel: string; enLabel: string; icon: string }[] = [
   { status: 'pending', arLabel: 'قيد الانتظار', enLabel: 'Pending', icon: 'clock-outline' },
@@ -57,18 +59,62 @@ export default function OrderDetailsScreen() {
   const [viewerOpen, setViewerOpen] = useState(false);
   const [viewerIndex, setViewerIndex] = useState(0);
   const [respondingQuote, setRespondingQuote] = useState(false);
+  const [feePreview, setFeePreview] = useState<{ total: number; inspection: number; return: number } | null>(null);
+
+  useEffect(() => {
+    if (!order) return;
+    (async () => {
+      const settings = await getPlatformSettings();
+      const fulfillment = ((order as any).fulfillment_type ?? order.service_type) as any;
+      setFeePreview(
+        computeCancellationFee({
+          inspectionFee: settings.inspectionFee,
+          returnFee: settings.returnFee,
+          fulfillmentType: fulfillment,
+        })
+      );
+    })();
+  }, [order?.id]);
 
   const respondToQuote = async (accept: boolean) => {
     if (!order || respondingQuote) return;
     setRespondingQuote(true);
     try {
       await requests.respondToQuote(order.id as string, accept);
-      Alert.alert(
-        accept ? (isRTL ? 'تم القبول ✓' : 'Accepted ✓') : (isRTL ? 'تم الرفض' : 'Rejected'),
-        accept
-          ? (isRTL ? 'تم قبول السعر، سيتابع الفني الإصلاح.' : 'Price accepted. The technician will continue the repair.')
-          : (isRTL ? 'تم إلغاء الطلب.' : 'The request has been cancelled.')
-      );
+      if (!accept) {
+        // Persist the cancellation fee on a best-effort basis (column added
+        // by the phase2 migration; older DBs ignore the unknown field).
+        const settings = await getPlatformSettings();
+        const fulfillment = ((order as any).fulfillment_type ?? order.service_type) as any;
+        const fee = computeCancellationFee({
+          inspectionFee: settings.inspectionFee,
+          returnFee: settings.returnFee,
+          fulfillmentType: fulfillment,
+        });
+        try {
+          await supabase
+            .from('orders')
+            .update({
+              inspection_fee: fee.inspection,
+              return_fee: fee.return,
+              cancellation_fee_total: fee.total,
+            })
+            .eq('id', order.id as string);
+        } catch (e) {
+          logger.warn('cancellation fee columns unavailable (pending migration)', e);
+        }
+        Alert.alert(
+          isRTL ? 'تم رفض السعر' : 'Quote rejected',
+          isRTL
+            ? `تم إلغاء الطلب. الرسوم المستحقة: ${fee.total} ر.س (فحص ${fee.inspection}${fee.return ? ' + إرجاع ' + fee.return : ''} ر.س). سيتم تحصيلها وفق سياسة المنصة.`
+            : `Request cancelled. Outstanding fee: ${fee.total} SAR (inspection ${fee.inspection}${fee.return ? ' + return ' + fee.return : ''} SAR). It will be collected per platform policy.`
+        );
+      } else {
+        Alert.alert(
+          isRTL ? 'تم القبول ✓' : 'Accepted ✓',
+          isRTL ? 'تم قبول السعر، سيتابع الفني الإصلاح. يتم تحصيل الدفع بعد انتهاء الإصلاح.' : 'Price accepted. The technician will continue the repair. Payment will be collected after the repair is finished.'
+        );
+      }
     } catch (e) {
       Alert.alert(
         isRTL ? 'خطأ' : 'Error',
@@ -388,16 +434,29 @@ export default function OrderDetailsScreen() {
               <TouchableOpacity
                 style={[styles.actionButton, { backgroundColor: '#EF4444', flex: 1 }, SHADOWS.small]}
                 disabled={respondingQuote}
-                onPress={() =>
+                onPress={() => {
+                  const feeMsg = feePreview
+                    ? isRTL
+                      ? `سيتم إلغاء الطلب. ستُحتسب رسوم رمزية ${feePreview.total} ر.س` +
+                        ` (فحص ${feePreview.inspection}` +
+                        (feePreview.return ? ` + إرجاع ${feePreview.return}` : '') +
+                        ' ر.س). متابعة؟'
+                      : `This cancels the request. A small fee of ${feePreview.total} SAR applies` +
+                        ` (inspection ${feePreview.inspection}` +
+                        (feePreview.return ? ` + return ${feePreview.return}` : '') +
+                        ' SAR). Continue?'
+                    : isRTL
+                      ? 'سيتم إلغاء الطلب. متأكد؟'
+                      : 'This will cancel the request. Are you sure?';
                   Alert.alert(
                     isRTL ? 'رفض السعر' : 'Reject price',
-                    isRTL ? 'سيتم إلغاء الطلب. متأكد؟' : 'This will cancel the request. Are you sure?',
+                    feeMsg,
                     [
                       { text: isRTL ? 'تراجع' : 'Back', style: 'cancel' },
-                      { text: isRTL ? 'رفض' : 'Reject', style: 'destructive', onPress: () => respondToQuote(false) },
+                      { text: isRTL ? 'تأكيد الرفض' : 'Confirm reject', style: 'destructive', onPress: () => respondToQuote(false) },
                     ]
-                  )
-                }
+                  );
+                }}
               >
                 <MaterialIcons name="cancel" size={20} color="#fff" />
                 <Text style={styles.actionButtonText}>{isRTL ? 'رفض' : 'Reject'}</Text>

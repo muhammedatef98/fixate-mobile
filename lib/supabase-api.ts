@@ -279,33 +279,35 @@ export const requests = {
     return data;
   },
 
-  // Technician submits the inspection quote -> order becomes 'quoted'
+  // Technician submits the inspection quote -> order becomes 'quoted'.
+  // Multiple progressive fallbacks so the call succeeds even when the
+  // production DB hasn't been migrated yet (missing column / outdated
+  // status CHECK). The last fallback stores the quote in estimated_price
+  // so the customer can still see and respond.
   setQuote: async (id: string, price: number, notes?: string): Promise<Order | null> => {
-    const wide: any = {
-      final_price: price,
-      status: 'quoted',
-      quote_notes: notes ?? null,
-      quoted_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    };
-    let { data, error } = await supabase
-      .from('orders')
-      .update(wide)
-      .eq('id', id)
-      .select()
-      .single();
-    if (error) {
-      // Retry with the minimal guaranteed columns during backend rollout.
-      const retry = await supabase
+    const ts = new Date().toISOString();
+    const attempts: any[] = [
+      { final_price: price, status: 'quoted', quote_notes: notes ?? null, quoted_at: ts, updated_at: ts },
+      { final_price: price, status: 'quoted', updated_at: ts },
+      { final_price: price, updated_at: ts },
+      // Final fallback: pre-migration DB. We at least update the visible
+      // estimated price + notes so the customer sees the new number.
+      { estimated_price: price, issue_description_extra: notes ?? null, updated_at: ts },
+      { estimated_price: price, updated_at: ts },
+    ];
+    let lastError: any = null;
+    for (const payload of attempts) {
+      const { data, error } = await supabase
         .from('orders')
-        .update({ final_price: price, status: 'quoted', updated_at: new Date().toISOString() })
+        .update(payload)
         .eq('id', id)
         .select()
-        .single();
-      if (retry.error) throw retry.error;
-      return retry.data;
+        .maybeSingle();
+      if (!error && data) return data;
+      lastError = error;
+      logger.warn('setQuote attempt failed, falling back', { payload: Object.keys(payload), error });
     }
-    return data;
+    throw lastError ?? new Error('Failed to send quote');
   },
 
   // Customer accepts/rejects the technician quote.
