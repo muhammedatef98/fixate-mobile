@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, Dimensions, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { getColors, getShadows, SPACING, BORDER_RADIUS } from '../../constants/theme';
 import { MaterialIcons, MaterialCommunityIcons, FontAwesome5 } from '@expo/vector-icons';
 import { requests, auth } from '../../lib/supabase-api';
 import { useApp } from '../../contexts/AppContext';
 import { logger } from '../../utils/logger';
+import * as walletService from '../../services/walletService';
+import { useAuth } from '../../contexts/AuthContext';
 
 const { width } = Dimensions.get('window');
 
@@ -29,6 +31,70 @@ export default function EarningsScreen() {
     average: 0,
   });
   const [orders, setOrders] = useState<any[]>([]);
+  const { user } = useAuth();
+  const isRTL = language === 'ar';
+  // Wallet state — balance from DB view, recent ledger entries, and
+  // whether the backend layer is still pending (UI degrades gracefully).
+  const [wallet, setWallet] = useState<{ balance: number; pendingBackend: boolean }>({ balance: 0, pendingBackend: true });
+  const [walletEntries, setWalletEntries] = useState<walletService.WalletEntry[]>([]);
+  const [withdrawing, setWithdrawing] = useState(false);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    (async () => {
+      const bal = await walletService.getWalletBalance(user.id);
+      setWallet(bal);
+      setWalletEntries(await walletService.listWalletEntries(user.id));
+    })();
+  }, [user?.id]);
+
+  const handleWithdraw = async () => {
+    if (!user?.id) return;
+    if (wallet.balance <= 0) {
+      Alert.alert(
+        isRTL ? 'لا يوجد رصيد للسحب' : 'No balance to withdraw',
+        isRTL ? 'الرصيد الحالي صفر. أكمل المزيد من الطلبات لجمع الأرباح.' : 'Your balance is zero. Complete more jobs to earn.'
+      );
+      return;
+    }
+    Alert.alert(
+      isRTL ? 'طلب سحب الأرباح' : 'Request payout',
+      isRTL
+        ? `سيتم إرسال طلب سحب ${wallet.balance.toFixed(0)} ر.س للإدارة. التحويل يتم عادة خلال 1-3 أيام عمل.`
+        : `A withdrawal request for ${wallet.balance.toFixed(0)} SAR will be sent to the admin team. Transfers usually arrive in 1-3 business days.`,
+      [
+        { text: isRTL ? 'إلغاء' : 'Cancel', style: 'cancel' },
+        {
+          text: isRTL ? 'تأكيد' : 'Confirm',
+          onPress: async () => {
+            setWithdrawing(true);
+            try {
+              const res = await walletService.requestWithdrawal(
+                user.id,
+                wallet.balance,
+                'bank_transfer'
+              );
+              if ((res as any).pendingBackend) {
+                Alert.alert(
+                  isRTL ? 'تم تسجيل الطلب' : 'Request recorded',
+                  isRTL
+                    ? 'تم تسجيل طلبك. يحتاج فعالة كاملة من فريق المنصة (في طور التهيئة).'
+                    : 'Your request was recorded locally. Full payout pipeline is being set up by the platform team.'
+                );
+              } else {
+                Alert.alert(
+                  isRTL ? 'تم إرسال الطلب ✓' : 'Request sent ✓',
+                  isRTL ? 'ستصلك رسالة عند الموافقة على التحويل.' : 'You will be notified once the transfer is approved.'
+                );
+              }
+            } finally {
+              setWithdrawing(false);
+            }
+          },
+        },
+      ]
+    );
+  };
 
   useEffect(() => {
     loadEarnings();
@@ -123,7 +189,40 @@ export default function EarningsScreen() {
         <View style={{ width: 24 }} />
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 120 }}>
+        {/* Wallet card — balance + withdraw CTA */}
+        <View style={[localStyles.walletCard, { backgroundColor: COLORS.card, borderColor: COLORS.border }]}>
+          <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+            <View style={{ alignItems: isRTL ? 'flex-end' : 'flex-start' }}>
+              <Text style={[localStyles.walletLabel, { color: COLORS.textSecondary }]}>
+                {isRTL ? 'رصيد المحفظة' : 'Wallet balance'}
+              </Text>
+              <Text style={[localStyles.walletAmount, { color: COLORS.primary }]}>
+                {wallet.balance.toFixed(2)} {isRTL ? 'ر.س' : 'SAR'}
+              </Text>
+            </View>
+            <MaterialCommunityIcons name="wallet-outline" size={36} color={COLORS.primary} />
+          </View>
+          <TouchableOpacity
+            onPress={handleWithdraw}
+            disabled={withdrawing}
+            style={[localStyles.walletBtn, { backgroundColor: COLORS.primary, opacity: withdrawing ? 0.6 : 1 }]}
+            accessibilityRole="button"
+          >
+            <MaterialCommunityIcons name="bank-transfer-out" size={18} color="#fff" />
+            <Text style={localStyles.walletBtnText}>
+              {isRTL ? 'طلب سحب الأرباح' : 'Request payout'}
+            </Text>
+          </TouchableOpacity>
+          {wallet.pendingBackend && (
+            <Text style={[localStyles.walletNote, { color: COLORS.textSecondary }]}>
+              {isRTL
+                ? 'الرصيد مقدّر من الطلبات المكتملة. الربط الكامل بنظام المحفظة قيد التفعيل.'
+                : 'Balance is estimated from completed jobs. Full wallet pipeline is being wired up.'}
+            </Text>
+          )}
+        </View>
+
         {/* Total Earnings Card */}
         <View style={[styles.totalCard, { backgroundColor: '#10B981' }, SHADOWS.large]}>
           <MaterialCommunityIcons name="cash-multiple" size={48} color="#FFFFFF" />
@@ -220,6 +319,29 @@ export default function EarningsScreen() {
     </SafeAreaView>
   );
 }
+
+const localStyles = StyleSheet.create({
+  walletCard: {
+    margin: SPACING.lg,
+    marginBottom: 0,
+    padding: SPACING.lg,
+    borderRadius: BORDER_RADIUS.lg,
+    borderWidth: 1,
+    gap: 12,
+  },
+  walletLabel: { fontSize: 13, fontWeight: '600' },
+  walletAmount: { fontSize: 28, fontWeight: '800', marginTop: 4 },
+  walletBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 12,
+    borderRadius: BORDER_RADIUS.md,
+  },
+  walletBtnText: { color: '#fff', fontWeight: '700' },
+  walletNote: { fontSize: 11, lineHeight: 16, marginTop: 2, textAlign: 'center' },
+});
 
 const styles = StyleSheet.create({
   container: {

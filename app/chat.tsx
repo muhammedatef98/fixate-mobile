@@ -82,7 +82,7 @@ export default function ChatScreen() {
 
   const formatTime = (dateString: string) => {
     const date = new Date(dateString);
-    return date.toLocaleTimeString(language === 'ar' ? 'ar-SA' : 'en-US', {
+    return date.toLocaleTimeString(language === 'ar' ? 'ar' : 'en-US', {
       hour: '2-digit',
       minute: '2-digit',
     });
