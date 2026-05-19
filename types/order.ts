@@ -12,6 +12,106 @@ export type OrderStatus =
 
 export type ServiceType = 'mobile' | 'pickup';
 
+export type SparePartQuality = 'original' | 'high_quality' | 'economy';
+
+// Customer-facing payment options.
+export type PaymentMethod = 'cash' | 'card' | 'online';
+
+export const PAYMENT_METHODS: {
+  id: PaymentMethod;
+  labelAr: string;
+  labelEn: string;
+  icon: string;
+  comingSoon?: boolean;
+}[] = [
+  { id: 'cash', labelAr: 'نقداً عند الاستلام', labelEn: 'Cash on delivery', icon: 'cash' },
+  { id: 'card', labelAr: 'بطاقة / فيزا', labelEn: 'Card / Visa', icon: 'credit-card-outline' },
+  { id: 'online', labelAr: 'Apple Pay (قريبًا)', labelEn: 'Apple Pay (Coming Soon)', icon: 'apple', comingSoon: true },
+];
+
+export interface AddonItem {
+  id: string;
+  name_ar: string;
+  name_en: string;
+  price: number;
+}
+
+export const ACCESSORY_SUGGESTIONS: Record<string, AddonItem[]> = {
+  phone: [
+    { id: 'charger', name_ar: 'شاحن', name_en: 'Charger', price: 60 },
+    { id: 'cable', name_ar: 'كيبل شحن', name_en: 'Charging cable', price: 25 },
+    { id: 'adapter', name_ar: 'محول', name_en: 'Adapter', price: 40 },
+    { id: 'case', name_ar: 'جراب حماية', name_en: 'Protective case', price: 35 },
+    { id: 'screen_protector', name_ar: 'واقي شاشة', name_en: 'Screen protector', price: 30 },
+  ],
+  tablet: [
+    { id: 'charger', name_ar: 'شاحن', name_en: 'Charger', price: 70 },
+    { id: 'cable', name_ar: 'كيبل شحن', name_en: 'Charging cable', price: 30 },
+    { id: 'case', name_ar: 'جراب حماية', name_en: 'Protective case', price: 55 },
+    { id: 'screen_protector', name_ar: 'واقي شاشة', name_en: 'Screen protector', price: 45 },
+    { id: 'stylus', name_ar: 'قلم', name_en: 'Stylus pen', price: 90 },
+  ],
+  laptop: [
+    { id: 'charger', name_ar: 'شاحن', name_en: 'Charger / adapter', price: 130 },
+    { id: 'case', name_ar: 'حقيبة', name_en: 'Laptop sleeve', price: 70 },
+    { id: 'mouse', name_ar: 'ماوس', name_en: 'Mouse', price: 50 },
+    { id: 'keyboard', name_ar: 'لوحة مفاتيح', name_en: 'Keyboard accessory', price: 80 },
+    { id: 'cooling_pad', name_ar: 'قاعدة تبريد', name_en: 'Cooling pad', price: 75 },
+  ],
+  watch: [
+    { id: 'charger', name_ar: 'شاحن', name_en: 'Charger', price: 45 },
+    { id: 'strap', name_ar: 'سوار', name_en: 'Watch strap', price: 40 },
+    { id: 'screen_protector', name_ar: 'واقي شاشة', name_en: 'Screen protector', price: 25 },
+  ],
+  gaming: [
+    { id: 'controller', name_ar: 'يد تحكم', name_en: 'Controller', price: 180 },
+    { id: 'cable', name_ar: 'كيبل', name_en: 'Cable', price: 30 },
+    { id: 'charging_dock', name_ar: 'قاعدة شحن', name_en: 'Charging dock', price: 90 },
+    { id: 'headset', name_ar: 'سماعة', name_en: 'Gaming headset', price: 150 },
+  ],
+  generic: [
+    { id: 'charger', name_ar: 'شاحن', name_en: 'Charger', price: 50 },
+    { id: 'cable', name_ar: 'كيبل', name_en: 'Cable', price: 25 },
+    { id: 'case', name_ar: 'حافظة', name_en: 'Case', price: 35 },
+  ],
+};
+
+export const getAccessorySuggestions = (deviceType?: string | null): AddonItem[] =>
+  (deviceType && ACCESSORY_SUGGESTIONS[deviceType]) || ACCESSORY_SUGGESTIONS.generic;
+
+export const PROTECTION_ADDONS: AddonItem[] = [
+  { id: 'screen_protector', name_ar: 'واقي شاشة مركّب', name_en: 'Installed screen protector', price: 40 },
+  { id: 'protective_case', name_ar: 'كفر حماية', name_en: 'Protective case', price: 50 },
+  { id: 'full_protection', name_ar: 'باقة الحماية الشاملة', name_en: 'Full protection package', price: 120 },
+];
+
+export const SPARE_PART_MULTIPLIERS: Record<SparePartQuality, number> = {
+  original: 1.0,
+  high_quality: 0.8,
+  economy: 0.55,
+};
+
+export const SPARE_PART_LABELS: Record<SparePartQuality, { ar: string; en: string }> = {
+  original: { ar: 'أصلي', en: 'Original' },
+  high_quality: { ar: 'جودة عالية', en: 'High Quality' },
+  economy: { ar: 'اقتصادي', en: 'Economy' },
+};
+
+export const SPARE_PART_DESCRIPTIONS: Record<SparePartQuality, { ar: string; en: string }> = {
+  original: {
+    ar: 'قطع غيار أصلية من الشركة المصنّعة، أعلى جودة وأطول ضمان.',
+    en: 'Genuine OEM parts from the manufacturer — top quality, longest warranty.',
+  },
+  high_quality: {
+    ar: 'قطع غيار بديلة ذات جودة عالية بسعر أوفر.',
+    en: 'Premium aftermarket parts at a lower price.',
+  },
+  economy: {
+    ar: 'الخيار الأرخص — مناسب لإصلاحات سريعة وميزانية محدودة.',
+    en: 'Cheapest option — good for quick fixes and tight budgets.',
+  },
+};
+
 export interface Order {
   id: string;
   user_id: string;
@@ -33,13 +133,18 @@ export interface Order {
   media_urls?: string[];
   customer_phone?: string;
   technician_phone?: string;
-  // Delivery pricing by region (pickup & delivery service). Optional so
-  // existing rows / on-site mobile orders are unaffected.
+  // Phase 1 features
+  spare_part_quality?: SparePartQuality;
+  discount_code?: string;
+  discount_amount?: number;
+  payment_method?: PaymentMethod;
+  accessories?: AddonItem[];
+  protection_addons?: AddonItem[];
+  // Delivery pricing by region
   delivery_region?: string | null;
   delivery_area?: string | null;
   delivery_fee?: number | null;
-  // Loyalty: points the customer earns for this order (snapshot at create
-  // time). Source of truth remains the loyalty ledger once backend is ready.
+  // Loyalty points
   loyalty_points_earned?: number | null;
   created_at?: string;
   updated_at?: string;
@@ -58,6 +163,14 @@ export interface CreateOrderData {
   media_urls?: string[];
   customer_phone?: string;
   estimated_price?: number;
+  // Phase 1 features
+  spare_part_quality?: SparePartQuality;
+  discount_code?: string;
+  discount_amount?: number;
+  payment_method?: PaymentMethod;
+  accessories?: AddonItem[];
+  protection_addons?: AddonItem[];
+  // Delivery pricing by region
   delivery_region?: string | null;
   delivery_area?: string | null;
   delivery_fee?: number | null;
