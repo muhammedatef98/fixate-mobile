@@ -5,16 +5,17 @@ import { COLORS, SPACING, SHADOWS } from '../../constants/theme';
 import { MaterialIcons, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../../contexts/AuthContext';
+import { useApp } from '../../contexts/AppContext';
 
 const { width } = Dimensions.get('window');
 
 const SERVICES = [
-  { id: 'phone', name: 'جوالات', icon: 'cellphone', color: '#10B981', bg: '#ECFDF5' },
-  { id: 'laptop', name: 'لابتوب', icon: 'laptop', color: '#3B82F6', bg: '#EFF6FF' },
-  { id: 'tablet', name: 'تابلت', icon: 'tablet', color: '#8B5CF6', bg: '#F5F3FF' },
-  { id: 'smarthome', name: 'أجهزة منزلية', icon: 'home-automation', color: '#F59E0B', bg: '#FFFBEB' },
-  { id: 'watch', name: 'ساعات', icon: 'watch', color: '#EC4899', bg: '#FDF2F8' },
-  { id: 'contact', name: 'اتصل بنا', icon: 'phone', color: '#EF4444', bg: '#FEF2F2' },
+  { id: 'phone', name: 'جوالات', nameEn: 'Phones', icon: 'cellphone', color: '#10B981', bg: '#ECFDF5' },
+  { id: 'laptop', name: 'لابتوب', nameEn: 'Laptops', icon: 'laptop', color: '#3B82F6', bg: '#EFF6FF' },
+  { id: 'tablet', name: 'تابلت', nameEn: 'Tablets', icon: 'tablet', color: '#8B5CF6', bg: '#F5F3FF' },
+  { id: 'gaming', name: 'ألعاب', nameEn: 'Gaming', icon: 'gamepad-variant', color: '#6366F1', bg: '#EEF2FF' },
+  { id: 'watch', name: 'ساعات', nameEn: 'Watches', icon: 'watch', color: '#EC4899', bg: '#FDF2F8' },
+  { id: 'contact', name: 'اتصل بنا', nameEn: 'Contact', icon: 'phone', color: '#EF4444', bg: '#FEF2F2' },
 ];
 
 const PROMOTIONS = [
@@ -50,7 +51,14 @@ const PROMOTIONS = [
 export default function CustomerHomeScreen() {
   const router = useRouter();
   const { userProfile } = useAuth();
-  const firstName = userProfile?.name?.split(' ')[0] || 'بك';
+  const { language } = useApp();
+  const isRTL = language !== 'en';
+  const hour = new Date().getHours();
+  const greetingWord = isRTL
+    ? hour < 12 ? 'صباح الخير' : hour < 18 ? 'مساء الخير' : 'مساءك سعيد'
+    : hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
+  const firstName =
+    userProfile?.name?.split(' ')[0] || (isRTL ? 'صديقنا' : 'there');
 
   return (
     <SafeAreaView style={styles.container}>
@@ -59,23 +67,37 @@ export default function CustomerHomeScreen() {
         {/* Header Section */}
         <View style={styles.header}>
           <View>
-            <Text style={styles.greeting}>{`مرحباً، ${firstName} 👋`}</Text>
+            <Text style={styles.greeting}>{`${greetingWord}، ${firstName} 👋`}</Text>
+            <Text style={styles.greetingSub}>
+              {isRTL ? 'كيف نقدر نساعدك اليوم؟' : 'How can we help you today?'}
+            </Text>
             <View style={styles.locationContainer}>
               <MaterialIcons name="location-on" size={16} color={COLORS.primary} />
               <Text style={styles.location}>الرياض، حي الملقا</Text>
               <MaterialIcons name="keyboard-arrow-down" size={16} color={COLORS.textSecondary} />
             </View>
           </View>
-          <TouchableOpacity style={[styles.notificationBtn, SHADOWS.small]}>
+          <TouchableOpacity
+            style={[styles.notificationBtn, SHADOWS.small]}
+            onPress={() => router.push('/notifications')}
+            accessibilityRole="button"
+            accessibilityLabel={isRTL ? 'الإشعارات' : 'Notifications'}
+          >
             <Ionicons name="notifications-outline" size={24} color={COLORS.text} />
             <View style={styles.badge} />
           </TouchableOpacity>
         </View>
 
-        {/* Search Bar */}
-        <TouchableOpacity style={[styles.searchContainer, SHADOWS.small]}>
+        {/* Search Bar — taps through to the services browser */}
+        <TouchableOpacity
+          style={[styles.searchContainer, SHADOWS.small]}
+          onPress={() => router.push('/(customer)/services')}
+          accessibilityRole="button"
+        >
           <Ionicons name="search" size={20} color={COLORS.textSecondary} />
-          <Text style={styles.searchPlaceholder}>ابحث عن جهاز، عطل، أو خدمة...</Text>
+          <Text style={styles.searchPlaceholder}>
+            {isRTL ? 'ابحث عن جهاز، عطل، أو خدمة...' : 'Search a device, issue or service...'}
+          </Text>
         </TouchableOpacity>
 
         {/* Price Calculator Banner */}
@@ -130,32 +152,36 @@ export default function CustomerHomeScreen() {
           ))}
         </ScrollView>
 
+        {/* Fixate Market now lives inside the Services section (see
+            app/(customer)/services.tsx), not as a homepage main block. */}
+
         {/* Services Grid */}
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>خدماتنا</Text>
-          <TouchableOpacity>
-            <Text style={styles.seeAll}>عرض الكل</Text>
+          <Text style={styles.sectionTitle}>{isRTL ? 'خدماتنا' : 'Our services'}</Text>
+          <TouchableOpacity onPress={() => router.push('/(customer)/services')}>
+            <Text style={styles.seeAll}>{isRTL ? 'عرض الكل' : 'See all'}</Text>
           </TouchableOpacity>
         </View>
 
         <View style={styles.servicesGrid}>
           {SERVICES.map((service) => (
-            <TouchableOpacity 
-              key={service.id} 
+            <TouchableOpacity
+              key={service.id}
               style={styles.serviceCard}
+              activeOpacity={0.7}
               onPress={() => service.id === 'contact' ? router.push('/contact') : router.push('/request')}
             >
               <View style={[styles.serviceIconContainer, { backgroundColor: service.bg }]}>
-                <MaterialCommunityIcons name={service.icon as any} size={32} color={service.color} />
+                <MaterialCommunityIcons name={service.icon as any} size={30} color={service.color} />
               </View>
-              <Text style={styles.serviceName}>{service.name}</Text>
+              <Text style={styles.serviceName}>{isRTL ? service.name : service.nameEn}</Text>
             </TouchableOpacity>
           ))}
         </View>
 
         {/* Active Request Banner */}
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>طلباتي النشطة</Text>
+          <Text style={styles.sectionTitle}>{isRTL ? 'طلباتي النشطة' : 'My active requests'}</Text>
         </View>
         
         <TouchableOpacity style={[styles.activeOrderCard, SHADOWS.medium]} onPress={() => router.push('/track/123')}>
@@ -200,10 +226,15 @@ const styles = StyleSheet.create({
     paddingTop: SPACING.xl,
   },
   greeting: {
-    fontSize: 22,
+    fontSize: 23,
     fontWeight: 'bold',
     color: COLORS.text,
-    marginBottom: 4,
+    marginBottom: 2,
+  },
+  greetingSub: {
+    fontSize: 13,
+    color: COLORS.textSecondary,
+    marginBottom: 6,
   },
   locationContainer: {
     flexDirection: 'row',
