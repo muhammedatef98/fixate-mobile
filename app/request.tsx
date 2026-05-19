@@ -13,6 +13,7 @@ import { useApp } from '../contexts/AppContext';
 import { useAuth } from '../contexts/AuthContext';
 import { logger } from '../utils/logger';
 import { RTLIonicon } from '../components/RTLIcon';
+import { BrandLogo } from '../components/BrandLogo';
 import { uploadOrderMedia } from '../services/storageService';
 import { getFriendlyError } from '../utils/errorMessages';
 import { tapLight } from '../utils/haptics';
@@ -23,6 +24,22 @@ import * as loyaltyService from '../services/loyaltyService';
 import { useLoyalty } from '../contexts/LoyaltyContext';
 import { supabase } from '../services/supabaseClient';
 import { PressableScale } from '../components/ui/PressableScale';
+import {
+  SPARE_PART_LABELS,
+  SPARE_PART_DESCRIPTIONS,
+  SPARE_PART_MULTIPLIERS,
+  PAYMENT_METHODS,
+  PROTECTION_ADDONS,
+  getAccessorySuggestions,
+  type SparePartQuality,
+  type PaymentMethod,
+  type AddonItem,
+} from '../types/order';
+import {
+  validateDiscountCode,
+  recordDiscountRedemption,
+  type DiscountCode,
+} from '../services/discountService';
 
 const { width } = Dimensions.get('window');
 
@@ -50,6 +67,8 @@ const DEVICE_TYPES = [
   { id: 'tablet', name: 'تابلت', nameEn: 'Tablet', icon: 'tablet', available: true },
   { id: 'laptop', name: 'لابتوب', nameEn: 'Laptop', icon: 'laptop', available: true },
   { id: 'watch', name: 'ساعة ذكية', nameEn: 'Smart Watch', icon: 'watch', available: true },
+  { id: 'gaming', name: 'أجهزة الألعاب', nameEn: 'Gaming Devices', icon: 'gamepad-variant', available: true },
+  { id: 'other', name: 'أجهزة أخرى', nameEn: 'Other Devices', icon: 'devices', available: true },
   { id: 'printer', name: 'طابعة', nameEn: 'Printer', icon: 'printer', available: false },
   { id: 'headphones', name: 'سماعات', nameEn: 'Headphones', icon: 'headphones', available: false },
   { id: 'tv', name: 'شاشة/تلفاز', nameEn: 'TV/Monitor', icon: 'television', available: false },
@@ -97,6 +116,35 @@ export default function RequestScreen() {
   const [selectedIssue, setSelectedIssue] = useState<Issue | null>(null);
   const [issueDescription, setIssueDescription] = useState('');
   const [mediaFiles, setMediaFiles] = useState<string[]>([]);
+  const [sparePartQuality, setSparePartQuality] = useState<SparePartQuality>('original');
+
+  // "Other Devices" free-text entry (used when selectedDeviceType === 'other').
+  const [otherDeviceName, setOtherDeviceName] = useState('');
+  const [otherDeviceModel, setOtherDeviceModel] = useState('');
+
+  // Payment + optional upsells captured in the Details step.
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash');
+  const [selectedAccessories, setSelectedAccessories] = useState<AddonItem[]>([]);
+  const [selectedProtection, setSelectedProtection] = useState<AddonItem[]>([]);
+
+  // Card form (UI-only — no real gateway). Used for a masked review summary.
+  const [cardName, setCardName] = useState('');
+  const [cardNumber, setCardNumber] = useState('');
+  const [cardExpiry, setCardExpiry] = useState('');
+  const [cardCvv, setCardCvv] = useState('');
+  const cardLast4 = cardNumber.replace(/\D/g, '').slice(-4);
+  const maskedCard = cardLast4 ? `•••• •••• •••• ${cardLast4}` : '';
+
+  const isOtherDevice = selectedDeviceType === 'other';
+
+  // Discount code state — applied lazily on the details step.
+  const [discountInput, setDiscountInput] = useState('');
+  const [appliedDiscount, setAppliedDiscount] = useState<{
+    code: DiscountCode;
+    amount: number;
+  } | null>(null);
+  const [discountChecking, setDiscountChecking] = useState(false);
+  const [discountError, setDiscountError] = useState<string | null>(null);
   
   const [brandSearch, setBrandSearch] = useState('');
   const [modelSearch, setModelSearch] = useState('');
@@ -130,7 +178,7 @@ export default function RequestScreen() {
         isRTL ? 'يجب عليك تسجيل الدخول لرفع طلب صيانة' : 'You must login to submit a repair request',
         [
           { text: isRTL ? 'إلغاء' : 'Cancel', onPress: () => router.replace('/(customer)'), style: 'cancel' },
-          { text: isRTL ? 'تسجيل الدخول' : 'Login', onPress: () => router.replace('/login') }
+          { text: isRTL ? 'تسجيل الدخول' : 'Login', onPress: () => router.replace('/login-otp') }
         ]
       );
     }
@@ -219,7 +267,7 @@ export default function RequestScreen() {
     }
   };
 
-  const pickImage = async () => {
+  const pickFromGallery = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
       Alert.alert(isRTL ? 'تنبيه' : 'Alert', isRTL ? 'نحتاج إذن الوصول للصور' : 'Permission to access gallery is required');
@@ -238,15 +286,60 @@ export default function RequestScreen() {
     }
   };
 
+  const takePhoto = async () => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert(isRTL ? 'تنبيه' : 'Alert', isRTL ? 'نحتاج إذن الوصول للكاميرا' : 'Permission to access camera is required');
+      return;
+    }
+
+    let result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.7,
+    });
+
+    if (!result.canceled) {
+      const uris = result.assets.map(asset => asset.uri);
+      setMediaFiles([...mediaFiles, ...uris]);
+    }
+  };
+
+  // Simple, mobile-friendly chooser: camera vs gallery.
+  const pickImage = () => {
+    Alert.alert(
+      isRTL ? 'إضافة صورة' : 'Add photo',
+      isRTL ? 'اختر طريقة إضافة الصورة' : 'Choose how to add the photo',
+      [
+        { text: isRTL ? 'التقاط صورة' : 'Take Photo', onPress: takePhoto },
+        { text: isRTL ? 'اختيار من المعرض' : 'Choose from Gallery', onPress: pickFromGallery },
+        { text: isRTL ? 'إلغاء' : 'Cancel', style: 'cancel' },
+      ]
+    );
+  };
+
+  const toggleAddon = (
+    list: AddonItem[],
+    setList: (v: AddonItem[]) => void,
+    item: AddonItem
+  ) => {
+    if (list.some((x) => x.id === item.id)) {
+      setList(list.filter((x) => x.id !== item.id));
+    } else {
+      setList([...list, item]);
+    }
+  };
+
   const [submitStage, setSubmitStage] = useState<'idle' | 'uploading' | 'creating'>('idle');
 
   const handleSubmit = async () => {
     if (!user) {
       Alert.alert(isRTL ? 'تنبيه' : 'Login Required', isRTL ? 'يجب تسجيل الدخول أولاً' : 'Please login first');
-      router.replace('/login');
+      router.replace('/login-otp');
       return;
     }
-    if (!selectedBrand || !selectedModel || !selectedIssue) {
+    const deviceBrandValue = isOtherDevice ? otherDeviceName.trim() : selectedBrand?.name;
+    const deviceModelValue = isOtherDevice ? otherDeviceModel.trim() : selectedModel;
+    if (!deviceBrandValue || !deviceModelValue || !selectedIssue) {
       Alert.alert(isRTL ? 'تنبيه' : 'Alert', isRTL ? 'الرجاء استكمال جميع الخطوات' : 'Please complete all steps');
       return;
     }
@@ -272,9 +365,13 @@ export default function RequestScreen() {
         ? `${issueName}: ${issueDescription}`
         : issueName;
 
+      const baseEstimate = selectedIssue.estimatedPrice ?? 0;
+      const adjustedEstimate = Math.round(baseEstimate * SPARE_PART_MULTIPLIERS[sparePartQuality]);
+      const finalEstimate = Math.max(0, adjustedEstimate - (appliedDiscount?.amount ?? 0));
+
       const orderData = {
-        device_brand: selectedBrand.name,
-        device_model: selectedModel,
+        device_brand: deviceBrandValue,
+        device_model: deviceModelValue,
         issue_description: composedDescription,
         service_type: selectedServiceType as 'mobile' | 'pickup',
         service_id: selectedIssue.id,
@@ -283,8 +380,14 @@ export default function RequestScreen() {
         longitude: location.longitude,
         notes: issueDescription || undefined,
         media_urls: mediaUrls,
-        estimated_price: selectedIssue.estimatedPrice,
+        estimated_price: finalEstimate,
         customer_phone: (userProfile as any)?.phone,
+        spare_part_quality: sparePartQuality,
+        discount_code: appliedDiscount?.code.code,
+        discount_amount: appliedDiscount?.amount ?? 0,
+        payment_method: paymentMethod,
+        accessories: selectedAccessories,
+        protection_addons: selectedProtection,
       };
 
       const result = await createOrder(orderData);
@@ -319,6 +422,19 @@ export default function RequestScreen() {
         )
         .then(() => refreshLoyalty())
         .catch((e) => logger.warn('loyalty earn failed', e));
+
+      if (appliedDiscount && user) {
+        // Best-effort: record the redemption for admin reporting & per-user
+        // limit enforcement on subsequent attempts. Failure here doesn't
+        // unwind the order — the customer already got the discounted price.
+        recordDiscountRedemption(
+          appliedDiscount.code.id,
+          user.id,
+          result.id,
+          appliedDiscount.amount
+        ).catch((e) => logger.warn('record redemption failed', e));
+      }
+
 
       // 3. Best-effort technician notification — never blocks success
       const cityMatch = address?.match(/,\s*([^,]+)$/);
@@ -363,8 +479,8 @@ export default function RequestScreen() {
   const canGoNext = () => {
     if (currentStep === 0) return !!selectedServiceType;
     if (currentStep === 1) return !!selectedDeviceType;
-    if (currentStep === 2) return !!selectedBrand;
-    if (currentStep === 3) return !!selectedModel;
+    if (currentStep === 2) return isOtherDevice ? !!otherDeviceName.trim() : !!selectedBrand;
+    if (currentStep === 3) return isOtherDevice ? !!otherDeviceModel.trim() : !!selectedModel;
     if (currentStep === 4) return !!selectedIssue;
     if (currentStep === 5) return true; // Details are optional
     if (currentStep === 6) return !!location;
@@ -451,13 +567,40 @@ export default function RequestScreen() {
           </ScrollView>
         )}
 
-        {currentStep === 2 && (
+        {currentStep === 2 && isOtherDevice && (
+          <ScrollView>
+            <Text style={styles.sectionTitle}>{isRTL ? 'اسم الجهاز' : 'Device name'}</Text>
+            <TextInput
+              style={[styles.textArea, { height: 52, padding: 14 }]}
+              placeholder={isRTL ? 'مثال: مكنسة روبوت، راوتر، كاميرا...' : 'e.g. Robot vacuum, Router, Camera...'}
+              placeholderTextColor={COLORS.gray}
+              value={otherDeviceName}
+              onChangeText={setOtherDeviceName}
+            />
+          </ScrollView>
+        )}
+
+        {currentStep === 3 && isOtherDevice && (
+          <ScrollView>
+            <Text style={styles.sectionTitle}>{isRTL ? 'الموديل' : 'Device model'}</Text>
+            <TextInput
+              style={[styles.textArea, { height: 52, padding: 14 }]}
+              placeholder={isRTL ? 'الموديل أو رقم الطراز' : 'Model or part number'}
+              placeholderTextColor={COLORS.gray}
+              value={otherDeviceModel}
+              onChangeText={setOtherDeviceModel}
+            />
+          </ScrollView>
+        )}
+
+        {currentStep === 2 && !isOtherDevice && (
           <View style={{ flex: 1 }}>
             <View style={styles.searchBar}>
               <Ionicons name="search" size={20} color={COLORS.gray} />
-              <TextInput 
+              <TextInput
                 placeholder={isRTL ? 'ابحث عن الماركة...' : 'Search brand...'}
                 style={styles.searchInput}
+                placeholderTextColor={COLORS.gray}
                 value={brandSearch}
                 onChangeText={setBrandSearch}
               />
@@ -470,27 +613,29 @@ export default function RequestScreen() {
                   style={[styles.brandCard, selectedBrand?.id === brand.id && styles.selectedCard]}
                   onPress={() => setSelectedBrand(brand)}
                 >
+                  {selectedBrand?.id === brand.id && (
+                    <View style={styles.brandCheck}>
+                      <Ionicons name="checkmark-circle" size={18} color={COLORS.primary} />
+                    </View>
+                  )}
                   <View style={styles.brandLogoContainer}>
-                    <Image
-                      source={typeof brand.logo === 'string' ? { uri: brand.logo } : brand.logo}
-                      style={styles.brandLogo}
-                      resizeMode="contain"
-                    />
+                    <BrandLogo brandId={brand.id} name={brand.name} size={48} />
                   </View>
-                  <Text style={styles.brandNameText}>{brand.name}</Text>
+                  <Text style={styles.brandNameText} numberOfLines={1}>{brand.name}</Text>
                 </PressableScale>
               )) : renderEmptyState(isRTL ? 'لا توجد نتائج' : 'No results found')}
             </ScrollView>
           </View>
         )}
 
-        {currentStep === 3 && (
+        {currentStep === 3 && !isOtherDevice && (
           <View style={{ flex: 1 }}>
             <View style={styles.searchBar}>
               <Ionicons name="search" size={20} color={COLORS.gray} />
-              <TextInput 
+              <TextInput
                 placeholder={isRTL ? 'ابحث عن الموديل...' : 'Search model...'}
                 style={styles.searchInput}
+                placeholderTextColor={COLORS.gray}
                 value={modelSearch}
                 onChangeText={setModelSearch}
               />
@@ -518,6 +663,7 @@ export default function RequestScreen() {
               <TextInput 
                 placeholder={isRTL ? 'ابحث عن العطل...' : 'Search issue...'}
                 style={styles.searchInput}
+                placeholderTextColor={COLORS.gray}
                 value={issueSearch}
                 onChangeText={setIssueSearch}
               />
@@ -551,15 +697,295 @@ export default function RequestScreen() {
             <ScrollView>
               <Text style={styles.sectionTitle}>{isRTL ? 'تفاصيل إضافية' : 'Additional Details'}</Text>
               <TextInput
-                style={styles.textArea}
+                style={[styles.textArea, { minHeight: 150 }]}
                 placeholder={isRTL ? 'اشرح العطل بالتفصيل (اختياري)...' : 'Describe the issue in detail (optional)...'}
+                placeholderTextColor={COLORS.gray}
                 multiline
-                numberOfLines={6}
+                numberOfLines={8}
                 value={issueDescription}
                 onChangeText={setIssueDescription}
                 textAlignVertical="top"
               />
-              
+
+              {/* Spare-part quality selector — applies a multiplier to the
+                  base estimate so customers can see the price difference. */}
+              <Text style={[styles.sectionTitle, { marginTop: 24 }]}>
+                {isRTL ? 'جودة قطعة الغيار' : 'Spare-part quality'}
+              </Text>
+              <View style={{ gap: 8 }}>
+                {(['original', 'high_quality', 'economy'] as SparePartQuality[]).map((q) => {
+                  const selected = sparePartQuality === q;
+                  const multiplier = SPARE_PART_MULTIPLIERS[q];
+                  const base = selectedIssue?.estimatedPrice ?? 0;
+                  const price = Math.round(base * multiplier);
+                  return (
+                    <TouchableOpacity
+                      key={q}
+                      onPress={() => setSparePartQuality(q)}
+                      style={{
+                        borderWidth: selected ? 2 : 1,
+                        borderColor: selected ? COLORS.primary : COLORS.border,
+                        backgroundColor: selected ? COLORS.lightGreen : COLORS.card,
+                        borderRadius: 12,
+                        padding: 12,
+                      }}
+                    >
+                      <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <Text style={{ fontWeight: '700', color: COLORS.text, fontSize: 15 }}>
+                          {isRTL ? SPARE_PART_LABELS[q].ar : SPARE_PART_LABELS[q].en}
+                        </Text>
+                        {base > 0 && (
+                          <Text style={{ color: COLORS.primary, fontWeight: '700' }}>
+                            ~{price} SAR
+                          </Text>
+                        )}
+                      </View>
+                      <Text style={{ color: COLORS.gray, fontSize: 12, marginTop: 4 }}>
+                        {isRTL ? SPARE_PART_DESCRIPTIONS[q].ar : SPARE_PART_DESCRIPTIONS[q].en}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              {/* Discount code: customer types & taps Apply; resolved against
+                  the active estimated price. */}
+              <Text style={[styles.sectionTitle, { marginTop: 24 }]}>
+                {isRTL ? 'كود الخصم' : 'Discount code'}
+              </Text>
+              <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', gap: 8 }}>
+                <TextInput
+                  style={[styles.textArea, { flex: 1, height: 48, padding: 12 }]}
+                  placeholder={isRTL ? 'ادخل كود الخصم' : 'Enter discount code'}
+                  placeholderTextColor={COLORS.gray}
+                  value={discountInput}
+                  autoCapitalize="characters"
+                  editable={!appliedDiscount}
+                  onChangeText={(v) => { setDiscountInput(v.toUpperCase()); setDiscountError(null); }}
+                />
+                <TouchableOpacity
+                  disabled={discountChecking || (!discountInput && !appliedDiscount)}
+                  onPress={async () => {
+                    if (appliedDiscount) {
+                      setAppliedDiscount(null);
+                      setDiscountInput('');
+                      setDiscountError(null);
+                      return;
+                    }
+                    if (!user) return;
+                    setDiscountChecking(true);
+                    setDiscountError(null);
+                    try {
+                      const base = selectedIssue?.estimatedPrice ?? 0;
+                      const total = Math.round(base * SPARE_PART_MULTIPLIERS[sparePartQuality]);
+                      const result = await validateDiscountCode(discountInput, total, user.id, language);
+                      if (!result.valid || !result.code) {
+                        setDiscountError(result.reason ?? (isRTL ? 'كود غير صالح' : 'Invalid code'));
+                      } else {
+                        setAppliedDiscount({ code: result.code, amount: result.amount_saved ?? 0 });
+                      }
+                    } catch (e: any) {
+                      setDiscountError(e?.message ?? String(e));
+                    } finally {
+                      setDiscountChecking(false);
+                    }
+                  }}
+                  style={{
+                    backgroundColor: appliedDiscount ? COLORS.error : COLORS.primary,
+                    paddingHorizontal: 18,
+                    borderRadius: 12,
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                  }}
+                >
+                  {discountChecking ? (
+                    <ActivityIndicator color="#fff" />
+                  ) : (
+                    <Text style={{ color: '#fff', fontWeight: '700' }}>
+                      {appliedDiscount
+                        ? (isRTL ? 'إزالة' : 'Remove')
+                        : (isRTL ? 'تطبيق' : 'Apply')}
+                    </Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+              {appliedDiscount && (
+                <View style={{ marginTop: 8, padding: 10, backgroundColor: COLORS.lightGreen, borderRadius: 10 }}>
+                  <Text style={{ color: COLORS.primary, fontWeight: '700' }}>
+                    {appliedDiscount.code.code} — {isRTL ? 'وفّرت' : 'You save'} {appliedDiscount.amount} SAR
+                  </Text>
+                </View>
+              )}
+              {discountError && (
+                <Text style={{ color: COLORS.error, marginTop: 6, fontSize: 13 }}>{discountError}</Text>
+              )}
+
+              {/* Payment method — Cash / Card / Online (online is UI-ready
+                  only for now; the choice is stored with the request). */}
+              <Text style={[styles.sectionTitle, { marginTop: 24 }]}>
+                {isRTL ? 'طريقة الدفع' : 'Payment method'}
+              </Text>
+              <View style={{ gap: 8 }}>
+                {PAYMENT_METHODS.map((pm) => {
+                  const selected = paymentMethod === pm.id;
+                  return (
+                    <TouchableOpacity
+                      key={pm.id}
+                      onPress={() => setPaymentMethod(pm.id)}
+                      style={{
+                        flexDirection: isRTL ? 'row-reverse' : 'row',
+                        alignItems: 'center',
+                        gap: 12,
+                        borderWidth: selected ? 2 : 1,
+                        borderColor: selected ? COLORS.primary : COLORS.border,
+                        backgroundColor: selected ? COLORS.lightGreen : COLORS.card,
+                        borderRadius: 12,
+                        padding: 14,
+                      }}
+                    >
+                      <MaterialCommunityIcons
+                        name={pm.icon as any}
+                        size={24}
+                        color={selected ? COLORS.primary : COLORS.gray}
+                      />
+                      <Text style={{ flex: 1, fontWeight: '700', color: COLORS.text, textAlign: isRTL ? 'right' : 'left' }}>
+                        {isRTL ? pm.labelAr : pm.labelEn}
+                      </Text>
+                      {pm.comingSoon && (
+                        <View style={{ backgroundColor: COLORS.border, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999 }}>
+                          <Text style={{ fontSize: 10, color: COLORS.gray, fontWeight: '700' }}>
+                            {isRTL ? 'قريبًا' : 'Coming Soon'}
+                          </Text>
+                        </View>
+                      )}
+                      {selected && (
+                        <Ionicons name="checkmark-circle" size={20} color={COLORS.primary} />
+                      )}
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              {/* Card / Visa form — UI only, no real gateway. Captured just
+                  for a masked review summary before submission. */}
+              {paymentMethod === 'card' && (
+                <View style={{ marginTop: 12, gap: 10, padding: 14, backgroundColor: COLORS.card, borderRadius: 12, borderWidth: 1, borderColor: COLORS.border }}>
+                  <TextInput
+                    style={[styles.textArea, { height: 48, padding: 12 }]}
+                    placeholder={isRTL ? 'اسم حامل البطاقة' : 'Cardholder name'}
+                    placeholderTextColor={COLORS.gray}
+                    value={cardName}
+                    onChangeText={setCardName}
+                  />
+                  <TextInput
+                    style={[styles.textArea, { height: 48, padding: 12 }]}
+                    placeholder={isRTL ? 'رقم البطاقة' : 'Card number'}
+                    placeholderTextColor={COLORS.gray}
+                    keyboardType="number-pad"
+                    maxLength={19}
+                    value={cardNumber}
+                    onChangeText={setCardNumber}
+                  />
+                  <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', gap: 10 }}>
+                    <TextInput
+                      style={[styles.textArea, { flex: 1, height: 48, padding: 12 }]}
+                      placeholder={isRTL ? 'تاريخ الانتهاء (MM/YY)' : 'Expiry (MM/YY)'}
+                      placeholderTextColor={COLORS.gray}
+                      maxLength={5}
+                      value={cardExpiry}
+                      onChangeText={setCardExpiry}
+                    />
+                    <TextInput
+                      style={[styles.textArea, { flex: 1, height: 48, padding: 12 }]}
+                      placeholder={isRTL ? 'CVV' : 'CVV'}
+                      placeholderTextColor={COLORS.gray}
+                      keyboardType="number-pad"
+                      maxLength={4}
+                      secureTextEntry
+                      value={cardCvv}
+                      onChangeText={setCardCvv}
+                    />
+                  </View>
+                  <Text style={{ fontSize: 11, color: COLORS.gray, textAlign: isRTL ? 'right' : 'left' }}>
+                    {isRTL
+                      ? 'لن يتم الخصم الآن — تفاصيل البطاقة للعرض فقط حتى تفعيل بوابة الدفع.'
+                      : 'No charge now — card details are display-only until the payment gateway is enabled.'}
+                  </Text>
+                </View>
+              )}
+
+              {/* Accessory suggestions — context-aware by device type. */}
+              <Text style={[styles.sectionTitle, { marginTop: 24 }]}>
+                {isRTL ? 'إكسسوارات مقترحة (اختياري)' : 'Suggested accessories (optional)'}
+              </Text>
+              <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', flexWrap: 'wrap', gap: 8 }}>
+                {getAccessorySuggestions(selectedDeviceType).map((acc) => {
+                  const selected = selectedAccessories.some((x) => x.id === acc.id);
+                  return (
+                    <TouchableOpacity
+                      key={acc.id}
+                      onPress={() => toggleAddon(selectedAccessories, setSelectedAccessories, acc)}
+                      style={{
+                        flexDirection: isRTL ? 'row-reverse' : 'row',
+                        alignItems: 'center',
+                        gap: 6,
+                        borderWidth: selected ? 2 : 1,
+                        borderColor: selected ? COLORS.primary : COLORS.border,
+                        backgroundColor: selected ? COLORS.lightGreen : COLORS.card,
+                        borderRadius: 999,
+                        paddingHorizontal: 14,
+                        paddingVertical: 9,
+                      }}
+                    >
+                      {selected && <Ionicons name="checkmark" size={14} color={COLORS.primary} />}
+                      <Text style={{ color: selected ? COLORS.primary : COLORS.text, fontWeight: '600', fontSize: 13 }}>
+                        {isRTL ? acc.name_ar : acc.name_en} · {isRTL ? `تبدأ من ${acc.price} ر.س` : `Starts from ${acc.price} SAR`}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              {/* Protection add-ons / packages — optional upsell. */}
+              <Text style={[styles.sectionTitle, { marginTop: 24 }]}>
+                {isRTL ? 'حماية إضافية (اختياري)' : 'Protection add-ons (optional)'}
+              </Text>
+              <View style={{ gap: 8 }}>
+                {PROTECTION_ADDONS.map((p) => {
+                  const selected = selectedProtection.some((x) => x.id === p.id);
+                  return (
+                    <TouchableOpacity
+                      key={p.id}
+                      onPress={() => toggleAddon(selectedProtection, setSelectedProtection, p)}
+                      style={{
+                        flexDirection: isRTL ? 'row-reverse' : 'row',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        borderWidth: selected ? 2 : 1,
+                        borderColor: selected ? COLORS.primary : COLORS.border,
+                        backgroundColor: selected ? COLORS.lightGreen : COLORS.card,
+                        borderRadius: 12,
+                        padding: 14,
+                      }}
+                    >
+                      <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 10, flex: 1 }}>
+                        <MaterialCommunityIcons
+                          name="shield-check"
+                          size={22}
+                          color={selected ? COLORS.primary : COLORS.gray}
+                        />
+                        <Text style={{ color: COLORS.text, fontWeight: '700', flex: 1, textAlign: isRTL ? 'right' : 'left' }}>
+                          {isRTL ? p.name_ar : p.name_en}
+                        </Text>
+                      </View>
+                      <Text style={{ color: COLORS.primary, fontWeight: '700' }}>
+                        {isRTL ? `تبدأ من ${p.price} ر.س` : `Starts from ${p.price} SAR`}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
               <Text style={[styles.sectionTitle, { marginTop: 24 }]}>{isRTL ? 'صور أو فيديو' : 'Photos or Video'}</Text>
               <View style={styles.mediaContainer}>
                 <TouchableOpacity style={styles.addMediaButton} onPress={pickImage}>
@@ -708,8 +1134,51 @@ export default function RequestScreen() {
               <Text style={styles.summaryTitle}>{isRTL ? 'مراجعة الطلب' : 'Review Request'}</Text>
               <View style={styles.summaryRow}>
                 <Text style={styles.summaryLabel}>{isRTL ? 'الجهاز' : 'Device'}</Text>
-                <Text style={styles.summaryValue}>{selectedBrand?.name} {selectedModel}</Text>
+                <Text style={styles.summaryValue}>
+                  {isOtherDevice
+                    ? `${otherDeviceName} ${otherDeviceModel}`
+                    : `${selectedBrand?.name ?? ''} ${selectedModel ?? ''}`}
+                </Text>
               </View>
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>{isRTL ? 'طريقة الدفع' : 'Payment'}</Text>
+                <Text style={styles.summaryValue}>
+                  {(() => {
+                    const pm = PAYMENT_METHODS.find((p) => p.id === paymentMethod);
+                    return pm ? (isRTL ? pm.labelAr : pm.labelEn) : '';
+                  })()}
+                </Text>
+              </View>
+              {paymentMethod === 'card' && maskedCard ? (
+                <View style={styles.summaryRow}>
+                  <Text style={styles.summaryLabel}>{isRTL ? 'البطاقة' : 'Card'}</Text>
+                  <Text style={styles.summaryValue}>
+                    {maskedCard}{cardName ? ` · ${cardName}` : ''}
+                  </Text>
+                </View>
+              ) : null}
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>{isRTL ? 'قطعة الغيار' : 'Spare part'}</Text>
+                <Text style={styles.summaryValue}>
+                  {isRTL ? SPARE_PART_LABELS[sparePartQuality].ar : SPARE_PART_LABELS[sparePartQuality].en}
+                </Text>
+              </View>
+              {selectedAccessories.length > 0 && (
+                <View style={styles.summaryRow}>
+                  <Text style={styles.summaryLabel}>{isRTL ? 'إكسسوارات' : 'Accessories'}</Text>
+                  <Text style={styles.summaryValue} numberOfLines={2}>
+                    {selectedAccessories.map((a) => (isRTL ? a.name_ar : a.name_en)).join('، ')}
+                  </Text>
+                </View>
+              )}
+              {selectedProtection.length > 0 && (
+                <View style={styles.summaryRow}>
+                  <Text style={styles.summaryLabel}>{isRTL ? 'حماية' : 'Protection'}</Text>
+                  <Text style={styles.summaryValue} numberOfLines={2}>
+                    {selectedProtection.map((a) => (isRTL ? a.name_ar : a.name_en)).join('، ')}
+                  </Text>
+                </View>
+              )}
               <View style={styles.summaryRow}>
                 <Text style={styles.summaryLabel}>{isRTL ? 'العطل' : 'Issue'}</Text>
                 <Text style={styles.summaryValue} numberOfLines={2}>
@@ -734,10 +1203,17 @@ export default function RequestScreen() {
                 </View>
               )}
               {mediaFiles.length > 0 && (
-                <View style={styles.summaryRow}>
-                  <Text style={styles.summaryLabel}>{isRTL ? 'الصور' : 'Photos'}</Text>
-                  <Text style={styles.summaryValue}>{mediaFiles.length}</Text>
-                </View>
+                <>
+                  <View style={styles.summaryRow}>
+                    <Text style={styles.summaryLabel}>{isRTL ? 'الصور' : 'Photos'}</Text>
+                    <Text style={styles.summaryValue}>{mediaFiles.length}</Text>
+                  </View>
+                  <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', flexWrap: 'wrap', gap: 8, marginTop: 4 }}>
+                    {mediaFiles.slice(0, 6).map((uri, i) => (
+                      <Image key={i} source={{ uri }} style={{ width: 56, height: 56, borderRadius: 8 }} />
+                    ))}
+                  </View>
+                </>
               )}
               {deliveryFee > 0 && (
                 <View style={styles.summaryRow}>
@@ -818,11 +1294,12 @@ const createStyles = (COLORS: any, isRTL: boolean, SHADOWS: any) => StyleSheet.c
   comingSoonText: { fontSize: 10, color: COLORS.gray },
   searchBar: { flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', backgroundColor: COLORS.card, paddingHorizontal: 12, height: 48, borderRadius: 12, borderWidth: 1, borderColor: COLORS.border, marginBottom: 16 },
   searchInput: { flex: 1, marginHorizontal: 8, textAlign: isRTL ? 'right' : 'left' },
-  brandGrid: { flexDirection: isRTL ? 'row-reverse' : 'row', flexWrap: 'wrap', gap: 12 },
+  brandGrid: { flexDirection: isRTL ? 'row-reverse' : 'row', flexWrap: 'wrap', gap: 12, paddingBottom: 24 },
   brandCard: { width: (width - 56) / 3, backgroundColor: COLORS.card, padding: 12, borderRadius: 12, alignItems: 'center', borderWidth: 1, borderColor: COLORS.border, ...SHADOWS.small },
-  brandLogoContainer: { width: 50, height: 50, justifyContent: 'center', alignItems: 'center', marginBottom: 8 },
+  brandCheck: { position: 'absolute', top: 6, ...(isRTL ? { left: 6 } : { right: 6 }) },
+  brandLogoContainer: { width: 48, height: 48, justifyContent: 'center', alignItems: 'center', marginBottom: 10 },
   brandLogo: { width: 40, height: 40 },
-  brandNameText: { fontSize: 12, fontWeight: '600', color: COLORS.text },
+  brandNameText: { fontSize: 12, fontWeight: '700', color: COLORS.text, textAlign: 'center' },
   listItem: { flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, backgroundColor: COLORS.card, borderRadius: 12, marginBottom: 8, borderWidth: 1, borderColor: COLORS.border, ...SHADOWS.small },
   selectedListItem: { borderColor: COLORS.primary, backgroundColor: COLORS.lightGreen },
   listItemText: { fontSize: 16, color: COLORS.text },

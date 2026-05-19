@@ -181,7 +181,7 @@ export default function OrdersScreen() {
             </Text>
             <TouchableOpacity
               style={styles.loginPromptBtn}
-              onPress={() => router.push(user ? '/request' : '/login')}
+              onPress={() => router.push(user ? '/request' : '/login-otp')}
               accessibilityRole="button"
               accessibilityLabel={isRTL ? 'اطلب صيانة الآن' : 'Request repair now'}
             >
