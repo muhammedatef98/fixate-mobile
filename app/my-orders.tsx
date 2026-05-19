@@ -49,6 +49,13 @@ const ORDER_STATUS_CONFIG = {
     color: '#8B5CF6',
     progress: 50,
   },
+  quoted: {
+    ar: 'بانتظار موافقتك على السعر',
+    en: 'Awaiting your approval',
+    icon: 'cash-check',
+    color: '#F59E0B',
+    progress: 55,
+  },
   waiting_parts: {
     ar: 'بانتظار قطع الغيار',
     en: 'Waiting for Parts',

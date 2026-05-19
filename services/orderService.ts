@@ -141,6 +141,65 @@ export const addPriceToOrder = async (
   return data;
 };
 
+// Technician submits the final price after inspecting the device. This moves
+// the order into `quoted` so the customer can accept or reject it before any
+// repair work proceeds. `final_price` holds the quoted amount.
+export const setTechnicianQuote = async (
+  orderId: string,
+  price: number,
+  notes?: string
+): Promise<Order | null> => {
+  const priceCheck = validatePrice(price);
+  if (!priceCheck.valid) throw new Error(priceCheck.message);
+
+  // Best-effort wide payload; columns that don't exist yet are stripped by a
+  // retry with the minimal guaranteed set so the flow never hard-fails during
+  // the backend rollout.
+  const wide = {
+    final_price: price,
+    status: 'quoted' as OrderStatus,
+    quote_notes: notes ?? null,
+    quoted_at: new Date().toISOString(),
+  };
+  let res = await supabase.from('orders').update(wide).eq('id', orderId).select().maybeSingle();
+  if (res.error) {
+    logger.warn('setTechnicianQuote wide update failed, retrying minimal', res.error);
+    res = await supabase
+      .from('orders')
+      .update({ final_price: price, status: 'quoted' as OrderStatus })
+      .eq('id', orderId)
+      .select()
+      .maybeSingle();
+  }
+  if (res.error) {
+    logger.warn('setTechnicianQuote error', res.error);
+    throw res.error;
+  }
+  return res.data;
+};
+
+// Customer accepts or rejects the technician's quote. Accept resumes the
+// normal flow (status -> accepted, ready for the technician to continue);
+// reject closes the request (status -> cancelled).
+export const respondToQuote = async (
+  orderId: string,
+  accept: boolean
+): Promise<Order | null> => {
+  const nextStatus: OrderStatus = accept ? 'accepted' : 'cancelled';
+  const { data, error } = await supabase
+    .from('orders')
+    .update({ status: nextStatus })
+    .eq('id', orderId)
+    .eq('status', 'quoted')
+    .select()
+    .maybeSingle();
+  if (error) {
+    logger.warn('respondToQuote error', error);
+    throw error;
+  }
+  return data;
+};
+
 export const getTechnicianOrders = async (technicianId: string): Promise<Order[]> => {
   const { data, error } = await supabase
     .from('orders')
