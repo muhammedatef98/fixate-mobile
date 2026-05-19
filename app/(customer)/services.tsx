@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -130,6 +130,44 @@ export default function ServicesScreen() {
 
   const fade = useRef(new Animated.Value(0)).current;
   const slide = useRef(new Animated.Value(20)).current;
+  const [shopFilter, setShopFilter] = useState<'all' | 'protection' | 'accessories'>('all');
+
+  type ShopItem = {
+    id: string;
+    nameAr: string;
+    nameEn: string;
+    price: number;
+    icon: string;
+    color: string;
+    kind: 'protection' | 'accessories';
+  };
+  const shopItems: ShopItem[] = [
+    ...PROTECTION_ADDONS.map((p) => ({
+      id: `prot_${p.id}`,
+      nameAr: p.name_ar,
+      nameEn: p.name_en,
+      price: p.price,
+      icon: 'shield-check',
+      color: '#10b981',
+      kind: 'protection' as const,
+    })),
+    ...getAccessorySuggestions('phone').map((a) => ({
+      id: `acc_${a.id}`,
+      nameAr: a.name_ar,
+      nameEn: a.name_en,
+      price: a.price,
+      icon:
+        a.id === 'charger' ? 'flash' :
+        a.id === 'cable' ? 'cable-data' :
+        a.id === 'adapter' ? 'power-plug' :
+        a.id === 'case' ? 'cellphone-text' :
+        a.id === 'screen_protector' ? 'shield-outline' :
+        'tools',
+      color: '#3b82f6',
+      kind: 'accessories' as const,
+    })),
+  ];
+  const filteredShop = shopFilter === 'all' ? shopItems : shopItems.filter((s) => s.kind === shopFilter);
 
   useEffect(() => {
     Animated.parallel([
@@ -261,66 +299,74 @@ export default function ServicesScreen() {
             ))}
           </View>
 
-          {/* Accessories & Protection — upsell section inside Services. */}
-          <View style={[styles.sectionRow, { marginTop: 26 }]}>
-            <Text style={[styles.sectionTitle, { color: COLORS.text }]}>
-              {isRTL ? 'الإكسسوارات والحماية' : 'Accessories & Protection'}
-            </Text>
-          </View>
-          <Text style={[styles.tileDesc, { color: COLORS.textSecondary, marginBottom: 12, marginTop: -4 }]}>
-            {isRTL
-              ? 'أضف إكسسوارات أو باقات حماية لجهازك مع طلب الصيانة'
-              : 'Add accessories or protection packages to your device with your repair request'}
-          </Text>
-
-          <Text style={[styles.subGroupTitle, { color: COLORS.textSecondary }]}>
-            {isRTL ? 'حماية إضافية' : 'Extra protection'}
-          </Text>
-          <View style={styles.upsellGrid}>
-            {PROTECTION_ADDONS.map((p) => (
-              <PressableScale
-                key={p.id}
-                to={0.97}
-                style={[styles.upsellCard, { backgroundColor: COLORS.card }]}
-                onPress={() => router.push('/request')}
-                accessibilityRole="button"
-                accessibilityLabel={isRTL ? p.name_ar : p.name_en}
-              >
-                <View style={[styles.tileIconWrap, { backgroundColor: '#10b98115' }]}>
-                  <MaterialCommunityIcons name="shield-check" size={22} color="#10b981" />
-                </View>
-                <Text style={[styles.tileName, { color: COLORS.text }]} numberOfLines={2}>
-                  {isRTL ? p.name_ar : p.name_en}
-                </Text>
-                <Text style={[styles.tilePrice, { color: COLORS.primary, marginTop: 6 }]}>
-                  {isRTL ? `تبدأ من ${p.price} ر.س` : `Starts from ${p.price} SAR`}
-                </Text>
-              </PressableScale>
-            ))}
+          {/* Fixate Shop — a store-like upsell experience inside Services */}
+          <View style={[styles.shopHero, { backgroundColor: '#0F172A' }]}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.shopHeroEyebrow}>{isRTL ? 'متجر Fixate' : 'Fixate Shop'}</Text>
+              <Text style={styles.shopHeroTitle}>
+                {isRTL ? 'إكسسوارات وحماية لجهازك' : 'Accessories & protection for your device'}
+              </Text>
+              <Text style={styles.shopHeroSub}>
+                {isRTL
+                  ? 'أضفها مع طلب الصيانة وادفع كل شيء مرة واحدة'
+                  : 'Add them with your repair request and pay once'}
+              </Text>
+            </View>
+            <MaterialCommunityIcons name="storefront-outline" size={56} color="#ffffff20" />
           </View>
 
-          <Text style={[styles.subGroupTitle, { color: COLORS.textSecondary, marginTop: 16 }]}>
-            {isRTL ? 'إكسسوارات' : 'Accessories'}
-          </Text>
+          <View style={styles.shopChipsRow}>
+            {([
+              { id: 'all', ar: 'الكل', en: 'All' },
+              { id: 'protection', ar: 'حماية', en: 'Protection' },
+              { id: 'accessories', ar: 'إكسسوارات', en: 'Accessories' },
+            ] as const).map((c) => {
+              const active = shopFilter === c.id;
+              return (
+                <TouchableOpacity
+                  key={c.id}
+                  onPress={() => setShopFilter(c.id as any)}
+                  style={[
+                    styles.shopChip,
+                    {
+                      backgroundColor: active ? COLORS.primary : COLORS.card,
+                      borderColor: active ? COLORS.primary : COLORS.border,
+                    },
+                  ]}
+                >
+                  <Text style={{ color: active ? '#fff' : COLORS.text, fontWeight: '700', fontSize: 13 }}>
+                    {isRTL ? c.ar : c.en}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+
           <View style={styles.upsellGrid}>
-            {getAccessorySuggestions('phone').map((a) => (
+            {filteredShop.map((s) => (
               <PressableScale
-                key={a.id}
+                key={s.id}
                 to={0.97}
-                style={[styles.upsellCard, { backgroundColor: COLORS.card }]}
+                style={[styles.shopCard, { backgroundColor: COLORS.card }]}
                 onPress={() => router.push('/request')}
                 accessibilityRole="button"
-                accessibilityLabel={isRTL ? a.name_ar : a.name_en}
+                accessibilityLabel={isRTL ? s.nameAr : s.nameEn}
               >
-                <View style={[styles.tileIconWrap, { backgroundColor: '#3b82f615' }]}>
-                  <MaterialCommunityIcons name="cable-data" size={22} color="#3b82f6" />
+                <View style={[styles.shopCardIcon, { backgroundColor: s.color + '15' }]}>
+                  <MaterialCommunityIcons name={s.icon as any} size={28} color={s.color} />
                 </View>
                 <Text style={[styles.tileName, { color: COLORS.text }]} numberOfLines={2}>
-                  {isRTL ? a.name_ar : a.name_en}
+                  {isRTL ? s.nameAr : s.nameEn}
                 </Text>
                 <Text style={[styles.tilePrice, { color: COLORS.primary, marginTop: 6 }]}>
-                  {isRTL ? `تبدأ من ${a.price} ر.س` : `Starts from ${a.price} SAR`}
+                  {isRTL ? `تبدأ من ${s.price} ر.س` : `Starts from ${s.price} SAR`}
                 </Text>
+                <View style={[styles.shopAddBtn, { backgroundColor: COLORS.primary }]}>
+                  <Ionicons name="add" size={16} color="#fff" />
+                  <Text style={styles.shopAddBtnText}>
+                    {isRTL ? 'أضف للطلب' : 'Add to request'}
+                  </Text>
+                </View>
               </PressableScale>
             ))}
           </View>
@@ -510,6 +556,53 @@ const makeStyles = (C: any, isRTL: boolean, SHADOWS: any) =>
       padding: 14,
       ...SHADOWS.small,
     },
+    shopHero: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
+      gap: 12,
+      borderRadius: BORDER_RADIUS.md,
+      padding: 18,
+      marginTop: 22,
+      marginBottom: 12,
+    },
+    shopHeroEyebrow: { color: '#94a3b8', fontSize: 11, fontWeight: '800', letterSpacing: 1.2, marginBottom: 6, textAlign: isRTL ? 'right' : 'left' },
+    shopHeroTitle: { color: '#fff', fontSize: 17, fontWeight: '800', textAlign: isRTL ? 'right' : 'left' },
+    shopHeroSub: { color: '#cbd5e1', fontSize: 12, marginTop: 4, lineHeight: 17, textAlign: isRTL ? 'right' : 'left' },
+    shopChipsRow: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      gap: 8,
+      marginBottom: 14,
+    },
+    shopChip: {
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+      borderRadius: 999,
+      borderWidth: 1,
+    },
+    shopCard: {
+      width: (width - SPACING.m * 2 - 12) / 2,
+      borderRadius: BORDER_RADIUS.md,
+      padding: 14,
+      ...SHADOWS.small,
+    },
+    shopCardIcon: {
+      width: 56,
+      height: 56,
+      borderRadius: 14,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 10,
+    },
+    shopAddBtn: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 4,
+      paddingVertical: 8,
+      borderRadius: 999,
+      marginTop: 10,
+    },
+    shopAddBtnText: { color: '#fff', fontWeight: '700', fontSize: 12 },
     soonPill: {
       alignSelf: isRTL ? 'flex-end' : 'flex-start',
       paddingHorizontal: 8,

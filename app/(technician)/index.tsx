@@ -30,7 +30,7 @@ const { width } = Dimensions.get('window');
 export default function TechnicianHomeScreen() {
   const router = useRouter();
   const { isDark, language } = useApp();
-  const { user, userProfile } = useAuth();
+  const { user, userProfile, signOut } = useAuth();
   const COLORS = getColors(isDark);
   const SHADOWS = getShadows(isDark);
   const isRTL = language === 'ar';
@@ -241,7 +241,7 @@ export default function TechnicianHomeScreen() {
         <View style={styles.detailRow}>
           <Ionicons name="time-outline" size={16} color={COLORS.textSecondary} />
           <Text style={[styles.detailText, { color: COLORS.textSecondary }]}>
-            {new Date(order.created_at || '').toLocaleDateString(isRTL ? 'ar-SA' : 'en-US', {
+            {new Date(order.created_at || '').toLocaleDateString(isRTL ? 'ar' : 'en-US', {
               month: 'short',
               day: 'numeric',
               hour: '2-digit',
@@ -320,12 +320,40 @@ export default function TechnicianHomeScreen() {
             </Text>
           </View>
         </View>
-        <TouchableOpacity 
-          style={[styles.refreshButton, SHADOWS.neuSmall]}
-          onPress={loadOrders}
-        >
-          <Ionicons name="refresh" size={22} color={COLORS.primary} />
-        </TouchableOpacity>
+        <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', gap: SPACING.sm }}>
+          <TouchableOpacity
+            style={[styles.refreshButton, SHADOWS.neuSmall]}
+            onPress={loadOrders}
+            accessibilityRole="button"
+            accessibilityLabel={isRTL ? 'تحديث' : 'Refresh'}
+          >
+            <Ionicons name="refresh" size={22} color={COLORS.primary} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.refreshButton, SHADOWS.neuSmall]}
+            onPress={() => {
+              Alert.alert(
+                isRTL ? 'تسجيل الخروج' : 'Logout',
+                isRTL ? 'هل أنت متأكد؟' : 'Are you sure?',
+                [
+                  { text: isRTL ? 'إلغاء' : 'Cancel', style: 'cancel' },
+                  {
+                    text: isRTL ? 'تسجيل الخروج' : 'Logout',
+                    style: 'destructive',
+                    onPress: async () => {
+                      try { await signOut(); } catch {}
+                      router.replace('/role-selection');
+                    },
+                  },
+                ]
+              );
+            }}
+            accessibilityRole="button"
+            accessibilityLabel={isRTL ? 'تسجيل الخروج' : 'Logout'}
+          >
+            <MaterialCommunityIcons name="logout" size={22} color="#EF4444" />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Stats Cards */}

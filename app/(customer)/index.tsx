@@ -288,7 +288,7 @@ export default function CustomerHomeScreen() {
                   {isRTL ? 'آخر طلب' : 'Last order'}
                 </Text>
                 <Text style={[styles.recentDate, { color: COLORS.textSecondary }]}>
-                  {new Date(recentOrder.created_at).toLocaleDateString(language === 'ar' ? 'ar-SA' : 'en-US', { day: '2-digit', month: 'short' })}
+                  {new Date(recentOrder.created_at).toLocaleDateString(language === 'ar' ? 'ar' : 'en-US', { day: '2-digit', month: 'short' })}
                 </Text>
               </View>
               <Text style={[styles.recentTitle, { color: COLORS.text }]} numberOfLines={1}>

@@ -161,7 +161,7 @@ export default function ChatbotScreen() {
                 { color: message.isBot ? colors.textSecondary : '#fff', opacity: 0.7 },
               ]}
             >
-              {message.timestamp.toLocaleTimeString('ar-SA', {
+              {message.timestamp.toLocaleTimeString('ar', {
                 hour: '2-digit',
                 minute: '2-digit',
               })}
