@@ -56,6 +56,29 @@ export const DELIVERY_REGIONS: DeliveryRegion[] = [
 export const clampDeliveryFee = (fee: number): number =>
   Math.max(0, Math.min(MAX_DELIVERY_FEE_SAR, Math.round(fee)));
 
+// Service-area enforcement. During rollout the service operates only in
+// Al Qatif and nearby areas. We match the user's resolved address/city text
+// against the enabled regions' (and their areas') Arabic + English names.
+// This is intentionally permissive: it only *flags* an out-of-area selection
+// in the UI, it does not hard-block the input.
+export const getSupportedAreaKeywords = (): string[] => {
+  const kws: string[] = [];
+  for (const r of DELIVERY_REGIONS) {
+    if (!r.enabled) continue;
+    kws.push(r.nameAr, r.nameEn);
+    for (const a of r.areas) kws.push(a.nameAr, a.nameEn);
+  }
+  // Common transliteration variants for Al Qatif.
+  kws.push('Qatif', 'Al-Qatif', 'Al Qatif', 'القطيف', 'Eastern Province', 'المنطقة الشرقية');
+  return kws.map((k) => k.toLowerCase().trim()).filter(Boolean);
+};
+
+export const isWithinSupportedArea = (addressText?: string | null): boolean => {
+  if (!addressText) return true; // unknown -> don't pre-emptively warn
+  const hay = addressText.toLowerCase();
+  return getSupportedAreaKeywords().some((kw) => kw && hay.includes(kw));
+};
+
 export const getRegion = (regionId?: string | null): DeliveryRegion | null =>
   DELIVERY_REGIONS.find((r) => r.id === regionId) ?? null;
 

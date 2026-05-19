@@ -3,6 +3,9 @@ export type OrderStatus =
   | 'accepted'
   | 'picking_up'
   | 'diagnosing'
+  // Technician finished the inspection and submitted a final quote.
+  // The customer must accept it before any repair work continues.
+  | 'quoted'
   | 'waiting_parts'
   | 'repairing'
   | 'testing'
@@ -157,6 +160,11 @@ export interface Order {
   delivery_fee?: number | null;
   // Loyalty points
   loyalty_points_earned?: number | null;
+  // Technician inspection quote. `final_price` is the quoted amount; the
+  // customer accepts/rejects it before repair work proceeds. `quoted_at`
+  // records when the technician submitted the quote (best-effort column).
+  quote_notes?: string | null;
+  quoted_at?: string | null;
   created_at?: string;
   updated_at?: string;
 }
@@ -193,6 +201,7 @@ export const ORDER_STATUS_LABELS_AR: Record<OrderStatus, string> = {
   accepted: 'مقبول',
   picking_up: 'جاري الاستلام',
   diagnosing: 'تحت الفحص',
+  quoted: 'بانتظار موافقتك على السعر',
   waiting_parts: 'انتظار قطع غيار',
   repairing: 'قيد الإصلاح',
   testing: 'اختبار الجودة',
@@ -205,6 +214,7 @@ export const ACTIVE_STATUSES: OrderStatus[] = [
   'accepted',
   'picking_up',
   'diagnosing',
+  'quoted',
   'waiting_parts',
   'repairing',
   'testing',
@@ -213,6 +223,26 @@ export const ACTIVE_STATUSES: OrderStatus[] = [
 
 export const isActiveStatus = (status: OrderStatus): boolean =>
   ACTIVE_STATUSES.includes(status);
+
+// The customer must accept the technician's inspection quote before any
+// repair work continues. Used to gate the accept/reject UX and the
+// technician workflow actions.
+export const isAwaitingQuoteApproval = (status: OrderStatus): boolean =>
+  status === 'quoted';
+
+export const ORDER_STATUS_LABELS_EN: Record<OrderStatus, string> = {
+  pending: 'Pending',
+  accepted: 'Accepted',
+  picking_up: 'Picking up',
+  diagnosing: 'Inspecting',
+  quoted: 'Awaiting your approval',
+  waiting_parts: 'Waiting for parts',
+  repairing: 'Repairing',
+  testing: 'Quality testing',
+  delivering: 'Delivering',
+  completed: 'Completed',
+  cancelled: 'Cancelled',
+};
 
 export const isTerminalStatus = (status: OrderStatus): boolean =>
   status === 'completed' || status === 'cancelled';

@@ -18,6 +18,7 @@ import { RTLIonicon } from '../../components/RTLIcon';
 import { getColors, getShadows, SPACING, BORDER_RADIUS } from '../../constants/theme';
 import { PressableScale } from '../../components/ui/PressableScale';
 import { safeBack } from '../../utils/navigation';
+import { PROTECTION_ADDONS, getAccessorySuggestions } from '../../types/order';
 
 const { width } = Dimensions.get('window');
 
@@ -260,6 +261,70 @@ export default function ServicesScreen() {
             ))}
           </View>
 
+          {/* Accessories & Protection — upsell section inside Services. */}
+          <View style={[styles.sectionRow, { marginTop: 26 }]}>
+            <Text style={[styles.sectionTitle, { color: COLORS.text }]}>
+              {isRTL ? 'الإكسسوارات والحماية' : 'Accessories & Protection'}
+            </Text>
+          </View>
+          <Text style={[styles.tileDesc, { color: COLORS.textSecondary, marginBottom: 12, marginTop: -4 }]}>
+            {isRTL
+              ? 'أضف إكسسوارات أو باقات حماية لجهازك مع طلب الصيانة'
+              : 'Add accessories or protection packages to your device with your repair request'}
+          </Text>
+
+          <Text style={[styles.subGroupTitle, { color: COLORS.textSecondary }]}>
+            {isRTL ? 'حماية إضافية' : 'Extra protection'}
+          </Text>
+          <View style={styles.upsellGrid}>
+            {PROTECTION_ADDONS.map((p) => (
+              <PressableScale
+                key={p.id}
+                to={0.97}
+                style={[styles.upsellCard, { backgroundColor: COLORS.card }]}
+                onPress={() => router.push('/request')}
+                accessibilityRole="button"
+                accessibilityLabel={isRTL ? p.name_ar : p.name_en}
+              >
+                <View style={[styles.tileIconWrap, { backgroundColor: '#10b98115' }]}>
+                  <MaterialCommunityIcons name="shield-check" size={22} color="#10b981" />
+                </View>
+                <Text style={[styles.tileName, { color: COLORS.text }]} numberOfLines={2}>
+                  {isRTL ? p.name_ar : p.name_en}
+                </Text>
+                <Text style={[styles.tilePrice, { color: COLORS.primary, marginTop: 6 }]}>
+                  {isRTL ? `تبدأ من ${p.price} ر.س` : `Starts from ${p.price} SAR`}
+                </Text>
+              </PressableScale>
+            ))}
+          </View>
+
+          <Text style={[styles.subGroupTitle, { color: COLORS.textSecondary, marginTop: 16 }]}>
+            {isRTL ? 'إكسسوارات' : 'Accessories'}
+          </Text>
+          <View style={styles.upsellGrid}>
+            {getAccessorySuggestions('phone').map((a) => (
+              <PressableScale
+                key={a.id}
+                to={0.97}
+                style={[styles.upsellCard, { backgroundColor: COLORS.card }]}
+                onPress={() => router.push('/request')}
+                accessibilityRole="button"
+                accessibilityLabel={isRTL ? a.name_ar : a.name_en}
+              >
+                <View style={[styles.tileIconWrap, { backgroundColor: '#3b82f615' }]}>
+                  <MaterialCommunityIcons name="cable-data" size={22} color="#3b82f6" />
+                </View>
+                <Text style={[styles.tileName, { color: COLORS.text }]} numberOfLines={2}>
+                  {isRTL ? a.name_ar : a.name_en}
+                </Text>
+                <Text style={[styles.tilePrice, { color: COLORS.primary, marginTop: 6 }]}>
+                  {isRTL ? `تبدأ من ${a.price} ر.س` : `Starts from ${a.price} SAR`}
+                </Text>
+              </PressableScale>
+            ))}
+          </View>
+
           {/* Fixate Market — lives inside Services (not a homepage block). */}
           <View style={[styles.sectionRow, { marginTop: 26 }]}>
             <Text style={[styles.sectionTitle, { color: COLORS.text }]}>
@@ -433,6 +498,18 @@ const makeStyles = (C: any, isRTL: boolean, SHADOWS: any) =>
     tileDesc: { fontSize: 11, marginTop: 4, lineHeight: 16, textAlign: isRTL ? 'right' : 'left' },
     tileFoot: { marginTop: 10 },
     tilePrice: { fontSize: 12, fontWeight: '700' },
+    subGroupTitle: { fontSize: 13, fontWeight: '700', marginBottom: 10, textAlign: isRTL ? 'right' : 'left' },
+    upsellGrid: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      flexWrap: 'wrap',
+      gap: 12,
+    },
+    upsellCard: {
+      width: (width - SPACING.m * 2 - 12) / 2,
+      borderRadius: BORDER_RADIUS.md,
+      padding: 14,
+      ...SHADOWS.small,
+    },
     soonPill: {
       alignSelf: isRTL ? 'flex-end' : 'flex-start',
       paddingHorizontal: 8,

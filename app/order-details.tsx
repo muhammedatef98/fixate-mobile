@@ -31,6 +31,7 @@ const ORDER_TIMELINE: { status: string; arLabel: string; enLabel: string; icon: 
   { status: 'accepted', arLabel: 'تم القبول', enLabel: 'Accepted', icon: 'check-circle' },
   { status: 'picking_up', arLabel: 'جاري الاستلام', enLabel: 'Picking Up', icon: 'car' },
   { status: 'diagnosing', arLabel: 'جاري الفحص', enLabel: 'Diagnosing', icon: 'magnify' },
+  { status: 'quoted', arLabel: 'بانتظار موافقتك', enLabel: 'Awaiting Your Approval', icon: 'cash-check' },
   { status: 'waiting_parts', arLabel: 'انتظار قطع غيار', enLabel: 'Waiting for Parts', icon: 'clock-outline' },
   { status: 'repairing', arLabel: 'جاري الإصلاح', enLabel: 'Repairing', icon: 'tools' },
   { status: 'testing', arLabel: 'اختبار الجودة', enLabel: 'Quality Testing', icon: 'flask' },
@@ -55,6 +56,28 @@ export default function OrderDetailsScreen() {
   const [hasReviewed, setHasReviewed] = useState(false);
   const [viewerOpen, setViewerOpen] = useState(false);
   const [viewerIndex, setViewerIndex] = useState(0);
+  const [respondingQuote, setRespondingQuote] = useState(false);
+
+  const respondToQuote = async (accept: boolean) => {
+    if (!order || respondingQuote) return;
+    setRespondingQuote(true);
+    try {
+      await requests.respondToQuote(order.id as string, accept);
+      Alert.alert(
+        accept ? (isRTL ? 'تم القبول ✓' : 'Accepted ✓') : (isRTL ? 'تم الرفض' : 'Rejected'),
+        accept
+          ? (isRTL ? 'تم قبول السعر، سيتابع الفني الإصلاح.' : 'Price accepted. The technician will continue the repair.')
+          : (isRTL ? 'تم إلغاء الطلب.' : 'The request has been cancelled.')
+      );
+    } catch (e) {
+      Alert.alert(
+        isRTL ? 'خطأ' : 'Error',
+        isRTL ? 'تعذّر إرسال ردك، حاول مرة أخرى' : 'Could not submit your response, try again'
+      );
+    } finally {
+      setRespondingQuote(false);
+    }
+  };
 
   useEffect(() => {
     if (!order?.id) return;
@@ -136,6 +159,7 @@ export default function OrderDetailsScreen() {
       accepted: '#3B82F6',
       picking_up: '#8B5CF6',
       diagnosing: '#06B6D4',
+      quoted: '#F59E0B',
       repairing: '#EC4899',
       delivering: '#10B981',
       completed: '#10B981',
@@ -319,22 +343,91 @@ export default function OrderDetailsScreen() {
           </View>
         </View>
 
+        {/* Technician inspection quote — customer accepts or rejects */}
+        {order.status === 'quoted' && (
+          <View style={[styles.card, { backgroundColor: COLORS.card, borderWidth: 2, borderColor: '#F59E0B' }, SHADOWS.small]}>
+            <View style={styles.cardHeader}>
+              <MaterialCommunityIcons name="cash-check" size={24} color="#F59E0B" />
+              <Text style={[styles.cardTitle, { color: COLORS.text }]}>
+                {isRTL ? 'عرض السعر بعد الفحص' : 'Price after inspection'}
+              </Text>
+            </View>
+            <Text style={{ color: COLORS.textSecondary, fontSize: 13, marginBottom: 12 }}>
+              {isRTL
+                ? 'قام الفني بفحص جهازك وحدد السعر النهائي التالي. وافق للمتابعة أو ارفض لإلغاء الطلب.'
+                : 'The technician inspected your device and set the final price below. Accept to continue or reject to cancel the request.'}
+            </Text>
+            <View style={[styles.priceRow, { marginBottom: 8 }]}>
+              <Text style={[styles.priceLabel, { color: COLORS.textSecondary }]}>
+                {isRTL ? 'السعر النهائي' : 'Final price'}
+              </Text>
+              <Text style={[styles.priceAmount, { color: '#F59E0B' }]}>
+                {(order as any).final_price} {isRTL ? 'ر.س' : 'SAR'}
+              </Text>
+            </View>
+            {!!(order as any).quote_notes && (
+              <Text style={{ color: COLORS.textSecondary, fontSize: 13, marginBottom: 12 }}>
+                {(order as any).quote_notes}
+              </Text>
+            )}
+            <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', gap: 10, marginTop: 6 }}>
+              <TouchableOpacity
+                style={[styles.actionButton, { backgroundColor: '#10B981', flex: 1 }, SHADOWS.small]}
+                disabled={respondingQuote}
+                onPress={() => respondToQuote(true)}
+              >
+                {respondingQuote ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <>
+                    <MaterialIcons name="check-circle" size={20} color="#fff" />
+                    <Text style={styles.actionButtonText}>{isRTL ? 'قبول السعر' : 'Accept'}</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.actionButton, { backgroundColor: '#EF4444', flex: 1 }, SHADOWS.small]}
+                disabled={respondingQuote}
+                onPress={() =>
+                  Alert.alert(
+                    isRTL ? 'رفض السعر' : 'Reject price',
+                    isRTL ? 'سيتم إلغاء الطلب. متأكد؟' : 'This will cancel the request. Are you sure?',
+                    [
+                      { text: isRTL ? 'تراجع' : 'Back', style: 'cancel' },
+                      { text: isRTL ? 'رفض' : 'Reject', style: 'destructive', onPress: () => respondToQuote(false) },
+                    ]
+                  )
+                }
+              >
+                <MaterialIcons name="cancel" size={20} color="#fff" />
+                <Text style={styles.actionButtonText}>{isRTL ? 'رفض' : 'Reject'}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+
         {/* Price Information Card */}
         <View style={[styles.card, { backgroundColor: COLORS.card }, SHADOWS.small]}>
           <View style={styles.cardHeader}>
             <MaterialIcons name="payments" size={24} color={COLORS.primary} />
             <Text style={[styles.cardTitle, { color: COLORS.text }]}>
-              {isRTL ? 'السعر المقدر' : 'Estimated Price'}
+              {(order as any).final_price && order.status !== 'quoted'
+                ? (isRTL ? 'السعر النهائي' : 'Final Price')
+                : (isRTL ? 'السعر المقدر' : 'Estimated Price')}
             </Text>
           </View>
 
           <View style={styles.priceContainer}>
             <View style={styles.priceRow}>
               <Text style={[styles.priceLabel, { color: COLORS.textSecondary }]}>
-                {isRTL ? 'التكلفة المقدرة' : 'Estimated Cost'}
+                {(order as any).final_price && order.status !== 'quoted'
+                  ? (isRTL ? 'التكلفة النهائية' : 'Final Cost')
+                  : (isRTL ? 'التكلفة المقدرة' : 'Estimated Cost')}
               </Text>
               <Text style={[styles.priceAmount, { color: COLORS.primary }]}>
-                {order.estimated_price} {isRTL ? 'ر.س' : 'SAR'}
+                {((order as any).final_price && order.status !== 'quoted'
+                  ? (order as any).final_price
+                  : order.estimated_price)} {isRTL ? 'ر.س' : 'SAR'}
               </Text>
             </View>
 
