@@ -14,6 +14,7 @@ import {
   Alert,
   Modal,
   Linking,
+  Switch,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { MaterialIcons, MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
@@ -21,7 +22,7 @@ import { getColors, getShadows, SPACING, BORDER_RADIUS } from '../../constants/t
 import { useApp } from '../../contexts/AppContext';
 import { useAuth } from '../../contexts/AuthContext';
 import * as orderService from '../../services/orderService';
-import BottomNavTech from '../../components/BottomNavTech';
+import { supabase } from '../../services/supabaseClient';
 import { logger } from '../../utils/logger';
 
 const { width } = Dimensions.get('window');
@@ -42,8 +43,46 @@ export default function TechnicianHomeScreen() {
   const [selectedOrder, setSelectedOrder] = useState<orderService.Order | null>(null);
   const [showOrderModal, setShowOrderModal] = useState(false);
   const [accepting, setAccepting] = useState(false);
+  // Overall technician availability for repair work — separate from
+  // per-service availability. Backed by technicians.is_available; degrades
+  // gracefully (local-only) if the column/row isn't ready yet.
+  const [isAvailable, setIsAvailable] = useState(true);
+  const [togglingAvailability, setTogglingAvailability] = useState(false);
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (!user) return;
+    (async () => {
+      try {
+        const { data } = await supabase
+          .from('technicians')
+          .select('is_available')
+          .eq('user_id', user.id)
+          .maybeSingle();
+        if (data && typeof data.is_available === 'boolean') setIsAvailable(data.is_available);
+      } catch (e) {
+        logger.warn('load availability fell back to default', e);
+      }
+    })();
+  }, [user?.id]);
+
+  const toggleAvailability = async (next: boolean) => {
+    if (!user) return;
+    setIsAvailable(next); // optimistic
+    setTogglingAvailability(true);
+    try {
+      const { error } = await supabase
+        .from('technicians')
+        .update({ is_available: next })
+        .eq('user_id', user.id);
+      if (error) logger.warn('availability not persisted (backend pending)', error);
+    } catch (e) {
+      logger.warn('toggleAvailability recorded locally only', e);
+    } finally {
+      setTogglingAvailability(false);
+    }
+  };
 
   useEffect(() => {
     loadOrders();
@@ -125,6 +164,7 @@ export default function TechnicianHomeScreen() {
       accepted: '#3B82F6',
       picking_up: '#8B5CF6',
       diagnosing: '#EC4899',
+      quoted: '#F59E0B',
       repairing: '#10B981',
       delivering: '#06B6D4',
       completed: '#22C55E',
@@ -139,6 +179,7 @@ export default function TechnicianHomeScreen() {
       accepted: { ar: 'مقبول', en: 'Accepted' },
       picking_up: { ar: 'جاري الاستلام', en: 'Picking Up' },
       diagnosing: { ar: 'جاري الفحص', en: 'Diagnosing' },
+      quoted: { ar: 'بانتظار موافقة العميل', en: 'Awaiting Approval' },
       repairing: { ar: 'جاري الإصلاح', en: 'Repairing' },
       delivering: { ar: 'جاري التوصيل', en: 'Delivering' },
       completed: { ar: 'مكتمل', en: 'Completed' },
@@ -330,6 +371,43 @@ export default function TechnicianHomeScreen() {
             </Text>
           </View>
         </View>
+      </View>
+
+      {/* Availability controls — overall toggle + per-service shortcut */}
+      <View style={[styles.availabilityCard, SHADOWS.neuFlat]}>
+        <View style={styles.availabilityRow}>
+          <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 10, flex: 1 }}>
+            <View style={[styles.availabilityDot, { backgroundColor: isAvailable ? '#10B981' : '#9CA3AF' }]} />
+            <View style={{ flex: 1, alignItems: isRTL ? 'flex-end' : 'flex-start' }}>
+              <Text style={[styles.availabilityTitle, { color: COLORS.text }]}>
+                {isRTL ? 'متاح لاستقبال الطلبات' : 'Available for jobs'}
+              </Text>
+              <Text style={[styles.availabilitySub, { color: COLORS.textSecondary }]}>
+                {isAvailable
+                  ? (isRTL ? 'تظهر لك الطلبات الجديدة' : 'You receive new repair requests')
+                  : (isRTL ? 'لن تصلك طلبات جديدة' : 'You will not get new requests')}
+              </Text>
+            </View>
+          </View>
+          <Switch
+            value={isAvailable}
+            onValueChange={toggleAvailability}
+            disabled={togglingAvailability}
+            trackColor={{ false: COLORS.border, true: COLORS.primary }}
+            thumbColor="#fff"
+          />
+        </View>
+        <TouchableOpacity
+          style={[styles.manageServicesBtn, { borderColor: COLORS.border }]}
+          onPress={() => router.push('/(technician)/service-availability')}
+          activeOpacity={0.7}
+        >
+          <MaterialCommunityIcons name="tune-variant" size={18} color={COLORS.primary} />
+          <Text style={[styles.manageServicesText, { color: COLORS.primary }]}>
+            {isRTL ? 'إدارة الخدمات المتاحة' : 'Manage available services'}
+          </Text>
+          <Ionicons name={isRTL ? 'chevron-back' : 'chevron-forward'} size={16} color={COLORS.primary} />
+        </TouchableOpacity>
       </View>
 
       {/* Tabs */}
@@ -596,7 +674,6 @@ export default function TechnicianHomeScreen() {
         </View>
       </Modal>
 
-      <BottomNavTech currentRoute="index" />
     </SafeAreaView>
   );
 }
@@ -671,6 +748,34 @@ const createStyles = (COLORS: any, SHADOWS: any, isRTL: boolean) => StyleSheet.c
     fontSize: 11,
     marginTop: 2,
   },
+  availabilityCard: {
+    backgroundColor: COLORS.card,
+    marginHorizontal: SPACING.lg,
+    marginBottom: SPACING.md,
+    borderRadius: BORDER_RADIUS.lg,
+    padding: SPACING.md,
+    gap: SPACING.sm,
+  },
+  availabilityRow: {
+    flexDirection: isRTL ? 'row-reverse' : 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: SPACING.sm,
+  },
+  availabilityDot: { width: 10, height: 10, borderRadius: 5 },
+  availabilityTitle: { fontSize: 15, fontWeight: '700' },
+  availabilitySub: { fontSize: 12, marginTop: 2 },
+  manageServicesBtn: {
+    flexDirection: isRTL ? 'row-reverse' : 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: SPACING.sm,
+    borderRadius: BORDER_RADIUS.md,
+    borderWidth: 1,
+    marginTop: 4,
+  },
+  manageServicesText: { fontSize: 14, fontWeight: '700' },
   tabsContainer: {
     flexDirection: isRTL ? 'row-reverse' : 'row',
     marginHorizontal: SPACING.lg,

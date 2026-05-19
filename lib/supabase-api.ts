@@ -24,6 +24,11 @@ export interface Order {
   device_model: string;
   issue_description: string;
   estimated_price: number;
+  // Technician inspection quote (set after the device is inspected). The
+  // customer accepts/rejects this before repair work proceeds.
+  final_price?: number | null;
+  quote_notes?: string | null;
+  quoted_at?: string | null;
   location: string;
   latitude: number;
   longitude: number;
@@ -267,6 +272,47 @@ export const requests = {
     const { data, error } = await supabase
       .from('orders')
       .update({ status, updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  },
+
+  // Technician submits the inspection quote -> order becomes 'quoted'
+  setQuote: async (id: string, price: number, notes?: string): Promise<Order | null> => {
+    const wide: any = {
+      final_price: price,
+      status: 'quoted',
+      quote_notes: notes ?? null,
+      quoted_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    let { data, error } = await supabase
+      .from('orders')
+      .update(wide)
+      .eq('id', id)
+      .select()
+      .single();
+    if (error) {
+      // Retry with the minimal guaranteed columns during backend rollout.
+      const retry = await supabase
+        .from('orders')
+        .update({ final_price: price, status: 'quoted', updated_at: new Date().toISOString() })
+        .eq('id', id)
+        .select()
+        .single();
+      if (retry.error) throw retry.error;
+      return retry.data;
+    }
+    return data;
+  },
+
+  // Customer accepts/rejects the technician quote.
+  respondToQuote: async (id: string, accept: boolean): Promise<Order | null> => {
+    const { data, error } = await supabase
+      .from('orders')
+      .update({ status: accept ? 'accepted' : 'cancelled', updated_at: new Date().toISOString() })
       .eq('id', id)
       .select()
       .single();

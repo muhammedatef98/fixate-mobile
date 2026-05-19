@@ -102,7 +102,7 @@ export default function OrdersScreen() {
       let filteredData = data;
       if (filter === 'active') {
         filteredData = data.filter((o: any) =>
-          ['pending', 'accepted', 'picking_up', 'diagnosing', 'waiting_parts', 'repairing', 'testing', 'delivering'].includes(o.status)
+          ['pending', 'accepted', 'picking_up', 'diagnosing', 'quoted', 'waiting_parts', 'repairing', 'testing', 'delivering'].includes(o.status)
         );
       } else if (filter === 'completed') {
         filteredData = data.filter((o: any) => ['completed', 'cancelled'].includes(o.status));
@@ -123,6 +123,7 @@ export default function OrdersScreen() {
       case 'accepted': return { label: isRTL ? 'مقبول' : 'Accepted', color: COLORS.info, icon: 'checkmark-circle-outline' };
       case 'picking_up': return { label: isRTL ? 'جاري الاستلام' : 'Picking up', color: COLORS.info, icon: 'car-outline' };
       case 'diagnosing': return { label: isRTL ? 'تحت الفحص' : 'Diagnosing', color: COLORS.primary, icon: 'search-outline' };
+      case 'quoted': return { label: isRTL ? 'بانتظار موافقتك على السعر' : 'Awaiting your approval', color: COLORS.warning, icon: 'pricetag-outline' };
       case 'waiting_parts': return { label: isRTL ? 'انتظار قطع غيار' : 'Waiting parts', color: COLORS.warning, icon: 'time-outline' };
       case 'repairing': return { label: isRTL ? 'قيد الإصلاح' : 'Repairing', color: COLORS.primary, icon: 'construct-outline' };
       case 'testing': return { label: isRTL ? 'اختبار الجودة' : 'Testing', color: COLORS.primary, icon: 'flask-outline' };

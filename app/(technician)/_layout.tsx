@@ -1,11 +1,25 @@
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { Stack, useRouter } from 'expo-router';
+import { Stack, useRouter, usePathname } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useApp } from '../../contexts/AppContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../services/supabaseClient';
 import { getColors, SPACING, BORDER_RADIUS } from '../../constants/theme';
+import BottomNavTech from '../../components/BottomNavTech';
+
+// Main technician sections where the bottom tab bar stays persistently
+// visible. Detail/flow screens (manage-order, job, service-availability)
+// intentionally hide it so the technician can focus on the task.
+const PERSISTENT_NAV_ROUTES = [
+  '/(technician)',
+  '/(technician)/index',
+  '/(technician)/available-orders',
+  '/(technician)/earnings',
+  '/(technician)/my-orders',
+  '/(technician)/dashboard',
+  '/(technician)/profile',
+];
 
 type GateState =
   | { kind: 'loading' }
@@ -18,6 +32,7 @@ export default function TechnicianLayout() {
   const { language, isDark } = useApp();
   const { user, loading: authLoading, signOut } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
   const COLORS = getColors(isDark);
   const isRTL = language === 'ar';
 
@@ -136,28 +151,33 @@ export default function TechnicianLayout() {
     );
   }
 
+  const showBottomNav = PERSISTENT_NAV_ROUTES.includes(pathname);
+
   return (
-    <Stack
-      screenOptions={{
-        headerShown: false,
-        animation: 'none',
-        gestureEnabled: true,
-        gestureDirection: 'horizontal',
-        headerStyle: { backgroundColor: '#10b981' },
-        headerTintColor: '#fff',
-        headerTitleStyle: { fontWeight: 'bold' },
-        headerBackTitle: isRTL ? 'رجوع' : 'Back',
-      }}
-    >
-      <Stack.Screen name="index" />
-      <Stack.Screen name="dashboard" />
-      <Stack.Screen name="my-orders" />
-      <Stack.Screen name="earnings" />
-      <Stack.Screen name="available-orders" />
-      <Stack.Screen name="manage-order" options={{ headerShown: false }} />
-      <Stack.Screen name="job/[id]" />
-      <Stack.Screen name="service-availability" options={{ headerShown: false }} />
-    </Stack>
+    <View style={{ flex: 1, backgroundColor: COLORS.background }}>
+      <Stack
+        screenOptions={{
+          headerShown: false,
+          animation: 'none',
+          gestureEnabled: true,
+          gestureDirection: 'horizontal',
+          headerStyle: { backgroundColor: '#10b981' },
+          headerTintColor: '#fff',
+          headerTitleStyle: { fontWeight: 'bold' },
+          headerBackTitle: isRTL ? 'رجوع' : 'Back',
+        }}
+      >
+        <Stack.Screen name="index" />
+        <Stack.Screen name="dashboard" />
+        <Stack.Screen name="my-orders" />
+        <Stack.Screen name="earnings" />
+        <Stack.Screen name="available-orders" />
+        <Stack.Screen name="manage-order" options={{ headerShown: false }} />
+        <Stack.Screen name="job/[id]" />
+        <Stack.Screen name="service-availability" options={{ headerShown: false }} />
+      </Stack>
+      {showBottomNav && <BottomNavTech />}
+    </View>
   );
 }
 
