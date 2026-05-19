@@ -34,6 +34,7 @@ export interface ListingComment {
   id: string;
   listing_id: string;
   user_id: string;
+  parent_id?: string | null;
   content: string;
   created_at: string;
   author_name?: string | null;
@@ -53,37 +54,51 @@ export const getListing = async (id: string): Promise<MarketListing | null> => {
 };
 
 export const listComments = async (listingId: string): Promise<ListingComment[]> => {
+  // We deliberately don't join the users table here — it's RLS-restricted
+  // for non-admin readers, which used to make this query silently fail.
+  // Instead we persist `author_name` at insert time.
   const { data, error } = await supabase
     .from('market_comments')
-    .select('*, users:user_id(name)')
+    .select('*')
     .eq('listing_id', listingId)
     .order('created_at', { ascending: true });
   if (error) {
     logger.warn('listComments failed', error);
     return [];
   }
-  return (data ?? []).map((c: any) => ({
-    id: c.id,
-    listing_id: c.listing_id,
-    user_id: c.user_id,
-    content: c.content,
-    created_at: c.created_at,
-    author_name: c.users?.name ?? null,
-  }));
+  return (data ?? []) as ListingComment[];
 };
 
 export const addComment = async (
   listingId: string,
   userId: string,
-  content: string
+  content: string,
+  opts?: { parentId?: string | null; authorName?: string | null }
 ): Promise<ListingComment> => {
-  const { data, error } = await supabase
-    .from('market_comments')
-    .insert({ listing_id: listingId, user_id: userId, content: content.trim() })
-    .select()
-    .single();
+  const payload: any = {
+    listing_id: listingId,
+    user_id: userId,
+    content: content.trim(),
+    parent_id: opts?.parentId ?? null,
+    author_name: opts?.authorName ?? null,
+  };
+  // Progressive fallback: pre-migration DB lacks parent_id/author_name.
+  let res = await supabase.from('market_comments').insert(payload).select().maybeSingle();
+  if (res.error) {
+    logger.warn('addComment falling back without new columns', res.error);
+    res = await supabase
+      .from('market_comments')
+      .insert({ listing_id: listingId, user_id: userId, content: content.trim() })
+      .select()
+      .maybeSingle();
+  }
+  if (res.error) throw res.error;
+  return res.data as ListingComment;
+};
+
+export const deleteComment = async (commentId: string): Promise<void> => {
+  const { error } = await supabase.from('market_comments').delete().eq('id', commentId);
   if (error) throw error;
-  return data as ListingComment;
 };
 
 export const browseListings = async (

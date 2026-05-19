@@ -13,7 +13,13 @@ export type OrderStatus =
   | 'completed'
   | 'cancelled';
 
-export type ServiceType = 'mobile' | 'pickup';
+// Fulfillment / hand-over modes a customer can choose:
+//   mobile           – the technician comes to the customer's location
+//   pickup           – Fixate picks up & returns the device
+//   personal_handoff – the customer personally hands over and picks up the
+//                      device at an agreed meet-up point (cheaper, no
+//                      return-leg fee on rejected quotes)
+export type ServiceType = 'mobile' | 'pickup' | 'personal_handoff';
 
 export type SparePartQuality = 'original' | 'high_quality' | 'economy';
 
@@ -174,6 +180,9 @@ export interface CreateOrderData {
   device_model: string;
   issue_description?: string;
   service_type?: ServiceType;
+  // Mirrors service_type but stored in its own column so we can evolve the
+  // fulfillment options without further DB churn.
+  fulfillment_type?: ServiceType;
   address?: string;
   latitude?: number;
   longitude?: number;

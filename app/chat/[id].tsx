@@ -222,7 +222,7 @@ export default function ChatScreen() {
     const next = messages[index + 1];
     const isFirstInGroup = !prev || prev.sender_id !== item.sender_id;
     const isLastInGroup = !next || next.sender_id !== item.sender_id;
-    const time = new Date(item.created_at).toLocaleTimeString(language === 'ar' ? 'ar-SA' : 'en-US', {
+    const time = new Date(item.created_at).toLocaleTimeString(language === 'ar' ? 'ar' : 'en-US', {
       hour: '2-digit',
       minute: '2-digit',
     });

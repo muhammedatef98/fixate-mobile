@@ -44,21 +44,29 @@ import {
 const { width } = Dimensions.get('window');
 
 const SERVICE_TYPES = [
-  { 
-    id: 'mobile', 
-    name: 'فني متنقل', 
+  {
+    id: 'mobile',
+    name: 'فني متنقل',
     nameEn: 'Mobile Technician',
     description: 'يأتي الفني إلى موقعك ويصلح الجهاز في المكان',
     descriptionEn: 'Technician comes to your location and fixes on-site',
     icon: 'account-wrench'
   },
-  { 
-    id: 'pickup', 
-    name: 'استلام وتوصيل', 
+  {
+    id: 'pickup',
+    name: 'استلام وتوصيل',
     nameEn: 'Pickup & Delivery',
     description: 'نستلم جهازك ونوصله لمحل متعاقد ونرجعه بعد الإصلاح',
     descriptionEn: 'We pickup your device, deliver to partner shop, and return after repair',
     icon: 'truck-delivery'
+  },
+  {
+    id: 'personal_handoff',
+    name: 'تسليم واستلام شخصي',
+    nameEn: 'Personal hand-off',
+    description: 'تسلّم الجهاز شخصياً للفني في نقطة لقاء، وتستلمه شخصياً بعد الإصلاح — بدون رسوم توصيل',
+    descriptionEn: 'You hand the device to the technician in person at a meet-up point and pick it up after the repair — no delivery fee',
+    icon: 'account-switch-outline'
   },
 ];
 
@@ -89,7 +97,6 @@ export default function RequestScreen() {
   const [selectedRegionId] = useState<string | null>(defaultRegion?.id ?? null);
   const [selectedAreaId, setSelectedAreaId] = useState<string | null>(null);
   const selectedRegion = DELIVERY_REGIONS.find((r) => r.id === selectedRegionId) ?? null;
-  const deliveryFee = resolveDeliveryFee(selectedRegionId, selectedAreaId);
   const [address, setAddress] = useState('');
   // Only flag (don't block) when the resolved address is clearly outside the
   // currently-supported Al Qatif / nearby service area.
@@ -114,6 +121,12 @@ export default function RequestScreen() {
   const stepperScrollRef = useRef<ScrollView>(null);
   
   const [selectedServiceType, setSelectedServiceType] = useState<string>('mobile');
+  // Personal hand-off has no delivery leg, so the delivery fee is dropped
+  // to zero. Other service types still resolve from the region/area config.
+  const deliveryFee =
+    selectedServiceType === 'personal_handoff'
+      ? 0
+      : resolveDeliveryFee(selectedRegionId, selectedAreaId);
   const [selectedDeviceType, setSelectedDeviceType] = useState<string | null>(null);
   const [selectedBrand, setSelectedBrand] = useState<Brand | null>(null);
   const [selectedModel, setSelectedModel] = useState<string | null>(null);
@@ -376,7 +389,10 @@ export default function RequestScreen() {
         device_brand: deviceBrandValue,
         device_model: deviceModelValue,
         issue_description: composedDescription,
-        service_type: selectedServiceType as 'mobile' | 'pickup',
+        service_type: selectedServiceType as 'mobile' | 'pickup' | 'personal_handoff',
+        // Stored separately so the DB can evolve without us re-shuffling
+        // service_type semantics. See migration `2026_05_20_phase2_*`.
+        fulfillment_type: selectedServiceType as 'mobile' | 'pickup' | 'personal_handoff',
         service_id: selectedIssue.id,
         address: address || `${location.latitude.toFixed(5)}, ${location.longitude.toFixed(5)}`,
         latitude: location.latitude,
@@ -718,9 +734,16 @@ export default function RequestScreen() {
               <View style={{ gap: 8 }}>
                 {(['original', 'high_quality', 'economy'] as SparePartQuality[]).map((q) => {
                   const selected = sparePartQuality === q;
-                  const multiplier = SPARE_PART_MULTIPLIERS[q];
-                  const base = selectedIssue?.estimatedPrice ?? 0;
-                  const price = Math.round(base * multiplier);
+                  // Friendly badges replace explicit numbers so customers
+                  // aren't scared away by a high screen-replacement figure.
+                  // The actual price difference still flows into the final
+                  // quote the technician sends after inspection.
+                  const badge =
+                    q === 'original'
+                      ? { ar: 'الجودة الأعلى', en: 'Top quality', color: '#10b981' }
+                      : q === 'high_quality'
+                      ? { ar: 'موصى به', en: 'Recommended', color: '#3b82f6' }
+                      : { ar: 'الأوفر', en: 'Best value', color: '#f59e0b' };
                   return (
                     <TouchableOpacity
                       key={q}
@@ -734,16 +757,16 @@ export default function RequestScreen() {
                       }}
                     >
                       <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <Text style={{ fontWeight: '700', color: COLORS.text, fontSize: 15 }}>
+                        <Text style={{ fontWeight: '700', color: COLORS.text, fontSize: 15, textAlign: isRTL ? 'right' : 'left' }}>
                           {isRTL ? SPARE_PART_LABELS[q].ar : SPARE_PART_LABELS[q].en}
                         </Text>
-                        {base > 0 && (
-                          <Text style={{ color: COLORS.primary, fontWeight: '700' }}>
-                            {isRTL ? `تبدأ من ${price} ر.س` : `Starts from ${price} SAR`}
+                        <View style={{ backgroundColor: badge.color + '20', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999 }}>
+                          <Text style={{ color: badge.color, fontWeight: '700', fontSize: 11 }}>
+                            {isRTL ? badge.ar : badge.en}
                           </Text>
-                        )}
+                        </View>
                       </View>
-                      <Text style={{ color: COLORS.gray, fontSize: 12, marginTop: 4 }}>
+                      <Text style={{ color: COLORS.gray, fontSize: 12, marginTop: 6, lineHeight: 18, textAlign: isRTL ? 'right' : 'left' }}>
                         {isRTL ? SPARE_PART_DESCRIPTIONS[q].ar : SPARE_PART_DESCRIPTIONS[q].en}
                       </Text>
                     </TouchableOpacity>
@@ -824,9 +847,16 @@ export default function RequestScreen() {
               )}
 
               {/* Payment method — Cash / Card / Online (online is UI-ready
-                  only for now; the choice is stored with the request). */}
+                  only for now; the choice is stored with the request).
+                  Payment is charged only at the end of the repair, after
+                  the customer approves the technician's quote. */}
               <Text style={[styles.sectionTitle, { marginTop: 24 }]}>
-                {isRTL ? 'طريقة الدفع' : 'Payment method'}
+                {isRTL ? 'طريقة الدفع (يتم التحصيل في النهاية)' : 'Payment method (charged at the end)'}
+              </Text>
+              <Text style={{ color: COLORS.gray, fontSize: 12, marginBottom: 10, textAlign: isRTL ? 'right' : 'left', lineHeight: 18 }}>
+                {isRTL
+                  ? 'تختار طريقة الدفع الآن فقط، ولا يتم خصم أي مبلغ إلا بعد فحص الفني وإصلاح الجهاز وموافقتك على السعر.'
+                  : 'You only pick the payment method now. Nothing is charged until the technician inspects, repairs the device, and you approve the price.'}
               </Text>
               <View style={{ gap: 8 }}>
                 {PAYMENT_METHODS.map((pm) => {

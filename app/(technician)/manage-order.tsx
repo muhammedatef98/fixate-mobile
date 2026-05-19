@@ -162,11 +162,14 @@ export default function ManageOrderScreen() {
           ? 'سيراجع العميل السعر ويوافق أو يرفض قبل بدء الإصلاح'
           : 'The customer will review the price and accept or reject before repair starts'
       );
-    } catch (error) {
+    } catch (error: any) {
       logger.error('Error submitting quote:', error);
+      const raw = error?.message || error?.error_description || String(error);
       Alert.alert(
-        isRTL ? 'خطأ' : 'Error',
-        isRTL ? 'تعذّر إرسال السعر' : 'Could not send the quote'
+        isRTL ? 'خطأ في إرسال السعر' : 'Could not send the quote',
+        isRTL
+          ? `تعذّر إرسال السعر للعميل. الرسالة من الخادم:\n\n${raw}`
+          : `Could not send the quote. Server message:\n\n${raw}`
       );
     } finally {
       setSubmittingQuote(false);

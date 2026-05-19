@@ -103,7 +103,7 @@ export default function AvailableRequestsScreen() {
         <Text style={styles.locationText}>📍 {item.location}</Text>
         <Text style={styles.priceText}>السعر المتوقع: {item.estimated_price} ريال</Text>
         <Text style={styles.timeText}>
-          ⏰ {new Date(item.created_at).toLocaleString('ar-SA')}
+          ⏰ {new Date(item.created_at).toLocaleString('ar')}
         </Text>
       </View>
 
