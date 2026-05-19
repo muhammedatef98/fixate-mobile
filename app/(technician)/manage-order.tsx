@@ -12,6 +12,7 @@ import {
   Linking,
   I18nManager,
   Platform,
+  TextInput,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { MaterialIcons, MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
@@ -21,6 +22,7 @@ import { useApp } from '../../contexts/AppContext';
 import { requests, auth } from '../../lib/supabase-api';
 import type { Order } from '../../lib/supabase-api';
 import { logger } from '../../utils/logger';
+import { ORDER_STATUS_LABELS_AR, ORDER_STATUS_LABELS_EN } from '../../types/order';
 import { safeBack } from '../../utils/navigation';
 import { RTLIonicon } from '../../components/RTLIcon';
 import ImageViewer from '../../components/ImageViewer';
@@ -51,6 +53,9 @@ export default function ManageOrderScreen() {
   const [mapReady, setMapReady] = useState(false);
   const [viewerOpen, setViewerOpen] = useState(false);
   const [viewerIndex, setViewerIndex] = useState(0);
+  const [quotePrice, setQuotePrice] = useState('');
+  const [quoteNotes, setQuoteNotes] = useState('');
+  const [submittingQuote, setSubmittingQuote] = useState(false);
 
   useEffect(() => {
     loadOrderDetails();
@@ -133,16 +138,61 @@ export default function ManageOrderScreen() {
     }
   };
 
+  // A quote the customer has accepted: the order carries a final_price and is
+  // no longer in the 'quoted' (awaiting-approval) state. Rejected quotes move
+  // the order to 'cancelled', so any non-cancelled order with a final_price
+  // means the customer approved the price.
+  const hasAcceptedQuote = !!(order as any)?.final_price && order?.status !== 'quoted';
+
+  const handleSubmitQuote = async () => {
+    const price = Number(quotePrice);
+    if (!price || price <= 0) {
+      Alert.alert(
+        isRTL ? 'تنبيه' : 'Notice',
+        isRTL ? 'أدخل سعراً صحيحاً بعد الفحص' : 'Enter a valid price after inspection'
+      );
+      return;
+    }
+    try {
+      setSubmittingQuote(true);
+      await requests.setQuote(id as string, price, quoteNotes.trim() || undefined);
+      Alert.alert(
+        isRTL ? 'تم إرسال السعر' : 'Quote sent',
+        isRTL
+          ? 'سيراجع العميل السعر ويوافق أو يرفض قبل بدء الإصلاح'
+          : 'The customer will review the price and accept or reject before repair starts'
+      );
+    } catch (error) {
+      logger.error('Error submitting quote:', error);
+      Alert.alert(
+        isRTL ? 'خطأ' : 'Error',
+        isRTL ? 'تعذّر إرسال السعر' : 'Could not send the quote'
+      );
+    } finally {
+      setSubmittingQuote(false);
+    }
+  };
+
   const getNextActions = () => {
     if (!order) return [];
-    
-    // Allow technician to update to any status after accepting
+
     if (order.status === 'pending') {
       return [STATUS_ACTIONS[0]]; // Only show "Accept Order"
     }
-    
-    // Return all statuses except 'pending' and the current one
-    return STATUS_ACTIONS.filter(a => a.status !== 'pending' && a.status !== order.status);
+
+    // Awaiting customer's decision on the quote — no manual transitions.
+    if (order.status === 'quoted') return [];
+
+    // Before the customer approves a quote, the technician may only move
+    // through the inspection stages. Repair/test/deliver/complete unlock
+    // once the customer has accepted the quoted price.
+    const preQuoteAllowed = ['picking_up', 'diagnosing'];
+    return STATUS_ACTIONS.filter((a) => {
+      if (a.status === 'pending' || a.status === 'accepted') return false;
+      if (a.status === order.status) return false;
+      if (!hasAcceptedQuote && !preQuoteAllowed.includes(a.status)) return false;
+      return true;
+    });
   };
 
   const openLocation = () => {
@@ -218,63 +268,158 @@ export default function ManageOrderScreen() {
       </View>
 
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        {/* Professional Workflow Control */}
-        <View style={[styles.card, { backgroundColor: COLORS.card }, SHADOWS.medium]}>
-          <Text style={[styles.cardTitle, { color: COLORS.text }]}>
-            {isRTL ? 'لوحة التحكم في سير العمل' : 'Workflow Control Panel'}
+        {/* Current status chip */}
+        <View style={[styles.card, { backgroundColor: COLORS.card, flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 10 }, SHADOWS.medium]}>
+          <MaterialCommunityIcons name="information-outline" size={22} color={COLORS.primary} />
+          <Text style={{ color: COLORS.textSecondary, fontSize: 13 }}>
+            {isRTL ? 'الحالة الحالية:' : 'Current status:'}
           </Text>
-          <Text style={[styles.sectionSubtitle, { color: COLORS.textSecondary, marginBottom: SPACING.m }]}>
-            {isRTL ? 'قم بتحديث حالة الطلب بدقة لضمان تتبع العميل' : 'Update order status precisely for client tracking'}
+          <Text style={{ color: COLORS.text, fontWeight: '800', fontSize: 14 }}>
+            {isRTL ? ORDER_STATUS_LABELS_AR[order.status] : ORDER_STATUS_LABELS_EN[order.status]}
           </Text>
-          
-          <View style={styles.workflowGrid}>
-            {STATUS_ACTIONS.map((action) => {
-              const isActive = order.status === action.status;
-              // Only "Accept Order" is available if status is pending
-              const isAvailable = order.status === 'pending' ? action.status === 'accepted' : action.status !== 'accepted';
-              
-              // Don't show other actions if order is pending, except the accept button
-              if (order.status === 'pending' && action.status !== 'accepted') return null;
-              // Don't show accept button if order is already accepted
-              if (order.status !== 'pending' && action.status === 'accepted') return null;
-
-              return (
-                <TouchableOpacity
-                  key={action.status}
-                  style={[
-                    styles.workflowButton, 
-                    { 
-                      borderColor: isActive ? action.color : isAvailable ? action.color : COLORS.border,
-                      backgroundColor: isActive ? `${action.color}15` : 'transparent',
-                      opacity: (isActive || isAvailable) ? 1 : 0.5
-                    }
-                  ]}
-                  onPress={() => {
-                    if (action.status === 'accepted' && order.status === 'pending') {
-                      handleAcceptOrder();
-                    } else {
-                      handleUpdateStatus(action.status);
-                    }
-                  }}
-                  disabled={updating || !isAvailable}
-                >
-                  <View style={[styles.iconContainer, { backgroundColor: isActive || isAvailable ? action.color : COLORS.disabled }]}>
-                    <MaterialCommunityIcons name={action.icon as any} size={20} color="#FFFFFF" />
-                  </View>
-                  <View style={styles.workflowTextContainer}>
-                    <Text style={[styles.workflowTitle, { color: COLORS.text }]}>
-                      {isRTL ? action.arLabel : action.enLabel}
-                    </Text>
-                    <Text style={[styles.workflowDesc, { color: COLORS.textSecondary }]}>
-                      {action.description}
-                    </Text>
-                  </View>
-                  {isActive && <MaterialIcons name="check-circle" size={20} color={action.color} />}
-                </TouchableOpacity>
-              );
-            })}
-          </View>
         </View>
+
+        {/* Inspection quote — technician sets the final price AFTER inspecting
+            the device. The customer must approve it before repair begins. */}
+        {order.status !== 'pending' &&
+          order.status !== 'completed' &&
+          order.status !== 'cancelled' &&
+          order.status !== 'quoted' &&
+          !hasAcceptedQuote && (
+            <View style={[styles.card, { backgroundColor: COLORS.card }, SHADOWS.medium]}>
+              <Text style={[styles.cardTitle, { color: COLORS.text }]}>
+                {isRTL ? 'سعر ما بعد الفحص' : 'Price after inspection'}
+              </Text>
+              <Text style={[styles.sectionSubtitle, { color: COLORS.textSecondary, marginBottom: SPACING.m }]}>
+                {isRTL
+                  ? 'افحص الجهاز ثم أرسل السعر النهائي ليوافق عليه العميل قبل بدء الإصلاح'
+                  : 'Inspect the device, then send the final price for the customer to approve before repair starts'}
+              </Text>
+              <TextInput
+                value={quotePrice}
+                onChangeText={(v) => setQuotePrice(v.replace(/[^0-9.]/g, ''))}
+                keyboardType="numeric"
+                placeholder={isRTL ? 'السعر النهائي (ر.س)' : 'Final price (SAR)'}
+                placeholderTextColor={COLORS.textSecondary}
+                style={{
+                  borderWidth: 1,
+                  borderColor: COLORS.border,
+                  borderRadius: BORDER_RADIUS.m,
+                  padding: SPACING.m,
+                  fontSize: 16,
+                  color: COLORS.text,
+                  marginBottom: SPACING.s,
+                  textAlign: isRTL ? 'right' : 'left',
+                }}
+              />
+              <TextInput
+                value={quoteNotes}
+                onChangeText={setQuoteNotes}
+                placeholder={isRTL ? 'ملاحظات للعميل (اختياري)' : 'Notes for the customer (optional)'}
+                placeholderTextColor={COLORS.textSecondary}
+                multiline
+                style={{
+                  borderWidth: 1,
+                  borderColor: COLORS.border,
+                  borderRadius: BORDER_RADIUS.m,
+                  padding: SPACING.m,
+                  fontSize: 14,
+                  color: COLORS.text,
+                  minHeight: 60,
+                  marginBottom: SPACING.m,
+                  textAlign: isRTL ? 'right' : 'left',
+                }}
+              />
+              <TouchableOpacity
+                style={[styles.actionButton, { backgroundColor: COLORS.primary }]}
+                onPress={handleSubmitQuote}
+                disabled={submittingQuote}
+              >
+                {submittingQuote ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <>
+                    <MaterialCommunityIcons name="send-check" size={20} color="#fff" />
+                    <Text style={styles.actionButtonText}>
+                      {isRTL ? 'إرسال السعر للعميل' : 'Send price to customer'}
+                    </Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </View>
+          )}
+
+        {/* Awaiting customer's decision on the quote */}
+        {order.status === 'quoted' && (
+          <View style={[styles.card, { backgroundColor: '#F59E0B15', borderWidth: 1, borderColor: '#F59E0B' }]}>
+            <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 10 }}>
+              <MaterialCommunityIcons name="clock-alert-outline" size={24} color="#F59E0B" />
+              <Text style={{ flex: 1, color: COLORS.text, fontWeight: '700', textAlign: isRTL ? 'right' : 'left' }}>
+                {isRTL
+                  ? `بانتظار موافقة العميل على السعر (${(order as any).final_price} ر.س)`
+                  : `Awaiting customer approval of the price (${(order as any).final_price} SAR)`}
+              </Text>
+            </View>
+          </View>
+        )}
+
+        {/* Professional Workflow Control */}
+        {order.status !== 'quoted' && order.status !== 'completed' && order.status !== 'cancelled' && (
+          <View style={[styles.card, { backgroundColor: COLORS.card }, SHADOWS.medium]}>
+            <Text style={[styles.cardTitle, { color: COLORS.text }]}>
+              {isRTL ? 'لوحة التحكم في سير العمل' : 'Workflow Control Panel'}
+            </Text>
+            <Text style={[styles.sectionSubtitle, { color: COLORS.textSecondary, marginBottom: SPACING.m }]}>
+              {isRTL ? 'قم بتحديث حالة الطلب بدقة لضمان تتبع العميل' : 'Update order status precisely for client tracking'}
+            </Text>
+
+            {!hasAcceptedQuote && order.status !== 'pending' && (
+              <Text style={[styles.workflowDesc, { color: '#F59E0B', marginBottom: SPACING.m }]}>
+                {isRTL
+                  ? 'الإصلاح والإكمال يتفعّلان بعد موافقة العميل على السعر'
+                  : 'Repair & completion unlock after the customer approves the price'}
+              </Text>
+            )}
+
+            <View style={styles.workflowGrid}>
+              {getNextActions().length === 0 ? (
+                <Text style={{ color: COLORS.textSecondary, fontSize: 13 }}>
+                  {isRTL ? 'لا إجراءات متاحة حالياً' : 'No actions available right now'}
+                </Text>
+              ) : (
+                getNextActions().map((action) => (
+                  <TouchableOpacity
+                    key={action.status}
+                    style={[
+                      styles.workflowButton,
+                      { borderColor: action.color, backgroundColor: 'transparent' },
+                    ]}
+                    onPress={() => {
+                      if (action.status === 'accepted' && order.status === 'pending') {
+                        handleAcceptOrder();
+                      } else {
+                        handleUpdateStatus(action.status);
+                      }
+                    }}
+                    disabled={updating}
+                  >
+                    <View style={[styles.iconContainer, { backgroundColor: action.color }]}>
+                      <MaterialCommunityIcons name={action.icon as any} size={20} color="#FFFFFF" />
+                    </View>
+                    <View style={styles.workflowTextContainer}>
+                      <Text style={[styles.workflowTitle, { color: COLORS.text }]}>
+                        {isRTL ? action.arLabel : action.enLabel}
+                      </Text>
+                      <Text style={[styles.workflowDesc, { color: COLORS.textSecondary }]}>
+                        {action.description}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                ))
+              )}
+            </View>
+          </View>
+        )}
 
         {/* Action Buttons */}
         {order.status !== 'pending' && order.status !== 'cancelled' && (
@@ -357,10 +502,10 @@ export default function ManageOrderScreen() {
           <View style={styles.infoRow}>
             <MaterialCommunityIcons name="cash" size={20} color={COLORS.textSecondary} />
             <Text style={[styles.infoLabel, { color: COLORS.textSecondary }]}>
-              {isRTL ? 'السعر' : 'Price'}
+              {(order as any).final_price ? (isRTL ? 'السعر النهائي' : 'Final price') : (isRTL ? 'السعر التقديري' : 'Est. price')}
             </Text>
             <Text style={[styles.infoValue, { color: COLORS.primary, fontWeight: 'bold' }]}>
-              {order.estimated_price} {isRTL ? 'ر.س' : 'SAR'}
+              {(order as any).final_price ?? order.estimated_price} {isRTL ? 'ر.س' : 'SAR'}
             </Text>
           </View>
         </View>

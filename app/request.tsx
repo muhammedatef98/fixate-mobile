@@ -18,7 +18,7 @@ import { uploadOrderMedia } from '../services/storageService';
 import { getFriendlyError } from '../utils/errorMessages';
 import { tapLight } from '../utils/haptics';
 import { formatPrice } from '../utils/pricing';
-import { DELIVERY_REGIONS, resolveDeliveryFee, type DeliveryRegion } from '../constants/deliveryPricing';
+import { DELIVERY_REGIONS, resolveDeliveryFee, isWithinSupportedArea, type DeliveryRegion } from '../constants/deliveryPricing';
 import { pointsForSpend } from '../constants/loyalty';
 import * as loyaltyService from '../services/loyaltyService';
 import { useLoyalty } from '../contexts/LoyaltyContext';
@@ -90,6 +90,10 @@ export default function RequestScreen() {
   const [selectedAreaId, setSelectedAreaId] = useState<string | null>(null);
   const selectedRegion = DELIVERY_REGIONS.find((r) => r.id === selectedRegionId) ?? null;
   const deliveryFee = resolveDeliveryFee(selectedRegionId, selectedAreaId);
+  const [address, setAddress] = useState('');
+  // Only flag (don't block) when the resolved address is clearly outside the
+  // currently-supported Al Qatif / nearby service area.
+  const outsideServiceArea = !!address && !isWithinSupportedArea(address);
   
   const tc = getColors(isDark);
   const SHADOWS = getShadows(isDark);
@@ -155,7 +159,6 @@ export default function RequestScreen() {
   const [filteredIssues, setFilteredIssues] = useState<Issue[]>([]);
   
   const [location, setLocation] = useState<any>(null);
-  const [address, setAddress] = useState('');
   const [isLocating, setIsLocating] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [mapReady, setMapReady] = useState(false);
@@ -736,7 +739,7 @@ export default function RequestScreen() {
                         </Text>
                         {base > 0 && (
                           <Text style={{ color: COLORS.primary, fontWeight: '700' }}>
-                            ~{price} SAR
+                            {isRTL ? `تبدأ من ${price} ر.س` : `Starts from ${price} SAR`}
                           </Text>
                         )}
                       </View>
@@ -1092,6 +1095,25 @@ export default function RequestScreen() {
               </View>
             ) : null}
 
+            {/* Service-area notice — flagged, not blocked. */}
+            {outsideServiceArea && (
+              <View style={styles.serviceAreaNotice}>
+                <MaterialCommunityIcons name="map-marker-alert-outline" size={22} color="#F59E0B" />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.serviceAreaTitle}>
+                    {isRTL
+                      ? 'الخدمة حالياً في القطيف والمناطق القريبة فقط'
+                      : 'Service is currently in Al Qatif & nearby areas only'}
+                  </Text>
+                  <Text style={styles.serviceAreaBody}>
+                    {isRTL
+                      ? 'يبدو أن موقعك خارج نطاق الخدمة الحالي. قريباً سنتوسّع لتغطية كامل المنطقة الشرقية ثم جميع مناطق المملكة. يمكنك متابعة الطلب وسنتواصل معك إن لزم.'
+                      : 'Your location seems outside the current service area. Soon we will expand across the entire Eastern Province, then all of Saudi Arabia. You can still continue and we will reach out if needed.'}
+                  </Text>
+                </View>
+              </View>
+            )}
+
             {/* Delivery area — pricing by region (config-driven, scalable) */}
             {selectedRegion && (
               <View style={styles.deliveryCard}>
@@ -1351,6 +1373,19 @@ const createStyles = (COLORS: any, isRTL: boolean, SHADOWS: any) => StyleSheet.c
   locationButtonText: { color: '#fff', fontWeight: 'bold' },
   addressContainer: { flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', padding: 12, backgroundColor: COLORS.lightGreen, borderRadius: 12, gap: 8 },
   addressText: { flex: 1, fontSize: 14, color: COLORS.text, textAlign: isRTL ? 'right' : 'left' },
+  serviceAreaNotice: {
+    flexDirection: isRTL ? 'row-reverse' : 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    padding: 14,
+    marginTop: 12,
+    backgroundColor: '#F59E0B15',
+    borderWidth: 1,
+    borderColor: '#F59E0B',
+    borderRadius: 12,
+  },
+  serviceAreaTitle: { fontSize: 14, fontWeight: '800', color: COLORS.text, textAlign: isRTL ? 'right' : 'left' },
+  serviceAreaBody: { fontSize: 12, color: COLORS.gray, marginTop: 4, lineHeight: 18, textAlign: isRTL ? 'right' : 'left' },
   emptyState: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 40 },
   emptyStateText: { marginTop: 12, fontSize: 16, color: COLORS.gray },
   deliveryCard: { backgroundColor: COLORS.card, borderRadius: 12, padding: 16, marginTop: 12, ...SHADOWS.small },

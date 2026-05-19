@@ -4,7 +4,6 @@ import { useRouter } from 'expo-router';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { useApp } from '../../contexts/AppContext';
 import { useAuth } from '../../contexts/AuthContext';
-import BottomNavTech from '../../components/BottomNavTech';
 import { RTLIonicon } from '../../components/RTLIcon';
 import { getColors, getShadows, BORDER_RADIUS } from '../../constants/theme';
 import { PressableScale } from '../../components/ui/PressableScale';
@@ -161,8 +160,6 @@ export default function TechnicianProfile() {
         
         <View style={{ height: 100 }} />
       </ScrollView>
-
-      <BottomNavTech />
     </SafeAreaView>
   );
 }

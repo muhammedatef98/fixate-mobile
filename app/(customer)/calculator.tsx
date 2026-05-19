@@ -7,6 +7,12 @@ import BottomNav from '../../components/BottomNav';
 import { BRANDS } from '../../constants/repairData';
 import { RTLIonicon } from '../../components/RTLIcon';
 import { getColors } from '../../constants/theme';
+import FixateeLogo from '../../components/FixateeLogo';
+import {
+  SPARE_PART_LABELS,
+  SPARE_PART_MULTIPLIERS,
+  type SparePartQuality,
+} from '../../types/order';
 
 const { width } = Dimensions.get('window');
 
@@ -62,6 +68,7 @@ export default function PriceCalculatorScreen() {
   const [selectedDevice, setSelectedDevice] = useState<string | null>('phone');
   const [selectedBrand, setSelectedBrand] = useState<string | null>(null);
   const [selectedIssue, setSelectedIssue] = useState<string | null>(null);
+  const [selectedQuality, setSelectedQuality] = useState<SparePartQuality>('original');
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(20)).current;
@@ -82,10 +89,13 @@ export default function PriceCalculatorScreen() {
   const brandMultiplier = selectedBrand === 'apple' ? 1.25 : selectedBrand === 'samsung' ? 1.15 : 1.0;
 
   const issueObj = selectedIssue ? ISSUES.find((i) => i.id === selectedIssue) : null;
+  // Spare-part quality shifts the band: originals are the reference,
+  // high-quality/economy parts are progressively cheaper.
+  const qualityMultiplier = SPARE_PART_MULTIPLIERS[selectedQuality];
   const range = issueObj
     ? {
-        min: Math.round(issueObj.min * brandMultiplier),
-        max: Math.round(issueObj.max * brandMultiplier),
+        min: Math.round(issueObj.min * brandMultiplier * qualityMultiplier),
+        max: Math.round(issueObj.max * brandMultiplier * qualityMultiplier),
       }
     : null;
 
@@ -111,6 +121,23 @@ export default function PriceCalculatorScreen() {
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
         <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
+          {/* Branded hero */}
+          <View style={styles.brandHero}>
+            <View style={styles.brandHeroLogo}>
+              <FixateeLogo size={46} color="#ffffff" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.brandHeroTitle}>
+                {isRTL ? 'حاسبة أسعار Fixate' : 'Fixate Price Calculator'}
+              </Text>
+              <Text style={styles.brandHeroSub}>
+                {isRTL
+                  ? 'تقدير سريع — السعر النهائي يحدده الفني بعد الفحص'
+                  : 'A quick estimate — the technician sets the final price after inspection'}
+              </Text>
+            </View>
+          </View>
+
           <Text style={styles.sectionTitle}>{isRTL ? '1. نوع الجهاز' : '1. Device Type'}</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.deviceList}>
             {DEVICES.map((device) => (
@@ -168,6 +195,33 @@ export default function PriceCalculatorScreen() {
               </View>
             </>
           )}
+
+          {selectedIssue && (
+            <>
+              <Text style={styles.sectionTitle}>{isRTL ? '4. جودة قطعة الغيار' : '4. Spare-part quality'}</Text>
+              <View style={styles.qualityRow}>
+                {(['original', 'high_quality', 'economy'] as SparePartQuality[]).map((q) => {
+                  const active = selectedQuality === q;
+                  return (
+                    <TouchableOpacity
+                      key={q}
+                      style={[styles.qualityChip, active && styles.selectedCard]}
+                      onPress={() => setSelectedQuality(q)}
+                    >
+                      <MaterialCommunityIcons
+                        name={q === 'original' ? 'shield-star' : q === 'high_quality' ? 'shield-check' : 'shield-outline'}
+                        size={20}
+                        color={active ? COLORS.primary : COLORS.textSecondary}
+                      />
+                      <Text style={[styles.qualityChipText, active && styles.selectedLabel]}>
+                        {isRTL ? SPARE_PART_LABELS[q].ar : SPARE_PART_LABELS[q].en}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </>
+          )}
         </Animated.View>
         <View style={{ height: 200 }} />
       </ScrollView>
@@ -178,8 +232,8 @@ export default function PriceCalculatorScreen() {
           <Text style={styles.priceValue}>
             {range
               ? isRTL
-                ? `من ${range.min} إلى ${range.max} ر.س`
-                : `${range.min} – ${range.max} SAR`
+                ? `تبدأ من ${range.min} – ${range.max} ر.س`
+                : `Starts from ${range.min} – ${range.max} SAR`
               : '—'}
           </Text>
         </View>
@@ -244,6 +298,38 @@ const createStyles = (COLORS: any, isRTL: boolean) => StyleSheet.create({
   brandCard: { width: (width - 52) / 3, backgroundColor: COLORS.white, borderRadius: 16, padding: 12, alignItems: 'center', borderWidth: 1, borderColor: COLORS.border },
   brandLogo: { width: 30, height: 30, marginBottom: 6 },
   brandLabel: { fontSize: 11, color: COLORS.textSecondary, fontWeight: '600' },
+  brandHero: {
+    flexDirection: isRTL ? 'row-reverse' : 'row',
+    alignItems: 'center',
+    gap: 14,
+    backgroundColor: COLORS.primary,
+    borderRadius: 20,
+    padding: 16,
+    marginBottom: 4,
+  },
+  brandHeroLogo: {
+    width: 64,
+    height: 64,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  brandHeroTitle: { color: '#fff', fontSize: 17, fontWeight: '800', textAlign: isRTL ? 'right' : 'left' },
+  brandHeroSub: { color: 'rgba(255,255,255,0.9)', fontSize: 12, marginTop: 4, lineHeight: 17, textAlign: isRTL ? 'right' : 'left' },
+  qualityRow: { flexDirection: isRTL ? 'row-reverse' : 'row', flexWrap: 'wrap', gap: 10 },
+  qualityChip: {
+    flexDirection: isRTL ? 'row-reverse' : 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: COLORS.white,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  qualityChipText: { fontSize: 13, fontWeight: '600', color: COLORS.textSecondary },
   issueList: { gap: 10 },
   issueItem: { flexDirection: isRTL ? 'row-reverse' : 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, backgroundColor: COLORS.white, borderRadius: 16, borderWidth: 1, borderColor: COLORS.border },
   issueText: { fontSize: 15, color: COLORS.text },
