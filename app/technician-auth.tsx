@@ -267,7 +267,7 @@ export default function TechnicianAuthScreen() {
             {isLogin && (
               <View style={styles.altRow}>
                 <TouchableOpacity onPress={() => router.push('/login-otp')} accessibilityRole="button">
-                  <Text style={styles.altLink}>{isRTL ? 'الدخول بكود البريد' : 'Login with email code'}</Text>
+                  <Text style={styles.altLink}>{isRTL ? 'الدخول بكود الجوال' : 'Login with phone code'}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity onPress={() => router.push('/forgot-password')} accessibilityRole="button">
                   <Text style={styles.altLink}>{isRTL ? 'نسيت كلمة المرور؟' : 'Forgot password?'}</Text>

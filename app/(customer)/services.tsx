@@ -80,6 +80,17 @@ const SERVICES: Service[] = [
     fromPrice: 150,
   },
   {
+    id: 'gaming',
+    nameAr: 'أجهزة الألعاب',
+    nameEn: 'Gaming Devices',
+    icon: 'gamepad-variant',
+    color: '#6366f1',
+    descAr: 'بلايستيشن، إكس بوكس، نينتندو وملحقاتها',
+    descEn: 'PlayStation, Xbox, Nintendo & accessories',
+    available: true,
+    fromPrice: 120,
+  },
+  {
     id: 'printer',
     nameAr: 'الطابعات',
     nameEn: 'Printers',
@@ -248,6 +259,34 @@ export default function ServicesScreen() {
               </PressableScale>
             ))}
           </View>
+
+          {/* Fixate Market — lives inside Services (not a homepage block). */}
+          <View style={[styles.sectionRow, { marginTop: 26 }]}>
+            <Text style={[styles.sectionTitle, { color: COLORS.text }]}>
+              {isRTL ? 'المزيد في Fixate' : 'More on Fixate'}
+            </Text>
+          </View>
+          <TouchableOpacity
+            onPress={() => router.push('/market')}
+            style={[styles.helpCard, { backgroundColor: COLORS.card, borderColor: COLORS.border, marginTop: 4 }]}
+            accessibilityRole="button"
+            accessibilityLabel={isRTL ? 'سوق Fixate' : 'Fixate Market'}
+          >
+            <View style={[styles.helpIcon, { backgroundColor: '#7C3AED15' }]}>
+              <MaterialCommunityIcons name="storefront-outline" size={22} color="#7C3AED" />
+            </View>
+            <View style={{ flex: 1, marginHorizontal: 12 }}>
+              <Text style={[styles.helpTitle, { color: COLORS.text }]}>
+                {isRTL ? 'سوق Fixate' : 'Fixate Market'}
+              </Text>
+              <Text style={[styles.helpSub, { color: COLORS.textSecondary }]}>
+                {isRTL
+                  ? 'بيع واشترِ أجهزة مستعملة وإكسسوارات وقطع غيار'
+                  : 'Buy & sell used devices, accessories and spare parts'}
+              </Text>
+            </View>
+            <RTLIonicon name="chevron-forward" size={20} color="#7C3AED" />
+          </TouchableOpacity>
 
           {/* Help card — opens in-app live support */}
           <PressableScale

@@ -14,7 +14,9 @@ export type ServiceType = 'mobile' | 'pickup';
 
 export type SparePartQuality = 'original' | 'high_quality' | 'economy';
 
-// Customer-facing payment options.
+// Customer-facing payment options. The 'online' id is kept (DB-compatible)
+// but surfaced to the user as "Apple Pay (Coming Soon)" — UI-ready only, no
+// real gateway is wired; the choice is stored so it can be activated later.
 export type PaymentMethod = 'cash' | 'card' | 'online';
 
 export const PAYMENT_METHODS: {
@@ -29,6 +31,8 @@ export const PAYMENT_METHODS: {
   { id: 'online', labelAr: 'Apple Pay (قريبًا)', labelEn: 'Apple Pay (Coming Soon)', icon: 'apple', comingSoon: true },
 ];
 
+// A selectable optional item (accessory or protection add-on). Kept generic
+// so the same shape can later be backed by an admin-managed catalog table.
 export interface AddonItem {
   id: string;
   name_ar: string;
@@ -36,6 +40,8 @@ export interface AddonItem {
   price: number;
 }
 
+// Accessory suggestions keyed by device type. Falls back to a generic list
+// for device types without specific entries (e.g. 'other').
 export const ACCESSORY_SUGGESTIONS: Record<string, AddonItem[]> = {
   phone: [
     { id: 'charger', name_ar: 'شاحن', name_en: 'Charger', price: 60 },
@@ -79,12 +85,17 @@ export const ACCESSORY_SUGGESTIONS: Record<string, AddonItem[]> = {
 export const getAccessorySuggestions = (deviceType?: string | null): AddonItem[] =>
   (deviceType && ACCESSORY_SUGGESTIONS[deviceType]) || ACCESSORY_SUGGESTIONS.generic;
 
+// Optional protection add-ons / packages offered as an upsell in the flow.
 export const PROTECTION_ADDONS: AddonItem[] = [
   { id: 'screen_protector', name_ar: 'واقي شاشة مركّب', name_en: 'Installed screen protector', price: 40 },
   { id: 'protective_case', name_ar: 'كفر حماية', name_en: 'Protective case', price: 50 },
   { id: 'full_protection', name_ar: 'باقة الحماية الشاملة', name_en: 'Full protection package', price: 120 },
 ];
 
+// Pricing multiplier applied on top of the issue's base estimated price.
+// Originals are the reference (1.0x); high quality is ~80% of original parts;
+// economy parts are the cheapest (~55%). The technician can adjust the final
+// price after diagnosis — this is just the customer-visible estimate.
 export const SPARE_PART_MULTIPLIERS: Record<SparePartQuality, number> = {
   original: 1.0,
   high_quality: 0.8,

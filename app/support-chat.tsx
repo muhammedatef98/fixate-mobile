@@ -39,7 +39,7 @@ export default function SupportChatScreen() {
 
   useEffect(() => {
     if (!user?.id) {
-      router.replace('/login');
+      router.replace('/login-otp');
       return;
     }
     let channel: any;
