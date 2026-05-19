@@ -12,174 +12,201 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../contexts/AppContext';
 import { getColors, SPACING, BORDER_RADIUS } from '../constants/theme';
 import { RTLIonicon } from '../components/RTLIcon';
-import { supabase } from '../services/supabaseClient';
-import { normalizeSaudiPhone, validatePhone, validateEmail } from '../utils/validation';
-import { getFriendlyError } from '../utils/errorMessages';
+import { normalizeSaudiPhone, validatePhone } from '../utils/validation';
 import { tapMedium, success } from '../utils/haptics';
-import { sendOtp as sendCustomOtp, verifyOtp as verifyCustomOtp } from '../services/customOtpService';
+import {
+  sendPhoneOtp,
+  verifyPhoneOtp,
+  OTP_LENGTH,
+  OTP_TTL_SECONDS,
+  RESEND_COOLDOWN_SECONDS,
+} from '../services/phoneOtpService';
 
-type Method = 'email' | 'phone';
-
+// Phone-only OTP login/registration. The same screen handles both cases —
+// the verify edge function will create the auth user on first sign-in. We
+// intentionally do NOT collect a name or password here; the goal is the
+// fastest possible path from "open app" to "signed in".
 export default function LoginOtpScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ method?: Method }>();
   const { language, isDark } = useApp();
   const COLORS = getColors(isDark);
   const isRTL = language === 'ar';
 
-  // Phone OTP requires a paid Saudi SMS provider on Supabase Auth, which
-  // isn't configured yet. Email OTP via Resend is free and works today,
-  // so we lock the screen to email and hide the toggle until SMS is wired.
-  const [method, _setMethod] = useState<Method>('email');
-  const setMethod = (m: Method) => _setMethod(m);
-  // tslint:disable-next-line — params reserved for future re-enable
-  void params;
-  const [identifier, setIdentifier] = useState('');
+  const [phone, setPhone] = useState('');
   const [code, setCode] = useState('');
-  const [step, setStep] = useState<'identifier' | 'otp'>('identifier');
+  const [step, setStep] = useState<'phone' | 'otp'>('phone');
   const [loading, setLoading] = useState(false);
+  // Resend cooldown (server-enforced ~30s) AND code expiry (5 min) tracked
+  // as two separate countdowns so the UI can show both: when resend unlocks
+  // and when the existing code becomes invalid.
   const [resendIn, setResendIn] = useState(0);
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [expiresIn, setExpiresIn] = useState(0);
+  const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  useEffect(() => () => { if (intervalRef.current) clearInterval(intervalRef.current); }, []);
+  useEffect(() => () => { if (tickRef.current) clearInterval(tickRef.current); }, []);
 
-  const startResendTimer = () => {
-    setResendIn(60);
-    if (intervalRef.current) clearInterval(intervalRef.current);
-    intervalRef.current = setInterval(() => {
-      setResendIn((s) => {
-        if (s <= 1 && intervalRef.current) {
-          clearInterval(intervalRef.current);
-          return 0;
-        }
-        return s - 1;
-      });
+  const startTimers = (ttl: number) => {
+    setResendIn(RESEND_COOLDOWN_SECONDS);
+    setExpiresIn(ttl);
+    if (tickRef.current) clearInterval(tickRef.current);
+    tickRef.current = setInterval(() => {
+      setResendIn((s) => (s > 0 ? s - 1 : 0));
+      setExpiresIn((s) => (s > 0 ? s - 1 : 0));
     }, 1000);
   };
 
-  const isIdentifierValid =
-    method === 'email' ? validateEmail(identifier.trim()) : validatePhone(identifier);
+  const isPhoneValid = validatePhone(phone);
 
   const sendCode = async () => {
-    if (!isIdentifierValid) {
+    if (!isPhoneValid) {
       Alert.alert(
         isRTL ? 'خطأ' : 'Error',
-        method === 'email'
-          ? (isRTL ? 'البريد الإلكتروني غير صحيح' : 'Invalid email')
-          : (isRTL ? 'رقم الجوال غير صحيح' : 'Invalid phone number')
+        isRTL ? 'رقم الجوال غير صحيح' : 'Invalid phone number'
       );
       return;
     }
     setLoading(true);
     try {
-      if (method === 'email') {
-        await sendCustomOtp(identifier.trim().toLowerCase(), 'login', language);
-      } else {
-        const normalized = normalizeSaudiPhone(identifier);
-        const { error } = await supabase.auth.signInWithOtp({ phone: normalized });
-        if (error) throw error;
-      }
+      const { expiresIn: ttl, devCode } = await sendPhoneOtp(phone, language);
       tapMedium();
       setStep('otp');
-      startResendTimer();
+      startTimers(ttl);
+      // TEMPORARY (test mode): no real SMS provider yet, so the backend
+      // returns the code and we prefill + show it. Disappears automatically
+      // once a real SMS provider is configured.
+      if (devCode) {
+        setCode(devCode);
+        Alert.alert(
+          isRTL ? 'وضع الاختبار' : 'Test mode',
+          isRTL
+            ? `لا يوجد مزوّد رسائل بعد. كود التحقق: ${devCode}`
+            : `No SMS provider yet. Verification code: ${devCode}`
+        );
+      }
     } catch (e: any) {
-      Alert.alert(isRTL ? 'خطأ' : 'Error', getFriendlyError(e, language));
+      Alert.alert(isRTL ? 'خطأ' : 'Error', e?.message ?? String(e));
     } finally {
       setLoading(false);
     }
   };
 
   const verify = async () => {
-    if (code.length !== 6) {
-      Alert.alert(isRTL ? 'خطأ' : 'Error', isRTL ? 'الكود يجب أن يكون 6 أرقام' : 'Code must be 6 digits');
+    if (code.length !== OTP_LENGTH) {
+      Alert.alert(
+        isRTL ? 'خطأ' : 'Error',
+        isRTL ? `الكود يجب أن يكون ${OTP_LENGTH} أرقام` : `Code must be ${OTP_LENGTH} digits`
+      );
+      return;
+    }
+    if (expiresIn <= 0) {
+      Alert.alert(
+        isRTL ? 'انتهت الصلاحية' : 'Expired',
+        isRTL ? 'انتهت صلاحية الكود، اطلب كوداً جديداً' : 'Code expired, request a new one'
+      );
       return;
     }
     setLoading(true);
     try {
-      if (method === 'email') {
-        await verifyCustomOtp(identifier.trim().toLowerCase(), code, 'login');
-      } else {
-        const { error } = await supabase.auth.verifyOtp({
-          phone: normalizeSaudiPhone(identifier),
-          token: code,
-          type: 'sms',
-        });
-        if (error) throw error;
-      }
+      await verifyPhoneOtp(phone, code, language);
       success();
       router.replace('/(customer)');
     } catch (e: any) {
-      Alert.alert(isRTL ? 'خطأ' : 'Error', getFriendlyError(e, language));
+      Alert.alert(isRTL ? 'خطأ' : 'Error', e?.message ?? String(e));
     } finally {
       setLoading(false);
     }
   };
 
   const styles = createStyles(COLORS, isRTL);
-  const sentTo = method === 'email' ? identifier.trim() : normalizeSaudiPhone(identifier);
+  const sentTo = normalizeSaudiPhone(phone);
+
+  const formatMmSs = (s: number) => {
+    const m = Math.floor(s / 60);
+    const r = s % 60;
+    return `${m}:${String(r).padStart(2, '0')}`;
+  };
 
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
       <View style={styles.header}>
         <TouchableOpacity
-          onPress={() => (step === 'otp' ? setStep('identifier') : router.back())}
+          onPress={() => {
+            if (step === 'otp') {
+              setStep('phone');
+            } else if (router.canGoBack()) {
+              router.back();
+            } else {
+              // login-otp is often reached via router.replace (role-selection,
+              // legacy /login redirect), so there is no history to pop.
+              router.replace('/role-selection');
+            }
+          }}
           accessibilityRole="button"
           accessibilityLabel={isRTL ? 'رجوع' : 'Back'}
         >
           <RTLIonicon name="chevron-back" size={26} color={COLORS.text} />
         </TouchableOpacity>
-        <Text style={styles.title}>{isRTL ? 'دخول بكود' : 'Login with code'}</Text>
+        <Text style={styles.title}>{isRTL ? 'دخول بكود' : 'Sign in with code'}</Text>
         <View style={{ width: 26 }} />
       </View>
 
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <View style={styles.content}>
-          {step === 'identifier' ? (
+          {step === 'phone' ? (
             <>
               <View style={{ alignItems: 'center', marginBottom: 16 }}>
-                <View style={{
-                  width: 64, height: 64, borderRadius: 16, backgroundColor: COLORS.primary + '15',
-                  alignItems: 'center', justifyContent: 'center',
-                }}>
-                  <Ionicons name="mail-outline" size={32} color={COLORS.primary} />
+                <View style={styles.iconBubble}>
+                  <Ionicons name="phone-portrait-outline" size={32} color={COLORS.primary} />
                 </View>
               </View>
               <Text style={styles.bigTitle}>
-                {isRTL ? 'الدخول برمز للبريد الإلكتروني' : 'Sign in with email code'}
+                {isRTL ? 'تسجيل دخول سريع' : 'Quick sign-in'}
               </Text>
               <Text style={styles.sub}>
-                {isRTL ? 'سنرسل كود مكوّن من 6 أرقام إلى بريدك الإلكتروني' : "We'll email you a 6-digit code"}
+                {isRTL
+                  ? `سنرسل كوداً مكوّناً من ${OTP_LENGTH} أرقام إلى رقم جوالك`
+                  : `We'll text you a ${OTP_LENGTH}-digit code`}
               </Text>
-              <TextInput
-                value={identifier}
-                onChangeText={setIdentifier}
-                placeholder={method === 'email' ? 'name@example.com' : '05xxxxxxxx'}
-                placeholderTextColor={COLORS.textSecondary}
-                keyboardType={method === 'email' ? 'email-address' : 'phone-pad'}
-                autoCapitalize="none"
-                autoCorrect={false}
-                style={[styles.input, { color: COLORS.text, borderColor: COLORS.border }]}
-                textAlign={isRTL ? 'right' : 'left'}
-                autoFocus
-              />
+              <View style={[styles.phoneRow, { borderColor: COLORS.border }]}>
+                <View style={styles.dial}>
+                  <Text style={[styles.dialText, { color: COLORS.text }]}>+966</Text>
+                </View>
+                <TextInput
+                  value={phone}
+                  onChangeText={(v) => setPhone(v.replace(/[^\d+]/g, ''))}
+                  placeholder="5XXXXXXXX"
+                  placeholderTextColor={COLORS.textSecondary}
+                  keyboardType="phone-pad"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  style={[styles.phoneInput, { color: COLORS.text }]}
+                  textAlign={isRTL ? 'right' : 'left'}
+                  autoFocus
+                  maxLength={13}
+                />
+              </View>
               <TouchableOpacity
                 onPress={sendCode}
-                disabled={!isIdentifierValid || loading}
-                style={[styles.btn, { backgroundColor: COLORS.primary, opacity: !isIdentifierValid || loading ? 0.5 : 1 }]}
+                disabled={!isPhoneValid || loading}
+                style={[styles.btn, { backgroundColor: COLORS.primary, opacity: !isPhoneValid || loading ? 0.5 : 1 }]}
                 accessibilityRole="button"
                 accessibilityLabel={isRTL ? 'إرسال الكود' : 'Send code'}
-                accessibilityState={{ disabled: !isIdentifierValid || loading }}
               >
                 {loading ? <ActivityIndicator color="#fff" /> : (
                   <Text style={styles.btnText}>{isRTL ? 'إرسال الكود' : 'Send code'}</Text>
                 )}
               </TouchableOpacity>
+              <Text style={styles.hint}>
+                {isRTL
+                  ? 'بمتابعتك توافق على شروط الاستخدام وسياسة الخصوصية.'
+                  : 'By continuing you agree to the Terms and Privacy Policy.'}
+              </Text>
             </>
           ) : (
             <>
@@ -189,24 +216,29 @@ export default function LoginOtpScreen() {
               </Text>
               <TextInput
                 value={code}
-                onChangeText={(v) => setCode(v.replace(/\D/g, '').slice(0, 6))}
-                placeholder="------"
+                onChangeText={(v) => setCode(v.replace(/\D/g, '').slice(0, OTP_LENGTH))}
+                placeholder={'-'.repeat(OTP_LENGTH)}
                 placeholderTextColor={COLORS.textSecondary}
                 keyboardType="number-pad"
                 style={[styles.otpInput, { color: COLORS.text, borderColor: COLORS.border }]}
                 textAlign="center"
                 autoFocus
-                maxLength={6}
+                maxLength={OTP_LENGTH}
               />
+              <Text style={styles.expiry}>
+                {expiresIn > 0
+                  ? (isRTL ? `صالح لمدة ${formatMmSs(expiresIn)}` : `Valid for ${formatMmSs(expiresIn)}`)
+                  : (isRTL ? 'انتهت صلاحية الكود' : 'Code expired')}
+              </Text>
               <TouchableOpacity
                 onPress={verify}
-                disabled={code.length !== 6 || loading}
-                style={[styles.btn, { backgroundColor: COLORS.primary, opacity: code.length !== 6 || loading ? 0.5 : 1 }]}
+                disabled={code.length !== OTP_LENGTH || loading || expiresIn <= 0}
+                style={[styles.btn, { backgroundColor: COLORS.primary, opacity: code.length !== OTP_LENGTH || loading || expiresIn <= 0 ? 0.5 : 1 }]}
                 accessibilityRole="button"
                 accessibilityLabel={isRTL ? 'تأكيد' : 'Verify'}
               >
                 {loading ? <ActivityIndicator color="#fff" /> : (
-                  <Text style={styles.btnText}>{isRTL ? 'تأكيد' : 'Verify'}</Text>
+                  <Text style={styles.btnText}>{isRTL ? 'تأكيد ودخول' : 'Verify & sign in'}</Text>
                 )}
               </TouchableOpacity>
 
@@ -215,8 +247,10 @@ export default function LoginOtpScreen() {
                   {isRTL ? `إعادة الإرسال خلال ${resendIn}ث` : `Resend in ${resendIn}s`}
                 </Text>
               ) : (
-                <TouchableOpacity onPress={sendCode} accessibilityRole="button">
-                  <Text style={styles.resend}>{isRTL ? 'إعادة إرسال الكود' : 'Resend code'}</Text>
+                <TouchableOpacity onPress={sendCode} accessibilityRole="button" disabled={loading}>
+                  <Text style={[styles.resend, { opacity: loading ? 0.5 : 1 }]}>
+                    {isRTL ? 'إعادة إرسال الكود' : 'Resend code'}
+                  </Text>
                 </TouchableOpacity>
               )}
             </>
@@ -238,25 +272,44 @@ const createStyles = (C: any, isRTL: boolean) =>
     },
     title: { fontSize: 16, fontWeight: 'bold', color: C.text },
     content: { flex: 1, padding: SPACING.lg, gap: SPACING.lg },
-    tabs: { flexDirection: 'row', backgroundColor: C.card, borderRadius: BORDER_RADIUS.md, padding: 4, marginBottom: 8 },
-    tab: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 12, borderRadius: BORDER_RADIUS.md - 2, minHeight: 44 },
-    tabActive: { backgroundColor: C.primary },
-    tabText: { color: C.text, fontWeight: '600', fontSize: 14 },
-    freeBadge: { backgroundColor: '#10B981', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, marginLeft: 4 },
-    freeBadgeText: { color: '#fff', fontSize: 10, fontWeight: '700' },
+    iconBubble: {
+      width: 64, height: 64, borderRadius: 16, backgroundColor: C.primary + '15',
+      alignItems: 'center', justifyContent: 'center',
+    },
     bigTitle: { fontSize: 24, fontWeight: 'bold', color: C.text, textAlign: isRTL ? 'right' : 'left' },
     sub: { fontSize: 14, color: C.textSecondary, textAlign: isRTL ? 'right' : 'left' },
-    input: { borderWidth: 1, borderRadius: BORDER_RADIUS.md, padding: 16, fontSize: 16 },
+    phoneRow: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
+      borderWidth: 1,
+      borderRadius: BORDER_RADIUS.md,
+      overflow: 'hidden',
+    },
+    dial: {
+      paddingHorizontal: 14,
+      paddingVertical: 16,
+      backgroundColor: C.card,
+      borderRightWidth: isRTL ? 0 : 1,
+      borderLeftWidth: isRTL ? 1 : 0,
+      borderColor: C.border,
+    },
+    dialText: { fontSize: 16, fontWeight: '700' },
+    phoneInput: { flex: 1, padding: 16, fontSize: 16 },
     otpInput: {
       borderWidth: 2,
       borderRadius: BORDER_RADIUS.md,
       padding: 18,
-      fontSize: 28,
-      letterSpacing: 12,
+      fontSize: 32,
+      letterSpacing: 18,
       fontWeight: 'bold',
     },
     btn: { paddingVertical: 16, borderRadius: BORDER_RADIUS.md, alignItems: 'center', justifyContent: 'center', minHeight: 56 },
     btnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+    expiry: { color: C.textSecondary, textAlign: 'center', fontSize: 13 },
     resend: { color: C.primary, fontWeight: '600', textAlign: 'center', marginTop: 8 },
     resendDisabled: { color: C.textSecondary, textAlign: 'center', marginTop: 8 },
+    hint: { color: C.textSecondary, fontSize: 12, textAlign: 'center' },
   });
+
+// Re-export so legacy callers that imported the constant directly still build.
+export { OTP_TTL_SECONDS };

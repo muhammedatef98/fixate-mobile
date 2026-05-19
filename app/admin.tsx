@@ -263,6 +263,22 @@ export default function AdminDashboardScreen() {
             isRTL={isRTL}
             highlight={stats.unreadThreads > 0}
           />
+          <ActionCard
+            icon="ticket-percent"
+            title={isRTL ? 'أكواد الخصم' : 'Discount codes'}
+            subtitle={isRTL ? 'إنشاء وإدارة الأكواد الترويجية' : 'Create and manage promo codes'}
+            onPress={() => router.push('/admin-discount-codes')}
+            COLORS={COLORS}
+            isRTL={isRTL}
+          />
+          <ActionCard
+            icon="storefront"
+            title={isRTL ? 'سوق Fixate' : 'Fixate Market'}
+            subtitle={isRTL ? 'مراجعة الإعلانات المنشورة من المستخدمين' : 'Moderate user-posted listings'}
+            onPress={() => router.push('/admin-market')}
+            COLORS={COLORS}
+            isRTL={isRTL}
+          />
         </View>
       </ScrollView>
     </SafeAreaView>

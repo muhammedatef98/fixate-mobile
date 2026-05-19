@@ -30,7 +30,8 @@
     "production": {
       "android": {
         "serviceAccountKeyPath": "./secrets/play-service-account.json",
-        "track": "internal"
+        "track": "internal",
+        "releaseStatus": "draft"
       },
       "ios": {
         "ascAppId": "REPLACE_WITH_APP_STORE_CONNECT_ID"

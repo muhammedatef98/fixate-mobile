@@ -167,26 +167,12 @@ function RootLayoutContent() {
           name="track/[id]" 
           options={{ title: 'تتبع الطلب' }} 
         />
-        <Stack.Screen 
-          name="profile" 
-          options={{ title: 'الملف الشخصي' }} 
+        <Stack.Screen
+          name="profile"
+          options={{ title: 'الملف الشخصي' }}
         />
-        <Stack.Screen 
-          name="login" 
-          options={{ 
-            title: 'تسجيل الدخول',
-            headerShown: false 
-          }} 
-        />
-        <Stack.Screen 
-          name="signup" 
-          options={{ 
-            title: 'إنشاء حساب',
-            headerShown: false 
-          }} 
-        />
-        <Stack.Screen 
-          name="technician-auth" 
+        <Stack.Screen
+          name="technician-auth"
           options={{ 
             title: language === 'ar' ? 'تسجيل دخول الفني' : 'Technician Login',
             headerShown: false 
@@ -215,6 +201,11 @@ function RootLayoutContent() {
         <Stack.Screen name="forgot-password" options={{ headerShown: false }} />
         <Stack.Screen name="admin-verifications" options={{ headerShown: false }} />
         <Stack.Screen name="loyalty" options={{ headerShown: false }} />
+        <Stack.Screen name="admin-discount-codes" options={{ headerShown: false }} />
+        <Stack.Screen name="admin-market" options={{ headerShown: false }} />
+        <Stack.Screen name="market" options={{ headerShown: false }} />
+        <Stack.Screen name="market-new" options={{ headerShown: false }} />
+        <Stack.Screen name="market-detail" options={{ headerShown: false }} />
       </Stack>
     </>
   );
