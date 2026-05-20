@@ -1,7 +1,7 @@
-import { supabase } from './supabaseClient';
 import { logger } from '../utils/logger';
 import { normalizeSaudiPhone } from '../utils/validation';
 import { callEdgeFunction } from './edgeInvoke';
+import { verifyMagicLinkOtp } from './authXhr';
 
 export const OTP_LENGTH = 4;
 export const OTP_TTL_SECONDS = 5 * 60;
@@ -71,10 +71,8 @@ export const verifyPhoneOtp = async (
   if (!data?.ok || !data?.token_hash) {
     throw new Error(friendly('wrong_code', lang));
   }
-  const { error: vErr } = await supabase.auth.verifyOtp({
-    type: 'magiclink',
-    token_hash: data.token_hash,
-  });
-  if (vErr) throw vErr;
+  // XHR-based verify avoids the RN Blob bug that breaks
+  // supabase.auth.verifyOtp on iOS after a context reload.
+  await verifyMagicLinkOtp(data.token_hash, 'magiclink');
   return true;
 };

@@ -2,6 +2,7 @@ import { supabase } from './supabaseClient';
 import { logger } from '../utils/logger';
 import { validateEmail, validatePassword, validateName, normalizeSaudiPhone, validatePhone } from '../utils/validation';
 import { callEdgeFunction } from './edgeInvoke';
+import { signInWithPasswordXhr } from './authXhr';
 
 export interface SignUpData {
   email: string;
@@ -64,14 +65,10 @@ export const signUpWithPhoneOrEmail = async (data: SignUpData) => {
     }
 
     // Account created and confirmed — sign in immediately so the client has
-    // a session in hand without round-tripping through email verification.
-    const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-      email,
-      password: data.password,
-    });
-    if (signInError) throw signInError;
-
-    return { user: signInData.user, session: signInData.session };
+    // a session in hand. Routed through XHR to dodge the RN Blob bug.
+    const { user } = await signInWithPasswordXhr(email, data.password);
+    const { data: sess } = await supabase.auth.getSession();
+    return { user, session: sess.session };
   } catch (error: any) {
     // Duplicate email / weak password are user-correctable, not real errors.
     logger.warn('Sign up failed', error);
@@ -85,14 +82,12 @@ export const loginWithPhoneOrEmail = async (data: LoginData) => {
   }
 
   try {
-    const { data: authData, error } = await supabase.auth.signInWithPassword({
-      email: data.email.trim().toLowerCase(),
-      password: data.password,
-    });
-
-    if (error) throw error;
-
-    return { user: authData.user, session: authData.session };
+    const { user } = await signInWithPasswordXhr(
+      data.email.trim().toLowerCase(),
+      data.password
+    );
+    const { data: sess } = await supabase.auth.getSession();
+    return { user, session: sess.session };
   } catch (error: any) {
     // Wrong-password / unknown-email is expected user input, not a bug.
     // Logging at warn keeps the dev red-overlay quiet while still leaving

@@ -5,6 +5,7 @@ import { logger } from '../utils/logger';
 export { supabase } from '../services/supabaseClient';
 import { supabase } from '../services/supabaseClient';
 import { callEdgeFunction } from '../services/edgeInvoke';
+import { signInWithPasswordXhr } from '../services/authXhr';
 
 // Database Types
 export interface User {
@@ -56,23 +57,16 @@ export const auth = {
     });
     if (errorMessage) throw new Error(errorMessage);
 
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email: cleanEmail,
-      password,
-    });
-    if (error) throw error;
-    return data;
+    const { user } = await signInWithPasswordXhr(cleanEmail, password);
+    const { data: sess } = await supabase.auth.getSession();
+    return { user, session: sess.session };
   },
 
   // Sign in with email and password
   signIn: async (email: string, password: string) => {
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-    
-    if (error) throw error;
-    return data;
+    const { user } = await signInWithPasswordXhr(email, password);
+    const { data: sess } = await supabase.auth.getSession();
+    return { user, session: sess.session };
   },
 
   // Sign out

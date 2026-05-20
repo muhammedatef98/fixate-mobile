@@ -1,6 +1,6 @@
-import { supabase } from './supabaseClient';
 import { logger } from '../utils/logger';
 import { callEdgeFunction } from './edgeInvoke';
+import { verifyMagicLinkOtp } from './authXhr';
 
 export type OtpPurpose = 'login' | 'verify_email' | 'reset_password';
 
@@ -42,10 +42,6 @@ export const verifyOtp = async (
   if (!data?.ok || !data.token_hash) {
     throw new Error('Verification failed');
   }
-  const { error: vErr } = await supabase.auth.verifyOtp({
-    type: 'magiclink',
-    token_hash: data.token_hash,
-  });
-  if (vErr) throw vErr;
+  await verifyMagicLinkOtp(data.token_hash, 'magiclink');
   return true;
 };
