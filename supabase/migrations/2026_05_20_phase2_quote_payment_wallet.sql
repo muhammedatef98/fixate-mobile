@@ -82,6 +82,8 @@ CREATE POLICY "Only admins write platform settings"
 INSERT INTO public.platform_settings (key, value, description) VALUES
   ('inspection_fee_default', '30', 'Default inspection fee in SAR charged when the customer rejects the technician quote.'),
   ('return_fee_default',     '20', 'Default return fee in SAR charged when a picked-up device must be returned after a rejected quote.'),
+  ('platform_commission_rate', '0.15', 'Platform commission applied on top of the technician payout. Stored as a ratio between 0 and 1 (e.g. 0.15 = 15%).'),
+  ('eastern_province_enabled', 'false', 'Flag toggled by admin once service expands across the Eastern Province.'),
   ('service_areas_message_ar', '"الخدمة حالياً في القطيف والمناطق القريبة فقط، وقريباً سنغطي كامل المنطقة الشرقية ثم جميع مناطق المملكة"', 'Arabic service-area expansion message.'),
   ('service_areas_message_en', '"Service is currently available in Al Qatif and nearby areas only. Soon we will expand across the Eastern Province and then all of Saudi Arabia."', 'English service-area expansion message.')
 ON CONFLICT (key) DO NOTHING;
