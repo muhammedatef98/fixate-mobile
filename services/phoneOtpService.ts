@@ -21,19 +21,48 @@ const withTimeout = <T>(p: PromiseLike<T>, ms: number, label: string): Promise<T
     ),
   ]);
 
-const extractError = (data: any, error: any): string | undefined => {
-  let serverMsg: string | undefined = data?.error;
-  if (!serverMsg && error) {
+// Pull the most informative message we can out of supabase-js's
+// FunctionsHttpError. The shape changed between supabase-js versions:
+//   - Older: error.context is the parsed body { error: '…' }
+//   - Newer: error.context is the raw Response; body has to be read
+//            asynchronously. We handle both, plus fall back to the
+//            status + statusText so the user never just sees the
+//            opaque "Edge Function returned a non-2xx status code".
+const extractError = async (data: any, error: any): Promise<string | undefined> => {
+  if (data?.error) return data.error;
+  if (!error) return undefined;
+
+  // Case 1: error.context already has a parsed body.
+  const ctx: any = (error as any).context;
+  if (ctx && !(ctx instanceof Response)) {
     try {
-      const ctx: any = (error as any).context;
-      if (ctx?.body) {
-        const parsed = typeof ctx.body === 'string' ? JSON.parse(ctx.body) : ctx.body;
-        serverMsg = parsed?.error;
-      }
-    } catch {}
-    serverMsg = serverMsg || error.message;
+      const parsed = typeof ctx.body === 'string' ? JSON.parse(ctx.body) : ctx.body;
+      if (parsed?.error) return parsed.error;
+    } catch {
+      // fall through
+    }
   }
-  return serverMsg;
+
+  // Case 2: error.context is a Response (supabase-js v2). Read the
+  // body once and try to parse it.
+  if (ctx instanceof Response) {
+    try {
+      const text = await ctx.text();
+      try {
+        const parsed = JSON.parse(text);
+        if (parsed?.error) return parsed.error;
+      } catch {
+        // body isn't JSON — return raw text capped to keep alerts sane.
+      }
+      const head = text.slice(0, 200).trim();
+      const statusBit = `${ctx.status}${ctx.statusText ? ` ${ctx.statusText}` : ''}`;
+      return head ? `${statusBit} — ${head}` : statusBit;
+    } catch {
+      // body already consumed / unreadable
+    }
+  }
+
+  return error.message || 'unknown_error';
 };
 
 const friendly = (key: string | undefined, lang: 'ar' | 'en') => {
@@ -59,7 +88,12 @@ const friendly = (key: string | undefined, lang: 'ar' | 'en') => {
     user_create_failed: 'Could not create the account',
     token_failed: 'Could not create the session',
   };
-  return (lang === 'ar' ? ar : en)[key ?? ''] ?? key ?? 'Unknown error';
+  const table = lang === 'ar' ? ar : en;
+  if (!key) return lang === 'ar' ? 'حدث خطأ غير متوقع' : 'Unknown error';
+  // Known short codes get the localised string; anything else is shown
+  // verbatim so the admin/user can actually diagnose the failure
+  // ("Edge Function returned a non-2xx status code — 500 …" etc).
+  return table[key] ?? key;
 };
 
 export const sendPhoneOtp = async (
@@ -72,7 +106,7 @@ export const sendPhoneOtp = async (
     20000,
     'send-phone-otp'
   );
-  const msg = extractError(data, error);
+  const msg = await extractError(data, error);
   if (msg) {
     logger.warn('send-phone-otp failed', msg);
     throw new Error(friendly(msg, lang));
@@ -98,7 +132,7 @@ export const verifyPhoneOtp = async (
     20000,
     'verify-phone-otp'
   );
-  const msg = extractError(data, error);
+  const msg = await extractError(data, error);
   if (msg) {
     logger.warn('verify-phone-otp failed', msg);
     throw new Error(friendly(msg, lang));
