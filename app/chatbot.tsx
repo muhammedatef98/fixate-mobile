@@ -13,6 +13,7 @@ import {
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../contexts/ThemeContext';
+import { useApp } from '../contexts/AppContext';
 
 interface Message {
   id: string;
@@ -46,6 +47,7 @@ const QUICK_REPLIES = [
 export default function ChatbotScreen() {
   const router = useRouter();
   const { colors } = useTheme();
+  const { language } = useApp();
   const scrollViewRef = useRef<ScrollView>(null);
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -195,7 +197,7 @@ export default function ChatbotScreen() {
       {/* Input */}
       <View style={[styles.inputContainer, { backgroundColor: colors.surface, borderTopColor: colors.border }]}>
         <TextInput
-          style={[styles.input, { color: colors.text }]}
+          style={[styles.input, { color: colors.text, textAlign: language === 'ar' ? 'right' : 'left' }]}
           placeholder="اكتب رسالتك..."
           placeholderTextColor={colors.textSecondary}
           value={inputText}
@@ -318,7 +320,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 10,
     fontSize: 15,
-    textAlign: I18nManager.isRTL ? 'right' : 'left',
   },
   sendButton: {
     width: 44,

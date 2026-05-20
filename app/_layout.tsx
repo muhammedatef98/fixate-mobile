@@ -84,8 +84,10 @@ function RootLayoutContent() {
     }
   }, [language]);
 
+  const isRTLLang = language === 'ar';
+
   return (
-    <>
+    <View style={{ flex: 1, direction: isRTLLang ? 'rtl' : 'ltr' } as any}>
       <StatusBar hidden={true} />
       <OfflineBanner />
       <Stack
@@ -207,7 +209,7 @@ function RootLayoutContent() {
         <Stack.Screen name="market-new" options={{ headerShown: false }} />
         <Stack.Screen name="market-detail" options={{ headerShown: false }} />
       </Stack>
-    </>
+    </View>
   );
 }
 

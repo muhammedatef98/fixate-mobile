@@ -91,7 +91,7 @@ export default function EditProfileScreen() {
 
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>{isRTL ? 'الاسم الكامل' : 'Full Name'}</Text>
+          <Text style={[styles.label, { textAlign: isRTL ? 'right' : 'left' }]}>{isRTL ? 'الاسم الكامل' : 'Full Name'}</Text>
           <View style={styles.inputWrapper}>
             <Ionicons name="person-outline" size={20} color={COLORS.textSecondary} style={styles.inputIcon} />
             <TextInput
@@ -105,7 +105,7 @@ export default function EditProfileScreen() {
         </View>
 
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>{isRTL ? 'رقم الجوال' : 'Phone Number'}</Text>
+          <Text style={[styles.label, { textAlign: isRTL ? 'right' : 'left' }]}>{isRTL ? 'رقم الجوال' : 'Phone Number'}</Text>
           <View style={styles.inputWrapper}>
             <Ionicons name="call-outline" size={20} color={COLORS.textSecondary} style={styles.inputIcon} />
             <TextInput
@@ -142,7 +142,7 @@ const styles = StyleSheet.create({
   backButton: { padding: 8 },
   content: { padding: 20 },
   inputGroup: { marginBottom: 20 },
-  label: { fontSize: 14, fontWeight: '600', color: '#374151', marginBottom: 8, textAlign: 'left' },
+  label: { fontSize: 14, fontWeight: '600', color: '#374151', marginBottom: 8 },
   inputWrapper: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 12, borderWidth: 1, borderColor: '#e5e7eb', paddingHorizontal: 12 },
   inputIcon: { marginRight: 10 },
   input: { flex: 1, height: 50, fontSize: 16, color: '#1f2937' },

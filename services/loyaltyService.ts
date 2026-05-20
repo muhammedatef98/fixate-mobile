@@ -1,6 +1,18 @@
 import { supabase } from './supabaseClient';
 import { logger } from '../utils/logger';
 import { LOYALTY_CONFIG, pointsForSpend, type RedeemTier } from '../constants/loyalty';
+import { getLoyaltySettings } from './platformSettingsService';
+
+// Admin-controlled earn rate. Falls back to the hardcoded default if
+// platform_settings is unreachable.
+export const pointsForSpendDynamic = async (amountSAR: number): Promise<number> => {
+  try {
+    const s = await getLoyaltySettings();
+    return Math.max(0, Math.floor((amountSAR || 0) * s.pointsPerSAR));
+  } catch {
+    return pointsForSpend(amountSAR);
+  }
+};
 
 // Loyalty points access layer.
 //
@@ -113,6 +125,18 @@ export const redeemTier = async (
   tier: RedeemTier,
   currentBalance: number
 ): Promise<RedeemResult> => {
+  // Honour the admin enable switch + redeem-min floor.
+  try {
+    const s = await getLoyaltySettings();
+    if (!s.enabled) {
+      return { ok: false, pendingBackend: false, message: 'loyalty_disabled' };
+    }
+    if (currentBalance < s.redeemMin) {
+      return { ok: false, pendingBackend: false, message: 'below_redeem_min' };
+    }
+  } catch {
+    // If settings unreachable just continue with tier check.
+  }
   if (currentBalance < tier.points) {
     return { ok: false, pendingBackend: false, message: 'insufficient_points' };
   }
@@ -144,8 +168,17 @@ export const recordEarn = async (
   amountSAR: number,
   reason: string
 ): Promise<void> => {
-  const points = pointsForSpend(amountSAR);
-  if (!userId || points <= 0) return;
+  // Check that loyalty is enabled before recording.
+  let enabled = true;
+  let points = pointsForSpend(amountSAR);
+  try {
+    const s = await getLoyaltySettings();
+    enabled = s.enabled;
+    points = Math.max(0, Math.floor((amountSAR || 0) * s.pointsPerSAR));
+  } catch {
+    // Fall through with defaults.
+  }
+  if (!enabled || !userId || points <= 0) return;
   try {
     await supabase.from('loyalty_transactions').insert({
       user_id: userId,
