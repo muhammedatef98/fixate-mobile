@@ -1,6 +1,7 @@
 import { supabase } from './supabaseClient';
 import { logger } from '../utils/logger';
 import { validateEmail, validatePassword, validateName, normalizeSaudiPhone, validatePhone } from '../utils/validation';
+import { callEdgeFunction } from './edgeInvoke';
 
 export interface SignUpData {
   email: string;
@@ -51,29 +52,16 @@ export const signUpWithPhoneOrEmail = async (data: SignUpData) => {
   const role = data.role || 'customer';
 
   try {
-    // Route signup through the `signup` Edge Function. It uses the service
-    // role to admin.createUser({ email_confirm: true }) — bypassing the
-    // "Error sending confirmation email" failure when project SMTP isn't
-    // configured. The Edge Function also upserts the public.users row as
-    // a defence in depth in case the handle_new_user trigger is missing.
-    const { data: fnData, error: fnError } = await supabase.functions.invoke('signup', {
-      body: { email, password: data.password, name, phone: normalizedPhone, role },
+    // Route signup through the `signup` Edge Function via plain fetch
+    // (NOT supabase.functions.invoke). On React Native the invoke path
+    // can fail with "Unable to resolve data for blob: …" because the
+    // body is staged through the Blob module; plain fetch avoids that.
+    const { errorMessage } = await callEdgeFunction('signup', {
+      email, password: data.password, name, phone: normalizedPhone, role,
     });
-
-    if (fnError) {
-      // supabase.functions.invoke wraps non-2xx responses; pull the real
-      // server-side message out of context.body when present.
-      let serverMsg: string | undefined;
-      try {
-        const ctx: any = (fnError as any).context;
-        if (ctx?.body) {
-          const parsed = typeof ctx.body === 'string' ? JSON.parse(ctx.body) : ctx.body;
-          serverMsg = parsed?.error;
-        }
-      } catch {}
-      throw new Error(serverMsg || fnError.message || 'Sign up failed');
+    if (errorMessage) {
+      throw new Error(errorMessage);
     }
-    if (fnData?.error) throw new Error(fnData.error);
 
     // Account created and confirmed — sign in immediately so the client has
     // a session in hand without round-tripping through email verification.

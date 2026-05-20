@@ -4,6 +4,7 @@ import { logger } from '../utils/logger';
 // while only one auth listener / one in-memory session exists app-wide.
 export { supabase } from '../services/supabaseClient';
 import { supabase } from '../services/supabaseClient';
+import { callEdgeFunction } from '../services/edgeInvoke';
 
 // Database Types
 export interface User {
@@ -48,21 +49,12 @@ export const auth = {
     // depend on Supabase project SMTP. The function uses the service-role
     // admin API to create a confirmed account, then we sign the user in.
     const cleanEmail = email.trim().toLowerCase();
-    const { data: fnData, error: fnError } = await supabase.functions.invoke('signup', {
-      body: { email: cleanEmail, password, name: name.trim(), role },
+    // Plain fetch via callEdgeFunction — supabase.functions.invoke can
+    // hit the RN blob-resolution bug on this body shape.
+    const { errorMessage } = await callEdgeFunction('signup', {
+      email: cleanEmail, password, name: name.trim(), role,
     });
-    if (fnError) {
-      let serverMsg: string | undefined;
-      try {
-        const ctx: any = (fnError as any).context;
-        if (ctx?.body) {
-          const parsed = typeof ctx.body === 'string' ? JSON.parse(ctx.body) : ctx.body;
-          serverMsg = parsed?.error;
-        }
-      } catch {}
-      throw new Error(serverMsg || fnError.message || 'Sign up failed');
-    }
-    if (fnData?.error) throw new Error(fnData.error);
+    if (errorMessage) throw new Error(errorMessage);
 
     const { data, error } = await supabase.auth.signInWithPassword({
       email: cleanEmail,
