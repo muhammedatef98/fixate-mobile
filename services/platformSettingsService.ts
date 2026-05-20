@@ -29,13 +29,36 @@ const strFromValue = (raw: any, fallback: string): string => {
 export interface PlatformSettings {
   inspectionFee: number;
   returnFee: number;
+  commissionRate: number;
+  easternProvinceEnabled: boolean;
   serviceAreaMessageAr: string;
   serviceAreaMessageEn: string;
 }
 
+// Keys exposed to the admin platform-settings screen. Centralised here so
+// adding a new knob is a one-line change.
+export const PLATFORM_SETTINGS_KEYS = {
+  inspectionFee: 'inspection_fee_default',
+  returnFee: 'return_fee_default',
+  commissionRate: 'platform_commission_rate',
+  easternProvinceEnabled: 'eastern_province_enabled',
+  serviceAreaMessageAr: 'service_areas_message_ar',
+  serviceAreaMessageEn: 'service_areas_message_en',
+} as const;
+
+const boolFromValue = (raw: any, fallback: boolean): boolean => {
+  if (raw === null || raw === undefined) return fallback;
+  if (typeof raw === 'boolean') return raw;
+  if (typeof raw === 'string') return raw.toLowerCase() === 'true' || raw === '1';
+  if (typeof raw === 'number') return raw !== 0;
+  return fallback;
+};
+
 const DEFAULTS: PlatformSettings = {
   inspectionFee: DEFAULT_INSPECTION_FEE_SAR,
   returnFee: DEFAULT_RETURN_FEE_SAR,
+  commissionRate: 0.15,
+  easternProvinceEnabled: false,
   serviceAreaMessageAr:
     'الخدمة حالياً في القطيف والمناطق القريبة فقط، وقريباً سنغطي كامل المنطقة الشرقية ثم جميع مناطق المملكة',
   serviceAreaMessageEn:
@@ -67,13 +90,62 @@ const loadRaw = async (): Promise<Record<string, any>> => {
 export const getPlatformSettings = async (): Promise<PlatformSettings> => {
   const raw = await loadRaw();
   return {
-    inspectionFee: numFromValue(raw['inspection_fee_default'], DEFAULTS.inspectionFee),
-    returnFee: numFromValue(raw['return_fee_default'], DEFAULTS.returnFee),
-    serviceAreaMessageAr: strFromValue(raw['service_areas_message_ar'], DEFAULTS.serviceAreaMessageAr),
-    serviceAreaMessageEn: strFromValue(raw['service_areas_message_en'], DEFAULTS.serviceAreaMessageEn),
+    inspectionFee: numFromValue(raw[PLATFORM_SETTINGS_KEYS.inspectionFee], DEFAULTS.inspectionFee),
+    returnFee: numFromValue(raw[PLATFORM_SETTINGS_KEYS.returnFee], DEFAULTS.returnFee),
+    commissionRate: numFromValue(raw[PLATFORM_SETTINGS_KEYS.commissionRate], DEFAULTS.commissionRate),
+    easternProvinceEnabled: boolFromValue(raw[PLATFORM_SETTINGS_KEYS.easternProvinceEnabled], DEFAULTS.easternProvinceEnabled),
+    serviceAreaMessageAr: strFromValue(raw[PLATFORM_SETTINGS_KEYS.serviceAreaMessageAr], DEFAULTS.serviceAreaMessageAr),
+    serviceAreaMessageEn: strFromValue(raw[PLATFORM_SETTINGS_KEYS.serviceAreaMessageEn], DEFAULTS.serviceAreaMessageEn),
   };
 };
 
 export const invalidatePlatformSettingsCache = () => {
+  cache = null;
+};
+
+/**
+ * Upsert a single platform_settings row by key. Stored as JSONB so number /
+ * boolean / string values keep their native type for downstream consumers.
+ * Relies on the existing RLS policy: `Only admins write platform settings`,
+ * meaning the authenticated session must already be flagged is_admin = true.
+ */
+export const upsertPlatformSetting = async (
+  key: string,
+  value: number | string | boolean
+): Promise<void> => {
+  const { error } = await supabase
+    .from('platform_settings')
+    .upsert(
+      { key, value, updated_at: new Date().toISOString() },
+      { onConflict: 'key' }
+    );
+  if (error) {
+    logger.warn('upsertPlatformSetting failed', { key, error });
+    throw error;
+  }
+  // Bust the cache so the next read reflects the new value immediately.
+  cache = null;
+};
+
+/**
+ * Upsert several keys in one round-trip. Throws on the first failure so the
+ * admin screen can surface a single error instead of partial state.
+ */
+export const upsertPlatformSettings = async (
+  entries: Array<{ key: string; value: number | string | boolean }>
+): Promise<void> => {
+  if (entries.length === 0) return;
+  const rows = entries.map((e) => ({
+    key: e.key,
+    value: e.value,
+    updated_at: new Date().toISOString(),
+  }));
+  const { error } = await supabase
+    .from('platform_settings')
+    .upsert(rows, { onConflict: 'key' });
+  if (error) {
+    logger.warn('upsertPlatformSettings failed', error);
+    throw error;
+  }
   cache = null;
 };
