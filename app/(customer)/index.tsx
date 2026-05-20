@@ -35,7 +35,7 @@ const DEVICE_CATEGORIES = [
 ];
 
 const QUICK_ACTIONS = [
-  { id: 'calculator', titleAr: 'الحاسبة', titleEn: 'Calculator', icon: 'calculator-outline', route: '/(customer)/calculator' },
+  { id: 'market', titleAr: 'السوق', titleEn: 'Market', icon: 'storefront-outline', route: '/market' },
   { id: 'services', titleAr: 'الخدمات', titleEn: 'Services', icon: 'tools', route: '/(customer)/services' },
   { id: 'orders', titleAr: 'طلباتي', titleEn: 'My orders', icon: 'receipt-outline', route: '/(customer)/orders' },
   { id: 'addresses', titleAr: 'عناويني', titleEn: 'Addresses', icon: 'location-outline', route: '/addresses' },

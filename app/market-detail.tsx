@@ -199,7 +199,8 @@ export default function MarketDetailScreen() {
                     <Text style={styles.metaText}>{listing.city}</Text>
                   </View>
                 ) : null}
-                {listing.contact_phone ? (
+                {listing.contact_phone &&
+                 (listing.contact_preference ?? 'both') !== 'dm' ? (
                   <View style={styles.metaPill}>
                     <Ionicons name="call-outline" size={13} color={COLORS.textSecondary} />
                     <Text style={styles.metaText}>{listing.contact_phone}</Text>
@@ -210,27 +211,51 @@ export default function MarketDetailScreen() {
                 <Text style={styles.desc}>{listing.description}</Text>
               ) : null}
 
-              {/* Quick contact + share row — only show when seller is not me */}
-              {listing.seller_id !== user?.id && (
-                <View style={styles.contactRow}>
-                  {listing.contact_phone ? (
-                    <>
-                      <TouchableOpacity onPress={handleCallSeller} style={[styles.contactBtn, { backgroundColor: '#10B981' }]}>
-                        <Ionicons name="call" size={18} color="#fff" />
-                        <Text style={styles.contactBtnText}>{isRTL ? 'اتصال' : 'Call'}</Text>
+              {/* Quick contact + share row — only show when seller is not me.
+                  Respects the seller's stated contact preference. */}
+              {listing.seller_id !== user?.id && (() => {
+                const pref = listing.contact_preference ?? 'both';
+                const phoneOk = (pref === 'phone' || pref === 'both') && !!listing.contact_phone;
+                const dmOk = pref === 'dm' || pref === 'both';
+                return (
+                  <View style={styles.contactRow}>
+                    {phoneOk && (
+                      <>
+                        <TouchableOpacity onPress={handleCallSeller} style={[styles.contactBtn, { backgroundColor: '#10B981' }]}>
+                          <Ionicons name="call" size={18} color="#fff" />
+                          <Text style={styles.contactBtnText}>{isRTL ? 'اتصال' : 'Call'}</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={handleWhatsAppSeller} style={[styles.contactBtn, { backgroundColor: '#25D366' }]}>
+                          <Ionicons name="logo-whatsapp" size={18} color="#fff" />
+                          <Text style={styles.contactBtnText}>{isRTL ? 'واتساب' : 'WhatsApp'}</Text>
+                        </TouchableOpacity>
+                      </>
+                    )}
+                    {dmOk && (
+                      <TouchableOpacity
+                        onPress={() => {
+                          if (!user) {
+                            Alert.alert(isRTL ? 'تسجيل الدخول مطلوب' : 'Login required');
+                            return;
+                          }
+                          router.push({
+                            pathname: '/market-chat',
+                            params: { listingId: listing.id, sellerId: listing.seller_id },
+                          } as any);
+                        }}
+                        style={[styles.contactBtn, { backgroundColor: '#3b82f6' }]}
+                      >
+                        <Ionicons name="chatbubble-ellipses" size={18} color="#fff" />
+                        <Text style={styles.contactBtnText}>{isRTL ? 'مراسلة البائع' : 'Message seller'}</Text>
                       </TouchableOpacity>
-                      <TouchableOpacity onPress={handleWhatsAppSeller} style={[styles.contactBtn, { backgroundColor: '#25D366' }]}>
-                        <Ionicons name="logo-whatsapp" size={18} color="#fff" />
-                        <Text style={styles.contactBtnText}>{isRTL ? 'واتساب' : 'WhatsApp'}</Text>
-                      </TouchableOpacity>
-                    </>
-                  ) : null}
-                  <TouchableOpacity onPress={handleShare} style={[styles.contactBtn, { backgroundColor: COLORS.primary }]}>
-                    <Ionicons name="share-social-outline" size={18} color="#fff" />
-                    <Text style={styles.contactBtnText}>{isRTL ? 'مشاركة' : 'Share'}</Text>
-                  </TouchableOpacity>
-                </View>
-              )}
+                    )}
+                    <TouchableOpacity onPress={handleShare} style={[styles.contactBtn, { backgroundColor: COLORS.primary }]}>
+                      <Ionicons name="share-social-outline" size={18} color="#fff" />
+                      <Text style={styles.contactBtnText}>{isRTL ? 'مشاركة' : 'Share'}</Text>
+                    </TouchableOpacity>
+                  </View>
+                );
+              })()}
 
               {/* Posted-ago marker */}
               <Text style={styles.posted}>

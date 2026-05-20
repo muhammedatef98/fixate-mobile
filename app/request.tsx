@@ -40,6 +40,9 @@ import {
   recordDiscountRedemption,
   type DiscountCode,
 } from '../services/discountService';
+import { getPlatformSettings, type PlatformSettings } from '../services/platformSettingsService';
+import { buildPricingBreakdown } from '../services/pricingService';
+import InvoiceBreakdown from '../components/InvoiceBreakdown';
 
 const { width } = Dimensions.get('window');
 
@@ -171,6 +174,14 @@ export default function RequestScreen() {
   const [filteredModels, setFilteredModels] = useState<string[]>([]);
   const [filteredIssues, setFilteredIssues] = useState<Issue[]>([]);
   
+  // Platform settings drive commitment fee + loyalty earn rate. We start
+  // with optimistic defaults so the UI renders something sane on first
+  // paint, then refresh from the DB when available.
+  const [platformSettings, setPlatformSettings] = useState<PlatformSettings | null>(null);
+  useEffect(() => {
+    getPlatformSettings().then(setPlatformSettings).catch(() => {});
+  }, []);
+
   const [location, setLocation] = useState<any>(null);
   const [isLocating, setIsLocating] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -179,9 +190,9 @@ export default function RequestScreen() {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
   
-  const STEPS = isRTL 
-    ? ['الخدمة', 'الجهاز', 'الماركة', 'الموديل', 'العطل', 'التفاصيل', 'الموقع']
-    : ['Service', 'Device', 'Brand', 'Model', 'Issue', 'Details', 'Location'];
+  const STEPS = isRTL
+    ? ['الخدمة', 'الجهاز', 'الماركة', 'الموديل', 'العطل', 'التفاصيل', 'الموقع', 'الدفع']
+    : ['Service', 'Device', 'Brand', 'Model', 'Issue', 'Details', 'Location', 'Payment'];
 
   useEffect(() => {
     checkUser();
@@ -418,6 +429,10 @@ export default function RequestScreen() {
       // Best-effort persistence of delivery + loyalty snapshot. These columns
       // arrive with a pending migration; until then this update silently
       // no-ops so the (already-created) order is never affected.
+      const commitmentFeeOnOrder =
+        (platformSettings?.commitmentEnabled ?? true)
+          ? (platformSettings?.commitmentFee ?? 50)
+          : 0;
       supabase
         .from('orders')
         .update({
@@ -425,6 +440,8 @@ export default function RequestScreen() {
           delivery_area: selectedAreaId,
           delivery_fee: deliveryFee,
           loyalty_points_earned: pointsEarned,
+          commitment_fee: commitmentFeeOnOrder,
+          commitment_paid_at: commitmentFeeOnOrder > 0 ? new Date().toISOString() : null,
         })
         .eq('id', result.id)
         .then(({ error }) => {
@@ -503,6 +520,7 @@ export default function RequestScreen() {
     if (currentStep === 4) return !!selectedIssue;
     if (currentStep === 5) return true; // Details are optional
     if (currentStep === 6) return !!location;
+    if (currentStep === 7) return !!paymentMethod; // payment step
     return false;
   };
 
@@ -697,12 +715,7 @@ export default function RequestScreen() {
                 >
                   <View style={styles.issueInfo}>
                     <Text style={styles.issueName}>{isRTL ? issue.nameAr : issue.name}</Text>
-                    <Text style={styles.issuePrice}>
-                      {formatPrice(
-                        { estimatedPrice: issue.estimatedPrice, range: issue.priceRange },
-                        isRTL ? 'ar' : 'en'
-                      )}
-                    </Text>
+                    {/* Per-issue prices intentionally hidden — final cost is shown only in the invoice step. */}
                   </View>
                   <MaterialCommunityIcons name={issue.icon as any} size={24} color={selectedIssue?.id === issue.id ? COLORS.primary : COLORS.gray} />
                 </PressableScale>
@@ -846,106 +859,9 @@ export default function RequestScreen() {
                 <Text style={{ color: COLORS.error, marginTop: 6, fontSize: 13 }}>{discountError}</Text>
               )}
 
-              {/* Payment method — Cash / Card / Online (online is UI-ready
-                  only for now; the choice is stored with the request).
-                  Payment is charged only at the end of the repair, after
-                  the customer approves the technician's quote. */}
-              <Text style={[styles.sectionTitle, { marginTop: 24 }]}>
-                {isRTL ? 'طريقة الدفع (يتم التحصيل في النهاية)' : 'Payment method (charged at the end)'}
-              </Text>
-              <Text style={{ color: COLORS.gray, fontSize: 12, marginBottom: 10, textAlign: isRTL ? 'right' : 'left', lineHeight: 18 }}>
-                {isRTL
-                  ? 'تختار طريقة الدفع الآن فقط، ولا يتم خصم أي مبلغ إلا بعد فحص الفني وإصلاح الجهاز وموافقتك على السعر.'
-                  : 'You only pick the payment method now. Nothing is charged until the technician inspects, repairs the device, and you approve the price.'}
-              </Text>
-              <View style={{ gap: 8 }}>
-                {PAYMENT_METHODS.map((pm) => {
-                  const selected = paymentMethod === pm.id;
-                  return (
-                    <TouchableOpacity
-                      key={pm.id}
-                      onPress={() => setPaymentMethod(pm.id)}
-                      style={{
-                        flexDirection: isRTL ? 'row-reverse' : 'row',
-                        alignItems: 'center',
-                        gap: 12,
-                        borderWidth: selected ? 2 : 1,
-                        borderColor: selected ? COLORS.primary : COLORS.border,
-                        backgroundColor: selected ? COLORS.lightGreen : COLORS.card,
-                        borderRadius: 12,
-                        padding: 14,
-                      }}
-                    >
-                      <MaterialCommunityIcons
-                        name={pm.icon as any}
-                        size={24}
-                        color={selected ? COLORS.primary : COLORS.gray}
-                      />
-                      <Text style={{ flex: 1, fontWeight: '700', color: COLORS.text, textAlign: isRTL ? 'right' : 'left' }}>
-                        {isRTL ? pm.labelAr : pm.labelEn}
-                      </Text>
-                      {pm.comingSoon && (
-                        <View style={{ backgroundColor: COLORS.border, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999 }}>
-                          <Text style={{ fontSize: 10, color: COLORS.gray, fontWeight: '700' }}>
-                            {isRTL ? 'قريبًا' : 'Coming Soon'}
-                          </Text>
-                        </View>
-                      )}
-                      {selected && (
-                        <Ionicons name="checkmark-circle" size={20} color={COLORS.primary} />
-                      )}
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-
-              {/* Card / Visa form — UI only, no real gateway. Captured just
-                  for a masked review summary before submission. */}
-              {paymentMethod === 'card' && (
-                <View style={{ marginTop: 12, gap: 10, padding: 14, backgroundColor: COLORS.card, borderRadius: 12, borderWidth: 1, borderColor: COLORS.border }}>
-                  <TextInput
-                    style={[styles.textArea, { height: 48, padding: 12 }]}
-                    placeholder={isRTL ? 'اسم حامل البطاقة' : 'Cardholder name'}
-                    placeholderTextColor={COLORS.gray}
-                    value={cardName}
-                    onChangeText={setCardName}
-                  />
-                  <TextInput
-                    style={[styles.textArea, { height: 48, padding: 12 }]}
-                    placeholder={isRTL ? 'رقم البطاقة' : 'Card number'}
-                    placeholderTextColor={COLORS.gray}
-                    keyboardType="number-pad"
-                    maxLength={19}
-                    value={cardNumber}
-                    onChangeText={setCardNumber}
-                  />
-                  <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', gap: 10 }}>
-                    <TextInput
-                      style={[styles.textArea, { flex: 1, height: 48, padding: 12 }]}
-                      placeholder={isRTL ? 'تاريخ الانتهاء (MM/YY)' : 'Expiry (MM/YY)'}
-                      placeholderTextColor={COLORS.gray}
-                      maxLength={5}
-                      value={cardExpiry}
-                      onChangeText={setCardExpiry}
-                    />
-                    <TextInput
-                      style={[styles.textArea, { flex: 1, height: 48, padding: 12 }]}
-                      placeholder={isRTL ? 'CVV' : 'CVV'}
-                      placeholderTextColor={COLORS.gray}
-                      keyboardType="number-pad"
-                      maxLength={4}
-                      secureTextEntry
-                      value={cardCvv}
-                      onChangeText={setCardCvv}
-                    />
-                  </View>
-                  <Text style={{ fontSize: 11, color: COLORS.gray, textAlign: isRTL ? 'right' : 'left' }}>
-                    {isRTL
-                      ? 'لن يتم الخصم الآن — تفاصيل البطاقة للعرض فقط حتى تفعيل بوابة الدفع.'
-                      : 'No charge now — card details are display-only until the payment gateway is enabled.'}
-                  </Text>
-                </View>
-              )}
+              {/* Payment method is now its own dedicated step (last step),
+                  so the customer sees the full invoice + commitment amount
+                  before picking how to pay. */}
 
               {/* Accessory suggestions — context-aware by device type. */}
               <Text style={[styles.sectionTitle, { marginTop: 24 }]}>
@@ -972,7 +888,7 @@ export default function RequestScreen() {
                     >
                       {selected && <Ionicons name="checkmark" size={14} color={COLORS.primary} />}
                       <Text style={{ color: selected ? COLORS.primary : COLORS.text, fontWeight: '600', fontSize: 13 }}>
-                        {isRTL ? acc.name_ar : acc.name_en} · {isRTL ? `تبدأ من ${acc.price} ر.س` : `Starts from ${acc.price} SAR`}
+                        {isRTL ? acc.name_ar : acc.name_en}
                       </Text>
                     </TouchableOpacity>
                   );
@@ -1011,9 +927,7 @@ export default function RequestScreen() {
                           {isRTL ? p.name_ar : p.name_en}
                         </Text>
                       </View>
-                      <Text style={{ color: COLORS.primary, fontWeight: '700' }}>
-                        {isRTL ? `تبدأ من ${p.price} ر.س` : `Starts from ${p.price} SAR`}
-                      </Text>
+                      {/* Price intentionally omitted here — shown in the final invoice. */}
                     </TouchableOpacity>
                   );
                 })}
@@ -1181,7 +1095,15 @@ export default function RequestScreen() {
               </View>
             )}
 
-            {/* Pre-submit review summary so user can double-check before sending */}
+            {/* Pre-submit review + price details intentionally moved to the
+                dedicated Payment step so the customer sees the full invoice
+                at the very end, not scattered across earlier steps. */}
+          </ScrollView>
+        )}
+
+        {currentStep === 7 && (
+          <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 24 }} showsVerticalScrollIndicator={false}>
+            {/* Short snapshot of what's being booked. */}
             <View style={styles.summaryCard}>
               <Text style={styles.summaryTitle}>{isRTL ? 'مراجعة الطلب' : 'Review Request'}</Text>
               <View style={styles.summaryRow}>
@@ -1193,45 +1115,6 @@ export default function RequestScreen() {
                 </Text>
               </View>
               <View style={styles.summaryRow}>
-                <Text style={styles.summaryLabel}>{isRTL ? 'طريقة الدفع' : 'Payment'}</Text>
-                <Text style={styles.summaryValue}>
-                  {(() => {
-                    const pm = PAYMENT_METHODS.find((p) => p.id === paymentMethod);
-                    return pm ? (isRTL ? pm.labelAr : pm.labelEn) : '';
-                  })()}
-                </Text>
-              </View>
-              {paymentMethod === 'card' && maskedCard ? (
-                <View style={styles.summaryRow}>
-                  <Text style={styles.summaryLabel}>{isRTL ? 'البطاقة' : 'Card'}</Text>
-                  <Text style={styles.summaryValue}>
-                    {maskedCard}{cardName ? ` · ${cardName}` : ''}
-                  </Text>
-                </View>
-              ) : null}
-              <View style={styles.summaryRow}>
-                <Text style={styles.summaryLabel}>{isRTL ? 'قطعة الغيار' : 'Spare part'}</Text>
-                <Text style={styles.summaryValue}>
-                  {isRTL ? SPARE_PART_LABELS[sparePartQuality].ar : SPARE_PART_LABELS[sparePartQuality].en}
-                </Text>
-              </View>
-              {selectedAccessories.length > 0 && (
-                <View style={styles.summaryRow}>
-                  <Text style={styles.summaryLabel}>{isRTL ? 'إكسسوارات' : 'Accessories'}</Text>
-                  <Text style={styles.summaryValue} numberOfLines={2}>
-                    {selectedAccessories.map((a) => (isRTL ? a.name_ar : a.name_en)).join('، ')}
-                  </Text>
-                </View>
-              )}
-              {selectedProtection.length > 0 && (
-                <View style={styles.summaryRow}>
-                  <Text style={styles.summaryLabel}>{isRTL ? 'حماية' : 'Protection'}</Text>
-                  <Text style={styles.summaryValue} numberOfLines={2}>
-                    {selectedProtection.map((a) => (isRTL ? a.name_ar : a.name_en)).join('، ')}
-                  </Text>
-                </View>
-              )}
-              <View style={styles.summaryRow}>
                 <Text style={styles.summaryLabel}>{isRTL ? 'العطل' : 'Issue'}</Text>
                 <Text style={styles.summaryValue} numberOfLines={2}>
                   {isRTL ? selectedIssue?.nameAr : selectedIssue?.name}
@@ -1240,48 +1123,135 @@ export default function RequestScreen() {
               <View style={styles.summaryRow}>
                 <Text style={styles.summaryLabel}>{isRTL ? 'الخدمة' : 'Service'}</Text>
                 <Text style={styles.summaryValue}>
-                  {SERVICE_TYPES.find(s => s.id === selectedServiceType) ? (isRTL ? SERVICE_TYPES.find(s => s.id === selectedServiceType)!.name : SERVICE_TYPES.find(s => s.id === selectedServiceType)!.nameEn) : ''}
+                  {(() => {
+                    const s = SERVICE_TYPES.find(s => s.id === selectedServiceType);
+                    return s ? (isRTL ? s.name : s.nameEn) : '';
+                  })()}
                 </Text>
               </View>
-              {selectedIssue && selectedIssue.estimatedPrice > 0 && (
-                <View style={styles.summaryRow}>
-                  <Text style={styles.summaryLabel}>{isRTL ? 'السعر التقديري' : 'Estimated price'}</Text>
-                  <Text style={[styles.summaryValue, { color: COLORS.primary, fontWeight: '700' }]}>
-                    {formatPrice(
-                      { estimatedPrice: selectedIssue.estimatedPrice, range: selectedIssue.priceRange },
-                      isRTL ? 'ar' : 'en'
-                    )}
-                  </Text>
-                </View>
-              )}
-              {mediaFiles.length > 0 && (
-                <>
-                  <View style={styles.summaryRow}>
-                    <Text style={styles.summaryLabel}>{isRTL ? 'الصور' : 'Photos'}</Text>
-                    <Text style={styles.summaryValue}>{mediaFiles.length}</Text>
-                  </View>
-                  <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', flexWrap: 'wrap', gap: 8, marginTop: 4 }}>
-                    {mediaFiles.slice(0, 6).map((uri, i) => (
-                      <Image key={i} source={{ uri }} style={{ width: 56, height: 56, borderRadius: 8 }} />
-                    ))}
-                  </View>
-                </>
-              )}
-              {deliveryFee > 0 && (
-                <View style={styles.summaryRow}>
-                  <Text style={styles.summaryLabel}>{isRTL ? 'رسوم التوصيل' : 'Delivery fee'}</Text>
-                  <Text style={styles.summaryValue}>{deliveryFee} {isRTL ? 'ر.س' : 'SAR'}</Text>
-                </View>
-              )}
-              {selectedIssue && selectedIssue.estimatedPrice > 0 && (
-                <View style={styles.summaryRow}>
-                  <Text style={styles.summaryLabel}>{isRTL ? 'نقاط الولاء المتوقعة' : 'Loyalty points earned'}</Text>
-                  <Text style={[styles.summaryValue, { color: COLORS.primary, fontWeight: '700' }]}>
-                    +{pointsForSpend((selectedIssue.estimatedPrice || 0) + deliveryFee)}
-                  </Text>
-                </View>
-              )}
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>{isRTL ? 'العنوان' : 'Address'}</Text>
+                <Text style={styles.summaryValue} numberOfLines={2}>{address}</Text>
+              </View>
             </View>
+
+            {/* The single source of truth for what the customer owes. */}
+            <View style={{ marginTop: 12 }}>
+              <InvoiceBreakdown
+                isRTL={isRTL}
+                COLORS={COLORS}
+                hideCommitment={!(platformSettings?.commitmentEnabled ?? true)}
+                breakdown={buildPricingBreakdown({
+                  baseEstimate: selectedIssue?.estimatedPrice ?? 0,
+                  sparePartQuality,
+                  accessories: selectedAccessories,
+                  protection: selectedProtection,
+                  deliveryFee,
+                  commitmentFee: (platformSettings?.commitmentEnabled ?? true)
+                    ? (platformSettings?.commitmentFee ?? 50)
+                    : 0,
+                  discountAmount: appliedDiscount?.amount ?? 0,
+                  discountCode: appliedDiscount?.code.code,
+                  loyaltyPointsPerSAR: platformSettings?.loyalty.pointsPerSAR ?? 1,
+                })}
+              />
+            </View>
+
+            {/* Payment method picker — last decision before submit. */}
+            <Text style={[styles.sectionTitle, { marginTop: 20 }]}>
+              {isRTL ? 'طريقة الدفع' : 'Payment method'}
+            </Text>
+            <Text style={{ color: COLORS.gray, fontSize: 12, marginBottom: 10, textAlign: isRTL ? 'right' : 'left', lineHeight: 18 }}>
+              {isRTL
+                ? 'يُدفع مبلغ التأكيد الآن قبل بدء الفحص (إن وُجد)، ويُخصم من الفاتورة النهائية بعد إنهاء الإصلاح.'
+                : 'The commitment amount (if any) is paid now to confirm your booking. It is deducted from the final invoice after the repair completes.'}
+            </Text>
+            <View style={{ gap: 8 }}>
+              {PAYMENT_METHODS.map((pm) => {
+                const selected = paymentMethod === pm.id;
+                return (
+                  <TouchableOpacity
+                    key={pm.id}
+                    onPress={() => setPaymentMethod(pm.id)}
+                    style={{
+                      flexDirection: isRTL ? 'row-reverse' : 'row',
+                      alignItems: 'center',
+                      gap: 12,
+                      borderWidth: selected ? 2 : 1,
+                      borderColor: selected ? COLORS.primary : COLORS.border,
+                      backgroundColor: selected ? COLORS.lightGreen : COLORS.card,
+                      borderRadius: 12,
+                      padding: 14,
+                    }}
+                  >
+                    <MaterialCommunityIcons
+                      name={pm.icon as any}
+                      size={24}
+                      color={selected ? COLORS.primary : COLORS.gray}
+                    />
+                    <Text style={{ flex: 1, fontWeight: '700', color: COLORS.text, textAlign: isRTL ? 'right' : 'left' }}>
+                      {isRTL ? pm.labelAr : pm.labelEn}
+                    </Text>
+                    {pm.comingSoon && (
+                      <View style={{ backgroundColor: COLORS.border, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999 }}>
+                        <Text style={{ fontSize: 10, color: COLORS.gray, fontWeight: '700' }}>
+                          {isRTL ? 'قريبًا' : 'Coming Soon'}
+                        </Text>
+                      </View>
+                    )}
+                    {selected && (
+                      <Ionicons name="checkmark-circle" size={20} color={COLORS.primary} />
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            {paymentMethod === 'card' && (
+              <View style={{ marginTop: 12, gap: 10, padding: 14, backgroundColor: COLORS.card, borderRadius: 12, borderWidth: 1, borderColor: COLORS.border }}>
+                <TextInput
+                  style={[styles.textArea, { height: 48, padding: 12 }]}
+                  placeholder={isRTL ? 'اسم حامل البطاقة' : 'Cardholder name'}
+                  placeholderTextColor={COLORS.gray}
+                  value={cardName}
+                  onChangeText={setCardName}
+                />
+                <TextInput
+                  style={[styles.textArea, { height: 48, padding: 12 }]}
+                  placeholder={isRTL ? 'رقم البطاقة' : 'Card number'}
+                  placeholderTextColor={COLORS.gray}
+                  keyboardType="number-pad"
+                  maxLength={19}
+                  value={cardNumber}
+                  onChangeText={setCardNumber}
+                />
+                <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', gap: 10 }}>
+                  <TextInput
+                    style={[styles.textArea, { flex: 1, height: 48, padding: 12 }]}
+                    placeholder={isRTL ? 'تاريخ الانتهاء (MM/YY)' : 'Expiry (MM/YY)'}
+                    placeholderTextColor={COLORS.gray}
+                    maxLength={5}
+                    value={cardExpiry}
+                    onChangeText={setCardExpiry}
+                  />
+                  <TextInput
+                    style={[styles.textArea, { flex: 1, height: 48, padding: 12 }]}
+                    placeholder={isRTL ? 'CVV' : 'CVV'}
+                    placeholderTextColor={COLORS.gray}
+                    keyboardType="number-pad"
+                    maxLength={4}
+                    secureTextEntry
+                    value={cardCvv}
+                    onChangeText={setCardCvv}
+                  />
+                </View>
+                <Text style={{ fontSize: 11, color: COLORS.gray, textAlign: isRTL ? 'right' : 'left' }}>
+                  {isRTL
+                    ? 'لن يتم الخصم الآن — تفاصيل البطاقة للعرض فقط حتى تفعيل بوابة الدفع.'
+                    : 'No charge now — card details are display-only until the payment gateway is enabled.'}
+                </Text>
+              </View>
+            )}
           </ScrollView>
         )}
       </Animated.View>

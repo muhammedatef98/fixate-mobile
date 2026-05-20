@@ -54,6 +54,8 @@ export interface PlatformSettings {
   serviceAreaMessageAr: string;
   serviceAreaMessageEn: string;
   loyalty: LoyaltySettings;
+  commitmentFee: number;
+  commitmentEnabled: boolean;
 }
 
 export const PLATFORM_SETTINGS_KEYS = {
@@ -69,6 +71,8 @@ export const PLATFORM_SETTINGS_KEYS = {
   loyaltyRedeemRate: 'loyalty_redeem_rate',
   loyaltyRedeemMaxPct: 'loyalty_redeem_max_pct',
   loyaltyTiers: 'loyalty_tiers',
+  commitmentFee: 'commitment_fee_default',
+  commitmentEnabled: 'commitment_enabled',
 } as const;
 
 const boolFromValue = (raw: any, fallback: boolean): boolean => {
@@ -128,6 +132,8 @@ const DEFAULTS: PlatformSettings = {
   serviceAreaMessageEn:
     'Service is currently available in Al Qatif and nearby areas only. Soon we will expand across the Eastern Province and then all of Saudi Arabia.',
   loyalty: DEFAULT_LOYALTY,
+  commitmentFee: 50,
+  commitmentEnabled: true,
 };
 
 const loadRaw = async (): Promise<Record<string, any>> => {
@@ -169,6 +175,8 @@ export const getPlatformSettings = async (): Promise<PlatformSettings> => {
       redeemMaxPct: numFromValue(raw[PLATFORM_SETTINGS_KEYS.loyaltyRedeemMaxPct], DEFAULT_LOYALTY.redeemMaxPct),
       tiers: tiersFromValue(raw[PLATFORM_SETTINGS_KEYS.loyaltyTiers], DEFAULT_LOYALTY.tiers),
     },
+    commitmentFee: numFromValue(raw[PLATFORM_SETTINGS_KEYS.commitmentFee], DEFAULTS.commitmentFee),
+    commitmentEnabled: boolFromValue(raw[PLATFORM_SETTINGS_KEYS.commitmentEnabled], DEFAULTS.commitmentEnabled),
   };
 };
 

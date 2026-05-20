@@ -51,6 +51,8 @@ interface FormState {
   loyaltyRedeemMaxPct: string;
   /** JSON-encoded tier list, edited as raw text for now. */
   loyaltyTiersJson: string;
+  commitmentFee: string;
+  commitmentEnabled: boolean;
 }
 
 const toForm = (s: PlatformSettings): FormState => ({
@@ -66,6 +68,8 @@ const toForm = (s: PlatformSettings): FormState => ({
   loyaltyRedeemRate: String(s.loyalty.redeemRate),
   loyaltyRedeemMaxPct: String(s.loyalty.redeemMaxPct),
   loyaltyTiersJson: JSON.stringify(s.loyalty.tiers, null, 2),
+  commitmentFee: String(s.commitmentFee),
+  commitmentEnabled: s.commitmentEnabled,
 });
 
 interface FieldErrors {
@@ -79,6 +83,7 @@ interface FieldErrors {
   loyaltyRedeemRate?: string;
   loyaltyRedeemMaxPct?: string;
   loyaltyTiersJson?: string;
+  commitmentFee?: string;
 }
 
 export default function AdminPlatformSettingsScreen() {
@@ -175,6 +180,10 @@ export default function AdminPlatformSettingsScreen() {
     } catch {
       err.loyaltyTiersJson = isRTL ? 'JSON غير صالح' : 'Invalid JSON array';
     }
+    const com = Number(f.commitmentFee);
+    if (!Number.isFinite(com) || com < 0) {
+      err.commitmentFee = isRTL ? 'أدخل رقماً صحيحاً' : 'Enter a valid number';
+    }
     if (!f.serviceAreaMessageAr.trim()) {
       err.serviceAreaMessageAr = isRTL ? 'مطلوب' : 'Required';
     }
@@ -211,6 +220,8 @@ export default function AdminPlatformSettingsScreen() {
         { key: PLATFORM_SETTINGS_KEYS.loyaltyRedeemRate, value: Number(form.loyaltyRedeemRate) },
         { key: PLATFORM_SETTINGS_KEYS.loyaltyRedeemMaxPct, value: Number(form.loyaltyRedeemMaxPct) },
         { key: PLATFORM_SETTINGS_KEYS.loyaltyTiers, value: tiers },
+        { key: PLATFORM_SETTINGS_KEYS.commitmentFee, value: Number(form.commitmentFee) },
+        { key: PLATFORM_SETTINGS_KEYS.commitmentEnabled, value: form.commitmentEnabled },
       ]);
       Alert.alert(
         isRTL ? 'تم الحفظ ✓' : 'Saved ✓',
@@ -421,6 +432,44 @@ export default function AdminPlatformSettingsScreen() {
               value={form.serviceAreaMessageEn}
               onChangeText={(v) => setForm({ ...form, serviceAreaMessageEn: v })}
               error={errors.serviceAreaMessageEn}
+              COLORS={COLORS}
+              isRTL={isRTL}
+            />
+
+            {/* Commitment amount (pre-inspection) */}
+            <SectionTitle isRTL={isRTL} COLORS={COLORS}>
+              {isRTL ? 'مبلغ التأكيد قبل الفحص' : 'Pre-inspection commitment'}
+            </SectionTitle>
+
+            <View style={styles.switchRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.label}>
+                  {isRTL ? 'تفعيل مبلغ التأكيد' : 'Enable commitment amount'}
+                </Text>
+                <Text style={styles.hint}>
+                  {isRTL
+                    ? 'عند الإيقاف، لا يُطلب من العميل دفع أي مبلغ قبل بدء الفحص.'
+                    : 'When off, the customer is not asked to pay anything before inspection.'}
+                </Text>
+              </View>
+              <Switch
+                value={form.commitmentEnabled}
+                onValueChange={(v) => setForm({ ...form, commitmentEnabled: v })}
+                trackColor={{ false: COLORS.border, true: COLORS.primary }}
+                thumbColor="#fff"
+              />
+            </View>
+
+            <FieldNumber
+              label={isRTL ? 'مبلغ التأكيد (ر.س)' : 'Commitment amount (SAR)'}
+              hint={
+                isRTL
+                  ? 'يدفعه العميل قبل بدء الفحص لتأكيد جدية الحجز. يُخصم من الفاتورة النهائية بعد انتهاء الإصلاح.'
+                  : 'Paid by the customer before inspection to confirm seriousness of booking. Deducted from the final invoice after the repair completes.'
+              }
+              value={form.commitmentFee}
+              onChangeText={(v) => setForm({ ...form, commitmentFee: v })}
+              error={errors.commitmentFee}
               COLORS={COLORS}
               isRTL={isRTL}
             />

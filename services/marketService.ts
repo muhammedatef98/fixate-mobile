@@ -3,6 +3,7 @@ import { logger } from '../utils/logger';
 
 export type ListingCategory = 'used_device' | 'accessory' | 'spare_part' | 'other';
 export type ListingStatus = 'pending' | 'active' | 'sold' | 'rejected' | 'archived';
+export type ContactPreference = 'dm' | 'phone' | 'both';
 
 export interface MarketListing {
   id: string;
@@ -14,6 +15,7 @@ export interface MarketListing {
   currency: string;
   city?: string | null;
   contact_phone?: string | null;
+  contact_preference?: ContactPreference;
   images: string[];
   status: ListingStatus;
   created_at?: string;
@@ -27,6 +29,7 @@ export interface CreateListingInput {
   price: number;
   city?: string;
   contact_phone?: string;
+  contact_preference?: ContactPreference;
   images?: string[];
 }
 
@@ -147,6 +150,7 @@ export const createListing = async (
       price: input.price,
       city: input.city?.trim() || null,
       contact_phone: input.contact_phone?.trim() || null,
+      contact_preference: input.contact_preference ?? 'both',
       images: input.images ?? [],
       // RLS allows seller insert; status defaults to 'pending' so admin can
       // moderate the first wave of listings before they go public.
@@ -184,3 +188,96 @@ export const adminListAll = async (): Promise<MarketListing[]> => {
   }
   return (data ?? []) as MarketListing[];
 };
+
+// ---------------------------------------------------------------------
+// Direct-message threads between buyer and seller for a given listing.
+// Backed by the `market_threads` / `market_messages` tables (see the
+// 2026_05_20_phase2_commitment_broadcasts_market migration).
+
+export interface MarketThread {
+  id: string;
+  listing_id: string;
+  buyer_id: string;
+  seller_id: string;
+  last_message_at: string;
+  unread_for_buyer: boolean;
+  unread_for_seller: boolean;
+  created_at: string;
+}
+
+export interface MarketMessage {
+  id: string;
+  thread_id: string;
+  sender_id: string;
+  content: string;
+  created_at: string;
+}
+
+/**
+ * Opens (or creates) the DM thread for a listing between the current
+ * buyer and the seller. Returns the thread.
+ */
+export const getOrCreateMarketThread = async (
+  listingId: string,
+  buyerId: string,
+  sellerId: string
+): Promise<MarketThread> => {
+  const { data: existing } = await supabase
+    .from('market_threads')
+    .select('*')
+    .eq('listing_id', listingId)
+    .eq('buyer_id', buyerId)
+    .maybeSingle();
+  if (existing) return existing as MarketThread;
+
+  const { data, error } = await supabase
+    .from('market_threads')
+    .insert({ listing_id: listingId, buyer_id: buyerId, seller_id: sellerId })
+    .select()
+    .single();
+  if (error) throw error;
+  return data as MarketThread;
+};
+
+export const listMarketMessages = async (threadId: string): Promise<MarketMessage[]> => {
+  const { data, error } = await supabase
+    .from('market_messages')
+    .select('*')
+    .eq('thread_id', threadId)
+    .order('created_at', { ascending: true })
+    .limit(500);
+  if (error) {
+    logger.warn('listMarketMessages failed', error);
+    return [];
+  }
+  return (data ?? []) as MarketMessage[];
+};
+
+export const sendMarketMessage = async (
+  threadId: string,
+  senderId: string,
+  content: string
+): Promise<MarketMessage> => {
+  const trimmed = content.trim();
+  if (!trimmed) throw new Error('Empty message');
+  const { data, error } = await supabase
+    .from('market_messages')
+    .insert({ thread_id: threadId, sender_id: senderId, content: trimmed })
+    .select()
+    .single();
+  if (error) throw error;
+  return data as MarketMessage;
+};
+
+export const subscribeMarketMessages = (
+  threadId: string,
+  onInsert: (m: MarketMessage) => void
+) =>
+  supabase
+    .channel(`market-thread-${threadId}`)
+    .on(
+      'postgres_changes',
+      { event: 'INSERT', schema: 'public', table: 'market_messages', filter: `thread_id=eq.${threadId}` },
+      (payload) => onInsert(payload.new as MarketMessage)
+    )
+    .subscribe();

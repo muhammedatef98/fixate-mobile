@@ -10,7 +10,7 @@ const { width } = Dimensions.get('window');
 const NAV_ITEMS = [
   { path: '/(customer)', icon: 'home-outline', activeIcon: 'home', labelAr: 'الرئيسية', labelEn: 'Home' },
   { path: '/services', icon: 'construct-outline', activeIcon: 'construct', labelAr: 'الخدمات', labelEn: 'Services' },
-  { path: '/calculator', icon: 'calculator-outline', activeIcon: 'calculator', labelAr: 'الحاسبة', labelEn: 'Calculator' },
+  { path: '/market', icon: 'storefront-outline', activeIcon: 'storefront', labelAr: 'السوق', labelEn: 'Market' },
   { path: '/profile', icon: 'person-outline', activeIcon: 'person', labelAr: 'حسابي', labelEn: 'Profile' },
 ];
 
