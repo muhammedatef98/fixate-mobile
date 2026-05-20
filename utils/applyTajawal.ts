@@ -13,9 +13,18 @@
 // is applied to TextInput. The function is idempotent — calling it twice
 // is a no-op so hot-reload doesn't stack overrides.
 
-import { StyleSheet, Text, TextInput } from 'react-native';
+import { I18nManager, StyleSheet, Text, TextInput } from 'react-native';
 
 const PATCHED = '__fixate_tajawal_patched';
+
+// Cached "current" direction read by the render-time patch. Updated by
+// setTextDirection() whenever the user toggles language. Defaults to the
+// native I18nManager value so the very first render before
+// setTextDirection runs still picks a sensible side.
+let currentIsRTL = I18nManager.isRTL;
+export const setTextDirection = (isRTL: boolean) => {
+  currentIsRTL = isRTL;
+};
 
 const familyForWeight = (fw: any): string => {
   // RN allows '100' through '900', plus 'normal' and 'bold'. Map them to
@@ -49,15 +58,28 @@ const wrapRender = (Comp: any) => {
   if (typeof original !== 'function') return;
   Comp.render = function patchedRender(props: any, ref: any) {
     const flat = StyleSheet.flatten(props?.style) || {};
-    // If the caller already supplied an explicit fontFamily we respect it
-    // (only happens in 2 places — ErrorBoundary monospace stack trace).
+    // Compose defaults: Tajawal font family + language-driven textAlign.
+    // The defaults sit *before* the caller-provided style so anything
+    // explicit on the component (textAlign:'center' for an empty state,
+    // textAlign:isRTL?'left':'right' for a key/value layout) still wins.
+    const isRTL = currentIsRTL;
+    const directionDefaults: any = {
+      textAlign: isRTL ? 'right' : 'left',
+      writingDirection: isRTL ? 'rtl' : 'ltr',
+    };
     if (flat.fontFamily) {
-      return original.call(this, props, ref);
+      // Caller picked an explicit family — keep it, but still apply the
+      // direction defaults underneath.
+      const next = {
+        ...props,
+        style: [directionDefaults, props?.style],
+      };
+      return original.call(this, next, ref);
     }
     const family = familyForWeight(flat.fontWeight);
     const next = {
       ...props,
-      style: [{ fontFamily: family }, props?.style],
+      style: [directionDefaults, { fontFamily: family }, props?.style],
     };
     return original.call(this, next, ref);
   };

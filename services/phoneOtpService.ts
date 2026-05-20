@@ -1,40 +1,11 @@
-import { supabase } from './supabaseClient';
 import { logger } from '../utils/logger';
 import { normalizeSaudiPhone } from '../utils/validation';
-
-// 4-digit phone OTP, 5-minute expiry, resend supported.
-//
-// Talks to two edge functions:
-//   - send-phone-otp   → generates code, dispatches SMS, stores hash in DB
-//   - verify-phone-otp → validates code and returns a magic-link token_hash
-//                        the mobile client converts into a Supabase session
+import { callEdgeFunction } from './edgeInvoke';
+import { verifyMagicLinkOtp } from './authXhr';
 
 export const OTP_LENGTH = 4;
 export const OTP_TTL_SECONDS = 5 * 60;
 export const RESEND_COOLDOWN_SECONDS = 30;
-
-const withTimeout = <T>(p: PromiseLike<T>, ms: number, label: string): Promise<T> =>
-  Promise.race([
-    Promise.resolve(p),
-    new Promise<T>((_, reject) =>
-      setTimeout(() => reject(new Error(`${label} timed out`)), ms)
-    ),
-  ]);
-
-const extractError = (data: any, error: any): string | undefined => {
-  let serverMsg: string | undefined = data?.error;
-  if (!serverMsg && error) {
-    try {
-      const ctx: any = (error as any).context;
-      if (ctx?.body) {
-        const parsed = typeof ctx.body === 'string' ? JSON.parse(ctx.body) : ctx.body;
-        serverMsg = parsed?.error;
-      }
-    } catch {}
-    serverMsg = serverMsg || error.message;
-  }
-  return serverMsg;
-};
 
 const friendly = (key: string | undefined, lang: 'ar' | 'en') => {
   const ar: Record<string, string> = {
@@ -59,7 +30,9 @@ const friendly = (key: string | undefined, lang: 'ar' | 'en') => {
     user_create_failed: 'Could not create the account',
     token_failed: 'Could not create the session',
   };
-  return (lang === 'ar' ? ar : en)[key ?? ''] ?? key ?? 'Unknown error';
+  const table = lang === 'ar' ? ar : en;
+  if (!key) return lang === 'ar' ? 'حدث خطأ غير متوقع' : 'Unknown error';
+  return table[key] ?? key;
 };
 
 export const sendPhoneOtp = async (
@@ -67,20 +40,17 @@ export const sendPhoneOtp = async (
   lang: 'ar' | 'en' = 'ar'
 ): Promise<{ expiresIn: number; devCode?: string }> => {
   const phone = normalizeSaudiPhone(rawPhone);
-  const { data, error } = await withTimeout(
-    supabase.functions.invoke('send-phone-otp', { body: { phone, lang } }),
-    20000,
-    'send-phone-otp'
-  );
-  const msg = extractError(data, error);
-  if (msg) {
-    logger.warn('send-phone-otp failed', msg);
-    throw new Error(friendly(msg, lang));
+  const { data, errorMessage } = await callEdgeFunction<{
+    expires_in?: number;
+    dev_code?: string;
+  }>('send-phone-otp', { phone, lang });
+  if (errorMessage) {
+    logger.warn('send-phone-otp failed', errorMessage);
+    throw new Error(friendly(errorMessage, lang));
   }
   return {
-    expiresIn: (data as any)?.expires_in ?? OTP_TTL_SECONDS,
-    // Present only while no real SMS provider is configured (dev mode).
-    devCode: (data as any)?.dev_code,
+    expiresIn: data?.expires_in ?? OTP_TTL_SECONDS,
+    devCode: data?.dev_code,
   };
 };
 
@@ -90,26 +60,19 @@ export const verifyPhoneOtp = async (
   lang: 'ar' | 'en' = 'ar'
 ): Promise<boolean> => {
   const phone = normalizeSaudiPhone(rawPhone);
-  const { data, error } = await withTimeout(
-    supabase.functions.invoke<{ ok?: boolean; token_hash?: string; error?: string }>(
-      'verify-phone-otp',
-      { body: { phone, code } }
-    ),
-    20000,
-    'verify-phone-otp'
-  );
-  const msg = extractError(data, error);
-  if (msg) {
-    logger.warn('verify-phone-otp failed', msg);
-    throw new Error(friendly(msg, lang));
+  const { data, errorMessage } = await callEdgeFunction<{
+    ok?: boolean;
+    token_hash?: string;
+  }>('verify-phone-otp', { phone, code });
+  if (errorMessage) {
+    logger.warn('verify-phone-otp failed', errorMessage);
+    throw new Error(friendly(errorMessage, lang));
   }
-  if (!data?.ok || !data.token_hash) {
+  if (!data?.ok || !data?.token_hash) {
     throw new Error(friendly('wrong_code', lang));
   }
-  const { error: vErr } = await supabase.auth.verifyOtp({
-    type: 'magiclink',
-    token_hash: data.token_hash,
-  });
-  if (vErr) throw vErr;
+  // XHR-based verify avoids the RN Blob bug that breaks
+  // supabase.auth.verifyOtp on iOS after a context reload.
+  await verifyMagicLinkOtp(data.token_hash, 'magiclink');
   return true;
 };

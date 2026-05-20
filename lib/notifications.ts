@@ -31,7 +31,13 @@ export const notificationManager = {
       try {
         token = (await Notifications.getExpoPushTokenAsync()).data;
       } catch (e) {
-        logger.error('Error getting push token', e);
+        // Non-fatal. expo-notifications on iOS occasionally fails to parse
+        // Expo's push-token response because the RN fetch polyfill wraps
+        // the body as a Blob — the app continues fine without a token,
+        // we just can't deliver push to this install until next launch.
+        // Logged at debug so the dev red-box overlay doesn't block the
+        // login screen for users who don't care about push.
+        logger.debug('Could not get Expo push token (will retry next launch)', e);
       }
     } else {
       logger.info('Must use physical device for Push Notifications');

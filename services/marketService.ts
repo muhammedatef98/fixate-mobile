@@ -4,6 +4,9 @@ import { logger } from '../utils/logger';
 export type ListingCategory = 'used_device' | 'accessory' | 'spare_part' | 'other';
 export type ListingStatus = 'pending' | 'active' | 'sold' | 'rejected' | 'archived';
 export type ContactPreference = 'dm' | 'phone' | 'both';
+export type ContactMethod = 'whatsapp' | 'phone' | 'in_app';
+export type DeviceType = 'phone' | 'laptop' | 'tablet' | 'watch' | 'accessory' | 'other';
+export type ListingCondition = 'new' | 'like_new' | 'used' | 'refurbished' | 'for_parts';
 
 export interface MarketListing {
   id: string;
@@ -16,6 +19,9 @@ export interface MarketListing {
   city?: string | null;
   contact_phone?: string | null;
   contact_preference?: ContactPreference;
+  contact_methods?: ContactMethod[];
+  device_type?: DeviceType | null;
+  condition?: ListingCondition | null;
   images: string[];
   status: ListingStatus;
   created_at?: string;
@@ -26,10 +32,13 @@ export interface CreateListingInput {
   title: string;
   description?: string;
   category: ListingCategory;
+  device_type?: DeviceType;
+  condition?: ListingCondition;
   price: number;
   city?: string;
   contact_phone?: string;
   contact_preference?: ContactPreference;
+  contact_methods?: ContactMethod[];
   images?: string[];
 }
 
@@ -105,7 +114,13 @@ export const deleteComment = async (commentId: string): Promise<void> => {
 };
 
 export const browseListings = async (
-  filters?: { category?: ListingCategory; city?: string }
+  filters?: {
+    category?: ListingCategory;
+    deviceType?: DeviceType;
+    city?: string;
+    /** Free-text search across title + description (ILIKE). */
+    search?: string;
+  }
 ): Promise<MarketListing[]> => {
   let q = supabase
     .from('market_listings')
@@ -114,7 +129,12 @@ export const browseListings = async (
     .order('created_at', { ascending: false })
     .limit(100);
   if (filters?.category) q = q.eq('category', filters.category);
+  if (filters?.deviceType) q = q.eq('device_type', filters.deviceType);
   if (filters?.city) q = q.eq('city', filters.city);
+  if (filters?.search?.trim()) {
+    const s = filters.search.trim().replace(/[%_]/g, ''); // strip ILIKE wildcards
+    q = q.or(`title.ilike.%${s}%,description.ilike.%${s}%`);
+  }
   const { data, error } = await q;
   if (error) {
     logger.warn('browseListings failed', error);
@@ -151,6 +171,9 @@ export const createListing = async (
       city: input.city?.trim() || null,
       contact_phone: input.contact_phone?.trim() || null,
       contact_preference: input.contact_preference ?? 'both',
+      contact_methods: input.contact_methods ?? ['in_app'],
+      device_type: input.device_type ?? null,
+      condition: input.condition ?? null,
       images: input.images ?? [],
       // RLS allows seller insert; status defaults to 'pending' so admin can
       // moderate the first wave of listings before they go public.

@@ -1,6 +1,7 @@
 import { supabase } from './supabaseClient';
 import { logger } from '../utils/logger';
 import { validatePrice } from '../utils/validation';
+import { callEdgeFunction } from './edgeInvoke';
 
 export interface Payment {
   id: string;
@@ -42,13 +43,11 @@ export const createPayment = async (
   }
 
   try {
-    const { data, error } = await supabase.functions.invoke<CreatePaymentResponse>(
+    const { data, errorMessage } = await callEdgeFunction<CreatePaymentResponse>(
       'create-payment',
-      {
-        body: { orderId, amount, currency },
-      }
+      { orderId, amount, currency }
     );
-    if (error) throw error;
+    if (errorMessage) throw new Error(errorMessage);
     if (!data) throw new Error('Empty response from payment service');
     return data;
   } catch (error: any) {

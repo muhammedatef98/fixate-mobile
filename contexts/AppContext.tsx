@@ -55,16 +55,23 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const isDark = theme === 'dark';
 
   useEffect(() => {
-    setupNotifications();
+    // Fire-and-forget — never let push-token failure surface as an
+    // uncaught promise (it's non-fatal: the app works without push).
+    setupNotifications().catch(() => undefined);
   }, []);
 
   const setupNotifications = async () => {
-    const user = await auth.getCurrentUser();
-    if (user) {
-      const token = await notificationManager.registerForPushNotificationsAsync();
-      if (token) {
-        await notificationManager.saveTokenToProfile(user.id, token);
+    try {
+      const user = await auth.getCurrentUser();
+      if (user) {
+        const token = await notificationManager.registerForPushNotificationsAsync();
+        if (token) {
+          await notificationManager.saveTokenToProfile(user.id, token);
+        }
       }
+    } catch {
+      // Any failure here (network, permission, Expo push endpoint) is
+      // non-fatal. We retry next launch.
     }
   };
 

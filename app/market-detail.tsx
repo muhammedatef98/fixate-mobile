@@ -32,6 +32,81 @@ import {
 } from '../services/marketService';
 
 // Friendly "x ago" with Gregorian dates only.
+function PhotoSwiper({ images, COLORS }: { images: string[]; COLORS: any }) {
+  const [page, setPage] = useState(0);
+  if (!images || images.length === 0) {
+    return (
+      <View style={{ width, height: width * 0.6, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.card }}>
+        <MaterialCommunityIcons name="image-off" size={48} color={COLORS.textSecondary} />
+      </View>
+    );
+  }
+  return (
+    <View>
+      <ScrollView
+        horizontal
+        pagingEnabled
+        showsHorizontalScrollIndicator={false}
+        onMomentumScrollEnd={(e) => {
+          const w = e.nativeEvent.layoutMeasurement.width || width;
+          setPage(Math.round(e.nativeEvent.contentOffset.x / w));
+        }}
+      >
+        {images.map((uri, i) => (
+          <Image key={i} source={{ uri }} style={{ width, height: width * 0.85 }} resizeMode="cover" />
+        ))}
+      </ScrollView>
+      {images.length > 1 && (
+        <View style={{ position: 'absolute', bottom: 12, alignSelf: 'center', flexDirection: 'row', gap: 6 }}>
+          {images.map((_, i) => (
+            <View
+              key={i}
+              style={{
+                width: i === page ? 18 : 6,
+                height: 6,
+                borderRadius: 3,
+                backgroundColor: i === page ? '#fff' : 'rgba(255,255,255,0.55)',
+              }}
+            />
+          ))}
+        </View>
+      )}
+      {images.length > 1 && (
+        <View style={{ position: 'absolute', top: 12, right: 12, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999, backgroundColor: 'rgba(0,0,0,0.55)', flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+          <Ionicons name="images" size={11} color="#fff" />
+          <Text style={{ color: '#fff', fontSize: 11, fontWeight: '700' }}>
+            {page + 1}/{images.length}
+          </Text>
+        </View>
+      )}
+    </View>
+  );
+}
+
+function DetailRow({
+  icon,
+  label,
+  value,
+  COLORS,
+  isRTL,
+}: {
+  icon: string;
+  label: string;
+  value: string;
+  COLORS: any;
+  isRTL: boolean;
+}) {
+  return (
+    <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 8 }}>
+      <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 8 }}>
+        <MaterialCommunityIcons name={icon as any} size={16} color={COLORS.textSecondary} />
+        <Text style={{ color: COLORS.textSecondary, fontSize: 13, fontWeight: '600' }}>{label}</Text>
+      </View>
+      <Text style={{ color: COLORS.text, fontSize: 13, fontWeight: '700' }}>{value}</Text>
+    </View>
+  );
+}
+
 function timeAgo(iso: string | undefined, isRTL: boolean): string {
   if (!iso) return '';
   const diff = Math.max(0, Date.now() - new Date(iso).getTime());
@@ -138,8 +213,50 @@ export default function MarketDetailScreen() {
     if (!listing?.contact_phone) return;
     // Saudi numbers without leading +; WhatsApp expects digits only.
     const digits = listing.contact_phone.replace(/[^\d]/g, '');
-    Linking.openURL(`https://wa.me/${digits}`);
+    const text = encodeURIComponent(
+      (isRTL ? 'مرحباً، رأيت إعلانك في Fixate: ' : 'Hi, I saw your Fixate listing: ') +
+      (listing?.title ?? '')
+    );
+    Linking.openURL(`https://wa.me/${digits}?text=${text}`);
   };
+
+  // New contact_methods (preferred) → fall back to legacy contact_preference.
+  const allowedMethods = (() => {
+    const m = listing?.contact_methods;
+    if (Array.isArray(m) && m.length > 0) return new Set(m);
+    const pref = listing?.contact_preference ?? 'both';
+    if (pref === 'phone') return new Set(['phone', 'whatsapp']);
+    if (pref === 'dm')    return new Set(['in_app']);
+    return new Set(['phone', 'whatsapp', 'in_app']);
+  })();
+  const showPhone   = allowedMethods.has('phone')    && !!listing?.contact_phone;
+  const showWhats   = allowedMethods.has('whatsapp') && !!listing?.contact_phone;
+  const showInApp   = allowedMethods.has('in_app');
+
+  const conditionLabel = (() => {
+    if (!listing?.condition) return null;
+    const map: Record<string, { ar: string; en: string }> = {
+      new:         { ar: 'جديد',     en: 'New' },
+      like_new:    { ar: 'شبه جديد', en: 'Like new' },
+      refurbished: { ar: 'مجدّد',    en: 'Refurbished' },
+      used:        { ar: 'مستعمل',   en: 'Used' },
+      for_parts:   { ar: 'قطع غيار', en: 'For parts' },
+    };
+    return map[listing.condition]?.[isRTL ? 'ar' : 'en'] ?? null;
+  })();
+
+  const deviceLabel = (() => {
+    if (!listing?.device_type) return null;
+    const map: Record<string, { ar: string; en: string }> = {
+      phone:     { ar: 'جوال',     en: 'Phone' },
+      laptop:    { ar: 'لابتوب',   en: 'Laptop' },
+      tablet:    { ar: 'تابلت',    en: 'Tablet' },
+      watch:     { ar: 'ساعة',     en: 'Watch' },
+      accessory: { ar: 'إكسسوار',  en: 'Accessory' },
+      other:     { ar: 'أخرى',     en: 'Other' },
+    };
+    return map[listing.device_type]?.[isRTL ? 'ar' : 'en'] ?? null;
+  })();
   const handleShare = async () => {
     if (!listing) return;
     try {
@@ -177,61 +294,80 @@ export default function MarketDetailScreen() {
       ) : (
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           <ScrollView contentContainerStyle={{ paddingBottom: 24 }}>
-            {listing.images && listing.images.length > 0 ? (
-              <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false}>
-                {listing.images.map((uri, i) => (
-                  <Image key={i} source={{ uri }} style={{ width, height: width * 0.75 }} resizeMode="cover" />
-                ))}
-              </ScrollView>
-            ) : (
-              <View style={[styles.noImg, { width, height: width * 0.6 }]}>
-                <MaterialCommunityIcons name="image-off" size={48} color={COLORS.textSecondary} />
-              </View>
-            )}
+            {/* Photo swiper with paging + page-dot indicator */}
+            <PhotoSwiper images={listing.images ?? []} COLORS={COLORS} />
 
             <View style={{ padding: SPACING.lg, gap: 10 }}>
               <Text style={styles.listingTitle}>{listing.title}</Text>
               <Text style={styles.price}>{listing.price} {listing.currency}</Text>
-              <View style={styles.metaRow}>
+
+              {/* Structured details — device, condition, city, posted */}
+              <View style={styles.detailsCard}>
+                {deviceLabel && (
+                  <DetailRow
+                    icon="cellphone"
+                    label={isRTL ? 'نوع الجهاز' : 'Device'}
+                    value={deviceLabel}
+                    COLORS={COLORS}
+                    isRTL={isRTL}
+                  />
+                )}
+                {conditionLabel && (
+                  <DetailRow
+                    icon="star-circle-outline"
+                    label={isRTL ? 'الحالة' : 'Condition'}
+                    value={conditionLabel}
+                    COLORS={COLORS}
+                    isRTL={isRTL}
+                  />
+                )}
                 {listing.city ? (
-                  <View style={styles.metaPill}>
-                    <Ionicons name="location-outline" size={13} color={COLORS.textSecondary} />
-                    <Text style={styles.metaText}>{listing.city}</Text>
-                  </View>
+                  <DetailRow
+                    icon="map-marker-outline"
+                    label={isRTL ? 'المدينة' : 'City'}
+                    value={listing.city}
+                    COLORS={COLORS}
+                    isRTL={isRTL}
+                  />
                 ) : null}
-                {listing.contact_phone &&
-                 (listing.contact_preference ?? 'both') !== 'dm' ? (
-                  <View style={styles.metaPill}>
-                    <Ionicons name="call-outline" size={13} color={COLORS.textSecondary} />
-                    <Text style={styles.metaText}>{listing.contact_phone}</Text>
-                  </View>
-                ) : null}
+                <DetailRow
+                  icon="clock-outline"
+                  label={isRTL ? 'تاريخ النشر' : 'Posted'}
+                  value={timeAgo(listing.created_at, isRTL)}
+                  COLORS={COLORS}
+                  isRTL={isRTL}
+                />
               </View>
+
               {listing.description ? (
-                <Text style={styles.desc}>{listing.description}</Text>
+                <View style={{ gap: 6 }}>
+                  <Text style={styles.sectionTitle}>
+                    {isRTL ? 'الوصف' : 'Description'}
+                  </Text>
+                  <Text style={styles.desc}>{listing.description}</Text>
+                </View>
               ) : null}
 
-              {/* Quick contact + share row — only show when seller is not me.
-                  Respects the seller's stated contact preference. */}
-              {listing.seller_id !== user?.id && (() => {
-                const pref = listing.contact_preference ?? 'both';
-                const phoneOk = (pref === 'phone' || pref === 'both') && !!listing.contact_phone;
-                const dmOk = pref === 'dm' || pref === 'both';
-                return (
+              {/* Seller contact CTAs — only the methods the seller picked. */}
+              {listing.seller_id !== user?.id && (
+                <View style={{ gap: 8, marginTop: 6 }}>
+                  <Text style={styles.sectionTitle}>
+                    {isRTL ? 'التواصل مع البائع' : 'Contact the seller'}
+                  </Text>
                   <View style={styles.contactRow}>
-                    {phoneOk && (
-                      <>
-                        <TouchableOpacity onPress={handleCallSeller} style={[styles.contactBtn, { backgroundColor: '#10B981' }]}>
-                          <Ionicons name="call" size={18} color="#fff" />
-                          <Text style={styles.contactBtnText}>{isRTL ? 'اتصال' : 'Call'}</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity onPress={handleWhatsAppSeller} style={[styles.contactBtn, { backgroundColor: '#25D366' }]}>
-                          <Ionicons name="logo-whatsapp" size={18} color="#fff" />
-                          <Text style={styles.contactBtnText}>{isRTL ? 'واتساب' : 'WhatsApp'}</Text>
-                        </TouchableOpacity>
-                      </>
+                    {showPhone && (
+                      <TouchableOpacity onPress={handleCallSeller} style={[styles.contactBtn, { backgroundColor: '#10B981' }]}>
+                        <Ionicons name="call" size={18} color="#fff" />
+                        <Text style={styles.contactBtnText}>{isRTL ? 'اتصال' : 'Call'}</Text>
+                      </TouchableOpacity>
                     )}
-                    {dmOk && (
+                    {showWhats && (
+                      <TouchableOpacity onPress={handleWhatsAppSeller} style={[styles.contactBtn, { backgroundColor: '#25D366' }]}>
+                        <Ionicons name="logo-whatsapp" size={18} color="#fff" />
+                        <Text style={styles.contactBtnText}>{isRTL ? 'واتساب' : 'WhatsApp'}</Text>
+                      </TouchableOpacity>
+                    )}
+                    {showInApp && (
                       <TouchableOpacity
                         onPress={() => {
                           if (!user) {
@@ -246,7 +382,7 @@ export default function MarketDetailScreen() {
                         style={[styles.contactBtn, { backgroundColor: '#3b82f6' }]}
                       >
                         <Ionicons name="chatbubble-ellipses" size={18} color="#fff" />
-                        <Text style={styles.contactBtnText}>{isRTL ? 'مراسلة البائع' : 'Message seller'}</Text>
+                        <Text style={styles.contactBtnText}>{isRTL ? 'مراسلة' : 'Message'}</Text>
                       </TouchableOpacity>
                     )}
                     <TouchableOpacity onPress={handleShare} style={[styles.contactBtn, { backgroundColor: COLORS.primary }]}>
@@ -254,8 +390,8 @@ export default function MarketDetailScreen() {
                       <Text style={styles.contactBtnText}>{isRTL ? 'مشاركة' : 'Share'}</Text>
                     </TouchableOpacity>
                   </View>
-                );
-              })()}
+                </View>
+              )}
 
               {/* Posted-ago marker */}
               <Text style={styles.posted}>
@@ -415,6 +551,15 @@ const createStyles = (C: any, isRTL: boolean) =>
       paddingVertical: 5,
     },
     metaText: { color: C.textSecondary, fontSize: 12 },
+    detailsCard: {
+      backgroundColor: C.card,
+      borderRadius: BORDER_RADIUS.md,
+      borderWidth: 1,
+      borderColor: C.border,
+      paddingHorizontal: 14,
+      paddingVertical: 4,
+      marginTop: 6,
+    },
     desc: { color: C.text, fontSize: 14, lineHeight: 22, textAlign: isRTL ? 'right' : 'left' },
     divider: { height: 8, backgroundColor: C.card, marginVertical: 8 },
     sectionTitle: { fontSize: 16, fontWeight: '700', color: C.text, marginBottom: 10, textAlign: isRTL ? 'right' : 'left' },

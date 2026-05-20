@@ -759,7 +759,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   infoLabel: { fontSize: 13, fontWeight: '500' },
-  infoValue: { fontSize: 14, fontWeight: '600', textAlign: 'right' },
+  infoValue: { fontSize: 14, fontWeight: '600' },
 
   divider: { height: 1 },
 
