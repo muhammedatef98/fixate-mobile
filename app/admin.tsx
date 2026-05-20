@@ -279,6 +279,18 @@ export default function AdminDashboardScreen() {
             COLORS={COLORS}
             isRTL={isRTL}
           />
+          <ActionCard
+            icon="tune-vertical"
+            title={isRTL ? 'إعدادات المنصة' : 'Platform settings'}
+            subtitle={
+              isRTL
+                ? 'الرسوم، عمولة المنصة، رسائل منطقة الخدمة'
+                : 'Fees, commission rate, service-area messaging'
+            }
+            onPress={() => router.push('/admin-platform-settings')}
+            COLORS={COLORS}
+            isRTL={isRTL}
+          />
         </View>
       </ScrollView>
     </SafeAreaView>
