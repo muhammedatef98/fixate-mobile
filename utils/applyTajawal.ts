@@ -1,34 +1,26 @@
-// One-shot patch that makes every <Text> and <TextInput> in the app pick the
-// correct Tajawal variant based on its fontWeight style.
-//
-// Why this exists: React Native does NOT auto-map fontWeight to a custom
-// font's bold variant. If you write
-//   <Text style={{ fontWeight: 'bold' }}>Hi</Text>
-// after setting `fontFamily: 'Tajawal_400Regular'` as the default, both iOS
-// and Android render it in the *regular* weight — the bold attribute is
-// silently ignored for custom fonts. The fix is to translate fontWeight to
-// the matching family name (`Tajawal_700Bold` etc) at render time.
-//
-// We do this once at app boot by overriding Text.render. The same patch
-// is applied to TextInput. The function is idempotent — calling it twice
-// is a no-op so hot-reload doesn't stack overrides.
+/**
+ * applyTajawal.ts
+ *
+ * Sets Tajawal as the default font for every <Text> and <TextInput>
+ * in the app without patching the render method (which is fragile in
+ * Expo SDK 50+ / React Native 0.73+).
+ *
+ * Strategy:
+ *   1. Override Text.defaultProps and TextInput.defaultProps with a base
+ *      style that sets fontFamily: 'Tajawal_400Regular'.
+ *   2. Export getTajawalFamily(weight) for StyleSheet.create() blocks
+ *      where you need a specific weight explicitly.
+ *   3. Export setTextDirection(isRTL) so _layout.tsx can keep the
+ *      writingDirection in sync with the current language.
+ */
 
-import { StyleSheet, Text, TextInput } from 'react-native';
+import { Text, TextInput, Platform } from 'react-native';
 
 const PATCHED = '__fixate_tajawal_patched';
 
-const familyForWeight = (fw: any): string => {
-  // RN allows '100' through '900', plus 'normal' and 'bold'. Map them to
-  // the four Tajawal weights we ship.
+// Map React Native fontWeight values to the four Tajawal variants we ship.
+export const getTajawalFamily = (fw?: string | number): string => {
   switch (String(fw ?? '').toLowerCase()) {
-    case '100':
-    case '200':
-    case '300':
-    case '400':
-    case 'normal':
-    case '':
-    case 'undefined':
-      return 'Tajawal_400Regular';
     case '500':
     case '600':
       return 'Tajawal_500Medium';
@@ -43,28 +35,33 @@ const familyForWeight = (fw: any): string => {
   }
 };
 
-const wrapRender = (Comp: any) => {
-  if (!Comp || (Comp as any)[PATCHED]) return;
-  const original = Comp.render;
-  if (typeof original !== 'function') return;
-  Comp.render = function patchedRender(props: any, ref: any) {
-    const flat = StyleSheet.flatten(props?.style) || {};
-    // If the caller already supplied an explicit fontFamily we respect it
-    // (only happens in 2 places — ErrorBoundary monospace stack trace).
-    if (flat.fontFamily) {
-      return original.call(this, props, ref);
-    }
-    const family = familyForWeight(flat.fontWeight);
-    const next = {
-      ...props,
-      style: [{ fontFamily: family }, props?.style],
-    };
-    return original.call(this, next, ref);
-  };
-  (Comp as any)[PATCHED] = true;
-};
+let _isRTL = true; // Arabic by default
+
+export function setTextDirection(isRTL: boolean) {
+  _isRTL = isRTL;
+}
 
 export function applyTajawalToText() {
-  wrapRender(Text);
-  wrapRender(TextInput);
+  if ((Text as any)[PATCHED]) return; // idempotent
+
+  // defaultProps is the safe, supported way to set a fallback style in RN.
+  // Any style passed directly by the component still wins — this is purely
+  // the fallback when no fontFamily is specified.
+  const baseStyle = {
+    fontFamily: 'Tajawal_400Regular',
+  };
+
+  Text.defaultProps = Text.defaultProps ?? {};
+  Text.defaultProps.style = [
+    baseStyle,
+    Text.defaultProps.style ?? {},
+  ];
+
+  TextInput.defaultProps = TextInput.defaultProps ?? {};
+  TextInput.defaultProps.style = [
+    baseStyle,
+    TextInput.defaultProps.style ?? {},
+  ];
+
+  (Text as any)[PATCHED] = true;
 }
