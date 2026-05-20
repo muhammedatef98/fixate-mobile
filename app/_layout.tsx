@@ -281,15 +281,31 @@ export default function RootLayout() {
 // some dev-client setups). Either way the JS bundle restarts and the
 // new I18nManager.isRTL value takes effect.
 function reloadApp() {
+  // In dev (Metro + dev-client + Expo Go), Updates.reloadAsync usually
+  // throws a CodedError ("Received 1 arguments, but 0 was expected" or
+  // similar) because the native expo-updates module isn't wired up. We
+  // prefer DevSettings.reload in dev and only try Updates in production.
+  if (__DEV__) {
+    try {
+      if (DevSettings && typeof DevSettings.reload === 'function') {
+        DevSettings.reload();
+        return;
+      }
+    } catch {
+      // fall through
+    }
+  }
+  // Production / preview builds: try Updates.reloadAsync but catch any
+  // rejection so it can never bubble up as an uncaught-promise error.
   try {
-    if (typeof Updates?.reloadAsync === 'function') {
-      void Updates.reloadAsync();
-      return;
+    const maybe = (Updates as any)?.reloadAsync?.();
+    if (maybe && typeof maybe.catch === 'function') {
+      maybe.catch(() => undefined);
     }
   } catch {
-    // fall through to dev reload
-  }
-  if (__DEV__ && DevSettings && typeof DevSettings.reload === 'function') {
-    DevSettings.reload();
+    // expo-updates not installed at runtime — silently no-op. The user
+    // will see the new direction on next manual app restart, and
+    // setTextDirection has already updated the in-memory default so
+    // the JS-level Text alignment is correct immediately.
   }
 }
