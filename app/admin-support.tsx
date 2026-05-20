@@ -23,6 +23,7 @@ import { RTLIonicon } from '../components/RTLIcon';
 import { safeBack } from '../utils/navigation';
 import * as support from '../services/supportService';
 import { supabase } from '../services/supabaseClient';
+import { useScrollToEndOnKeyboard } from '../hooks/useScrollToEndOnKeyboard';
 
 interface ThreadView extends support.SupportThread {
   user_name?: string;
@@ -46,6 +47,7 @@ export default function AdminSupportScreen() {
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
   const listRef = useRef<FlatList>(null);
+  useScrollToEndOnKeyboard(listRef);
   const messagesChannelRef = useRef<any>(null);
 
   useEffect(() => {
@@ -317,13 +319,15 @@ export default function AdminSupportScreen() {
 
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={80}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 88 : 0}
       >
         <FlatList
           ref={listRef}
           data={messages}
           keyExtractor={(m) => m.id}
+          onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: false })}
+          keyboardShouldPersistTaps="handled"
           contentContainerStyle={{ padding: SPACING.md }}
           renderItem={({ item }) => {
             const mine = item.is_admin;
@@ -335,7 +339,7 @@ export default function AdminSupportScreen() {
                     ? { backgroundColor: COLORS.primary, borderBottomRightRadius: 4 }
                     : { backgroundColor: COLORS.card, borderColor: COLORS.border, borderWidth: 1, borderBottomLeftRadius: 4 },
                 ]}>
-                  <Text style={{ color: mine ? '#fff' : COLORS.text, fontSize: 14, lineHeight: 20 }}>
+                  <Text style={{ color: mine ? '#fff' : COLORS.text, fontSize: 14, lineHeight: 20, textAlign: isRTL ? 'right' : 'left', writingDirection: isRTL ? 'rtl' : 'ltr' }}>
                     {item.content}
                   </Text>
                   <Text style={{ color: mine ? '#ffffffaa' : COLORS.textSecondary, fontSize: 10, marginTop: 4, textAlign: isRTL ? 'left' : 'right' }}>

@@ -20,6 +20,7 @@ import { useAuth } from '../contexts/AuthContext';
 import * as messagingService from '../services/messagingService';
 import type { Message } from '../services/messagingService';
 import { logger } from '../utils/logger';
+import { useScrollToEndOnKeyboard } from '../hooks/useScrollToEndOnKeyboard';
 
 export default function ChatScreen() {
   const router = useRouter();
@@ -37,6 +38,7 @@ export default function ChatScreen() {
   const { user } = useAuth();
   
   const flatListRef = useRef<FlatList>(null);
+  useScrollToEndOnKeyboard(flatListRef);
 
   useEffect(() => {
     if (!orderId || !user) return;
@@ -109,9 +111,10 @@ export default function ChatScreen() {
           <Text
             style={[
               styles.messageText,
-              isMyMessage 
-                ? { color: '#FFFFFF' } 
+              isMyMessage
+                ? { color: '#FFFFFF' }
                 : { color: COLORS.text },
+              { textAlign: isRTL ? 'right' : 'left', writingDirection: isRTL ? 'rtl' : 'ltr' },
             ]}
           >
             {item.content}
@@ -145,22 +148,25 @@ export default function ChatScreen() {
     <SafeAreaView style={[styles.container, { backgroundColor: COLORS.background }]}>
       {/* Header removed to use Stack Header */}
 
-      {/* Messages List */}
-      <FlatList
-        ref={flatListRef}
-        data={messages}
-        renderItem={renderMessage}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.messagesList}
-        showsVerticalScrollIndicator={false}
-        onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
-      />
-
-      {/* Input Area */}
+      {/* KeyboardAvoidingView wraps BOTH the list and the input so the list
+          gets compressed when the keyboard appears (instead of staying at
+          full height and hiding the latest messages behind the keyboard). */}
       <KeyboardAvoidingView
+        style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
       >
+        <FlatList
+          ref={flatListRef}
+          data={messages}
+          renderItem={renderMessage}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.messagesList}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
+        />
+
         <View style={[styles.inputContainer, { backgroundColor: COLORS.surface, borderTopColor: COLORS.border }]}>
           <TextInput
             style={[
