@@ -4,6 +4,9 @@ import { logger } from '../utils/logger';
 export type ListingCategory = 'used_device' | 'accessory' | 'spare_part' | 'other';
 export type ListingStatus = 'pending' | 'active' | 'sold' | 'rejected' | 'archived';
 export type ContactPreference = 'dm' | 'phone' | 'both';
+export type ContactMethod = 'whatsapp' | 'phone' | 'in_app';
+export type DeviceType = 'phone' | 'laptop' | 'tablet' | 'watch' | 'accessory' | 'other';
+export type ListingCondition = 'new' | 'like_new' | 'used' | 'refurbished' | 'for_parts';
 
 export interface MarketListing {
   id: string;
@@ -11,16 +14,33 @@ export interface MarketListing {
   title: string;
   description?: string | null;
   category: ListingCategory;
+  device_type?: DeviceType | null;
+  condition?: ListingCondition | null;
   price: number;
   currency: string;
   city?: string | null;
   contact_phone?: string | null;
+  /** Legacy three-way enum — preserved for backward compat. */
   contact_preference?: ContactPreference;
+  /** New, multi-select contact methods. Falls back to contact_preference. */
+  contact_methods?: ContactMethod[] | null;
   images: string[];
   status: ListingStatus;
   created_at?: string;
   updated_at?: string;
 }
+
+/** Resolve the set of contact methods a listing supports, honouring both
+ *  the new `contact_methods` array and the legacy `contact_preference`. */
+export const resolveContactMethods = (l: MarketListing): Set<ContactMethod> => {
+  if (Array.isArray(l.contact_methods) && l.contact_methods.length > 0) {
+    return new Set(l.contact_methods);
+  }
+  const pref = l.contact_preference ?? 'both';
+  if (pref === 'phone') return new Set(['phone', 'whatsapp']);
+  if (pref === 'dm')    return new Set(['in_app']);
+  return new Set(['phone', 'whatsapp', 'in_app']);
+};
 
 export interface CreateListingInput {
   title: string;
@@ -104,17 +124,59 @@ export const deleteComment = async (commentId: string): Promise<void> => {
   if (error) throw error;
 };
 
+export type SortKey = 'newest' | 'price_asc' | 'price_desc';
+
+export interface BrowseFilters {
+  category?: ListingCategory;
+  deviceType?: DeviceType;
+  condition?: ListingCondition;
+  city?: string;
+  /** ILIKE-style search across title + description. */
+  search?: string;
+  minPrice?: number;
+  maxPrice?: number;
+  sort?: SortKey;
+  /** Pagination — 0-based. */
+  page?: number;
+  pageSize?: number;
+}
+
 export const browseListings = async (
-  filters?: { category?: ListingCategory; city?: string }
+  filters: BrowseFilters = {}
 ): Promise<MarketListing[]> => {
+  const page = filters.page ?? 0;
+  const pageSize = filters.pageSize ?? 40;
   let q = supabase
     .from('market_listings')
     .select('*')
     .eq('status', 'active')
-    .order('created_at', { ascending: false })
-    .limit(100);
-  if (filters?.category) q = q.eq('category', filters.category);
-  if (filters?.city) q = q.eq('city', filters.city);
+    .range(page * pageSize, page * pageSize + pageSize - 1);
+
+  // Sort
+  switch (filters.sort) {
+    case 'price_asc':
+      q = q.order('price', { ascending: true });
+      break;
+    case 'price_desc':
+      q = q.order('price', { ascending: false });
+      break;
+    case 'newest':
+    default:
+      q = q.order('created_at', { ascending: false });
+      break;
+  }
+
+  if (filters.category)    q = q.eq('category', filters.category);
+  if (filters.deviceType)  q = q.eq('device_type', filters.deviceType);
+  if (filters.condition)   q = q.eq('condition', filters.condition);
+  if (filters.city)        q = q.eq('city', filters.city);
+  if (typeof filters.minPrice === 'number') q = q.gte('price', filters.minPrice);
+  if (typeof filters.maxPrice === 'number') q = q.lte('price', filters.maxPrice);
+  if (filters.search?.trim()) {
+    const s = filters.search.trim().replace(/[%_]/g, '');
+    q = q.or(`title.ilike.%${s}%,description.ilike.%${s}%`);
+  }
+
   const { data, error } = await q;
   if (error) {
     logger.warn('browseListings failed', error);

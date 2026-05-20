@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -14,10 +14,13 @@ import {
   Platform,
   Dimensions,
   Alert,
+  Linking,
+  Share,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { Linking, Share } from 'react-native';
 import { useApp } from '../contexts/AppContext';
 import { useAuth } from '../contexts/AuthContext';
 import { getColors, SPACING, BORDER_RADIUS } from '../constants/theme';
@@ -27,11 +30,14 @@ import {
   listComments,
   addComment,
   deleteComment,
+  resolveContactMethods,
   type MarketListing,
   type ListingComment,
 } from '../services/marketService';
 
-// Friendly "x ago" with Gregorian dates only.
+const { width: SCREEN_W } = Dimensions.get('window');
+const HERO_H = Math.round(SCREEN_W * 0.78);
+
 function timeAgo(iso: string | undefined, isRTL: boolean): string {
   if (!iso) return '';
   const diff = Math.max(0, Date.now() - new Date(iso).getTime());
@@ -45,7 +51,22 @@ function timeAgo(iso: string | undefined, isRTL: boolean): string {
   return new Date(iso).toLocaleDateString(isRTL ? 'ar' : 'en-GB');
 }
 
-const { width } = Dimensions.get('window');
+const DEVICE_LABEL: Record<string, { ar: string; en: string }> = {
+  phone:     { ar: 'جوال',     en: 'Phone' },
+  laptop:    { ar: 'لابتوب',   en: 'Laptop' },
+  tablet:    { ar: 'تابلت',    en: 'Tablet' },
+  watch:     { ar: 'ساعة',     en: 'Watch' },
+  accessory: { ar: 'إكسسوار',  en: 'Accessory' },
+  other:     { ar: 'أخرى',     en: 'Other' },
+};
+
+const CONDITION_LABEL: Record<string, { ar: string; en: string }> = {
+  new:         { ar: 'جديد',     en: 'New' },
+  like_new:    { ar: 'شبه جديد', en: 'Like new' },
+  refurbished: { ar: 'مجدّد',    en: 'Refurbished' },
+  used:        { ar: 'مستعمل',   en: 'Used' },
+  for_parts:   { ar: 'قطع غيار', en: 'For parts' },
+};
 
 export default function MarketDetailScreen() {
   const router = useRouter();
@@ -54,15 +75,19 @@ export default function MarketDetailScreen() {
   const { user, userProfile } = useAuth();
   const COLORS = getColors(isDark);
   const isRTL = language === 'ar';
-  const styles = createStyles(COLORS, isRTL);
 
   const [listing, setListing] = useState<MarketListing | null>(null);
   const [comments, setComments] = useState<ListingComment[]>([]);
   const [loading, setLoading] = useState(true);
   const [commentText, setCommentText] = useState('');
   const [posting, setPosting] = useState(false);
-  // Reply-to-comment target. When null we're posting a top-level comment.
   const [replyTo, setReplyTo] = useState<ListingComment | null>(null);
+
+  // Photo pager — track which index is currently visible for the dot
+  // indicator. Updated on momentum-scroll-end so we only re-render
+  // when the user actually settles on a page.
+  const [photoIdx, setPhotoIdx] = useState(0);
+  const heroRef = useRef<ScrollView>(null);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -77,6 +102,8 @@ export default function MarketDetailScreen() {
   }, [id]);
 
   useEffect(() => { load(); }, [load]);
+
+  const styles = useMemo(() => createStyles(COLORS, isRTL), [COLORS, isRTL]);
 
   const submitComment = async () => {
     if (!user) {
@@ -136,9 +163,12 @@ export default function MarketDetailScreen() {
   };
   const handleWhatsAppSeller = () => {
     if (!listing?.contact_phone) return;
-    // Saudi numbers without leading +; WhatsApp expects digits only.
     const digits = listing.contact_phone.replace(/[^\d]/g, '');
-    Linking.openURL(`https://wa.me/${digits}`);
+    const text = encodeURIComponent(
+      (isRTL ? 'مرحباً، رأيت إعلانك في Fixate: ' : 'Hi, I saw your Fixate listing: ') +
+      (listing?.title ?? '')
+    );
+    Linking.openURL(`https://wa.me/${digits}?text=${text}`);
   };
   const handleShare = async () => {
     if (!listing) return;
@@ -147,10 +177,31 @@ export default function MarketDetailScreen() {
         title: listing.title,
         message: `${listing.title} — ${listing.price} ${listing.currency}\n${listing.description ?? ''}`,
       });
-    } catch {
-      // user cancelled
-    }
+    } catch {/* user cancelled */}
   };
+  const handleReport = () => {
+    Alert.alert(
+      isRTL ? 'الإبلاغ عن الإعلان' : 'Report listing',
+      isRTL
+        ? 'سيراجع فريق Fixate هذا الإعلان. شكراً لمساعدتك في الحفاظ على سوق آمن.'
+        : 'The Fixate team will review this listing. Thanks for keeping the market safe.',
+      [{ text: 'OK' }]
+    );
+  };
+
+  const onHeroScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const x = e.nativeEvent.contentOffset.x;
+    const idx = Math.round(x / SCREEN_W);
+    if (idx !== photoIdx) setPhotoIdx(idx);
+  };
+
+  const methods = listing ? resolveContactMethods(listing) : new Set<string>();
+  const showPhone   = methods.has('phone')    && !!listing?.contact_phone;
+  const showWhats   = methods.has('whatsapp') && !!listing?.contact_phone;
+  const showInApp   = methods.has('in_app');
+
+  const deviceLbl = listing?.device_type ? DEVICE_LABEL[listing.device_type]?.[isRTL ? 'ar' : 'en'] : null;
+  const conditionLbl = listing?.condition ? CONDITION_LABEL[listing.condition]?.[isRTL ? 'ar' : 'en'] : null;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -162,13 +213,22 @@ export default function MarketDetailScreen() {
         <Text style={styles.title} numberOfLines={1}>
           {isRTL ? 'تفاصيل الإعلان' : 'Listing details'}
         </Text>
-        <View style={{ width: 26 }} />
+        <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', gap: 6 }}>
+          <TouchableOpacity onPress={handleShare} style={styles.headerIconBtn} accessibilityLabel={isRTL ? 'مشاركة' : 'Share'}>
+            <Ionicons name="share-outline" size={22} color={COLORS.text} />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={handleReport} style={styles.headerIconBtn} accessibilityLabel={isRTL ? 'إبلاغ' : 'Report'}>
+            <MaterialCommunityIcons name="flag-outline" size={22} color={COLORS.text} />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {loading ? (
-        <ActivityIndicator color={COLORS.primary} style={{ marginTop: 40 }} />
+        <View style={styles.center}>
+          <ActivityIndicator color={COLORS.primary} size="large" />
+        </View>
       ) : !listing ? (
-        <View style={styles.empty}>
+        <View style={styles.center}>
           <MaterialCommunityIcons name="alert-circle-outline" size={56} color={COLORS.textSecondary} />
           <Text style={styles.emptyText}>
             {isRTL ? 'الإعلان غير متاح' : 'Listing not available'}
@@ -176,210 +236,244 @@ export default function MarketDetailScreen() {
         </View>
       ) : (
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-          <ScrollView contentContainerStyle={{ paddingBottom: 24 }}>
+          <ScrollView contentContainerStyle={{ paddingBottom: 24 }} showsVerticalScrollIndicator={false}>
+            {/* Photo swiper with paging dots + counter pill. */}
             {listing.images && listing.images.length > 0 ? (
-              <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false}>
-                {listing.images.map((uri, i) => (
-                  <Image key={i} source={{ uri }} style={{ width, height: width * 0.75 }} resizeMode="cover" />
-                ))}
-              </ScrollView>
+              <View style={styles.heroWrap}>
+                <ScrollView
+                  ref={heroRef}
+                  horizontal
+                  pagingEnabled
+                  showsHorizontalScrollIndicator={false}
+                  onMomentumScrollEnd={onHeroScroll}
+                >
+                  {listing.images.map((uri, i) => (
+                    <Image key={i} source={{ uri }} style={{ width: SCREEN_W, height: HERO_H }} resizeMode="cover" />
+                  ))}
+                </ScrollView>
+                {/* Counter pill (top-right) */}
+                <View style={styles.heroCounter}>
+                  <Ionicons name="images" size={11} color="#fff" />
+                  <Text style={styles.heroCounterText}>
+                    {photoIdx + 1} / {listing.images.length}
+                  </Text>
+                </View>
+                {/* Paging dots */}
+                {listing.images.length > 1 && (
+                  <View style={styles.dotsRow} pointerEvents="none">
+                    {listing.images.map((_, i) => (
+                      <View
+                        key={i}
+                        style={[
+                          styles.dot,
+                          i === photoIdx && { backgroundColor: '#fff', width: 16 },
+                        ]}
+                      />
+                    ))}
+                  </View>
+                )}
+              </View>
             ) : (
-              <View style={[styles.noImg, { width, height: width * 0.6 }]}>
+              <View style={[styles.heroWrap, styles.heroPlaceholder, { backgroundColor: COLORS.card }]}>
                 <MaterialCommunityIcons name="image-off" size={48} color={COLORS.textSecondary} />
               </View>
             )}
 
-            <View style={{ padding: SPACING.lg, gap: 10 }}>
+            <View style={styles.body}>
+              {/* Title + price hero */}
               <Text style={styles.listingTitle}>{listing.title}</Text>
-              <Text style={styles.price}>{listing.price} {listing.currency}</Text>
-              <View style={styles.metaRow}>
+              <Text style={styles.price}>
+                {listing.price.toLocaleString(isRTL ? 'ar-SA' : 'en-US')} {isRTL ? 'ر.س' : listing.currency}
+              </Text>
+
+              {/* Pills: device / condition / city */}
+              <View style={styles.pillsRow}>
+                {deviceLbl && (
+                  <View style={[styles.pill, { backgroundColor: COLORS.primary + '15' }]}>
+                    <MaterialCommunityIcons name="devices" size={12} color={COLORS.primary} />
+                    <Text style={[styles.pillText, { color: COLORS.primary }]}>{deviceLbl}</Text>
+                  </View>
+                )}
+                {conditionLbl && (
+                  <View style={[styles.pill, { backgroundColor: '#3b82f6' + '15' }]}>
+                    <MaterialCommunityIcons name="star-circle-outline" size={12} color="#3b82f6" />
+                    <Text style={[styles.pillText, { color: '#3b82f6' }]}>{conditionLbl}</Text>
+                  </View>
+                )}
                 {listing.city ? (
-                  <View style={styles.metaPill}>
-                    <Ionicons name="location-outline" size={13} color={COLORS.textSecondary} />
-                    <Text style={styles.metaText}>{listing.city}</Text>
+                  <View style={[styles.pill, { backgroundColor: COLORS.border }]}>
+                    <Ionicons name="location-outline" size={12} color={COLORS.textSecondary} />
+                    <Text style={[styles.pillText, { color: COLORS.text }]}>{listing.city}</Text>
                   </View>
                 ) : null}
-                {listing.contact_phone &&
-                 (listing.contact_preference ?? 'both') !== 'dm' ? (
-                  <View style={styles.metaPill}>
-                    <Ionicons name="call-outline" size={13} color={COLORS.textSecondary} />
-                    <Text style={styles.metaText}>{listing.contact_phone}</Text>
-                  </View>
-                ) : null}
+                <View style={[styles.pill, { backgroundColor: COLORS.border }]}>
+                  <Ionicons name="time-outline" size={12} color={COLORS.textSecondary} />
+                  <Text style={[styles.pillText, { color: COLORS.text }]}>
+                    {timeAgo(listing.created_at, isRTL)}
+                  </Text>
+                </View>
               </View>
+
+              {/* Description */}
               {listing.description ? (
-                <Text style={styles.desc}>{listing.description}</Text>
+                <View style={{ gap: 6, marginTop: 18 }}>
+                  <Text style={styles.sectionTitle}>{isRTL ? 'الوصف' : 'Description'}</Text>
+                  <Text style={styles.desc}>{listing.description}</Text>
+                </View>
               ) : null}
 
-              {/* Quick contact + share row — only show when seller is not me.
-                  Respects the seller's stated contact preference. */}
-              {listing.seller_id !== user?.id && (() => {
-                const pref = listing.contact_preference ?? 'both';
-                const phoneOk = (pref === 'phone' || pref === 'both') && !!listing.contact_phone;
-                const dmOk = pref === 'dm' || pref === 'both';
-                return (
+              {/* Seller contact CTAs — only the methods the seller picked. */}
+              {listing.seller_id !== user?.id && (
+                <View style={{ gap: 8, marginTop: 22 }}>
+                  <Text style={styles.sectionTitle}>
+                    {isRTL ? 'التواصل مع البائع' : 'Contact the seller'}
+                  </Text>
                   <View style={styles.contactRow}>
-                    {phoneOk && (
-                      <>
-                        <TouchableOpacity onPress={handleCallSeller} style={[styles.contactBtn, { backgroundColor: '#10B981' }]}>
-                          <Ionicons name="call" size={18} color="#fff" />
-                          <Text style={styles.contactBtnText}>{isRTL ? 'اتصال' : 'Call'}</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity onPress={handleWhatsAppSeller} style={[styles.contactBtn, { backgroundColor: '#25D366' }]}>
-                          <Ionicons name="logo-whatsapp" size={18} color="#fff" />
-                          <Text style={styles.contactBtnText}>{isRTL ? 'واتساب' : 'WhatsApp'}</Text>
-                        </TouchableOpacity>
-                      </>
+                    {showPhone && (
+                      <TouchableOpacity
+                        onPress={handleCallSeller}
+                        style={[styles.contactBtn, { backgroundColor: '#10B981' }]}
+                        accessibilityRole="button"
+                      >
+                        <Ionicons name="call" size={18} color="#fff" />
+                        <Text style={styles.contactBtnText}>{isRTL ? 'اتصال' : 'Call'}</Text>
+                      </TouchableOpacity>
                     )}
-                    {dmOk && (
+                    {showWhats && (
+                      <TouchableOpacity
+                        onPress={handleWhatsAppSeller}
+                        style={[styles.contactBtn, { backgroundColor: '#25D366' }]}
+                        accessibilityRole="button"
+                      >
+                        <Ionicons name="logo-whatsapp" size={18} color="#fff" />
+                        <Text style={styles.contactBtnText}>{isRTL ? 'واتساب' : 'WhatsApp'}</Text>
+                      </TouchableOpacity>
+                    )}
+                    {showInApp && (
                       <TouchableOpacity
                         onPress={() => {
                           if (!user) {
                             Alert.alert(isRTL ? 'تسجيل الدخول مطلوب' : 'Login required');
                             return;
                           }
-                          router.push({
-                            pathname: '/market-chat',
-                            params: { listingId: listing.id, sellerId: listing.seller_id },
-                          } as any);
+                          // Drop the user into the comments composer as the
+                          // in-app contact channel for now.
+                          setReplyTo(null);
+                          setCommentText('');
                         }}
                         style={[styles.contactBtn, { backgroundColor: '#3b82f6' }]}
+                        accessibilityRole="button"
                       >
                         <Ionicons name="chatbubble-ellipses" size={18} color="#fff" />
-                        <Text style={styles.contactBtnText}>{isRTL ? 'مراسلة البائع' : 'Message seller'}</Text>
+                        <Text style={styles.contactBtnText}>{isRTL ? 'مراسلة' : 'Message'}</Text>
                       </TouchableOpacity>
                     )}
-                    <TouchableOpacity onPress={handleShare} style={[styles.contactBtn, { backgroundColor: COLORS.primary }]}>
-                      <Ionicons name="share-social-outline" size={18} color="#fff" />
-                      <Text style={styles.contactBtnText}>{isRTL ? 'مشاركة' : 'Share'}</Text>
-                    </TouchableOpacity>
                   </View>
-                );
-              })()}
+                </View>
+              )}
 
-              {/* Posted-ago marker */}
-              <Text style={styles.posted}>
-                {isRTL ? 'نُشر ' : 'Posted '}{timeAgo(listing.created_at, isRTL)}
-              </Text>
-            </View>
-
-            <View style={styles.divider} />
-
-            <View style={{ paddingHorizontal: SPACING.lg }}>
-              <Text style={styles.sectionTitle}>
-                {isRTL ? `التعليقات (${comments.length})` : `Comments (${comments.length})`}
-              </Text>
-              {comments.length === 0 ? (
-                <Text style={styles.noComments}>
-                  {isRTL ? 'لا توجد تعليقات بعد. كن أول من يعلّق.' : 'No comments yet. Be the first to comment.'}
+              {/* Comments */}
+              <View style={{ marginTop: 22 }}>
+                <Text style={styles.sectionTitle}>
+                  {isRTL ? `التعليقات (${comments.length})` : `Comments (${comments.length})`}
                 </Text>
-              ) : (
-                comments
-                  .filter((c) => !c.parent_id)
-                  .map((c) => {
-                    const replies = comments.filter((x) => x.parent_id === c.id);
-                    const isMine = c.user_id === user?.id;
-                    return (
-                      <View key={c.id}>
-                        <View style={styles.commentRow}>
-                          <View style={styles.avatar}>
-                            <Text style={styles.avatarText}>
-                              {(c.author_name || '?').slice(0, 1).toUpperCase()}
-                            </Text>
-                          </View>
-                          <View style={{ flex: 1 }}>
-                            <View style={styles.commentTopRow}>
-                              <Text style={styles.commentAuthor}>
-                                {c.author_name || (isRTL ? 'مستخدم' : 'User')}
-                              </Text>
-                              <Text style={styles.commentAgo}>{timeAgo(c.created_at, isRTL)}</Text>
-                            </View>
-                            <Text style={styles.commentText}>{c.content}</Text>
-                            <View style={styles.commentActions}>
-                              <TouchableOpacity onPress={() => setReplyTo(c)}>
-                                <Text style={styles.commentAction}>
-                                  {isRTL ? 'رد' : 'Reply'}
-                                </Text>
-                              </TouchableOpacity>
-                              {isMine && (
-                                <TouchableOpacity onPress={() => handleDeleteComment(c)}>
-                                  <Text style={[styles.commentAction, { color: '#EF4444' }]}>
-                                    {isRTL ? 'حذف' : 'Delete'}
-                                  </Text>
-                                </TouchableOpacity>
-                              )}
-                            </View>
-                          </View>
-                        </View>
-                        {replies.map((r) => (
-                          <View key={r.id} style={[styles.commentRow, styles.replyRow]}>
-                            <View style={[styles.avatar, { backgroundColor: COLORS.primary + '15' }]}>
+                {comments.length === 0 ? (
+                  <Text style={styles.noComments}>
+                    {isRTL ? 'لا توجد تعليقات بعد. كن أول من يعلّق.' : 'No comments yet. Be the first to comment.'}
+                  </Text>
+                ) : (
+                  comments
+                    .filter((c) => !c.parent_id)
+                    .map((c) => {
+                      const replies = comments.filter((x) => x.parent_id === c.id);
+                      const isMine = c.user_id === user?.id;
+                      return (
+                        <View key={c.id}>
+                          <View style={styles.commentRow}>
+                            <View style={[styles.avatar, { backgroundColor: COLORS.primary }]}>
                               <Text style={styles.avatarText}>
-                                {(r.author_name || '?').slice(0, 1).toUpperCase()}
+                                {(c.author_name || '?').slice(0, 1).toUpperCase()}
                               </Text>
                             </View>
                             <View style={{ flex: 1 }}>
                               <View style={styles.commentTopRow}>
                                 <Text style={styles.commentAuthor}>
-                                  {r.author_name || (isRTL ? 'مستخدم' : 'User')}
+                                  {c.author_name || (isRTL ? 'مستخدم' : 'User')}
                                 </Text>
-                                <Text style={styles.commentAgo}>{timeAgo(r.created_at, isRTL)}</Text>
+                                <Text style={styles.commentAgo}>{timeAgo(c.created_at, isRTL)}</Text>
                               </View>
-                              <Text style={styles.commentText}>{r.content}</Text>
-                              {r.user_id === user?.id && (
-                                <TouchableOpacity onPress={() => handleDeleteComment(r)}>
-                                  <Text style={[styles.commentAction, { color: '#EF4444', marginTop: 4 }]}>
-                                    {isRTL ? 'حذف' : 'Delete'}
+                              <Text style={styles.commentText}>{c.content}</Text>
+                              <View style={styles.commentActions}>
+                                <TouchableOpacity onPress={() => setReplyTo(c)}>
+                                  <Text style={[styles.commentAction, { color: COLORS.primary }]}>
+                                    {isRTL ? 'رد' : 'Reply'}
                                   </Text>
                                 </TouchableOpacity>
-                              )}
+                                {isMine && (
+                                  <TouchableOpacity onPress={() => handleDeleteComment(c)}>
+                                    <Text style={[styles.commentAction, { color: '#EF4444' }]}>
+                                      {isRTL ? 'حذف' : 'Delete'}
+                                    </Text>
+                                  </TouchableOpacity>
+                                )}
+                              </View>
                             </View>
                           </View>
-                        ))}
-                      </View>
-                    );
-                  })
-              )}
+                          {replies.map((r) => (
+                            <View key={r.id} style={[styles.commentRow, styles.replyRow]}>
+                              <View style={[styles.avatar, { backgroundColor: COLORS.primary + '40' }]}>
+                                <Text style={styles.avatarText}>
+                                  {(r.author_name || '?').slice(0, 1).toUpperCase()}
+                                </Text>
+                              </View>
+                              <View style={{ flex: 1 }}>
+                                <View style={styles.commentTopRow}>
+                                  <Text style={styles.commentAuthor}>
+                                    {r.author_name || (isRTL ? 'مستخدم' : 'User')}
+                                  </Text>
+                                  <Text style={styles.commentAgo}>{timeAgo(r.created_at, isRTL)}</Text>
+                                </View>
+                                <Text style={styles.commentText}>{r.content}</Text>
+                              </View>
+                            </View>
+                          ))}
+                        </View>
+                      );
+                    })
+                )}
+              </View>
             </View>
           </ScrollView>
 
-          {replyTo && (
-            <View style={styles.replyBanner}>
-              <Text style={styles.replyBannerText} numberOfLines={1}>
-                {isRTL ? 'الرد على ' : 'Replying to '}
-                <Text style={{ fontWeight: '700' }}>{replyTo.author_name || (isRTL ? 'مستخدم' : 'User')}</Text>
-              </Text>
-              <TouchableOpacity onPress={() => setReplyTo(null)}>
-                <Ionicons name="close" size={16} color={COLORS.textSecondary} />
+          {/* Composer (sticky bottom) */}
+          <View style={[styles.composer, { backgroundColor: COLORS.card, borderTopColor: COLORS.border }]}>
+            {replyTo && (
+              <View style={styles.replyBanner}>
+                <Text style={[styles.replyBannerText, { color: COLORS.textSecondary }]} numberOfLines={1}>
+                  {isRTL ? 'رد على' : 'Replying to'} {replyTo.author_name ?? ''}
+                </Text>
+                <TouchableOpacity onPress={() => setReplyTo(null)}>
+                  <Ionicons name="close" size={16} color={COLORS.textSecondary} />
+                </TouchableOpacity>
+              </View>
+            )}
+            <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'flex-end', gap: 8 }}>
+              <TextInput
+                style={[styles.composerInput, { color: COLORS.text, backgroundColor: COLORS.background, borderColor: COLORS.border, textAlign: isRTL ? 'right' : 'left' }]}
+                value={commentText}
+                onChangeText={setCommentText}
+                placeholder={isRTL ? 'اكتب تعليقاً…' : 'Write a comment…'}
+                placeholderTextColor={COLORS.textSecondary}
+                multiline
+              />
+              <TouchableOpacity
+                onPress={submitComment}
+                disabled={posting || !commentText.trim()}
+                style={[styles.sendBtn, { backgroundColor: COLORS.primary, opacity: posting || !commentText.trim() ? 0.5 : 1 }]}
+              >
+                {posting ? <ActivityIndicator color="#fff" /> : <Ionicons name="send" size={18} color="#fff" />}
               </TouchableOpacity>
             </View>
-          )}
-          <View style={styles.commentBar}>
-            <TextInput
-              style={styles.commentInput}
-              placeholder={
-                replyTo
-                  ? (isRTL ? `الرد على ${replyTo.author_name || ''}` : `Reply to ${replyTo.author_name || ''}`)
-                  : (isRTL ? 'اكتب تعليقاً...' : 'Write a comment...')
-              }
-              placeholderTextColor={COLORS.textSecondary}
-              value={commentText}
-              onChangeText={setCommentText}
-              multiline
-            />
-            <TouchableOpacity
-              style={[styles.sendBtn, { opacity: posting || !commentText.trim() ? 0.5 : 1 }]}
-              onPress={submitComment}
-              disabled={posting || !commentText.trim()}
-              accessibilityRole="button"
-              accessibilityLabel={isRTL ? 'إرسال' : 'Send'}
-            >
-              {posting ? (
-                <ActivityIndicator color="#fff" size="small" />
-              ) : (
-                <Ionicons name="send" size={18} color="#fff" />
-              )}
-            </TouchableOpacity>
           </View>
         </KeyboardAvoidingView>
       )}
@@ -394,123 +488,133 @@ const createStyles = (C: any, isRTL: boolean) =>
       flexDirection: isRTL ? 'row-reverse' : 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      padding: SPACING.lg,
+      paddingHorizontal: SPACING.lg,
+      paddingTop: SPACING.md,
+      paddingBottom: SPACING.sm,
     },
-    title: { fontSize: 17, fontWeight: '700', color: C.text, flex: 1, textAlign: 'center' },
-    empty: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 10 },
-    emptyText: { color: C.textSecondary, fontSize: 15 },
-    noImg: { backgroundColor: C.card, alignItems: 'center', justifyContent: 'center' },
-    listingTitle: { fontSize: 20, fontWeight: '800', color: C.text, textAlign: isRTL ? 'right' : 'left' },
-    price: { fontSize: 18, fontWeight: '800', color: C.primary, textAlign: isRTL ? 'right' : 'left' },
-    metaRow: { flexDirection: isRTL ? 'row-reverse' : 'row', flexWrap: 'wrap', gap: 8 },
-    metaPill: {
+    title: { fontSize: 17, fontWeight: '800', color: C.text },
+    headerIconBtn: {
+      width: 36, height: 36, borderRadius: 18,
+      alignItems: 'center', justifyContent: 'center',
+      backgroundColor: C.card, borderWidth: 1, borderColor: C.border,
+    },
+    center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32, gap: 8 },
+    emptyText: { color: C.text, fontWeight: '700', marginTop: 6 },
+
+    heroWrap: { width: SCREEN_W, height: HERO_H, position: 'relative', backgroundColor: C.card },
+    heroPlaceholder: { alignItems: 'center', justifyContent: 'center' },
+    heroCounter: {
+      position: 'absolute',
+      top: 12,
+      right: 12,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      backgroundColor: 'rgba(0,0,0,0.55)',
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      borderRadius: 999,
+    },
+    heroCounterText: { color: '#fff', fontSize: 11, fontWeight: '700' },
+    dotsRow: {
+      position: 'absolute',
+      bottom: 12,
+      left: 0,
+      right: 0,
+      flexDirection: 'row',
+      justifyContent: 'center',
+      gap: 5,
+    },
+    dot: {
+      width: 6, height: 6, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.55)',
+    },
+
+    body: { padding: SPACING.lg, gap: 4 },
+    listingTitle: { color: C.text, fontSize: 22, fontWeight: '800', lineHeight: 28, textAlign: isRTL ? 'right' : 'left' },
+    price: { color: C.primary, fontSize: 26, fontWeight: '900', marginTop: 4, textAlign: isRTL ? 'right' : 'left' },
+
+    pillsRow: { flexDirection: isRTL ? 'row-reverse' : 'row', flexWrap: 'wrap', gap: 6, marginTop: 12 },
+    pill: {
       flexDirection: isRTL ? 'row-reverse' : 'row',
       alignItems: 'center',
       gap: 4,
-      backgroundColor: C.card,
-      borderWidth: 1,
-      borderColor: C.border,
-      borderRadius: 999,
       paddingHorizontal: 10,
       paddingVertical: 5,
+      borderRadius: 999,
     },
-    metaText: { color: C.textSecondary, fontSize: 12 },
+    pillText: { fontSize: 12, fontWeight: '700' },
+
+    sectionTitle: { color: C.text, fontWeight: '800', fontSize: 14, textAlign: isRTL ? 'right' : 'left' },
     desc: { color: C.text, fontSize: 14, lineHeight: 22, textAlign: isRTL ? 'right' : 'left' },
-    divider: { height: 8, backgroundColor: C.card, marginVertical: 8 },
-    sectionTitle: { fontSize: 16, fontWeight: '700', color: C.text, marginBottom: 10, textAlign: isRTL ? 'right' : 'left' },
-    noComments: { color: C.textSecondary, fontSize: 13, paddingBottom: 16, textAlign: isRTL ? 'right' : 'left' },
-    commentRow: {
-      flexDirection: isRTL ? 'row-reverse' : 'row',
-      gap: 10,
-      paddingVertical: 10,
-      borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: C.border,
-    },
-    avatar: {
-      width: 34,
-      height: 34,
-      borderRadius: 17,
-      backgroundColor: C.primary + '22',
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    avatarText: { color: C.primary, fontWeight: '800' },
-    commentAuthor: { color: C.text, fontWeight: '700', fontSize: 13, textAlign: isRTL ? 'right' : 'left' },
-    commentText: { color: C.text, fontSize: 14, marginTop: 2, textAlign: isRTL ? 'right' : 'left' },
-    commentBar: {
-      flexDirection: isRTL ? 'row-reverse' : 'row',
-      alignItems: 'flex-end',
-      gap: 8,
-      padding: SPACING.md,
-      borderTopWidth: StyleSheet.hairlineWidth,
-      borderTopColor: C.border,
-      backgroundColor: C.background,
-    },
-    commentInput: {
-      flex: 1,
-      maxHeight: 110,
-      minHeight: 44,
-      borderWidth: 1,
-      borderColor: C.border,
-      borderRadius: BORDER_RADIUS.md,
-      paddingHorizontal: 12,
-      paddingVertical: 10,
-      color: C.text,
-      backgroundColor: C.card,
-      textAlign: isRTL ? 'right' : 'left',
-    },
-    sendBtn: {
-      width: 44,
-      height: 44,
-      borderRadius: 22,
-      backgroundColor: C.primary,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    contactRow: {
-      flexDirection: isRTL ? 'row-reverse' : 'row',
-      gap: 8,
-      marginTop: 10,
-      flexWrap: 'wrap',
-    },
+
+    contactRow: { flexDirection: isRTL ? 'row-reverse' : 'row', flexWrap: 'wrap', gap: 8 },
     contactBtn: {
       flexDirection: isRTL ? 'row-reverse' : 'row',
       alignItems: 'center',
       gap: 6,
       paddingHorizontal: 14,
-      paddingVertical: 10,
-      borderRadius: 999,
+      paddingVertical: 12,
+      borderRadius: BORDER_RADIUS.md,
+      flex: 1,
+      minWidth: 96,
+      justifyContent: 'center',
     },
-    contactBtnText: { color: '#fff', fontWeight: '700', fontSize: 13 },
-    posted: { color: C.textSecondary, fontSize: 11, marginTop: 4, textAlign: isRTL ? 'right' : 'left' },
+    contactBtnText: { color: '#fff', fontWeight: '800', fontSize: 14 },
+
+    noComments: { color: C.textSecondary, fontStyle: 'italic', marginTop: 8, textAlign: isRTL ? 'right' : 'left' },
+    commentRow: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      gap: 10,
+      paddingVertical: 12,
+      borderBottomWidth: 1,
+      borderBottomColor: C.border,
+    },
+    replyRow: { paddingLeft: isRTL ? 0 : 28, paddingRight: isRTL ? 28 : 0, borderBottomWidth: 0, paddingVertical: 8 },
+    avatar: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+    avatarText: { color: '#fff', fontWeight: '800', fontSize: 13 },
     commentTopRow: {
       flexDirection: isRTL ? 'row-reverse' : 'row',
-      alignItems: 'center',
+      alignItems: 'baseline',
       justifyContent: 'space-between',
+      gap: 6,
     },
+    commentAuthor: { color: C.text, fontWeight: '700', fontSize: 13 },
     commentAgo: { color: C.textSecondary, fontSize: 11 },
+    commentText: { color: C.text, fontSize: 13, lineHeight: 19, marginTop: 4, textAlign: isRTL ? 'right' : 'left' },
     commentActions: {
       flexDirection: isRTL ? 'row-reverse' : 'row',
       gap: 14,
-      marginTop: 6,
+      marginTop: 4,
     },
-    commentAction: { color: C.primary, fontSize: 12, fontWeight: '700' },
-    replyRow: {
-      marginStart: 38,
-      paddingStart: 12,
-      borderStartWidth: 2,
-      borderStartColor: C.primary + '33',
-      borderBottomWidth: 0,
+    commentAction: { fontSize: 12, fontWeight: '700' },
+
+    composer: {
+      paddingHorizontal: 10,
+      paddingTop: 8,
+      paddingBottom: Platform.OS === 'ios' ? 18 : 10,
+      borderTopWidth: 1,
     },
     replyBanner: {
       flexDirection: isRTL ? 'row-reverse' : 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      paddingHorizontal: SPACING.md,
-      paddingVertical: 6,
-      backgroundColor: C.primary + '10',
-      borderTopWidth: StyleSheet.hairlineWidth,
-      borderTopColor: C.border,
+      gap: 6,
+      paddingHorizontal: 4,
+      paddingBottom: 4,
     },
-    replyBannerText: { color: C.text, fontSize: 12, flex: 1, textAlign: isRTL ? 'right' : 'left' },
+    replyBannerText: { fontSize: 11, fontStyle: 'italic', flex: 1 },
+    composerInput: {
+      flex: 1,
+      maxHeight: 120,
+      minHeight: 44,
+      borderWidth: 1,
+      borderRadius: BORDER_RADIUS.md,
+      paddingHorizontal: 12,
+      paddingTop: 10,
+      paddingBottom: 10,
+      fontSize: 14,
+    },
+    sendBtn: {
+      width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center',
+    },
   });
