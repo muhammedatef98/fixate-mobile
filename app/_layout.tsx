@@ -1,7 +1,8 @@
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
-import { I18nManager, View, ActivityIndicator } from 'react-native';
+import { I18nManager, View, ActivityIndicator, DevSettings } from 'react-native';
+import * as Updates from 'expo-updates';
 import { RequestProvider } from '../contexts/RequestContext';
 import { ThemeProvider } from '../contexts/ThemeContext';
 import { AppProvider, useApp } from '../contexts/AppContext';
@@ -19,7 +20,7 @@ import {
   Tajawal_700Bold,
   Tajawal_800ExtraBold,
 } from '@expo-google-fonts/tajawal';
-import { applyTajawalToText } from '../utils/applyTajawal';
+import { applyTajawalToText, setTextDirection } from '../utils/applyTajawal';
 import '../i18n';
 
 function RootLayoutContent() {
@@ -73,18 +74,26 @@ function RootLayoutContent() {
     }
   }, [user, userProfile, segments, loading]);
 
+  const isRTLLang = language === 'ar';
+
+  // Every Text/TextInput in the app reads `currentIsRTL` at render time
+  // via the patched render in utils/applyTajawal.ts. Setting it here on
+  // every render ensures a language toggle applies to the very next
+  // render pass — no per-screen wiring needed.
+  setTextDirection(isRTLLang);
+
   useEffect(() => {
-    const isRTL = language === 'ar';
-    // Force RTL for Arabic
-    if (I18nManager.isRTL !== isRTL) {
-      I18nManager.forceRTL(isRTL);
-      I18nManager.allowRTL(isRTL);
-      // Note: App needs to be reloaded for RTL changes to take effect
-      // For development: reload the app after changing language
+    const desiredRTL = language === 'ar';
+    if (I18nManager.isRTL !== desiredRTL) {
+      // Native side: force the layout direction…
+      I18nManager.forceRTL(desiredRTL);
+      I18nManager.allowRTL(desiredRTL);
+      // …then reload the JS bundle so every native view (Modal, Stack
+      // header, system inputs) picks up the new direction. Without this
+      // step `forceRTL` is recorded but never applied.
+      reloadApp();
     }
   }, [language]);
-
-  const isRTLLang = language === 'ar';
 
   return (
     <View style={{ flex: 1, direction: isRTLLang ? 'rtl' : 'ltr' } as any}>
@@ -258,4 +267,29 @@ export default function RootLayout() {
       </AppProvider>
     </ErrorBoundary>
   );
+}
+
+// --------------------------------------------------------------------
+// RTL helpers
+//
+// The actual default-textAlign injection lives in utils/applyTajawal.ts
+// (alongside the Tajawal font-weight patch) so both run inside the same
+// render override and we don't fight ourselves about who owns Text.style.
+//
+// reloadApp uses expo-updates in production builds and falls back to
+// DevSettings in development (Updates.reloadAsync no-ops in Expo Go and
+// some dev-client setups). Either way the JS bundle restarts and the
+// new I18nManager.isRTL value takes effect.
+function reloadApp() {
+  try {
+    if (typeof Updates?.reloadAsync === 'function') {
+      void Updates.reloadAsync();
+      return;
+    }
+  } catch {
+    // fall through to dev reload
+  }
+  if (__DEV__ && DevSettings && typeof DevSettings.reload === 'function') {
+    DevSettings.reload();
+  }
 }
