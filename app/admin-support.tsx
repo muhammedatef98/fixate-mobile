@@ -37,6 +37,7 @@ export default function AdminSupportScreen() {
   const isRTL = language === 'ar';
 
   const [adminChecked, setAdminChecked] = useState<boolean | null>(null);
+  const [statusFilter, setStatusFilter] = useState<'open' | 'closed'>('open');
   const [threads, setThreads] = useState<ThreadView[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -59,9 +60,9 @@ export default function AdminSupportScreen() {
   const metaAdmin = (user?.user_metadata as any)?.is_admin === true;
   const isAdmin = adminChecked === true || (userProfile as any)?.is_admin === true || metaAdmin;
 
-  const loadThreads = async () => {
+  const loadThreads = async (status: 'open' | 'closed' = statusFilter) => {
     try {
-      const data = await support.listAllThreads();
+      const data = await support.listAllThreads({ status });
       setThreads(data as any);
     } finally {
       setLoading(false);
@@ -71,10 +72,14 @@ export default function AdminSupportScreen() {
 
   useEffect(() => {
     if (!isAdmin) return;
-    loadThreads();
-    const ch = support.subscribeAllThreads(() => loadThreads());
+    // Opportunistic auto-close of idle threads each time admin opens the
+    // inbox. The DB-side cron job is authoritative; this just keeps the
+    // list tidy in real time even without cron configured.
+    support.closeIdleThreads(5).catch(() => {});
+    loadThreads(statusFilter);
+    const ch = support.subscribeAllThreads(() => loadThreads(statusFilter));
     return () => { supabase.removeChannel(ch); };
-  }, [isAdmin]);
+  }, [isAdmin, statusFilter]);
 
   const openThread = async (t: ThreadView) => {
     setActive(t);
@@ -90,11 +95,35 @@ export default function AdminSupportScreen() {
     });
   };
 
-  const closeThread = () => {
+  const leaveThread = () => {
     if (messagesChannelRef.current) supabase.removeChannel(messagesChannelRef.current);
     messagesChannelRef.current = null;
     setActive(null);
     setMessages([]);
+  };
+
+  const handleCloseThread = () => {
+    if (!active) return;
+    Alert.alert(
+      isRTL ? 'إغلاق المحادثة' : 'Close chat',
+      isRTL ? 'سيتم نقلها إلى قائمة المحادثات المغلقة. هل أنت متأكد؟' : 'It will move to the Closed list. Are you sure?',
+      [
+        { text: isRTL ? 'إلغاء' : 'Cancel', style: 'cancel' },
+        {
+          text: isRTL ? 'إغلاق' : 'Close',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await support.closeThread(active.id, 'admin_manual');
+              leaveThread();
+              loadThreads(statusFilter);
+            } catch {
+              Alert.alert(isRTL ? 'خطأ' : 'Error', isRTL ? 'تعذّر الإغلاق' : 'Could not close');
+            }
+          },
+        },
+      ],
+    );
   };
 
   const send = async () => {
@@ -152,6 +181,31 @@ export default function AdminSupportScreen() {
             {isRTL ? 'صندوق الدعم' : 'Support inbox'}
           </Text>
           <View style={{ width: 32 }} />
+        </View>
+
+        <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', paddingHorizontal: SPACING.md, paddingTop: 6, gap: 8 }}>
+          {(['open', 'closed'] as const).map((s) => {
+            const active = statusFilter === s;
+            const label = s === 'open'
+              ? (isRTL ? 'نشطة' : 'Active')
+              : (isRTL ? 'مغلقة' : 'Closed');
+            return (
+              <TouchableOpacity
+                key={s}
+                onPress={() => { setStatusFilter(s); setLoading(true); }}
+                style={{
+                  paddingHorizontal: 14,
+                  paddingVertical: 8,
+                  borderRadius: 999,
+                  backgroundColor: active ? COLORS.primary : COLORS.card,
+                  borderWidth: 1,
+                  borderColor: active ? COLORS.primary : COLORS.border,
+                }}
+              >
+                <Text style={{ color: active ? '#fff' : COLORS.text, fontWeight: '700', fontSize: 12 }}>{label}</Text>
+              </TouchableOpacity>
+            );
+          })}
         </View>
 
         {loading ? (
@@ -228,7 +282,7 @@ export default function AdminSupportScreen() {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
       <View style={styles.header}>
-        <TouchableOpacity onPress={closeThread} style={{ padding: 6 }}>
+        <TouchableOpacity onPress={leaveThread} style={{ padding: 6 }}>
           <RTLIonicon name="chevron-back" size={26} color={COLORS.text} />
         </TouchableOpacity>
         <View style={{ flex: 1, alignItems: 'center' }}>
@@ -239,8 +293,27 @@ export default function AdminSupportScreen() {
             {active.user_email}
           </Text>
         </View>
-        <View style={{ width: 32 }} />
+        {active.status === 'closed' ? (
+          <View style={{ width: 32 }} />
+        ) : (
+          <TouchableOpacity
+            onPress={handleCloseThread}
+            accessibilityRole="button"
+            accessibilityLabel={isRTL ? 'إغلاق المحادثة' : 'Close chat'}
+            style={{ padding: 6 }}
+          >
+            <MaterialCommunityIcons name="archive-arrow-down-outline" size={22} color={COLORS.text} />
+          </TouchableOpacity>
+        )}
       </View>
+
+      {active.status === 'closed' && (
+        <View style={{ padding: 10, backgroundColor: COLORS.card, borderBottomWidth: 1, borderBottomColor: COLORS.border }}>
+          <Text style={{ color: COLORS.textSecondary, textAlign: 'center', fontSize: 12 }}>
+            {isRTL ? 'هذه المحادثة مغلقة. أي رسالة جديدة ستفتحها تلقائياً.' : 'This chat is closed. Any new message will re-open it.'}
+          </Text>
+        </View>
+      )}
 
       <KeyboardAvoidingView
         style={{ flex: 1 }}

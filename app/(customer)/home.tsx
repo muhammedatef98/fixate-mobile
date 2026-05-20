@@ -95,7 +95,7 @@ export default function CustomerHomeScreen() {
           accessibilityRole="button"
         >
           <Ionicons name="search" size={20} color={COLORS.textSecondary} />
-          <Text style={styles.searchPlaceholder}>
+          <Text style={[styles.searchPlaceholder, { textAlign: isRTL ? 'right' : 'left' }]}>
             {isRTL ? 'ابحث عن جهاز، عطل، أو خدمة...' : 'Search a device, issue or service...'}
           </Text>
         </TouchableOpacity>
@@ -283,7 +283,6 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     fontSize: 14,
     flex: 1,
-    textAlign: I18nManager.isRTL ? 'right' : 'left',
   },
   calculatorBanner: {
     marginHorizontal: SPACING.l,

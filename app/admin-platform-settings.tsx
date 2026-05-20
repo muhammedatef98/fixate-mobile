@@ -44,6 +44,13 @@ interface FormState {
   easternProvinceEnabled: boolean;
   serviceAreaMessageAr: string;
   serviceAreaMessageEn: string;
+  loyaltyEnabled: boolean;
+  loyaltyPointsPerSAR: string;
+  loyaltyRedeemMin: string;
+  loyaltyRedeemRate: string;
+  loyaltyRedeemMaxPct: string;
+  /** JSON-encoded tier list, edited as raw text for now. */
+  loyaltyTiersJson: string;
 }
 
 const toForm = (s: PlatformSettings): FormState => ({
@@ -53,6 +60,12 @@ const toForm = (s: PlatformSettings): FormState => ({
   easternProvinceEnabled: s.easternProvinceEnabled,
   serviceAreaMessageAr: s.serviceAreaMessageAr,
   serviceAreaMessageEn: s.serviceAreaMessageEn,
+  loyaltyEnabled: s.loyalty.enabled,
+  loyaltyPointsPerSAR: String(s.loyalty.pointsPerSAR),
+  loyaltyRedeemMin: String(s.loyalty.redeemMin),
+  loyaltyRedeemRate: String(s.loyalty.redeemRate),
+  loyaltyRedeemMaxPct: String(s.loyalty.redeemMaxPct),
+  loyaltyTiersJson: JSON.stringify(s.loyalty.tiers, null, 2),
 });
 
 interface FieldErrors {
@@ -61,6 +74,11 @@ interface FieldErrors {
   commissionRate?: string;
   serviceAreaMessageAr?: string;
   serviceAreaMessageEn?: string;
+  loyaltyPointsPerSAR?: string;
+  loyaltyRedeemMin?: string;
+  loyaltyRedeemRate?: string;
+  loyaltyRedeemMaxPct?: string;
+  loyaltyTiersJson?: string;
 }
 
 export default function AdminPlatformSettingsScreen() {
@@ -135,6 +153,28 @@ export default function AdminPlatformSettingsScreen() {
         ? 'النسبة يجب أن تكون بين 0 و 1'
         : 'Rate must be between 0 and 1';
     }
+    const lpps = Number(f.loyaltyPointsPerSAR);
+    if (!Number.isFinite(lpps) || lpps < 0) {
+      err.loyaltyPointsPerSAR = isRTL ? 'أدخل رقماً صحيحاً' : 'Enter a valid number';
+    }
+    const lmin = Number(f.loyaltyRedeemMin);
+    if (!Number.isFinite(lmin) || lmin < 0) {
+      err.loyaltyRedeemMin = isRTL ? 'أدخل رقماً صحيحاً' : 'Enter a valid number';
+    }
+    const lrate = Number(f.loyaltyRedeemRate);
+    if (!Number.isFinite(lrate) || lrate < 0) {
+      err.loyaltyRedeemRate = isRTL ? 'أدخل رقماً صحيحاً' : 'Enter a valid number';
+    }
+    const lmax = Number(f.loyaltyRedeemMaxPct);
+    if (!Number.isFinite(lmax) || lmax < 0 || lmax > 1) {
+      err.loyaltyRedeemMaxPct = isRTL ? 'بين 0 و 1' : 'Between 0 and 1';
+    }
+    try {
+      const parsed = JSON.parse(f.loyaltyTiersJson);
+      if (!Array.isArray(parsed)) throw new Error('not array');
+    } catch {
+      err.loyaltyTiersJson = isRTL ? 'JSON غير صالح' : 'Invalid JSON array';
+    }
     if (!f.serviceAreaMessageAr.trim()) {
       err.serviceAreaMessageAr = isRTL ? 'مطلوب' : 'Required';
     }
@@ -157,6 +197,7 @@ export default function AdminPlatformSettingsScreen() {
     }
     setSaving(true);
     try {
+      const tiers = JSON.parse(form.loyaltyTiersJson);
       await upsertPlatformSettings([
         { key: PLATFORM_SETTINGS_KEYS.inspectionFee, value: Number(form.inspectionFee) },
         { key: PLATFORM_SETTINGS_KEYS.returnFee, value: Number(form.returnFee) },
@@ -164,6 +205,12 @@ export default function AdminPlatformSettingsScreen() {
         { key: PLATFORM_SETTINGS_KEYS.easternProvinceEnabled, value: form.easternProvinceEnabled },
         { key: PLATFORM_SETTINGS_KEYS.serviceAreaMessageAr, value: form.serviceAreaMessageAr.trim() },
         { key: PLATFORM_SETTINGS_KEYS.serviceAreaMessageEn, value: form.serviceAreaMessageEn.trim() },
+        { key: PLATFORM_SETTINGS_KEYS.loyaltyEnabled, value: form.loyaltyEnabled },
+        { key: PLATFORM_SETTINGS_KEYS.loyaltyPointsPerSAR, value: Number(form.loyaltyPointsPerSAR) },
+        { key: PLATFORM_SETTINGS_KEYS.loyaltyRedeemMin, value: Number(form.loyaltyRedeemMin) },
+        { key: PLATFORM_SETTINGS_KEYS.loyaltyRedeemRate, value: Number(form.loyaltyRedeemRate) },
+        { key: PLATFORM_SETTINGS_KEYS.loyaltyRedeemMaxPct, value: Number(form.loyaltyRedeemMaxPct) },
+        { key: PLATFORM_SETTINGS_KEYS.loyaltyTiers, value: tiers },
       ]);
       Alert.alert(
         isRTL ? 'تم الحفظ ✓' : 'Saved ✓',
@@ -374,6 +421,82 @@ export default function AdminPlatformSettingsScreen() {
               value={form.serviceAreaMessageEn}
               onChangeText={(v) => setForm({ ...form, serviceAreaMessageEn: v })}
               error={errors.serviceAreaMessageEn}
+              COLORS={COLORS}
+              isRTL={isRTL}
+            />
+
+            {/* Loyalty program */}
+            <SectionTitle isRTL={isRTL} COLORS={COLORS}>
+              {isRTL ? 'برنامج الولاء' : 'Loyalty program'}
+            </SectionTitle>
+
+            <View style={styles.switchRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.label}>
+                  {isRTL ? 'تفعيل برنامج الولاء' : 'Enable loyalty program'}
+                </Text>
+                <Text style={styles.hint}>
+                  {isRTL
+                    ? 'عند الإيقاف، يتم إخفاء كسب النقاط واستبدالها من تطبيق العميل.'
+                    : 'When off, earning and redeeming are hidden from the customer app.'}
+                </Text>
+              </View>
+              <Switch
+                value={form.loyaltyEnabled}
+                onValueChange={(v) => setForm({ ...form, loyaltyEnabled: v })}
+                trackColor={{ false: COLORS.border, true: COLORS.primary }}
+                thumbColor="#fff"
+              />
+            </View>
+
+            <FieldNumber
+              label={isRTL ? 'النقاط لكل ريال (معدل الكسب)' : 'Points per SAR (earn rate)'}
+              hint={isRTL ? 'كم نقطة يحصل عليها العميل لكل ريال يصرفه.' : 'How many points the customer earns per SAR spent.'}
+              value={form.loyaltyPointsPerSAR}
+              onChangeText={(v) => setForm({ ...form, loyaltyPointsPerSAR: v })}
+              error={errors.loyaltyPointsPerSAR}
+              COLORS={COLORS}
+              isRTL={isRTL}
+              step="0.1"
+            />
+
+            <FieldNumber
+              label={isRTL ? 'الحد الأدنى للاستبدال (نقاط)' : 'Minimum points to redeem'}
+              hint={isRTL ? 'لا يُسمح بالاستبدال أقل من هذا الرصيد.' : 'No redemption is allowed below this balance.'}
+              value={form.loyaltyRedeemMin}
+              onChangeText={(v) => setForm({ ...form, loyaltyRedeemMin: v })}
+              error={errors.loyaltyRedeemMin}
+              COLORS={COLORS}
+              isRTL={isRTL}
+            />
+
+            <FieldNumber
+              label={isRTL ? 'قيمة النقطة (ر.س)' : 'Value per point (SAR)'}
+              hint={isRTL ? 'قيمة النقطة الواحدة عند تطبيقها على الفاتورة.' : 'SAR value of one point when applied to an invoice.'}
+              value={form.loyaltyRedeemRate}
+              onChangeText={(v) => setForm({ ...form, loyaltyRedeemRate: v })}
+              error={errors.loyaltyRedeemRate}
+              COLORS={COLORS}
+              isRTL={isRTL}
+              step="0.01"
+            />
+
+            <FieldNumber
+              label={isRTL ? 'الحد الأقصى من الفاتورة (0 - 1)' : 'Max share of invoice (0 - 1)'}
+              hint={isRTL ? 'مثال: 0.3 يعني أن النقاط لا تغطي أكثر من 30٪ من الفاتورة.' : 'Example: 0.3 means points can cover at most 30% of the bill.'}
+              value={form.loyaltyRedeemMaxPct}
+              onChangeText={(v) => setForm({ ...form, loyaltyRedeemMaxPct: v })}
+              error={errors.loyaltyRedeemMaxPct}
+              COLORS={COLORS}
+              isRTL={isRTL}
+              step="0.01"
+            />
+
+            <FieldMultiline
+              label={isRTL ? 'مستويات الاستبدال (JSON)' : 'Redemption tiers (JSON)'}
+              value={form.loyaltyTiersJson}
+              onChangeText={(v) => setForm({ ...form, loyaltyTiersJson: v })}
+              error={errors.loyaltyTiersJson}
               COLORS={COLORS}
               isRTL={isRTL}
             />

@@ -425,7 +425,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     width: 40,
-    textAlign: I18nManager.isRTL ? 'right' : 'left',
+    textAlign: 'center',
   },
   infoRow: {
     flexDirection: 'row',

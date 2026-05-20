@@ -26,6 +26,26 @@ const strFromValue = (raw: any, fallback: string): string => {
   return String(raw);
 };
 
+export interface LoyaltyTierConfig {
+  id: string;
+  points: number;
+  category: 'accessory' | 'repair';
+  titleAr: string;
+  titleEn: string;
+  descAr: string;
+  descEn: string;
+  valueSAR: number;
+}
+
+export interface LoyaltySettings {
+  enabled: boolean;
+  pointsPerSAR: number;
+  redeemMin: number;
+  redeemRate: number;
+  redeemMaxPct: number;
+  tiers: LoyaltyTierConfig[];
+}
+
 export interface PlatformSettings {
   inspectionFee: number;
   returnFee: number;
@@ -33,10 +53,9 @@ export interface PlatformSettings {
   easternProvinceEnabled: boolean;
   serviceAreaMessageAr: string;
   serviceAreaMessageEn: string;
+  loyalty: LoyaltySettings;
 }
 
-// Keys exposed to the admin platform-settings screen. Centralised here so
-// adding a new knob is a one-line change.
 export const PLATFORM_SETTINGS_KEYS = {
   inspectionFee: 'inspection_fee_default',
   returnFee: 'return_fee_default',
@@ -44,6 +63,12 @@ export const PLATFORM_SETTINGS_KEYS = {
   easternProvinceEnabled: 'eastern_province_enabled',
   serviceAreaMessageAr: 'service_areas_message_ar',
   serviceAreaMessageEn: 'service_areas_message_en',
+  loyaltyEnabled: 'loyalty_enabled',
+  loyaltyPointsPerSAR: 'loyalty_points_per_sar',
+  loyaltyRedeemMin: 'loyalty_redeem_min',
+  loyaltyRedeemRate: 'loyalty_redeem_rate',
+  loyaltyRedeemMaxPct: 'loyalty_redeem_max_pct',
+  loyaltyTiers: 'loyalty_tiers',
 } as const;
 
 const boolFromValue = (raw: any, fallback: boolean): boolean => {
@@ -51,6 +76,45 @@ const boolFromValue = (raw: any, fallback: boolean): boolean => {
   if (typeof raw === 'boolean') return raw;
   if (typeof raw === 'string') return raw.toLowerCase() === 'true' || raw === '1';
   if (typeof raw === 'number') return raw !== 0;
+  return fallback;
+};
+
+const DEFAULT_LOYALTY: LoyaltySettings = {
+  enabled: true,
+  pointsPerSAR: 1,
+  redeemMin: 500,
+  redeemRate: 0.1,
+  redeemMaxPct: 0.3,
+  tiers: [
+    { id: 'tier_500',  points: 500,  category: 'accessory', titleAr: 'خصم على إكسسوار صغير',          titleEn: 'Small accessory discount',                 descAr: 'استبدل نقاطك بخصم على إكسسوار صغير',           descEn: 'Redeem points for a discount on a small accessory',          valueSAR: 15 },
+    { id: 'tier_1000', points: 1000, category: 'repair',    titleAr: 'إكسسوار أكبر أو خصم إصلاح',     titleEn: 'Larger accessory or repair discount',      descAr: 'خصم أكبر على إكسسوار أو على فاتورة الإصلاح',    descEn: 'A larger accessory or a discount on a repair invoice',       valueSAR: 35 },
+    { id: 'tier_2000', points: 2000, category: 'repair',    titleAr: 'مكافأة مميزة أو خصم إصلاح كبير', titleEn: 'Premium reward or large repair discount', descAr: 'مكافأة مميزة أو خصم كبير على فاتورة إصلاح',     descEn: 'A premium reward or a large repair-invoice discount',        valueSAR: 80 },
+  ],
+};
+
+const tiersFromValue = (raw: any, fallback: LoyaltyTierConfig[]): LoyaltyTierConfig[] => {
+  if (Array.isArray(raw)) {
+    const cleaned = raw
+      .filter((t) => t && typeof t === 'object' && typeof t.id === 'string' && typeof t.points === 'number')
+      .map((t: any) => ({
+        id: String(t.id),
+        points: Math.max(0, Math.floor(Number(t.points) || 0)),
+        category: t.category === 'repair' ? 'repair' : 'accessory',
+        titleAr: String(t.titleAr ?? ''),
+        titleEn: String(t.titleEn ?? ''),
+        descAr: String(t.descAr ?? ''),
+        descEn: String(t.descEn ?? ''),
+        valueSAR: Math.max(0, Number(t.valueSAR) || 0),
+      })) as LoyaltyTierConfig[];
+    return cleaned.length ? cleaned : fallback;
+  }
+  if (typeof raw === 'string') {
+    try {
+      return tiersFromValue(JSON.parse(raw), fallback);
+    } catch {
+      return fallback;
+    }
+  }
   return fallback;
 };
 
@@ -63,6 +127,7 @@ const DEFAULTS: PlatformSettings = {
     'الخدمة حالياً في القطيف والمناطق القريبة فقط، وقريباً سنغطي كامل المنطقة الشرقية ثم جميع مناطق المملكة',
   serviceAreaMessageEn:
     'Service is currently available in Al Qatif and nearby areas only. Soon we will expand across the Eastern Province and then all of Saudi Arabia.',
+  loyalty: DEFAULT_LOYALTY,
 };
 
 const loadRaw = async (): Promise<Record<string, any>> => {
@@ -96,7 +161,23 @@ export const getPlatformSettings = async (): Promise<PlatformSettings> => {
     easternProvinceEnabled: boolFromValue(raw[PLATFORM_SETTINGS_KEYS.easternProvinceEnabled], DEFAULTS.easternProvinceEnabled),
     serviceAreaMessageAr: strFromValue(raw[PLATFORM_SETTINGS_KEYS.serviceAreaMessageAr], DEFAULTS.serviceAreaMessageAr),
     serviceAreaMessageEn: strFromValue(raw[PLATFORM_SETTINGS_KEYS.serviceAreaMessageEn], DEFAULTS.serviceAreaMessageEn),
+    loyalty: {
+      enabled: boolFromValue(raw[PLATFORM_SETTINGS_KEYS.loyaltyEnabled], DEFAULT_LOYALTY.enabled),
+      pointsPerSAR: numFromValue(raw[PLATFORM_SETTINGS_KEYS.loyaltyPointsPerSAR], DEFAULT_LOYALTY.pointsPerSAR),
+      redeemMin: numFromValue(raw[PLATFORM_SETTINGS_KEYS.loyaltyRedeemMin], DEFAULT_LOYALTY.redeemMin),
+      redeemRate: numFromValue(raw[PLATFORM_SETTINGS_KEYS.loyaltyRedeemRate], DEFAULT_LOYALTY.redeemRate),
+      redeemMaxPct: numFromValue(raw[PLATFORM_SETTINGS_KEYS.loyaltyRedeemMaxPct], DEFAULT_LOYALTY.redeemMaxPct),
+      tiers: tiersFromValue(raw[PLATFORM_SETTINGS_KEYS.loyaltyTiers], DEFAULT_LOYALTY.tiers),
+    },
   };
+};
+
+/**
+ * Lightweight standalone loyalty getter — used by loyalty UI / context which
+ * don't need the full settings payload.
+ */
+export const getLoyaltySettings = async (): Promise<LoyaltySettings> => {
+  return (await getPlatformSettings()).loyalty;
 };
 
 export const invalidatePlatformSettingsCache = () => {
@@ -111,7 +192,7 @@ export const invalidatePlatformSettingsCache = () => {
  */
 export const upsertPlatformSetting = async (
   key: string,
-  value: number | string | boolean
+  value: number | string | boolean | object
 ): Promise<void> => {
   const { error } = await supabase
     .from('platform_settings')
@@ -132,7 +213,7 @@ export const upsertPlatformSetting = async (
  * admin screen can surface a single error instead of partial state.
  */
 export const upsertPlatformSettings = async (
-  entries: Array<{ key: string; value: number | string | boolean }>
+  entries: Array<{ key: string; value: number | string | boolean | object | any[] }>
 ): Promise<void> => {
   if (entries.length === 0) return;
   const rows = entries.map((e) => ({

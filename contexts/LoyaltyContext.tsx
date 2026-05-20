@@ -2,10 +2,12 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import { useAuth } from './AuthContext';
 import * as loyaltyService from '../services/loyaltyService';
 import type { LoyaltySummary } from '../services/loyaltyService';
+import { getLoyaltySettings, type LoyaltySettings } from '../services/platformSettingsService';
 import { logger } from '../utils/logger';
 
 interface LoyaltyContextType {
   summary: LoyaltySummary;
+  settings: LoyaltySettings | null;
   loading: boolean;
   refresh: () => Promise<void>;
 }
@@ -22,11 +24,26 @@ const LoyaltyContext = createContext<LoyaltyContextType | undefined>(undefined);
 export function LoyaltyProvider({ children }: { children: React.ReactNode }) {
   const { user, userProfile } = useAuth();
   const [summary, setSummary] = useState<LoyaltySummary>(EMPTY);
+  const [settings, setSettings] = useState<LoyaltySettings | null>(null);
   const [loading, setLoading] = useState(false);
 
   const refresh = useCallback(async () => {
+    // Load settings first so we know whether to bother fetching the ledger.
+    let cfg: LoyaltySettings | null = null;
+    try {
+      cfg = await getLoyaltySettings();
+      setSettings(cfg);
+    } catch (e) {
+      logger.warn('loyalty settings unavailable', e);
+    }
+
     // Loyalty is a customer-only concept; skip for technicians.
     if (!user || (userProfile as any)?.role === 'technician') {
+      setSummary(EMPTY);
+      return;
+    }
+    if (cfg && cfg.enabled === false) {
+      // Loyalty disabled by admin: empty out the summary so all UI hides.
       setSummary(EMPTY);
       return;
     }
@@ -47,7 +64,7 @@ export function LoyaltyProvider({ children }: { children: React.ReactNode }) {
   }, [refresh]);
 
   return (
-    <LoyaltyContext.Provider value={{ summary, loading, refresh }}>
+    <LoyaltyContext.Provider value={{ summary, settings, loading, refresh }}>
       {children}
     </LoyaltyContext.Provider>
   );
