@@ -100,10 +100,12 @@ export default function CustomerHomeScreen() {
           </Text>
         </TouchableOpacity>
 
-        {/* Price Calculator Banner */}
-        <TouchableOpacity 
+        {/* Fixate Market Banner (replaces the old calculator slot) */}
+        <TouchableOpacity
           style={[styles.calculatorBanner, SHADOWS.medium]}
-          onPress={() => router.push('/calculator')}
+          onPress={() => router.push('/market')}
+          accessibilityRole="button"
+          accessibilityLabel={isRTL ? 'فتح سوق Fixate' : 'Open Fixate Market'}
         >
           <LinearGradient
             colors={[COLORS.primary, COLORS.primaryDark]}
@@ -112,14 +114,22 @@ export default function CustomerHomeScreen() {
             style={styles.calculatorGradient}
           >
             <View style={styles.calculatorContent}>
-              <Text style={styles.calculatorTitle}>حاسبة الأسعار التقديرية</Text>
-              <Text style={styles.calculatorSubtitle}>اعرف تكلفة صيانة جهازك في ثواني</Text>
+              <Text style={styles.calculatorTitle}>
+                {isRTL ? 'سوق Fixate' : 'Fixate Market'}
+              </Text>
+              <Text style={styles.calculatorSubtitle}>
+                {isRTL
+                  ? 'بيع واشترِ أجهزة، إكسسوارات، وقطع غيار بأمان'
+                  : 'Buy & sell devices, accessories, and spare parts safely'}
+              </Text>
               <View style={styles.calculatorBtn}>
-                <Text style={styles.calculatorBtnText}>احسب الآن</Text>
-                <MaterialIcons name="arrow-back" size={16} color={COLORS.primary} />
+                <Text style={styles.calculatorBtnText}>
+                  {isRTL ? 'تصفّح السوق' : 'Browse market'}
+                </Text>
+                <MaterialIcons name={isRTL ? 'arrow-back' : 'arrow-forward'} size={16} color={COLORS.primary} />
               </View>
             </View>
-            <MaterialCommunityIcons name="calculator-variant" size={80} color="rgba(255,255,255,0.2)" style={styles.calculatorIcon} />
+            <MaterialCommunityIcons name="storefront-outline" size={80} color="rgba(255,255,255,0.2)" style={styles.calculatorIcon} />
           </LinearGradient>
         </TouchableOpacity>
 

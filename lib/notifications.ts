@@ -50,10 +50,25 @@ export const notificationManager = {
   },
 
   saveTokenToProfile: async (userId: string, token: string) => {
-    const { error } = await supabase.auth.updateUser({
+    // 1. Keep the user-metadata copy for backward compatibility with any
+    //    existing code paths that read it.
+    const { error: metaError } = await supabase.auth.updateUser({
       data: { push_token: token }
     });
-    if (error) logger.error('Error saving push token', error);
+    if (metaError) logger.warn('push token: auth metadata update failed', metaError);
+
+    // 2. Mirror to public.users so admins / RPCs can resolve tokens for
+    //    broadcasts (auth.users.user_metadata is per-row and only the
+    //    owner can read it, which makes it useless for fan-out).
+    try {
+      const { error } = await supabase
+        .from('users')
+        .update({ push_token: token, push_updated_at: new Date().toISOString() })
+        .eq('id', userId);
+      if (error) logger.warn('push token mirror to public.users failed', error);
+    } catch (e) {
+      logger.warn('push token mirror threw', e);
+    }
   },
 
   sendPushNotification: async (expoPushToken: string, title: string, body: string, data: any = {}) => {

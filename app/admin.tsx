@@ -280,6 +280,14 @@ export default function AdminDashboardScreen() {
             isRTL={isRTL}
           />
           <ActionCard
+            icon="bullhorn"
+            title={isRTL ? 'الإشعارات والإعلانات' : 'Broadcasts'}
+            subtitle={isRTL ? 'إرسال إشعار لجميع المستخدمين' : 'Send a push to all users'}
+            onPress={() => router.push('/admin-broadcasts' as any)}
+            COLORS={COLORS}
+            isRTL={isRTL}
+          />
+          <ActionCard
             icon="tune-vertical"
             title={isRTL ? 'إعدادات المنصة' : 'Platform settings'}
             subtitle={

@@ -208,6 +208,8 @@ function RootLayoutContent() {
         <Stack.Screen name="market" options={{ headerShown: false }} />
         <Stack.Screen name="market-new" options={{ headerShown: false }} />
         <Stack.Screen name="market-detail" options={{ headerShown: false }} />
+        <Stack.Screen name="market-chat" options={{ headerShown: false }} />
+        <Stack.Screen name="admin-broadcasts" options={{ headerShown: false }} />
       </Stack>
     </View>
   );

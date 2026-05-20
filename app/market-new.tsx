@@ -20,7 +20,7 @@ import { useApp } from '../contexts/AppContext';
 import { useAuth } from '../contexts/AuthContext';
 import { getColors, SPACING, BORDER_RADIUS } from '../constants/theme';
 import { RTLIonicon } from '../components/RTLIcon';
-import { createListing, type ListingCategory } from '../services/marketService';
+import { createListing, type ListingCategory, type ContactPreference } from '../services/marketService';
 import { uploadOrderMedia } from '../services/storageService';
 
 const CONDITIONS: { id: string; ar: string; en: string }[] = [
@@ -50,6 +50,7 @@ export default function MarketNewScreen() {
   const [price, setPrice] = useState('');
   const [city, setCity] = useState('');
   const [contactPhone, setContactPhone] = useState((userProfile as any)?.phone ?? '');
+  const [contactPreference, setContactPreference] = useState<ContactPreference>('both');
   const [condition, setCondition] = useState<string>('used');
   const [images, setImages] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
@@ -95,6 +96,18 @@ export default function MarketNewScreen() {
       const fullDescription = [conditionLine, description.trim()]
         .filter(Boolean)
         .join('\n');
+      // Phone is required when seller wants buyers to call/WhatsApp. If
+      // they chose DM-only we don't force a phone number.
+      if ((contactPreference === 'phone' || contactPreference === 'both') && !contactPhone.trim()) {
+        Alert.alert(
+          isRTL ? 'رقم التواصل مطلوب' : 'Phone required',
+          isRTL
+            ? 'اخترت تلقي الاتصال عبر الهاتف. أدخل رقماً أو غيّر طريقة التواصل إلى رسالة فقط.'
+            : 'You chose to receive phone contact. Enter a number or switch the contact method to DM only.'
+        );
+        setSubmitting(false);
+        return;
+      }
       await createListing(user.id, {
         title: title.trim(),
         description: fullDescription || undefined,
@@ -102,6 +115,7 @@ export default function MarketNewScreen() {
         price: Number(price),
         city: city.trim() || undefined,
         contact_phone: contactPhone.trim() || undefined,
+        contact_preference: contactPreference,
         images: uploaded,
       });
       Alert.alert(
@@ -238,14 +252,39 @@ export default function MarketNewScreen() {
             />
           </Field>
 
-          <Field label={isRTL ? 'رقم التواصل' : 'Contact phone'} COLORS={COLORS}>
-            <TextInput
-              value={contactPhone}
-              onChangeText={setContactPhone}
-              keyboardType="phone-pad"
-              style={[styles.input, { color: COLORS.text }]}
-            />
+          <Field label={isRTL ? 'كيف تفضل أن يتواصل المشتري؟' : 'How should buyers contact you?'} COLORS={COLORS}>
+            <View style={styles.chipsWrap}>
+              {([
+                { id: 'both' as const,  ar: 'مكالمة + رسالة', en: 'Phone + DM' },
+                { id: 'dm' as const,    ar: 'رسالة فقط',     en: 'Direct message only' },
+                { id: 'phone' as const, ar: 'هاتف فقط',     en: 'Phone only' },
+              ]).map((opt) => (
+                <TouchableOpacity
+                  key={opt.id}
+                  onPress={() => setContactPreference(opt.id)}
+                  style={[
+                    styles.chip,
+                    contactPreference === opt.id && { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
+                  ]}
+                >
+                  <Text style={[styles.chipText, contactPreference === opt.id && { color: '#fff' }]}>
+                    {isRTL ? opt.ar : opt.en}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
           </Field>
+
+          {(contactPreference === 'phone' || contactPreference === 'both') && (
+            <Field label={isRTL ? 'رقم التواصل' : 'Contact phone'} COLORS={COLORS}>
+              <TextInput
+                value={contactPhone}
+                onChangeText={setContactPhone}
+                keyboardType="phone-pad"
+                style={[styles.input, { color: COLORS.text }]}
+              />
+            </Field>
+          )}
 
           <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center', marginTop: 4 }}>
             <MaterialCommunityIcons name="information-outline" size={16} color={COLORS.textSecondary} />
