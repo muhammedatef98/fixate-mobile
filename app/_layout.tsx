@@ -1,7 +1,7 @@
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
-import { I18nManager, View, ActivityIndicator } from 'react-native';
+import { View, ActivityIndicator } from 'react-native';
 import { RequestProvider } from '../contexts/RequestContext';
 import { ThemeProvider } from '../contexts/ThemeContext';
 import { AppProvider, useApp } from '../contexts/AppContext';
@@ -73,21 +73,14 @@ function RootLayoutContent() {
     }
   }, [user, userProfile, segments, loading]);
 
-  useEffect(() => {
-    const isRTL = language === 'ar';
-    // Force RTL for Arabic
-    if (I18nManager.isRTL !== isRTL) {
-      I18nManager.forceRTL(isRTL);
-      I18nManager.allowRTL(isRTL);
-      // Note: App needs to be reloaded for RTL changes to take effect
-      // For development: reload the app after changing language
-    }
-  }, [language]);
-
-  const isRTLLang = language === 'ar';
+  // RTL is handled per-screen via manual `isRTL ? 'row-reverse' : 'row'`
+  // conditionals and `textAlign: isRTL ? 'right' : 'left'`. We deliberately
+  // do NOT call I18nManager.forceRTL here — that would double-flip every
+  // `row-reverse` back into LTR — and we don't apply `direction: 'rtl'`
+  // on the root container for the same reason.
 
   return (
-    <View style={{ flex: 1, direction: isRTLLang ? 'rtl' : 'ltr' } as any}>
+    <View style={{ flex: 1 }}>
       <StatusBar hidden={true} />
       <OfflineBanner />
       <Stack
