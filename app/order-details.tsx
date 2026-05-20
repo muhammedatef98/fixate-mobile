@@ -358,7 +358,7 @@ export default function OrderDetailsScreen() {
               <Text style={[styles.infoLabel, { color: COLORS.textSecondary }]}>
                 {isRTL ? 'المشكلة' : 'Issue'}
               </Text>
-              <Text style={[styles.infoValue, { color: COLORS.text }]}>
+              <Text style={[styles.infoValue, { color: COLORS.text, textAlign: isRTL ? 'right' : 'left', writingDirection: isRTL ? 'rtl' : 'ltr', flex: 1 }]}>
                 {order.issue_description}
               </Text>
             </View>
@@ -412,7 +412,7 @@ export default function OrderDetailsScreen() {
               </Text>
             </View>
             {!!(order as any).quote_notes && (
-              <Text style={{ color: COLORS.textSecondary, fontSize: 13, marginBottom: 12 }}>
+              <Text style={{ color: COLORS.textSecondary, fontSize: 13, marginBottom: 12, textAlign: isRTL ? 'right' : 'left', writingDirection: isRTL ? 'rtl' : 'ltr' }}>
                 {(order as any).quote_notes}
               </Text>
             )}

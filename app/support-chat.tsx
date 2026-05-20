@@ -22,6 +22,7 @@ import { RTLIonicon } from '../components/RTLIcon';
 import { safeBack } from '../utils/navigation';
 import * as support from '../services/supportService';
 import { supabase } from '../services/supabaseClient';
+import { useScrollToEndOnKeyboard } from '../hooks/useScrollToEndOnKeyboard';
 
 export default function SupportChatScreen() {
   const router = useRouter();
@@ -36,6 +37,7 @@ export default function SupportChatScreen() {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const listRef = useRef<FlatList>(null);
+  useScrollToEndOnKeyboard(listRef);
 
   useEffect(() => {
     if (!user?.id) {
@@ -117,13 +119,15 @@ export default function SupportChatScreen() {
       ) : (
         <KeyboardAvoidingView
           style={{ flex: 1 }}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          keyboardVerticalOffset={80}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 88 : 0}
         >
           <FlatList
             ref={listRef}
             data={messages}
             keyExtractor={(m) => m.id}
+            onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: false })}
+            keyboardShouldPersistTaps="handled"
             contentContainerStyle={{ padding: SPACING.md, paddingBottom: 12 }}
             ListEmptyComponent={
               <View style={{ alignItems: 'center', marginTop: 60 }}>
@@ -155,7 +159,7 @@ export default function SupportChatScreen() {
                         {isRTL ? 'الدعم' : 'Support'}
                       </Text>
                     )}
-                    <Text style={{ color: mine ? '#fff' : COLORS.text, fontSize: 14, lineHeight: 20 }}>
+                    <Text style={{ color: mine ? '#fff' : COLORS.text, fontSize: 14, lineHeight: 20, textAlign: isRTL ? 'right' : 'left', writingDirection: isRTL ? 'rtl' : 'ltr' }}>
                       {item.content}
                     </Text>
                     <Text style={{ color: mine ? '#ffffffaa' : COLORS.textSecondary, fontSize: 10, marginTop: 4, textAlign: isRTL ? 'left' : 'right' }}>

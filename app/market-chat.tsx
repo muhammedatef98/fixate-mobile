@@ -28,6 +28,7 @@ import {
   type MarketThread,
 } from '../services/marketService';
 import { supabase } from '../services/supabaseClient';
+import { useScrollToEndOnKeyboard } from '../hooks/useScrollToEndOnKeyboard';
 
 export default function MarketChatScreen() {
   const router = useRouter();
@@ -43,6 +44,7 @@ export default function MarketChatScreen() {
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
   const listRef = useRef<FlatList<MarketMessage>>(null);
+  useScrollToEndOnKeyboard(listRef);
   const channelRef = useRef<any>(null);
 
   const open = useCallback(async () => {
@@ -105,8 +107,8 @@ export default function MarketChatScreen() {
 
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={80}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 88 : 0}
       >
         {loading ? (
           <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
@@ -117,6 +119,8 @@ export default function MarketChatScreen() {
             ref={listRef}
             data={messages}
             keyExtractor={(m) => m.id}
+            onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: false })}
+            keyboardShouldPersistTaps="handled"
             contentContainerStyle={{ padding: SPACING.md }}
             renderItem={({ item }) => {
               const mine = item.sender_id === user?.id;
@@ -128,7 +132,7 @@ export default function MarketChatScreen() {
                       ? { backgroundColor: COLORS.primary }
                       : { backgroundColor: COLORS.card, borderColor: COLORS.border, borderWidth: 1 },
                   ]}>
-                    <Text style={{ color: mine ? '#fff' : COLORS.text, fontSize: 14, lineHeight: 20 }}>
+                    <Text style={{ color: mine ? '#fff' : COLORS.text, fontSize: 14, lineHeight: 20, textAlign: isRTL ? 'right' : 'left', writingDirection: isRTL ? 'rtl' : 'ltr' }}>
                       {item.content}
                     </Text>
                     <Text style={{ color: mine ? '#ffffffaa' : COLORS.textSecondary, fontSize: 10, marginTop: 4, textAlign: isRTL ? 'left' : 'right' }}>

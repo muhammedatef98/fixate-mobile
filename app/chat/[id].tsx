@@ -24,6 +24,7 @@ import { chat, auth, requests } from '../../lib/supabase-api';
 import { logger } from '../../utils/logger';
 import { RTLIonicon } from '../../components/RTLIcon';
 import { safeBack } from '../../utils/navigation';
+import { useScrollToEndOnKeyboard } from '../../hooks/useScrollToEndOnKeyboard';
 import { uploadOrderMedia } from '../../services/storageService';
 import ImageViewer from '../../components/ImageViewer';
 
@@ -77,6 +78,7 @@ export default function ChatScreen() {
   const [viewerIndex, setViewerIndex] = useState(0);
 
   const flatListRef = useRef<FlatList>(null);
+  useScrollToEndOnKeyboard(flatListRef);
 
   useEffect(() => {
     loadData();
@@ -305,7 +307,7 @@ export default function ChatScreen() {
           )}
 
           {item.content ? (
-            <Text style={{ color: isMe ? '#fff' : COLORS.text, fontSize: 14, lineHeight: 20, paddingHorizontal: item.attachment_type ? 6 : 0 }}>
+            <Text style={{ color: isMe ? '#fff' : COLORS.text, fontSize: 14, lineHeight: 20, paddingHorizontal: item.attachment_type ? 6 : 0, textAlign: isRTL ? 'right' : 'left', writingDirection: isRTL ? 'rtl' : 'ltr' }}>
               {item.content}
             </Text>
           ) : null}
@@ -378,6 +380,14 @@ export default function ChatScreen() {
         )}
       </View>
 
+      {/* KeyboardAvoidingView wraps list + quick replies + input so the
+          list resizes with the keyboard instead of letting messages slide
+          behind it. */}
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 88 : 0}
+      >
       {/* Messages */}
       <FlatList
         ref={flatListRef}
@@ -385,6 +395,7 @@ export default function ChatScreen() {
         renderItem={renderMessage}
         keyExtractor={(item) => item.id}
         contentContainerStyle={{ padding: SPACING.md, paddingBottom: 12 }}
+        keyboardShouldPersistTaps="handled"
         onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
         onLayout={() => flatListRef.current?.scrollToEnd({ animated: false })}
         ListEmptyComponent={
@@ -421,11 +432,7 @@ export default function ChatScreen() {
       )}
 
       {/* Input */}
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 80 : 0}
-      >
-        <View style={[styles.inputBar, { backgroundColor: COLORS.card, borderTopColor: COLORS.border }]}>
+      <View style={[styles.inputBar, { backgroundColor: COLORS.card, borderTopColor: COLORS.border }]}>
           {/* Attachment menu — image + location */}
           <TouchableOpacity
             onPress={sendImage}
@@ -468,7 +475,7 @@ export default function ChatScreen() {
               <Ionicons name="send" size={18} color="#fff" />
             )}
           </TouchableOpacity>
-        </View>
+      </View>
       </KeyboardAvoidingView>
 
       <ImageViewer

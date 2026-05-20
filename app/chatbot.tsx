@@ -116,8 +116,8 @@ export default function ChatbotScreen() {
   return (
     <KeyboardAvoidingView
       style={[styles.container, { backgroundColor: colors.background }]}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={0}
     >
       {/* Header */}
       <View style={[styles.header, { backgroundColor: colors.primary }]}>
@@ -139,6 +139,8 @@ export default function ChatbotScreen() {
         ref={scrollViewRef}
         style={styles.messagesContainer}
         contentContainerStyle={styles.messagesContent}
+        keyboardShouldPersistTaps="handled"
+        onContentSizeChange={() => scrollViewRef.current?.scrollToEnd({ animated: true })}
       >
         {messages.map((message) => (
           <View
@@ -152,7 +154,7 @@ export default function ChatbotScreen() {
             <Text
               style={[
                 styles.messageText,
-                { color: message.isBot ? colors.text : '#fff' },
+                { color: message.isBot ? colors.text : '#fff', textAlign: language === 'ar' ? 'right' : 'left', writingDirection: language === 'ar' ? 'rtl' : 'ltr' },
               ]}
             >
               {message.text}
