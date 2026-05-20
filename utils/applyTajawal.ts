@@ -6,6 +6,10 @@ export function setTextDirection(isRTL: boolean) {
   _isRTL = isRTL;
 }
 
+export function getCurrentIsRTL() {
+  return _isRTL;
+}
+
 export function getTajawalFamily(fw?: string | number | null): string {
   switch (String(fw ?? '').toLowerCase()) {
     case '500':

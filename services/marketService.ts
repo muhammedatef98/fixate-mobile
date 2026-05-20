@@ -49,7 +49,12 @@ export interface CreateListingInput {
   price: number;
   city?: string;
   contact_phone?: string;
+  /** Legacy three-way enum — translated into contact_methods on insert. */
   contact_preference?: ContactPreference;
+  /** New per-method opt-in array. Wins over contact_preference when set. */
+  contact_methods?: ContactMethod[];
+  device_type?: DeviceType;
+  condition?: ListingCondition;
   images?: string[];
 }
 
@@ -198,29 +203,80 @@ export const myListings = async (sellerId: string): Promise<MarketListing[]> => 
   return (data ?? []) as MarketListing[];
 };
 
+// Translate the legacy `contact_preference` enum into the new
+// `contact_methods` array. Always returns at least one method so the
+// buyer-side always has at least one channel to pick.
+const methodsFromPreference = (
+  input: CreateListingInput
+): ContactMethod[] => {
+  if (Array.isArray(input.contact_methods) && input.contact_methods.length > 0) {
+    return input.contact_methods;
+  }
+  switch (input.contact_preference) {
+    case 'phone': return ['phone', 'whatsapp'];
+    case 'dm':    return ['in_app'];
+    case 'both':
+    default:      return ['phone', 'whatsapp', 'in_app'];
+  }
+};
+
 export const createListing = async (
   sellerId: string,
   input: CreateListingInput
 ): Promise<MarketListing> => {
-  const { data, error } = await supabase
-    .from('market_listings')
-    .insert({
-      seller_id: sellerId,
-      title: input.title.trim(),
-      description: input.description?.trim() || null,
-      category: input.category,
-      price: input.price,
-      city: input.city?.trim() || null,
-      contact_phone: input.contact_phone?.trim() || null,
-      contact_preference: input.contact_preference ?? 'both',
-      images: input.images ?? [],
-      // RLS allows seller insert; status defaults to 'pending' so admin can
-      // moderate the first wave of listings before they go public.
-    })
-    .select()
-    .single();
-  if (error) throw error;
-  return data as MarketListing;
+  // Build the row, then strip optional/new columns if the DB rejects
+  // them with PGRST204 (column not found in schema cache). This lets
+  // the app keep working whether or not the v2 migration is applied
+  // on this Supabase project yet.
+  const baseRow: Record<string, any> = {
+    seller_id: sellerId,
+    title: input.title.trim(),
+    description: input.description?.trim() || null,
+    category: input.category,
+    price: input.price,
+    city: input.city?.trim() || null,
+    contact_phone: input.contact_phone?.trim() || null,
+    images: input.images ?? [],
+    // RLS allows seller insert; status defaults to 'pending' so admin
+    // can moderate before listings go public.
+  };
+
+  // Optional columns introduced by 2026_05_20_market_haraj_v2.sql.
+  const optional: Record<string, any> = {
+    contact_methods: methodsFromPreference(input),
+    device_type: input.device_type ?? null,
+    condition: input.condition ?? null,
+  };
+
+  const tryInsert = async (row: Record<string, any>) => {
+    return supabase.from('market_listings').insert(row).select().single();
+  };
+
+  // First attempt: full payload (base + optional).
+  let res = await tryInsert({ ...baseRow, ...optional });
+
+  if (res.error) {
+    const msg = (res.error.message || '').toLowerCase();
+    const code = (res.error as any).code;
+    const missingCol =
+      code === 'PGRST204' ||
+      msg.includes("could not find the") ||
+      msg.includes('column') && msg.includes('schema cache');
+
+    if (missingCol) {
+      logger.warn(
+        'createListing: optional columns missing from schema, falling back to base payload',
+        res.error
+      );
+      // Retry with only the base columns. Loses contact_methods /
+      // device_type / condition on this row until the migration is
+      // applied, but the listing still gets posted.
+      res = await tryInsert(baseRow);
+    }
+  }
+
+  if (res.error) throw res.error;
+  return res.data as MarketListing;
 };
 
 export const updateListingStatus = async (
