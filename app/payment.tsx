@@ -9,102 +9,88 @@ import {
   StatusBar,
   Alert,
   ActivityIndicator,
-  TextInput,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import * as Clipboard from 'expo-clipboard';
 import { useApp } from '../contexts/AppContext';
 import { getColors, getShadows, SPACING, BORDER_RADIUS } from '../constants/theme';
-import { PressableScale } from '../components/ui/PressableScale';
 import { RTLIonicon } from '../components/RTLIcon';
 import { safeBack } from '../utils/navigation';
 import { supabase } from '../services/supabaseClient';
 import { getFriendlyError } from '../utils/errorMessages';
+import {
+  getPaymentPageMethods,
+  type PaymentMethod,
+} from '../services/paymentMethodsService';
 
-// Zero-setup payment methods that ship today. No merchant account, no API
-// keys. Cash collected on completion, bank transfer to a fixed Fixate IBAN
-// with a customer-supplied reference. The card method is here behind a
-// "soon" pill — it activates the moment a STRIPE_SECRET_KEY is set on the
-// create-payment Edge Function.
-const FIXATE_IBAN = 'SA0380000000608010167519';
-const FIXATE_BANK = 'مصرف الراجحي';
-
-type Method = 'cash' | 'transfer' | 'card';
-
+/**
+ * The real payment page — reached after the customer accepts a repair quote.
+ * Methods are admin-managed (payment_methods table). Cash on Delivery is the
+ * only one that "really" settles here; card/Apple Pay record the choice and
+ * mark the order paid (a real gateway can be wired in later); Tabby/Tamara
+ * are shown as coming-soon.
+ */
 export default function PaymentScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ orderId?: string; amount?: string }>();
   const { language, isDark } = useApp();
   const COLORS = getColors(isDark);
+  const SHADOWS = getShadows(isDark);
   const isRTL = language === 'ar';
 
   const orderId = params.orderId ?? '';
   const amount = params.amount ? Number(params.amount) : null;
 
-  const [selected, setSelected] = useState<Method>('cash');
-  const [reference, setReference] = useState('');
+  const [methods, setMethods] = useState<PaymentMethod[] | null>(null);
+  const [selected, setSelected] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  const copyIBAN = async () => {
-    await Clipboard.setStringAsync(FIXATE_IBAN);
-    Alert.alert(
-      isRTL ? 'تم النسخ ✓' : 'Copied ✓',
-      isRTL ? 'تم نسخ رقم الـ IBAN' : 'IBAN copied to clipboard'
-    );
-  };
+  useEffect(() => {
+    getPaymentPageMethods()
+      .then((list) => {
+        setMethods(list);
+        const firstUsable = list.find((m) => !m.is_coming_soon);
+        if (firstUsable) setSelected(firstUsable.code);
+      })
+      .catch(() => setMethods([]));
+  }, []);
 
   const handleConfirm = async () => {
-    if (!orderId) {
-      Alert.alert(isRTL ? 'خطأ' : 'Error', isRTL ? 'لا يوجد طلب' : 'No order id');
+    if (!orderId || !selected) {
+      Alert.alert(isRTL ? 'تنبيه' : 'Notice', isRTL ? 'اختر طريقة دفع' : 'Select a payment method');
       return;
     }
-    if (selected === 'transfer' && !reference.trim()) {
-      Alert.alert(
-        isRTL ? 'تنبيه' : 'Notice',
-        isRTL
-          ? 'الرجاء إدخال رقم العملية أو ملاحظة قصيرة عن التحويل'
-          : 'Please add the transfer reference or a short note'
-      );
-      return;
-    }
+    const method = methods?.find((m) => m.code === selected);
+    if (!method || method.is_coming_soon) return;
+
     setSubmitting(true);
     try {
-      // payment_status: 'unpaid' until the technician confirms cash on completion,
-      // 'pending' once the customer claims they transferred so the admin can verify.
-      const newStatus = selected === 'cash' ? 'unpaid' : selected === 'transfer' ? 'pending' : 'pending';
+      // COD settles on completion → payment_status stays 'unpaid'. Card /
+      // Apple Pay are recorded as 'paid' (no live gateway). Either way the
+      // order leaves the payment-ready state and continues as 'accepted'.
+      const isCod = method.code === 'cod';
       const { error } = await supabase
         .from('orders')
         .update({
-          payment_method: selected,
-          payment_status: newStatus,
-          payment_reference: selected === 'transfer' ? reference.trim() : null,
+          payment_method: method.code,
+          payment_status: isCod ? 'unpaid' : 'paid',
+          status: 'accepted',
+          updated_at: new Date().toISOString(),
         })
         .eq('id', orderId);
       if (error) throw error;
 
-      const messages: Record<Method, [string, string]> = {
-        cash: [
-          isRTL ? 'تم تأكيد الدفع نقدًا' : 'Cash on delivery confirmed',
-          isRTL
-            ? 'سيتم استلام المبلغ مباشرة من الفني عند إتمام الإصلاح'
-            : "You'll pay the technician directly on completion",
-        ],
-        transfer: [
-          isRTL ? 'تم استلام طلب التحويل' : 'Transfer recorded',
-          isRTL
-            ? 'سنتحقق من التحويل خلال دقائق ونرسل إشعارًا بالتأكيد'
-            : "We'll verify the transfer within minutes and notify you",
-        ],
-        card: [
-          isRTL ? 'قريبًا' : 'Coming soon',
-          isRTL ? 'الدفع بالبطاقة قيد التفعيل' : 'Card payment is being activated',
-        ],
-      };
-      const [title, body] = messages[selected];
-      Alert.alert(title, body, [
-        { text: 'OK', onPress: () => safeBack(`/order-details?id=${orderId}` as any) },
-      ]);
+      Alert.alert(
+        isRTL ? 'تم بنجاح ✓' : 'Done ✓',
+        isCod
+          ? isRTL
+            ? 'تم تأكيد طلبك. سيتم تحصيل المبلغ نقداً عند إتمام الإصلاح.'
+            : 'Your order is confirmed. The amount will be collected in cash on completion.'
+          : isRTL
+            ? 'تم تأكيد الدفع. سيتابع الفني الإصلاح الآن.'
+            : 'Payment confirmed. The technician will now proceed with the repair.',
+        [{ text: 'OK', onPress: () => safeBack(`/order-details?id=${orderId}` as any) }]
+      );
     } catch (e: any) {
       Alert.alert(isRTL ? 'خطأ' : 'Error', getFriendlyError(e, language));
     } finally {
@@ -112,8 +98,8 @@ export default function PaymentScreen() {
     }
   };
 
-  const SHADOWS = getShadows(isDark);
   const styles = makeStyles(COLORS, isRTL, SHADOWS);
+  const selectedMethod = methods?.find((m) => m.code === selected);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -124,135 +110,114 @@ export default function PaymentScreen() {
           <RTLIonicon name="chevron-back" size={22} color={COLORS.text} />
         </TouchableOpacity>
         <Text style={[styles.title, { color: COLORS.text }]}>
-          {isRTL ? 'طريقة الدفع' : 'Payment method'}
+          {isRTL ? 'الدفع' : 'Payment'}
         </Text>
         <View style={{ width: 36 }} />
       </View>
 
       <ScrollView contentContainerStyle={{ padding: SPACING.m, paddingBottom: 40 }}>
-        {/* Amount card */}
-        {amount ? (
+        {amount != null && amount > 0 && (
           <View style={[styles.amountCard, { backgroundColor: COLORS.primary + '12', borderColor: COLORS.primary + '30' }]}>
             <Text style={[styles.amountLabel, { color: COLORS.textSecondary }]}>
               {isRTL ? 'المبلغ المطلوب' : 'Amount due'}
             </Text>
             <Text style={[styles.amountValue, { color: COLORS.primary }]}>
-              {isRTL ? `${amount} ر.س` : `${amount} SAR`}
+              {amount.toLocaleString(isRTL ? 'ar-SA' : 'en-US')} {isRTL ? 'ر.س' : 'SAR'}
             </Text>
           </View>
-        ) : null}
+        )}
 
         <Text style={[styles.sectionLabel, { color: COLORS.text }]}>
           {isRTL ? 'اختر طريقة الدفع' : 'Choose how to pay'}
         </Text>
 
-        {/* Cash on delivery */}
-        <PaymentRow
-          selected={selected === 'cash'}
-          onPress={() => setSelected('cash')}
-          icon="cash-multiple"
-          color="#10b981"
-          title={isRTL ? 'الدفع نقدًا عند الإستلام' : 'Cash on delivery'}
-          subtitle={
-            isRTL ? 'ادفع للفني مباشرةً عند إتمام الإصلاح' : 'Pay the technician on completion'
-          }
-          recommended
-          COLORS={COLORS}
-          isRTL={isRTL}
-          SHADOWS={SHADOWS}
-        />
-
-        {/* Bank transfer */}
-        <PaymentRow
-          selected={selected === 'transfer'}
-          onPress={() => setSelected('transfer')}
-          icon="bank-outline"
-          color="#3b82f6"
-          title={isRTL ? 'تحويل بنكي' : 'Bank transfer'}
-          subtitle={
-            isRTL ? 'حوّل للحساب البنكي وأرفق رقم العملية' : 'Transfer + paste reference number'
-          }
-          COLORS={COLORS}
-          isRTL={isRTL}
-          SHADOWS={SHADOWS}
-        />
-
-        {/* Bank-transfer details, only when selected */}
-        {selected === 'transfer' && (
-          <View style={[styles.transferBox, { backgroundColor: COLORS.card, borderColor: COLORS.border }]}>
-            <View style={styles.transferRow}>
-              <Text style={[styles.transferLabel, { color: COLORS.textSecondary }]}>
-                {isRTL ? 'البنك' : 'Bank'}
-              </Text>
-              <Text style={[styles.transferValue, { color: COLORS.text }]}>
-                {isRTL ? FIXATE_BANK : 'Al-Rajhi Bank'}
-              </Text>
-            </View>
-            <View style={styles.transferRow}>
-              <Text style={[styles.transferLabel, { color: COLORS.textSecondary }]}>IBAN</Text>
-              <TouchableOpacity onPress={copyIBAN} style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 6, flex: 1, justifyContent: 'flex-end' }}>
-                <Text style={[styles.transferValue, { color: COLORS.primary }]} numberOfLines={1}>
-                  {FIXATE_IBAN}
-                </Text>
-                <Ionicons name="copy-outline" size={16} color={COLORS.primary} />
+        {!methods ? (
+          <ActivityIndicator color={COLORS.primary} style={{ marginTop: 24 }} />
+        ) : methods.length === 0 ? (
+          <Text style={{ color: COLORS.textSecondary, textAlign: 'center', marginTop: 24 }}>
+            {isRTL ? 'لا توجد طرق دفع متاحة' : 'No payment methods available'}
+          </Text>
+        ) : (
+          methods.map((m) => {
+            const isSelected = selected === m.code;
+            const disabled = m.is_coming_soon;
+            return (
+              <TouchableOpacity
+                key={m.id}
+                disabled={disabled}
+                onPress={() => setSelected(m.code)}
+                activeOpacity={0.85}
+                style={[
+                  styles.methodRow,
+                  {
+                    backgroundColor: COLORS.card,
+                    borderColor: isSelected ? COLORS.primary : 'transparent',
+                    borderWidth: isSelected ? 2 : 0,
+                    opacity: disabled ? 0.55 : 1,
+                  },
+                  SHADOWS.small,
+                ]}
+              >
+                <View style={[styles.methodIcon, { backgroundColor: COLORS.primary + '15' }]}>
+                  <MaterialCommunityIcons
+                    name={(m.icon as any) || 'credit-card-outline'}
+                    size={22}
+                    color={COLORS.primary}
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 6 }}>
+                    <Text style={{ color: COLORS.text, fontSize: 14, fontWeight: '700' }}>
+                      {isRTL ? m.name_ar : m.name_en}
+                    </Text>
+                    {disabled && (
+                      <View style={{ backgroundColor: COLORS.textSecondary + '20', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999 }}>
+                        <Text style={{ color: COLORS.textSecondary, fontSize: 10, fontWeight: '800' }}>
+                          {isRTL ? 'قريباً' : 'Soon'}
+                        </Text>
+                      </View>
+                    )}
+                    {m.code === 'cod' && !disabled && (
+                      <View style={{ backgroundColor: '#10b98115', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999 }}>
+                        <Text style={{ color: '#10b981', fontSize: 10, fontWeight: '800' }}>
+                          {isRTL ? 'موصى به' : 'Recommended'}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                </View>
+                <View
+                  style={{
+                    width: 22, height: 22, borderRadius: 11, borderWidth: 2,
+                    borderColor: isSelected ? COLORS.primary : COLORS.border,
+                    alignItems: 'center', justifyContent: 'center',
+                  }}
+                >
+                  {isSelected && (
+                    <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: COLORS.primary }} />
+                  )}
+                </View>
               </TouchableOpacity>
-            </View>
-            <View style={styles.transferRow}>
-              <Text style={[styles.transferLabel, { color: COLORS.textSecondary }]}>
-                {isRTL ? 'المستفيد' : 'Beneficiary'}
-              </Text>
-              <Text style={[styles.transferValue, { color: COLORS.text }]}>Fixate</Text>
-            </View>
-
-            <Text style={[styles.transferHint, { color: COLORS.textSecondary }]}>
-              {isRTL
-                ? 'بعد إتمام التحويل، الصق رقم العملية بالأسفل وسنتحقق منه خلال دقائق'
-                : "After transferring, paste the reference below — we'll verify it within minutes"}
-            </Text>
-
-            <TextInput
-              value={reference}
-              onChangeText={setReference}
-              placeholder={isRTL ? 'مثال: REF-983241 أو رقم العملية' : 'e.g. REF-983241 or transaction id'}
-              placeholderTextColor={COLORS.textSecondary}
-              style={[styles.refInput, { color: COLORS.text, borderColor: COLORS.border, backgroundColor: COLORS.background }]}
-              textAlign={isRTL ? 'right' : 'left'}
-              autoCapitalize="characters"
-            />
-          </View>
+            );
+          })
         )}
 
-        {/* Card payment placeholder */}
-        <PaymentRow
-          selected={selected === 'card'}
-          onPress={() => setSelected('card')}
-          icon="credit-card-outline"
-          color="#8b5cf6"
-          title={isRTL ? 'بطاقة بنكية / Apple Pay' : 'Card / Apple Pay'}
-          subtitle={isRTL ? 'مدى، فيزا، ماستركارد، Apple Pay' : 'Mada, Visa, Mastercard, Apple Pay'}
-          comingSoon
-          COLORS={COLORS}
-          isRTL={isRTL}
-          SHADOWS={SHADOWS}
-        />
-
-        {/* Trust note */}
         <View style={[styles.trustNote, { backgroundColor: COLORS.primary + '10' }]}>
           <Ionicons name="shield-checkmark" size={18} color={COLORS.primary} />
           <Text style={[styles.trustText, { color: COLORS.text }]}>
             {isRTL
-              ? 'كل العمليات مؤمّنة وتشمل ضمان 6 أشهر على الإصلاح'
-              : 'All transactions are secured and include a 6-month repair warranty'}
+              ? 'جميع العمليات مؤمّنة، والإصلاح يشمل ضمان 6 أشهر.'
+              : 'All transactions are secured and the repair includes a 6-month warranty.'}
           </Text>
         </View>
 
         <TouchableOpacity
           onPress={handleConfirm}
-          disabled={submitting || (selected === 'card')}
+          disabled={submitting || !selectedMethod || selectedMethod.is_coming_soon}
           style={[
             styles.confirmBtn,
             { backgroundColor: COLORS.primary },
-            (submitting || selected === 'card') && { opacity: 0.5 },
+            (submitting || !selectedMethod || selectedMethod.is_coming_soon) && { opacity: 0.5 },
           ]}
           accessibilityRole="button"
         >
@@ -260,83 +225,14 @@ export default function PaymentScreen() {
             <ActivityIndicator color="#fff" />
           ) : (
             <Text style={styles.confirmText}>
-              {selected === 'card'
-                ? (isRTL ? 'قريبًا' : 'Coming soon')
+              {selectedMethod?.code === 'cod'
+                ? (isRTL ? 'تأكيد الطلب' : 'Confirm order')
                 : (isRTL ? 'تأكيد الدفع' : 'Confirm payment')}
             </Text>
           )}
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
-  );
-}
-
-function PaymentRow({
-  selected,
-  onPress,
-  icon,
-  color,
-  title,
-  subtitle,
-  recommended,
-  comingSoon,
-  COLORS,
-  isRTL,
-  SHADOWS,
-}: any) {
-  return (
-    <PressableScale
-      onPress={onPress}
-      to={0.985}
-      style={{
-        flexDirection: isRTL ? 'row-reverse' : 'row',
-        alignItems: 'center',
-        backgroundColor: COLORS.card,
-        borderColor: selected ? COLORS.primary : 'transparent',
-        borderWidth: selected ? 2 : 0,
-        borderRadius: BORDER_RADIUS.md,
-        padding: 16,
-        marginBottom: 12,
-        gap: 12,
-        ...SHADOWS.small,
-      }}
-      accessibilityRole="radio"
-      accessibilityState={{ selected }}
-    >
-      <View style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: color + '15', alignItems: 'center', justifyContent: 'center' }}>
-        <MaterialCommunityIcons name={icon} size={22} color={color} />
-      </View>
-      <View style={{ flex: 1 }}>
-        <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 6 }}>
-          <Text style={{ color: COLORS.text, fontSize: 14, fontWeight: '700' }}>{title}</Text>
-          {recommended && (
-            <View style={{ backgroundColor: '#10b98115', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999 }}>
-              <Text style={{ color: '#10b981', fontSize: 10, fontWeight: '800' }}>
-                {isRTL ? 'موصى به' : 'Recommended'}
-              </Text>
-            </View>
-          )}
-          {comingSoon && (
-            <View style={{ backgroundColor: COLORS.textSecondary + '20', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999 }}>
-              <Text style={{ color: COLORS.textSecondary, fontSize: 10, fontWeight: '800' }}>
-                {isRTL ? 'قريبًا' : 'Soon'}
-              </Text>
-            </View>
-          )}
-        </View>
-        <Text style={{ color: COLORS.textSecondary, fontSize: 12, marginTop: 2 }}>{subtitle}</Text>
-      </View>
-      <View
-        style={{
-          width: 22, height: 22, borderRadius: 11,
-          borderWidth: 2,
-          borderColor: selected ? COLORS.primary : COLORS.border,
-          alignItems: 'center', justifyContent: 'center',
-        }}
-      >
-        {selected && <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: COLORS.primary }} />}
-      </View>
-    </PressableScale>
   );
 }
 
@@ -352,15 +248,10 @@ const makeStyles = (C: any, isRTL: boolean, SHADOWS: any) =>
       backgroundColor: C.background,
     },
     backBtn: {
-      width: 36,
-      height: 36,
-      borderRadius: 18,
-      backgroundColor: C.background,
-      alignItems: 'center',
-      justifyContent: 'center',
+      width: 36, height: 36, borderRadius: 18,
+      alignItems: 'center', justifyContent: 'center',
     },
     title: { fontSize: 22, fontWeight: '800' },
-
     amountCard: {
       borderRadius: BORDER_RADIUS.md,
       borderWidth: 1,
@@ -370,39 +261,24 @@ const makeStyles = (C: any, isRTL: boolean, SHADOWS: any) =>
     },
     amountLabel: { fontSize: 12, fontWeight: '500' },
     amountValue: { fontSize: 30, fontWeight: '800', marginTop: 4 },
-
     sectionLabel: {
       fontSize: 18,
       fontWeight: '800',
       marginBottom: 12,
-      color: C.text,
       textAlign: isRTL ? 'right' : 'left',
     },
-
-    transferBox: {
+    methodRow: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
       borderRadius: BORDER_RADIUS.md,
       padding: 16,
-      marginBottom: 10,
-      gap: 10,
-      ...SHADOWS.small,
-    },
-    transferRow: {
-      flexDirection: isRTL ? 'row-reverse' : 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
+      marginBottom: 12,
       gap: 12,
     },
-    transferLabel: { fontSize: 12 },
-    transferValue: { fontSize: 13, fontWeight: '700' },
-    transferHint: { fontSize: 11, lineHeight: 16, marginTop: 4, textAlign: isRTL ? 'right' : 'left' },
-    refInput: {
-      borderWidth: 1,
-      borderRadius: BORDER_RADIUS.md,
-      padding: 12,
-      fontSize: 14,
-      marginTop: 4,
+    methodIcon: {
+      width: 44, height: 44, borderRadius: 12,
+      alignItems: 'center', justifyContent: 'center',
     },
-
     trustNote: {
       flexDirection: isRTL ? 'row-reverse' : 'row',
       alignItems: 'center',
@@ -413,7 +289,6 @@ const makeStyles = (C: any, isRTL: boolean, SHADOWS: any) =>
       marginBottom: 18,
     },
     trustText: { flex: 1, fontSize: 12, lineHeight: 17, textAlign: isRTL ? 'right' : 'left' },
-
     confirmBtn: {
       minHeight: 52,
       paddingVertical: 15,

@@ -56,6 +56,13 @@ const ORDER_STATUS_CONFIG = {
     color: '#F59E0B',
     progress: 55,
   },
+  awaiting_payment: {
+    ar: 'بانتظار الدفع',
+    en: 'Awaiting payment',
+    icon: 'credit-card-clock',
+    color: '#0EA5E9',
+    progress: 58,
+  },
   waiting_parts: {
     ar: 'بانتظار قطع الغيار',
     en: 'Waiting for Parts',

@@ -6,6 +6,9 @@ export type OrderStatus =
   // Technician finished the inspection and submitted a final quote.
   // The customer must accept it before any repair work continues.
   | 'quoted'
+  // Customer accepted the quote; the order is payment-ready and the
+  // customer is sent to the real payment page.
+  | 'awaiting_payment'
   | 'waiting_parts'
   | 'repairing'
   | 'testing'
@@ -211,6 +214,7 @@ export const ORDER_STATUS_LABELS_AR: Record<OrderStatus, string> = {
   picking_up: 'جاري الاستلام',
   diagnosing: 'تحت الفحص',
   quoted: 'بانتظار موافقتك على السعر',
+  awaiting_payment: 'بانتظار الدفع',
   waiting_parts: 'انتظار قطع غيار',
   repairing: 'قيد الإصلاح',
   testing: 'اختبار الجودة',
@@ -224,6 +228,7 @@ export const ACTIVE_STATUSES: OrderStatus[] = [
   'picking_up',
   'diagnosing',
   'quoted',
+  'awaiting_payment',
   'waiting_parts',
   'repairing',
   'testing',
@@ -245,6 +250,7 @@ export const ORDER_STATUS_LABELS_EN: Record<OrderStatus, string> = {
   picking_up: 'Picking up',
   diagnosing: 'Inspecting',
   quoted: 'Awaiting your approval',
+  awaiting_payment: 'Awaiting payment',
   waiting_parts: 'Waiting for parts',
   repairing: 'Repairing',
   testing: 'Quality testing',

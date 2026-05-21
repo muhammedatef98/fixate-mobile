@@ -310,11 +310,17 @@ export const requests = {
     throw lastError ?? new Error('Failed to send quote');
   },
 
-  // Customer accepts/rejects the technician quote.
+  // Customer accepts/rejects the technician quote. On accept the order
+  // becomes payment-ready ('awaiting_payment') — the customer is then sent
+  // to the real payment page, which advances it to 'accepted' once paid /
+  // cash-on-delivery is confirmed.
   respondToQuote: async (id: string, accept: boolean): Promise<Order | null> => {
     const { data, error } = await supabase
       .from('orders')
-      .update({ status: accept ? 'accepted' : 'cancelled', updated_at: new Date().toISOString() })
+      .update({
+        status: accept ? 'awaiting_payment' : 'cancelled',
+        updated_at: new Date().toISOString(),
+      })
       .eq('id', id)
       .select()
       .single();

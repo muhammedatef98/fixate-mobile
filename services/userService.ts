@@ -9,6 +9,8 @@ export interface UserProfile {
   role: 'customer' | 'technician';
   avatar_url?: string;
   is_admin?: boolean;
+  account_status?: 'active' | 'suspended' | 'blocked';
+  admin_notes?: string | null;
   created_at?: string;
 }
 
