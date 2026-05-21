@@ -19,6 +19,7 @@ import { MaterialIcons, MaterialCommunityIcons, Ionicons } from '@expo/vector-ic
 import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import { getColors, getShadows, SPACING, BORDER_RADIUS } from '../../constants/theme';
 import { useApp } from '../../contexts/AppContext';
+import * as ImagePicker from 'expo-image-picker';
 import { requests, auth } from '../../lib/supabase-api';
 import type { Order } from '../../lib/supabase-api';
 import { logger } from '../../utils/logger';
@@ -26,6 +27,9 @@ import { ORDER_STATUS_LABELS_AR, ORDER_STATUS_LABELS_EN } from '../../types/orde
 import { safeBack } from '../../utils/navigation';
 import { RTLIonicon } from '../../components/RTLIcon';
 import ImageViewer from '../../components/ImageViewer';
+import ImagePickerSheet from '../../components/ImagePickerSheet';
+import { supabase } from '../../services/supabaseClient';
+import { uploadOrderMedia } from '../../services/storageService';
 
 const STATUS_ACTIONS = [
   { status: 'accepted', arLabel: 'قبول الطلب', enLabel: 'Accept Order', icon: 'check-circle', color: '#10B981', description: 'تأكيد استلام الطلب والبدء في المعالجة' },
@@ -56,6 +60,13 @@ export default function ManageOrderScreen() {
   const [quotePrice, setQuotePrice] = useState('');
   const [quoteNotes, setQuoteNotes] = useState('');
   const [submittingQuote, setSubmittingQuote] = useState(false);
+  const [notesDraft, setNotesDraft] = useState('');
+  const [savingNotes, setSavingNotes] = useState(false);
+  const [beforePhotos, setBeforePhotos] = useState<string[]>([]);
+  const [afterPhotos, setAfterPhotos] = useState<string[]>([]);
+  const [photoSheetOpen, setPhotoSheetOpen] = useState(false);
+  const [photoTarget, setPhotoTarget] = useState<'before' | 'after'>('before');
+  const [uploadingPhotos, setUploadingPhotos] = useState(false);
 
   useEffect(() => {
     loadOrderDetails();
@@ -85,6 +96,11 @@ export default function ManageOrderScreen() {
       if (orderData?.user_id) {
         const customerProfile = await auth.getUserProfile(orderData.user_id);
         setCustomer(customerProfile);
+      }
+      if (orderData) {
+        setNotesDraft((orderData as any).technician_notes ?? '');
+        setBeforePhotos((orderData as any).before_photos ?? []);
+        setAfterPhotos((orderData as any).after_photos ?? []);
       }
     } catch (error) {
       logger.error('Error loading order:', error);
@@ -138,6 +154,70 @@ export default function ManageOrderScreen() {
     }
   };
 
+  const saveNotes = async () => {
+    setSavingNotes(true);
+    try {
+      const { error } = await supabase
+        .from('orders')
+        .update({ technician_notes: notesDraft.trim() })
+        .eq('id', id as string);
+      if (error) throw error;
+      Alert.alert(isRTL ? 'تم' : 'Saved', isRTL ? 'تم حفظ الملاحظات' : 'Notes saved');
+    } catch (e: any) {
+      Alert.alert(isRTL ? 'خطأ' : 'Error', e?.message ?? String(e));
+    } finally {
+      setSavingNotes(false);
+    }
+  };
+
+  const pickPhotos = async (source: 'camera' | 'gallery') => {
+    try {
+      const perm =
+        source === 'camera'
+          ? await ImagePicker.requestCameraPermissionsAsync()
+          : await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (perm.status !== 'granted') {
+        Alert.alert(
+          isRTL ? 'تنبيه' : 'Alert',
+          isRTL ? 'نحتاج إذن الوصول' : 'Permission is required'
+        );
+        return;
+      }
+      const result =
+        source === 'camera'
+          ? await ImagePicker.launchCameraAsync({ quality: 0.7 })
+          : await ImagePicker.launchImageLibraryAsync({
+              mediaTypes: ['images'],
+              allowsMultipleSelection: true,
+              quality: 0.7,
+            });
+      if (result.canceled || !result.assets?.length) return;
+
+      setUploadingPhotos(true);
+      const user = await auth.getCurrentUser();
+      if (!user) return;
+      const uploaded = await uploadOrderMedia(
+        user.id,
+        result.assets.map((a) => a.uri),
+        `orders/${id}/${photoTarget}`
+      );
+      const column = photoTarget === 'before' ? 'before_photos' : 'after_photos';
+      const current = photoTarget === 'before' ? beforePhotos : afterPhotos;
+      const next = [...current, ...uploaded].slice(0, 10);
+      const { error } = await supabase
+        .from('orders')
+        .update({ [column]: next })
+        .eq('id', id as string);
+      if (error) throw error;
+      if (photoTarget === 'before') setBeforePhotos(next);
+      else setAfterPhotos(next);
+    } catch (e: any) {
+      Alert.alert(isRTL ? 'خطأ' : 'Error', e?.message ?? String(e));
+    } finally {
+      setUploadingPhotos(false);
+    }
+  };
+
   // A quote the customer has accepted: the order carries a final_price and is
   // no longer in the 'quoted' (awaiting-approval) state. Rejected quotes move
   // the order to 'cancelled', so any non-cancelled order with a final_price
@@ -183,8 +263,9 @@ export default function ManageOrderScreen() {
       return [STATUS_ACTIONS[0]]; // Only show "Accept Order"
     }
 
-    // Awaiting customer's decision on the quote — no manual transitions.
-    if (order.status === 'quoted') return [];
+    // Awaiting the customer (quote approval or payment) — no manual
+    // transitions until they act.
+    if (order.status === 'quoted' || order.status === 'awaiting_payment') return [];
 
     // Before the customer approves a quote, the technician may only move
     // through the inspection stages. Repair/test/deliver/complete unlock
@@ -366,8 +447,25 @@ export default function ManageOrderScreen() {
           </View>
         )}
 
+        {/* Awaiting customer payment after quote approval */}
+        {order.status === 'awaiting_payment' && (
+          <View style={[styles.card, { backgroundColor: '#0EA5E915', borderWidth: 1, borderColor: '#0EA5E9' }]}>
+            <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 10 }}>
+              <MaterialCommunityIcons name="credit-card-clock" size={24} color="#0EA5E9" />
+              <Text style={{ flex: 1, color: COLORS.text, fontWeight: '700', textAlign: isRTL ? 'right' : 'left' }}>
+                {isRTL
+                  ? 'وافق العميل على السعر — بانتظار إتمام الدفع قبل بدء الإصلاح.'
+                  : 'Customer approved the price — awaiting payment before the repair starts.'}
+              </Text>
+            </View>
+          </View>
+        )}
+
         {/* Professional Workflow Control */}
-        {order.status !== 'quoted' && order.status !== 'completed' && order.status !== 'cancelled' && (
+        {order.status !== 'quoted' &&
+          order.status !== 'awaiting_payment' &&
+          order.status !== 'completed' &&
+          order.status !== 'cancelled' && (
           <View style={[styles.card, { backgroundColor: COLORS.card }, SHADOWS.medium]}>
             <Text style={[styles.cardTitle, { color: COLORS.text }]}>
               {isRTL ? 'لوحة التحكم في سير العمل' : 'Workflow Control Panel'}
@@ -625,6 +723,100 @@ export default function ManageOrderScreen() {
             </ScrollView>
           </View>
         )}
+        {/* Internal notes — visible to the technician only */}
+        <View style={[styles.card, { backgroundColor: COLORS.card }, SHADOWS.medium]}>
+          <Text style={[styles.cardTitle, { color: COLORS.text }]}>
+            {isRTL ? 'ملاحظات داخلية' : 'Internal notes'}
+          </Text>
+          <Text style={[styles.sectionSubtitle, { color: COLORS.textSecondary, marginBottom: SPACING.s }]}>
+            {isRTL ? 'تظهر لك فقط — لا يراها العميل' : 'Visible to you only — the customer cannot see these'}
+          </Text>
+          <TextInput
+            value={notesDraft}
+            onChangeText={setNotesDraft}
+            multiline
+            placeholder={isRTL ? 'اكتب ملاحظاتك حول هذا الطلب...' : 'Write your notes about this job...'}
+            placeholderTextColor={COLORS.textSecondary}
+            style={{
+              borderWidth: 1,
+              borderColor: COLORS.border,
+              borderRadius: BORDER_RADIUS.md,
+              padding: 12,
+              minHeight: 90,
+              color: COLORS.text,
+              backgroundColor: COLORS.background,
+              textAlignVertical: 'top',
+              textAlign: isRTL ? 'right' : 'left',
+            }}
+          />
+          <TouchableOpacity
+            onPress={saveNotes}
+            disabled={savingNotes}
+            style={{
+              marginTop: 10,
+              backgroundColor: COLORS.primary,
+              borderRadius: BORDER_RADIUS.md,
+              paddingVertical: 12,
+              alignItems: 'center',
+              opacity: savingNotes ? 0.6 : 1,
+            }}
+          >
+            {savingNotes ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={{ color: '#fff', fontWeight: '800' }}>
+                {isRTL ? 'حفظ الملاحظات' : 'Save notes'}
+              </Text>
+            )}
+          </TouchableOpacity>
+        </View>
+
+        {/* Before / after repair photos */}
+        <View style={[styles.card, { backgroundColor: COLORS.card }, SHADOWS.medium]}>
+          <Text style={[styles.cardTitle, { color: COLORS.text }]}>
+            {isRTL ? 'صور قبل / بعد الإصلاح' : 'Before / After photos'}
+          </Text>
+          {([
+            { key: 'before' as const, label: isRTL ? 'قبل الإصلاح' : 'Before repair', photos: beforePhotos },
+            { key: 'after' as const, label: isRTL ? 'بعد الإصلاح' : 'After repair', photos: afterPhotos },
+          ]).map((group) => (
+            <View key={group.key} style={{ marginTop: 12 }}>
+              <Text style={{ color: COLORS.textSecondary, fontWeight: '700', fontSize: 13, marginBottom: 6, textAlign: isRTL ? 'right' : 'left' }}>
+                {group.label}
+              </Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                <TouchableOpacity
+                  onPress={() => { setPhotoTarget(group.key); setPhotoSheetOpen(true); }}
+                  disabled={uploadingPhotos}
+                  style={{
+                    width: 72,
+                    height: 72,
+                    borderRadius: BORDER_RADIUS.md,
+                    borderWidth: 1,
+                    borderStyle: 'dashed',
+                    borderColor: COLORS.border,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginRight: 8,
+                  }}
+                >
+                  {uploadingPhotos && photoTarget === group.key ? (
+                    <ActivityIndicator color={COLORS.primary} />
+                  ) : (
+                    <Ionicons name="camera" size={22} color={COLORS.textSecondary} />
+                  )}
+                </TouchableOpacity>
+                {group.photos.map((url, i) => (
+                  <Image
+                    key={i}
+                    source={{ uri: url }}
+                    style={{ width: 72, height: 72, borderRadius: BORDER_RADIUS.md, marginRight: 8 }}
+                  />
+                ))}
+              </ScrollView>
+            </View>
+          ))}
+        </View>
       </ScrollView>
 
       <ImageViewer
@@ -632,6 +824,12 @@ export default function ManageOrderScreen() {
         images={order?.media_urls ?? []}
         initialIndex={viewerIndex}
         onClose={() => setViewerOpen(false)}
+      />
+      <ImagePickerSheet
+        visible={photoSheetOpen}
+        onClose={() => setPhotoSheetOpen(false)}
+        onPick={pickPhotos}
+        isRTL={isRTL}
       />
     </SafeAreaView>
   );

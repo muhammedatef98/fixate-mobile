@@ -11,6 +11,7 @@ import {
   Alert,
   RefreshControl,
   Switch,
+  TextInput,
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useApp } from '../contexts/AppContext';
@@ -21,6 +22,11 @@ import { supabase } from '../services/supabaseClient';
 import { getFriendlyError } from '../utils/errorMessages';
 import { success, warning } from '../utils/haptics';
 import { safeBack } from '../utils/navigation';
+import {
+  setTechnicianStatus,
+  setTechnicianNotes,
+  type TechnicianStatus,
+} from '../services/moderationService';
 
 interface Technician {
   id: string;
@@ -33,6 +39,8 @@ interface Technician {
   years_of_experience: number;
   bio?: string;
   verification_status: string;
+  technician_status?: string;
+  admin_notes?: string;
   is_mobile?: boolean;
   created_at?: string;
   full_name?: string;
@@ -40,6 +48,13 @@ interface Technician {
 }
 
 type FilterKey = 'pending' | 'approved' | 'all';
+
+const LIFECYCLE: { id: TechnicianStatus; ar: string; en: string; color: string }[] = [
+  { id: 'active', ar: 'نشط', en: 'Active', color: '#16A34A' },
+  { id: 'under_review', ar: 'قيد المراجعة', en: 'Under review', color: '#3B82F6' },
+  { id: 'suspended', ar: 'موقوف', en: 'Suspended', color: '#F59E0B' },
+  { id: 'excluded', ar: 'مستبعد', en: 'Excluded', color: '#DC2626' },
+];
 
 const STATUS_META = (s: string, isRTL: boolean) => {
   switch (s) {
@@ -65,6 +80,7 @@ export default function AdminTechniciansScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [filter, setFilter] = useState<FilterKey>('pending');
+  const [notesDrafts, setNotesDrafts] = useState<Record<string, string>>({});
 
   const profileLoaded = userProfile !== null;
   const isAdmin = (userProfile as any)?.is_admin === true;
@@ -129,6 +145,30 @@ export default function AdminTechniciansScreen() {
       if (error) throw error;
     } catch (e: any) {
       setItems((prev) => prev.map((x) => (x.id === item.id ? { ...x, is_mobile: !next } : x)));
+      Alert.alert(isRTL ? 'خطأ' : 'Error', getFriendlyError(e, language));
+    }
+  };
+
+  const setLifecycle = async (item: Technician, status: TechnicianStatus) => {
+    if (status === (item.technician_status ?? 'active')) return;
+    const prev = item.technician_status;
+    setItems((p) => p.map((x) => (x.id === item.id ? { ...x, technician_status: status } : x)));
+    try {
+      await setTechnicianStatus(item.id, status);
+      success();
+    } catch (e: any) {
+      setItems((p) => p.map((x) => (x.id === item.id ? { ...x, technician_status: prev } : x)));
+      Alert.alert(isRTL ? 'خطأ' : 'Error', getFriendlyError(e, language));
+    }
+  };
+
+  const saveNotes = async (item: Technician) => {
+    const draft = (notesDrafts[item.id] ?? item.admin_notes ?? '').trim();
+    try {
+      await setTechnicianNotes(item.id, draft);
+      setItems((p) => p.map((x) => (x.id === item.id ? { ...x, admin_notes: draft } : x)));
+      Alert.alert(isRTL ? 'تم' : 'Saved', isRTL ? 'تم حفظ الملاحظات' : 'Notes saved');
+    } catch (e: any) {
       Alert.alert(isRTL ? 'خطأ' : 'Error', getFriendlyError(e, language));
     }
   };
@@ -278,6 +318,62 @@ export default function AdminTechniciansScreen() {
                   />
                 </View>
 
+                {/* Lifecycle status — drives assignment eligibility */}
+                <View style={[styles.block, { borderTopColor: COLORS.border }]}>
+                  <Text style={[styles.blockLabel, { color: COLORS.text }]}>
+                    {isRTL ? 'حالة الفني' : 'Technician status'}
+                  </Text>
+                  <Text style={styles.blockHint}>
+                    {isRTL
+                      ? 'الفني «المستبعد» لا يظهر في توزيع الطلبات الجديدة.'
+                      : 'An "excluded" technician is removed from new job assignment.'}
+                  </Text>
+                  <View style={styles.lcRow}>
+                    {LIFECYCLE.map((s) => {
+                      const active = (it.technician_status ?? 'active') === s.id;
+                      return (
+                        <TouchableOpacity
+                          key={s.id}
+                          onPress={() => setLifecycle(it, s.id)}
+                          style={[
+                            styles.lcChip,
+                            { borderColor: s.color },
+                            active && { backgroundColor: s.color },
+                          ]}
+                        >
+                          <Text style={[styles.lcChipText, { color: active ? '#fff' : s.color }]}>
+                            {isRTL ? s.ar : s.en}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                </View>
+
+                {/* Admin notes */}
+                <View style={[styles.block, { borderTopColor: COLORS.border }]}>
+                  <Text style={[styles.blockLabel, { color: COLORS.text }]}>
+                    {isRTL ? 'ملاحظات إدارية' : 'Admin notes'}
+                  </Text>
+                  <TextInput
+                    value={notesDrafts[it.id] ?? it.admin_notes ?? ''}
+                    onChangeText={(v) => setNotesDrafts((d) => ({ ...d, [it.id]: v }))}
+                    placeholder={isRTL ? 'ملاحظة داخلية' : 'Internal note'}
+                    placeholderTextColor={COLORS.textSecondary}
+                    multiline
+                    style={[styles.notesInput, { color: COLORS.text, borderColor: COLORS.border, backgroundColor: COLORS.background }]}
+                    textAlign={isRTL ? 'right' : 'left'}
+                  />
+                  <TouchableOpacity
+                    onPress={() => saveNotes(it)}
+                    style={[styles.notesSave, { backgroundColor: COLORS.primary }]}
+                  >
+                    <Text style={{ color: '#fff', fontWeight: '700', fontSize: 12 }}>
+                      {isRTL ? 'حفظ الملاحظات' : 'Save notes'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
                 {isSubmitted && (
                   <View style={styles.actions}>
                     <TouchableOpacity
@@ -391,6 +487,42 @@ const createStyles = (C: any, isRTL: boolean) =>
       borderTopWidth: StyleSheet.hairlineWidth,
     },
     mobileLabel: { fontWeight: '700', fontSize: 14 },
+    block: {
+      marginTop: 12,
+      paddingTop: 12,
+      borderTopWidth: StyleSheet.hairlineWidth,
+    },
+    blockLabel: { fontWeight: '800', fontSize: 13, textAlign: isRTL ? 'right' : 'left' },
+    blockHint: {
+      color: C.textSecondary,
+      fontSize: 11,
+      marginTop: 2,
+      marginBottom: 8,
+      textAlign: isRTL ? 'right' : 'left',
+    },
+    lcRow: { flexDirection: isRTL ? 'row-reverse' : 'row', flexWrap: 'wrap', gap: 6 },
+    lcChip: {
+      paddingHorizontal: 12,
+      paddingVertical: 7,
+      borderRadius: 999,
+      borderWidth: 1.5,
+    },
+    lcChipText: { fontWeight: '800', fontSize: 12 },
+    notesInput: {
+      borderWidth: 1,
+      borderRadius: BORDER_RADIUS.sm,
+      padding: 10,
+      minHeight: 60,
+      fontSize: 13,
+      textAlignVertical: 'top',
+    },
+    notesSave: {
+      alignSelf: isRTL ? 'flex-start' : 'flex-end',
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+      borderRadius: BORDER_RADIUS.sm,
+      marginTop: 8,
+    },
     actions: { flexDirection: isRTL ? 'row-reverse' : 'row', gap: 12, marginTop: SPACING.md },
     btn: {
       flex: 1,

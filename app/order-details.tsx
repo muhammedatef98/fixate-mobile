@@ -35,6 +35,7 @@ const ORDER_TIMELINE: { status: string; arLabel: string; enLabel: string; icon: 
   { status: 'picking_up', arLabel: 'جاري الاستلام', enLabel: 'Picking Up', icon: 'car' },
   { status: 'diagnosing', arLabel: 'جاري الفحص', enLabel: 'Diagnosing', icon: 'magnify' },
   { status: 'quoted', arLabel: 'بانتظار موافقتك', enLabel: 'Awaiting Your Approval', icon: 'cash-check' },
+  { status: 'awaiting_payment', arLabel: 'بانتظار الدفع', enLabel: 'Awaiting Payment', icon: 'credit-card-clock' },
   { status: 'waiting_parts', arLabel: 'انتظار قطع غيار', enLabel: 'Waiting for Parts', icon: 'clock-outline' },
   { status: 'repairing', arLabel: 'جاري الإصلاح', enLabel: 'Repairing', icon: 'tools' },
   { status: 'testing', arLabel: 'اختبار الجودة', enLabel: 'Quality Testing', icon: 'flask' },
@@ -111,10 +112,13 @@ export default function OrderDetailsScreen() {
             : `Request cancelled. Outstanding fee: ${fee.total} SAR (inspection ${fee.inspection}${fee.return ? ' + return ' + fee.return : ''} SAR). It will be collected per platform policy.`
         );
       } else {
-        Alert.alert(
-          isRTL ? 'تم القبول ✓' : 'Accepted ✓',
-          isRTL ? 'تم قبول السعر، سيتابع الفني الإصلاح. يتم تحصيل الدفع بعد انتهاء الإصلاح.' : 'Price accepted. The technician will continue the repair. Payment will be collected after the repair is finished.'
-        );
+        // Quote accepted → the order is payment-ready. Send the customer
+        // straight to the real payment page.
+        const amount = (order as any).final_price ?? order.estimated_price ?? 0;
+        router.push({
+          pathname: '/payment',
+          params: { orderId: String(order.id), amount: String(amount) },
+        });
       }
     } catch (e) {
       Alert.alert(
@@ -468,6 +472,40 @@ export default function OrderDetailsScreen() {
                 <Text style={styles.actionButtonText}>{isRTL ? 'رفض' : 'Reject'}</Text>
               </TouchableOpacity>
             </View>
+          </View>
+        )}
+
+        {/* Payment-ready: customer accepted the quote, must now pay. */}
+        {order.status === 'awaiting_payment' && (
+          <View style={[styles.card, { backgroundColor: COLORS.card, borderWidth: 2, borderColor: COLORS.primary }, SHADOWS.small]}>
+            <View style={styles.cardHeader}>
+              <MaterialCommunityIcons name="credit-card-clock" size={24} color={COLORS.primary} />
+              <Text style={[styles.cardTitle, { color: COLORS.text }]}>
+                {isRTL ? 'أكمل عملية الدفع' : 'Complete your payment'}
+              </Text>
+            </View>
+            <Text style={{ color: COLORS.textSecondary, fontSize: 13, marginBottom: 12 }}>
+              {isRTL
+                ? 'لقد وافقت على عرض السعر. أكمل الدفع للمتابعة في الإصلاح.'
+                : 'You accepted the quote. Complete payment to proceed with the repair.'}
+            </Text>
+            <TouchableOpacity
+              style={[styles.actionButton, { backgroundColor: COLORS.primary }, SHADOWS.small]}
+              onPress={() =>
+                router.push({
+                  pathname: '/payment',
+                  params: {
+                    orderId: String(order.id),
+                    amount: String((order as any).final_price ?? order.estimated_price ?? 0),
+                  },
+                })
+              }
+            >
+              <MaterialIcons name="payment" size={20} color="#fff" />
+              <Text style={styles.actionButtonText}>
+                {isRTL ? 'الانتقال للدفع' : 'Proceed to payment'}
+              </Text>
+            </TouchableOpacity>
           </View>
         )}
 

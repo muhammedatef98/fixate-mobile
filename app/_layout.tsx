@@ -12,6 +12,7 @@ import { useRouter, useSegments } from 'expo-router';
 import { supabase } from '../lib/supabase';
 import ErrorBoundary from '../components/ErrorBoundary';
 import OfflineBanner from '../components/OfflineBanner';
+import BlockedScreen from '../components/BlockedScreen';
 import {
   useFonts,
   Tajawal_400Regular,
@@ -78,6 +79,18 @@ function RootLayoutContent() {
   // do NOT call I18nManager.forceRTL here — that would double-flip every
   // `row-reverse` back into LTR — and we don't apply `direction: 'rtl'`
   // on the root container for the same reason.
+
+  // App-wide lockout: a suspended/blocked user cannot use any feature.
+  // We only gate once the profile has actually loaded (null = still loading)
+  // so we never flash the lockout screen during a normal session start.
+  const accountStatus = (userProfile as any)?.account_status;
+  if (
+    !loading &&
+    !!user &&
+    (accountStatus === 'suspended' || accountStatus === 'blocked')
+  ) {
+    return <BlockedScreen status={accountStatus} />;
+  }
 
   return (
     <View style={{ flex: 1 }}>
@@ -203,6 +216,7 @@ function RootLayoutContent() {
         <Stack.Screen name="market-detail" options={{ headerShown: false }} />
         <Stack.Screen name="market-chat" options={{ headerShown: false }} />
         <Stack.Screen name="admin-broadcasts" options={{ headerShown: false }} />
+        <Stack.Screen name="payment" options={{ headerShown: false }} />
       </Stack>
     </View>
   );

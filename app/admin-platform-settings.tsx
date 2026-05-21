@@ -31,11 +31,17 @@ import {
   type PlatformSettings,
 } from '../services/platformSettingsService';
 import {
-  getRepairAreaMap,
-  saveRepairAreaMap,
-  type RepairAreaMap,
-} from '../services/deliveryPricingService';
-import { DELIVERY_REGIONS } from '../constants/deliveryPricing';
+  getRegionTree,
+  updateRegion,
+  updateCity,
+  setRegionCitiesEnabled,
+  type RegionWithCities,
+} from '../services/serviceAreasService';
+import {
+  listPaymentMethods,
+  updatePaymentMethod,
+  type PaymentMethod,
+} from '../services/paymentMethodsService';
 import { getFriendlyError } from '../utils/errorMessages';
 import { logger } from '../utils/logger';
 
@@ -372,6 +378,8 @@ export default function AdminPlatformSettingsScreen() {
             </CollapsibleSection>
 
             {/* 3. Repair service areas */}
+            <PaymentMethodsSection COLORS={COLORS} isRTL={isRTL} language={language} />
+
             <ServiceAreasSection COLORS={COLORS} isRTL={isRTL} language={language} />
 
             {/* 4. Fees & commission */}
@@ -568,67 +576,90 @@ function ServiceAreasSection({
   isRTL: boolean;
   language: 'ar' | 'en';
 }) {
-  const [map, setMap] = useState<RepairAreaMap | null>(null);
-  const [saving, setSaving] = useState(false);
+  const [tree, setTree] = useState<RegionWithCities[] | null>(null);
+  const [expanded, setExpanded] = useState<string | null>(null);
+  const styles = createStyles(COLORS, isRTL);
 
   useEffect(() => {
-    getRepairAreaMap().then(setMap).catch(() => setMap({}));
+    getRegionTree(false).then(setTree).catch(() => setTree([]));
   }, []);
 
-  const regionOn = (rid: string) => map?.[rid]?.enabled !== false;
-  const areaOn = (rid: string, aid: string) => map?.[rid]?.areas?.[aid] !== false;
+  const fail = (e: any) =>
+    Alert.alert(isRTL ? 'فشل الحفظ' : 'Save failed', getFriendlyError(e, language));
 
-  const setRegion = (rid: string, enabled: boolean) => {
-    setMap((m) => {
-      const next: RepairAreaMap = { ...(m ?? {}) };
-      next[rid] = { enabled, areas: next[rid]?.areas ?? {} };
-      return next;
-    });
-  };
-  const setArea = (rid: string, aid: string, enabled: boolean) => {
-    setMap((m) => {
-      const next: RepairAreaMap = { ...(m ?? {}) };
-      const cur = next[rid] ?? { enabled: true, areas: {} };
-      next[rid] = { enabled: cur.enabled, areas: { ...cur.areas, [aid]: enabled } };
-      return next;
-    });
-  };
-
-  const save = async () => {
-    if (!map) return;
-    setSaving(true);
+  const toggleRegion = async (region: RegionWithCities, enabled: boolean) => {
+    setTree((t) => t!.map((r) => (r.id === region.id ? { ...r, enabled } : r)));
     try {
-      await saveRepairAreaMap(map);
-      Alert.alert(isRTL ? 'تم الحفظ ✓' : 'Saved ✓', isRTL ? 'تم تحديث مناطق الخدمة.' : 'Service areas updated.');
-    } catch (e: any) {
-      Alert.alert(isRTL ? 'فشل الحفظ' : 'Save failed', getFriendlyError(e, language));
-    } finally {
-      setSaving(false);
+      await updateRegion(region.id, { enabled });
+    } catch (e) {
+      setTree((t) => t!.map((r) => (r.id === region.id ? { ...r, enabled: !enabled } : r)));
+      fail(e);
     }
   };
 
-  const styles = createStyles(COLORS, isRTL);
+  const toggleCity = async (
+    region: RegionWithCities,
+    cityId: string,
+    enabled: boolean
+  ) => {
+    setTree((t) =>
+      t!.map((r) =>
+        r.id === region.id
+          ? { ...r, cities: r.cities.map((c) => (c.id === cityId ? { ...c, enabled } : c)) }
+          : r
+      )
+    );
+    try {
+      await updateCity(cityId, { enabled });
+    } catch (e) {
+      setTree((t) =>
+        t!.map((r) =>
+          r.id === region.id
+            ? { ...r, cities: r.cities.map((c) => (c.id === cityId ? { ...c, enabled: !enabled } : c)) }
+            : r
+        )
+      );
+      fail(e);
+    }
+  };
+
+  const setAllCities = async (region: RegionWithCities, enabled: boolean) => {
+    setTree((t) =>
+      t!.map((r) =>
+        r.id === region.id
+          ? { ...r, cities: r.cities.map((c) => ({ ...c, enabled })) }
+          : r
+      )
+    );
+    try {
+      await setRegionCitiesEnabled(region.id, enabled);
+    } catch (e) {
+      getRegionTree(false).then(setTree).catch(() => undefined);
+      fail(e);
+    }
+  };
 
   return (
     <CollapsibleSection
       icon="map-check"
       iconColor="#06b6d4"
       title={isRTL ? 'مناطق خدمة الإصلاح' : 'Repair service areas'}
-      subtitle={isRTL ? 'تفعيل المدن والأحياء لطلبات الإصلاح' : 'Enable cities & areas for repair requests'}
+      subtitle={isRTL ? 'تفعيل المناطق والمدن لطلبات الإصلاح' : 'Enable regions & cities for repair requests'}
       COLORS={COLORS}
       isRTL={isRTL}
     >
       <Text style={[styles.hint, { marginBottom: 4 }]}>
         {isRTL
-          ? 'تُطبَّق هذه الإعدادات على طلبات الإصلاح فقط — لا تؤثر على السوق.'
-          : 'These settings apply to repair requests only — they do not affect the market.'}
+          ? 'تُطبَّق هذه الإعدادات على طلبات الإصلاح فقط — لا تؤثر على السوق. وسّع التغطية تدريجياً بتفعيل منطقة أو مدينة.'
+          : 'Applies to repair requests only — not the market. Expand coverage gradually by enabling a region or city.'}
       </Text>
 
-      {!map ? (
+      {!tree ? (
         <ActivityIndicator color={COLORS.primary} style={{ marginVertical: 16 }} />
       ) : (
-        DELIVERY_REGIONS.map((region) => {
-          const rOn = regionOn(region.id);
+        tree.map((region) => {
+          const isOpen = expanded === region.id;
+          const onCount = region.cities.filter((c) => c.enabled).length;
           return (
             <View
               key={region.id}
@@ -636,42 +667,66 @@ function ServiceAreasSection({
                 borderWidth: 1,
                 borderColor: COLORS.border,
                 borderRadius: BORDER_RADIUS.md,
-                padding: 12,
                 marginTop: 10,
                 backgroundColor: COLORS.background,
+                overflow: 'hidden',
               }}
             >
-              <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 10 }}>
-                <MaterialCommunityIcons name="city-variant-outline" size={18} color={COLORS.primary} />
-                <Text style={{ flex: 1, color: COLORS.text, fontWeight: '800', fontSize: 15, textAlign: isRTL ? 'right' : 'left' }}>
-                  {isRTL ? region.nameAr : region.nameEn}
-                </Text>
+              <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 10, padding: 12 }}>
+                <TouchableOpacity
+                  onPress={() => setExpanded(isOpen ? null : region.id)}
+                  style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 8, flex: 1 }}
+                >
+                  <MaterialCommunityIcons name="map-marker-radius" size={18} color={COLORS.primary} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ color: COLORS.text, fontWeight: '800', fontSize: 14, textAlign: isRTL ? 'right' : 'left' }}>
+                      {isRTL ? region.name_ar : region.name_en}
+                    </Text>
+                    <Text style={{ color: COLORS.textSecondary, fontSize: 11, textAlign: isRTL ? 'right' : 'left' }}>
+                      {onCount}/{region.cities.length} {isRTL ? 'مدينة مفعّلة' : 'cities on'}
+                    </Text>
+                  </View>
+                  <Ionicons name={isOpen ? 'chevron-up' : 'chevron-down'} size={16} color={COLORS.textSecondary} />
+                </TouchableOpacity>
                 <Switch
-                  value={rOn}
-                  onValueChange={(v) => setRegion(region.id, v)}
+                  value={region.enabled}
+                  onValueChange={(v) => toggleRegion(region, v)}
                   trackColor={{ false: COLORS.border, true: COLORS.primary }}
                   thumbColor="#fff"
                 />
               </View>
-              {rOn && (
-                <View style={{ marginTop: 8, gap: 2 }}>
-                  {region.areas.map((area) => (
+
+              {isOpen && (
+                <View style={{ paddingHorizontal: 12, paddingBottom: 10, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: COLORS.border }}>
+                  <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', gap: 14, paddingVertical: 8 }}>
+                    <TouchableOpacity onPress={() => setAllCities(region, true)}>
+                      <Text style={{ color: COLORS.primary, fontSize: 12, fontWeight: '700' }}>
+                        {isRTL ? 'تفعيل الكل' : 'Enable all'}
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => setAllCities(region, false)}>
+                      <Text style={{ color: COLORS.error, fontSize: 12, fontWeight: '700' }}>
+                        {isRTL ? 'إيقاف الكل' : 'Disable all'}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                  {region.cities.map((city) => (
                     <View
-                      key={area.id}
+                      key={city.id}
                       style={{
                         flexDirection: isRTL ? 'row-reverse' : 'row',
                         alignItems: 'center',
                         justifyContent: 'space-between',
-                        paddingVertical: 7,
+                        paddingVertical: 6,
                         gap: 10,
                       }}
                     >
                       <Text style={{ color: COLORS.text, fontSize: 13, flex: 1, textAlign: isRTL ? 'right' : 'left' }}>
-                        {isRTL ? area.nameAr : area.nameEn}
+                        {isRTL ? city.name_ar : city.name_en}
                       </Text>
                       <Switch
-                        value={areaOn(region.id, area.id)}
-                        onValueChange={(v) => setArea(region.id, area.id, v)}
+                        value={city.enabled}
+                        onValueChange={(v) => toggleCity(region, city.id, v)}
                         trackColor={{ false: COLORS.border, true: COLORS.primary }}
                         thumbColor="#fff"
                       />
@@ -683,34 +738,118 @@ function ServiceAreasSection({
           );
         })
       )}
+    </CollapsibleSection>
+  );
+}
 
-      <TouchableOpacity
-        onPress={save}
-        disabled={saving || !map}
-        style={{
-          flexDirection: isRTL ? 'row-reverse' : 'row',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: 8,
-          backgroundColor: COLORS.primary,
-          borderRadius: BORDER_RADIUS.md,
-          paddingVertical: 12,
-          marginTop: 14,
-          opacity: saving || !map ? 0.6 : 1,
-        }}
-        accessibilityRole="button"
-      >
-        {saving ? (
-          <ActivityIndicator color="#fff" />
-        ) : (
-          <>
-            <MaterialCommunityIcons name="content-save-outline" size={18} color="#fff" />
-            <Text style={{ color: '#fff', fontWeight: '800' }}>
-              {isRTL ? 'حفظ مناطق الخدمة' : 'Save service areas'}
-            </Text>
-          </>
-        )}
-      </TouchableOpacity>
+function PaymentMethodsSection({
+  COLORS,
+  isRTL,
+  language,
+}: {
+  COLORS: any;
+  isRTL: boolean;
+  language: 'ar' | 'en';
+}) {
+  const [methods, setMethods] = useState<PaymentMethod[] | null>(null);
+  const styles = createStyles(COLORS, isRTL);
+
+  useEffect(() => {
+    listPaymentMethods().then(setMethods).catch(() => setMethods([]));
+  }, []);
+
+  const patch = async (m: PaymentMethod, change: Partial<PaymentMethod>) => {
+    setMethods((list) => list!.map((x) => (x.id === m.id ? { ...x, ...change } : x)));
+    try {
+      await updatePaymentMethod(m.id, change);
+    } catch (e: any) {
+      setMethods((list) => list!.map((x) => (x.id === m.id ? m : x)));
+      Alert.alert(isRTL ? 'فشل الحفظ' : 'Save failed', getFriendlyError(e, language));
+    }
+  };
+
+  const ToggleLine = ({
+    label,
+    value,
+    onChange,
+  }: {
+    label: string;
+    value: boolean;
+    onChange: (v: boolean) => void;
+  }) => (
+    <View
+      style={{
+        flexDirection: isRTL ? 'row-reverse' : 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingVertical: 5,
+      }}
+    >
+      <Text style={{ color: COLORS.text, fontSize: 12.5, flex: 1, textAlign: isRTL ? 'right' : 'left' }}>
+        {label}
+      </Text>
+      <Switch
+        value={value}
+        onValueChange={onChange}
+        trackColor={{ false: COLORS.border, true: COLORS.primary }}
+        thumbColor="#fff"
+      />
+    </View>
+  );
+
+  return (
+    <CollapsibleSection
+      icon="credit-card-multiple-outline"
+      iconColor="#0ea5e9"
+      title={isRTL ? 'طرق الدفع' : 'Payment methods'}
+      subtitle={isRTL ? 'التحكم بطرق الدفع وأماكن ظهورها' : 'Control payment methods and where they appear'}
+      COLORS={COLORS}
+      isRTL={isRTL}
+    >
+      {!methods ? (
+        <ActivityIndicator color={COLORS.primary} style={{ marginVertical: 16 }} />
+      ) : (
+        methods.map((m) => (
+          <View
+            key={m.id}
+            style={{
+              borderWidth: 1,
+              borderColor: COLORS.border,
+              borderRadius: BORDER_RADIUS.md,
+              padding: 12,
+              marginTop: 10,
+              backgroundColor: COLORS.background,
+            }}
+          >
+            <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+              <MaterialCommunityIcons name={(m.icon as any) || 'credit-card-outline'} size={20} color={COLORS.primary} />
+              <Text style={{ flex: 1, color: COLORS.text, fontWeight: '800', fontSize: 14, textAlign: isRTL ? 'right' : 'left' }}>
+                {isRTL ? m.name_ar : m.name_en}
+              </Text>
+            </View>
+            <ToggleLine
+              label={isRTL ? 'مفعّل' : 'Enabled'}
+              value={m.enabled}
+              onChange={(v) => patch(m, { enabled: v })}
+            />
+            <ToggleLine
+              label={isRTL ? 'قريباً' : 'Coming soon'}
+              value={m.is_coming_soon}
+              onChange={(v) => patch(m, { is_coming_soon: v })}
+            />
+            <ToggleLine
+              label={isRTL ? 'يظهر في خطوة الطلب' : 'Show in request step'}
+              value={m.show_in_request_step}
+              onChange={(v) => patch(m, { show_in_request_step: v })}
+            />
+            <ToggleLine
+              label={isRTL ? 'يظهر في صفحة الدفع' : 'Show in payment page'}
+              value={m.show_in_payment_page}
+              onChange={(v) => patch(m, { show_in_payment_page: v })}
+            />
+          </View>
+        ))
+      )}
     </CollapsibleSection>
   );
 }

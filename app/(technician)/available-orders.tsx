@@ -58,6 +58,28 @@ export default function AvailableOrdersScreen() {
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [technicianLocation, setTechnicianLocation] = useState<{lat: number, lon: number} | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  // Assignment eligibility — a suspended/excluded technician cannot take jobs.
+  const [eligible, setEligible] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data } = await supabase
+          .from('technicians')
+          .select('technician_status')
+          .eq('user_id', user.id)
+          .maybeSingle();
+        if (cancelled) return;
+        const s = (data as any)?.technician_status;
+        setEligible(s !== 'excluded' && s !== 'suspended');
+      } catch {
+        if (!cancelled) setEligible(true);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [user?.id]);
 
   useEffect(() => {
     loadOrders();
@@ -129,6 +151,15 @@ export default function AvailableOrdersScreen() {
   const handleAcceptOrder = async (orderId: string) => {
     try {
       if (!user) return;
+      if (eligible === false) {
+        Alert.alert(
+          language === 'ar' ? 'غير متاح' : 'Not available',
+          language === 'ar'
+            ? 'حسابك كفني موقوف حالياً ولا يمكنك قبول طلبات جديدة.'
+            : 'Your technician account is restricted — you cannot accept new jobs.'
+        );
+        return;
+      }
       await orderService.assignOrderToTechnician(orderId, user.id);
       await orderService.updateOrderStatus(orderId, 'accepted');
       
@@ -321,6 +352,29 @@ export default function AvailableOrdersScreen() {
           <MaterialIcons name="refresh" size={24} color={COLORS.text} />
         </TouchableOpacity>
       </View>
+
+      {eligible === false && (
+        <View
+          style={{
+            flexDirection: isRTL ? 'row-reverse' : 'row',
+            alignItems: 'center',
+            gap: 10,
+            margin: 16,
+            padding: 14,
+            borderRadius: 12,
+            backgroundColor: COLORS.error + '15',
+            borderWidth: 1,
+            borderColor: COLORS.error + '40',
+          }}
+        >
+          <MaterialCommunityIcons name="account-cancel-outline" size={22} color={COLORS.error} />
+          <Text style={{ flex: 1, color: COLORS.text, fontSize: 13, fontWeight: '700', textAlign: isRTL ? 'right' : 'left' }}>
+            {language === 'ar'
+              ? 'حسابك كفني موقوف حالياً — لا يمكنك قبول طلبات جديدة.'
+              : 'Your technician account is restricted — you cannot accept new jobs.'}
+          </Text>
+        </View>
+      )}
 
       {renderCategoryFilters()}
 

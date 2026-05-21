@@ -18,8 +18,7 @@ import { uploadOrderMedia } from '../services/storageService';
 import { getFriendlyError } from '../utils/errorMessages';
 import { tapLight } from '../utils/haptics';
 import { formatPrice } from '../utils/pricing';
-import { DELIVERY_REGIONS, isWithinSupportedArea, type DeliveryRegion } from '../constants/deliveryPricing';
-import { getRepairRegions } from '../services/deliveryPricingService';
+import { getRegionTree, type RegionWithCities } from '../services/serviceAreasService';
 import { pointsForSpend } from '../constants/loyalty';
 import * as loyaltyService from '../services/loyaltyService';
 import { useLoyalty } from '../contexts/LoyaltyContext';
@@ -43,6 +42,10 @@ import {
 } from '../services/discountService';
 import { getPlatformSettings, type PlatformSettings } from '../services/platformSettingsService';
 import ServiceCenterCard from '../components/ServiceCenterCard';
+import {
+  getRequestStepMethods,
+  type PaymentMethod as AdminPaymentMethod,
+} from '../services/paymentMethodsService';
 
 const { width } = Dimensions.get('window');
 
@@ -94,22 +97,14 @@ export default function RequestScreen() {
   const { refresh: refreshLoyalty } = useLoyalty();
   const isRTL = language === 'ar';
 
-  // First enabled delivery region is auto-selected (Al Qatif during rollout).
-  const defaultRegion: DeliveryRegion | null =
-    DELIVERY_REGIONS.find((r) => r.enabled) ?? null;
-  const [selectedRegionId] = useState<string | null>(defaultRegion?.id ?? null);
-  const [selectedAreaId, setSelectedAreaId] = useState<string | null>(null);
-  // Repair service areas — admin can enable/disable regions & areas. Starts
-  // with the bundled config, then refreshes from the DB-backed override.
-  const [repairRegions, setRepairRegions] = useState<DeliveryRegion[]>(DELIVERY_REGIONS);
+  // Repair service areas — Saudi-wide, admin-controlled (service_area_*
+  // tables). Only enabled regions and cities are offered to the customer.
+  const [regionTree, setRegionTree] = useState<RegionWithCities[]>([]);
+  const [selectedCityId, setSelectedCityId] = useState<string | null>(null);
   useEffect(() => {
-    getRepairRegions().then(setRepairRegions).catch(() => undefined);
+    getRegionTree(true).then(setRegionTree).catch(() => undefined);
   }, []);
-  const selectedRegion = repairRegions.find((r) => r.id === selectedRegionId) ?? null;
   const [address, setAddress] = useState('');
-  // Only flag (don't block) when the resolved address is clearly outside the
-  // currently-supported Al Qatif / nearby service area.
-  const outsideServiceArea = !!address && !isWithinSupportedArea(address);
   
   const tc = getColors(isDark);
   const SHADOWS = getShadows(isDark);
@@ -132,13 +127,14 @@ export default function RequestScreen() {
   const [selectedServiceType, setSelectedServiceType] = useState<string>('mobile');
   // Personal hand-off has no delivery leg, so the delivery fee is dropped
   // to zero. Other service types still resolve from the region/area config.
-  const selectedArea = selectedRegion?.areas.find((a) => a.id === selectedAreaId) ?? null;
+  const selectedCity =
+    regionTree.flatMap((r) => r.cities).find((c) => c.id === selectedCityId) ?? null;
+  const selectedCityRegion =
+    regionTree.find((r) => r.cities.some((c) => c.id === selectedCityId)) ?? null;
   const deliveryFee =
-    selectedServiceType === 'personal_handoff' ||
-    !selectedRegion ||
-    selectedRegion.enabled === false
+    selectedServiceType === 'personal_handoff'
       ? 0
-      : Math.max(0, Math.round(selectedArea ? selectedArea.fee : selectedRegion.baseFee));
+      : Math.max(0, Math.round(selectedCity?.delivery_fee ?? 0));
   const [selectedDeviceType, setSelectedDeviceType] = useState<string | null>(null);
   const [selectedBrand, setSelectedBrand] = useState<Brand | null>(null);
   const [selectedModel, setSelectedModel] = useState<string | null>(null);
@@ -189,6 +185,13 @@ export default function RequestScreen() {
   const [platformSettings, setPlatformSettings] = useState<PlatformSettings | null>(null);
   useEffect(() => {
     getPlatformSettings().then(setPlatformSettings).catch(() => {});
+  }, []);
+
+  // Admin-managed methods shown in the illustrative payment step. The real
+  // payment happens later, on the payment page after quote approval.
+  const [requestPayMethods, setRequestPayMethods] = useState<AdminPaymentMethod[]>([]);
+  useEffect(() => {
+    getRequestStepMethods().then(setRequestPayMethods).catch(() => undefined);
   }, []);
 
   // Admin-controlled fees. The real repair price is never known up front —
@@ -433,7 +436,6 @@ export default function RequestScreen() {
         spare_part_quality: sparePartQuality,
         discount_code: appliedDiscount?.code.code,
         discount_amount: appliedDiscount?.amount ?? 0,
-        payment_method: paymentMethod,
         accessories: selectedAccessories,
         protection_addons: selectedProtection,
       };
@@ -451,8 +453,8 @@ export default function RequestScreen() {
       supabase
         .from('orders')
         .update({
-          delivery_region: selectedRegionId,
-          delivery_area: selectedAreaId,
+          delivery_region: selectedCityRegion?.code ?? null,
+          delivery_area: selectedCity?.name_en ?? null,
           delivery_fee: deliveryFee,
           loyalty_points_earned: pointsEarned,
           commitment_fee: commitmentFeeOnOrder,
@@ -535,7 +537,7 @@ export default function RequestScreen() {
     if (currentStep === 4) return !!selectedIssue;
     if (currentStep === 5) return true; // Details are optional
     if (currentStep === 6) return !!location;
-    if (currentStep === 7) return !!paymentMethod; // payment step
+    if (currentStep === 7) return true; // payment step is illustrative only
     return false;
   };
 
@@ -1054,27 +1056,8 @@ export default function RequestScreen() {
               </View>
             ) : null}
 
-            {/* Service-area notice — flagged, not blocked. */}
-            {outsideServiceArea && (
-              <View style={styles.serviceAreaNotice}>
-                <MaterialCommunityIcons name="map-marker-alert-outline" size={22} color="#F59E0B" />
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.serviceAreaTitle}>
-                    {isRTL
-                      ? 'الخدمة حالياً في القطيف والمناطق القريبة فقط'
-                      : 'Service is currently in Al Qatif & nearby areas only'}
-                  </Text>
-                  <Text style={styles.serviceAreaBody}>
-                    {isRTL
-                      ? 'يبدو أن موقعك خارج نطاق الخدمة الحالي. قريباً سنتوسّع لتغطية كامل المنطقة الشرقية ثم جميع مناطق المملكة. يمكنك متابعة الطلب وسنتواصل معك إن لزم.'
-                      : 'Your location seems outside the current service area. Soon we will expand across the entire Eastern Province, then all of Saudi Arabia. You can still continue and we will reach out if needed.'}
-                  </Text>
-                </View>
-              </View>
-            )}
-
-            {/* Delivery area — pricing by region (config-driven, scalable) */}
-            {selectedRegion && selectedRegion.enabled !== false && (
+            {/* Delivery area — Saudi-wide, admin-controlled coverage. */}
+            {regionTree.length > 0 && (
               <View style={styles.deliveryCard}>
                 <View style={styles.deliveryHeader}>
                   <MaterialCommunityIcons name="truck-delivery-outline" size={20} color={COLORS.primary} />
@@ -1082,31 +1065,37 @@ export default function RequestScreen() {
                     {isRTL ? 'منطقة التوصيل' : 'Delivery area'}
                   </Text>
                 </View>
-                <Text style={styles.deliveryRegionName}>
-                  {isRTL ? selectedRegion.nameAr : selectedRegion.nameEn}
-                </Text>
-                <View style={styles.areaChips}>
-                  {selectedRegion.areas.filter((area) => area.enabled !== false).map((area) => {
-                    const active = selectedAreaId === area.id;
-                    return (
-                      <TouchableOpacity
-                        key={area.id}
-                        style={[styles.areaChip, active && styles.areaChipActive]}
-                        onPress={() => setSelectedAreaId(active ? null : area.id)}
-                      >
-                        <Text style={[styles.areaChipText, active && styles.areaChipTextActive]}>
-                          {isRTL ? area.nameAr : area.nameEn} · {area.fee} {isRTL ? 'ر.س' : 'SAR'}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-                <View style={styles.deliveryFeeRow}>
-                  <Text style={styles.summaryLabel}>{isRTL ? 'رسوم التوصيل' : 'Delivery fee'}</Text>
-                  <Text style={[styles.summaryValue, { color: COLORS.primary, fontWeight: '700' }]}>
-                    {deliveryFee} {isRTL ? 'ر.س' : 'SAR'}
-                  </Text>
-                </View>
+                {regionTree.map((region) => (
+                  <View key={region.id} style={{ marginTop: 8 }}>
+                    <Text style={styles.deliveryRegionName}>
+                      {isRTL ? region.name_ar : region.name_en}
+                    </Text>
+                    <View style={styles.areaChips}>
+                      {region.cities.map((city) => {
+                        const active = selectedCityId === city.id;
+                        return (
+                          <TouchableOpacity
+                            key={city.id}
+                            style={[styles.areaChip, active && styles.areaChipActive]}
+                            onPress={() => setSelectedCityId(active ? null : city.id)}
+                          >
+                            <Text style={[styles.areaChipText, active && styles.areaChipTextActive]}>
+                              {isRTL ? city.name_ar : city.name_en}
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  </View>
+                ))}
+                {selectedServiceType !== 'personal_handoff' && (
+                  <View style={styles.deliveryFeeRow}>
+                    <Text style={styles.summaryLabel}>{isRTL ? 'رسوم التوصيل' : 'Delivery fee'}</Text>
+                    <Text style={[styles.summaryValue, { color: COLORS.primary, fontWeight: '700' }]}>
+                      {deliveryFee} {isRTL ? 'ر.س' : 'SAR'}
+                    </Text>
+                  </View>
+                )}
               </View>
             )}
 
@@ -1221,101 +1210,53 @@ export default function RequestScreen() {
               </View>
             )}
 
-            {/* Payment method picker — last decision before submit. */}
+            {/* Payment methods — illustrative only. No real payment happens
+                here; it is completed on the payment page after the customer
+                approves the repair quote. */}
             <Text style={[styles.sectionTitle, { marginTop: 20 }]}>
-              {isRTL ? 'طريقة الدفع' : 'Payment method'}
+              {isRTL ? 'طرق الدفع' : 'Payment methods'}
             </Text>
-            <Text style={{ color: COLORS.gray, fontSize: 12, marginBottom: 10, textAlign: isRTL ? 'right' : 'left', lineHeight: 18 }}>
-              {isRTL
-                ? 'يُدفع مبلغ التأكيد الآن قبل بدء الفحص (إن وُجد)، ويُخصم من الفاتورة النهائية بعد إنهاء الإصلاح.'
-                : 'The commitment amount (if any) is paid now to confirm your booking. It is deducted from the final invoice after the repair completes.'}
-            </Text>
-            <View style={{ gap: 8 }}>
-              {PAYMENT_METHODS.map((pm) => {
-                const selected = paymentMethod === pm.id;
-                return (
-                  <TouchableOpacity
-                    key={pm.id}
-                    onPress={() => setPaymentMethod(pm.id)}
-                    style={{
-                      flexDirection: isRTL ? 'row-reverse' : 'row',
-                      alignItems: 'center',
-                      gap: 12,
-                      borderWidth: selected ? 2 : 1,
-                      borderColor: selected ? COLORS.primary : COLORS.border,
-                      backgroundColor: selected ? COLORS.lightGreen : COLORS.card,
-                      borderRadius: 12,
-                      padding: 14,
-                    }}
-                  >
-                    <MaterialCommunityIcons
-                      name={pm.icon as any}
-                      size={24}
-                      color={selected ? COLORS.primary : COLORS.gray}
-                    />
-                    <Text style={{ flex: 1, fontWeight: '700', color: COLORS.text, textAlign: isRTL ? 'right' : 'left' }}>
-                      {isRTL ? pm.labelAr : pm.labelEn}
-                    </Text>
-                    {pm.comingSoon && (
-                      <View style={{ backgroundColor: COLORS.border, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999 }}>
-                        <Text style={{ fontSize: 10, color: COLORS.gray, fontWeight: '700' }}>
-                          {isRTL ? 'قريبًا' : 'Coming Soon'}
-                        </Text>
-                      </View>
-                    )}
-                    {selected && (
-                      <Ionicons name="checkmark-circle" size={20} color={COLORS.primary} />
-                    )}
-                  </TouchableOpacity>
-                );
-              })}
+            <View style={styles.payNotice}>
+              <MaterialCommunityIcons name="information-outline" size={18} color={COLORS.primary} />
+              <Text style={styles.payNoticeText}>
+                {isRTL
+                  ? 'هذه الخطوة للعرض فقط. يتم الدفع لاحقاً بعد موافقتك على عرض السعر عقب الفحص.'
+                  : 'For reference only. Payment is completed later, after you approve the repair quote.'}
+              </Text>
             </View>
-
-            {paymentMethod === 'card' && (
-              <View style={{ marginTop: 12, gap: 10, padding: 14, backgroundColor: COLORS.card, borderRadius: 12, borderWidth: 1, borderColor: COLORS.border }}>
-                <TextInput
-                  style={[styles.textArea, { height: 48, padding: 12 }]}
-                  placeholder={isRTL ? 'اسم حامل البطاقة' : 'Cardholder name'}
-                  placeholderTextColor={COLORS.gray}
-                  value={cardName}
-                  onChangeText={setCardName}
-                />
-                <TextInput
-                  style={[styles.textArea, { height: 48, padding: 12 }]}
-                  placeholder={isRTL ? 'رقم البطاقة' : 'Card number'}
-                  placeholderTextColor={COLORS.gray}
-                  keyboardType="number-pad"
-                  maxLength={19}
-                  value={cardNumber}
-                  onChangeText={setCardNumber}
-                />
-                <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', gap: 10 }}>
-                  <TextInput
-                    style={[styles.textArea, { flex: 1, height: 48, padding: 12 }]}
-                    placeholder={isRTL ? 'تاريخ الانتهاء (MM/YY)' : 'Expiry (MM/YY)'}
-                    placeholderTextColor={COLORS.gray}
-                    maxLength={5}
-                    value={cardExpiry}
-                    onChangeText={setCardExpiry}
+            <View style={{ gap: 8, marginTop: 4 }}>
+              {requestPayMethods.map((pm) => (
+                <View
+                  key={pm.id}
+                  style={{
+                    flexDirection: isRTL ? 'row-reverse' : 'row',
+                    alignItems: 'center',
+                    gap: 12,
+                    borderWidth: 1,
+                    borderColor: COLORS.border,
+                    backgroundColor: COLORS.card,
+                    borderRadius: 12,
+                    padding: 14,
+                  }}
+                >
+                  <MaterialCommunityIcons
+                    name={(pm.icon as any) || 'credit-card-outline'}
+                    size={24}
+                    color={COLORS.primary}
                   />
-                  <TextInput
-                    style={[styles.textArea, { flex: 1, height: 48, padding: 12 }]}
-                    placeholder={isRTL ? 'CVV' : 'CVV'}
-                    placeholderTextColor={COLORS.gray}
-                    keyboardType="number-pad"
-                    maxLength={4}
-                    secureTextEntry
-                    value={cardCvv}
-                    onChangeText={setCardCvv}
-                  />
+                  <Text style={{ flex: 1, fontWeight: '700', color: COLORS.text, textAlign: isRTL ? 'right' : 'left' }}>
+                    {isRTL ? pm.name_ar : pm.name_en}
+                  </Text>
+                  {pm.is_coming_soon && (
+                    <View style={{ backgroundColor: COLORS.border, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999 }}>
+                      <Text style={{ fontSize: 10, color: COLORS.gray, fontWeight: '700' }}>
+                        {isRTL ? 'قريبًا' : 'Coming Soon'}
+                      </Text>
+                    </View>
+                  )}
                 </View>
-                <Text style={{ fontSize: 11, color: COLORS.gray, textAlign: isRTL ? 'right' : 'left' }}>
-                  {isRTL
-                    ? 'لن يتم الخصم الآن — تفاصيل البطاقة للعرض فقط حتى تفعيل بوابة الدفع.'
-                    : 'No charge now — card details are display-only until the payment gateway is enabled.'}
-                </Text>
-              </View>
-            )}
+              ))}
+            </View>
           </ScrollView>
         )}
       </Animated.View>
@@ -1471,6 +1412,8 @@ const createStyles = (COLORS: any, isRTL: boolean, SHADOWS: any) => StyleSheet.c
   priceNoticeTitle: { fontSize: 14, fontWeight: '800', color: COLORS.primary, textAlign: isRTL ? 'right' : 'left' },
   priceNoticeBody: { fontSize: 12, color: COLORS.gray, marginTop: 3, lineHeight: 18, textAlign: isRTL ? 'right' : 'left' },
   costNote: { fontSize: 11, color: COLORS.gray, marginTop: 2, textAlign: isRTL ? 'right' : 'left' },
+  payNotice: { flexDirection: isRTL ? 'row-reverse' : 'row', gap: 8, backgroundColor: COLORS.lightGreen, borderRadius: 12, padding: 12, marginBottom: 4, alignItems: 'flex-start' },
+  payNoticeText: { flex: 1, fontSize: 12, color: COLORS.gray, lineHeight: 18, textAlign: isRTL ? 'right' : 'left' },
   footer: { padding: 16, backgroundColor: COLORS.card, borderTopWidth: 1, borderTopColor: COLORS.border },
   nextButton: { backgroundColor: COLORS.primary, height: 54, borderRadius: BORDER_RADIUS.sm, justifyContent: 'center', alignItems: 'center', ...SHADOWS.small },
   nextButtonText: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
