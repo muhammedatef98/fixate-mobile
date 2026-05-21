@@ -58,7 +58,6 @@ export default function CustomerHomeScreen() {
   const [sidebarVisible, setSidebarVisible] = useState(false);
   const [activeOrder, setActiveOrder] = useState<any>(null);
   const [recentOrder, setRecentOrder] = useState<any>(null);
-  const [stats, setStats] = useState<{ completed: number; rating: number; reviews: number } | null>(null);
   const [loading, setLoading] = useState(true);
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(20)).current;
@@ -77,7 +76,6 @@ export default function CustomerHomeScreen() {
         await Promise.allSettled([
           user?.id ? loadActiveOrder() : Promise.resolve(),
           user?.id ? loadRecentOrder() : Promise.resolve(),
-          loadGlobalStats(),
         ]);
       } finally {
         setLoading(false);
@@ -116,23 +114,6 @@ export default function CustomerHomeScreen() {
       setRecentOrder(data?.[0] ?? null);
     } catch (e) {
       logger.warn('home loadRecentOrder failed', e);
-    }
-  };
-
-  const loadGlobalStats = async () => {
-    // Platform-wide social proof: count of completed jobs + avg rating
-    // across the platform (not user-specific). Cached client-side via the
-    // 12 s fetch ceiling so it doesn't slow first paint.
-    try {
-      const [{ count: completed }, { data: reviews }] = await Promise.all([
-        supabase.from('orders').select('*', { count: 'exact', head: true }).eq('status', 'completed'),
-        supabase.from('reviews').select('rating'),
-      ]);
-      const ratings = (reviews ?? []).map((r: any) => r.rating).filter((n: any) => typeof n === 'number');
-      const avg = ratings.length ? ratings.reduce((a: number, b: number) => a + b, 0) / ratings.length : 0;
-      setStats({ completed: completed ?? 0, rating: Number(avg.toFixed(1)), reviews: ratings.length });
-    } catch (e) {
-      logger.warn('home loadGlobalStats failed', e);
     }
   };
 
@@ -219,7 +200,7 @@ export default function CustomerHomeScreen() {
           </TouchableOpacity>
 
           {/* First-load skeleton (replaces blank flash before data lands) */}
-          {loading && !activeOrder && !recentOrder && !stats && (
+          {loading && !activeOrder && !recentOrder && (
             <View style={{ marginTop: 4 }}>
               <Skeleton height={64} radius={14} style={{ marginBottom: 16 }} />
               <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', gap: 12, marginBottom: 22 }}>
@@ -249,36 +230,27 @@ export default function CustomerHomeScreen() {
             </TouchableOpacity>
           )}
 
-          {/* Social proof — global completed-job count + avg rating */}
-          {stats && (stats.completed > 0 || stats.reviews > 0) && (
-            <View style={[styles.socialProof, { backgroundColor: COLORS.card, borderColor: COLORS.border }]}>
-              <View style={styles.spItem}>
-                <View style={[styles.spIcon, { backgroundColor: '#10b98120' }]}>
-                  <MaterialCommunityIcons name="check-decagram" size={18} color="#10b981" />
-                </View>
-                <Text style={[styles.spValue, { color: COLORS.text }]}>
-                  {stats.completed >= 1000 ? `+${Math.floor(stats.completed / 100) / 10}K` : `+${stats.completed}`}
-                </Text>
-                <Text style={[styles.spLabel, { color: COLORS.textSecondary }]}>
-                  {isRTL ? 'إصلاح ناجح' : 'successful repairs'}
-                </Text>
-              </View>
-              <View style={[styles.spDivider, { backgroundColor: COLORS.border }]} />
-              <View style={styles.spItem}>
-                <View style={[styles.spIcon, { backgroundColor: '#f59e0b20' }]}>
-                  <MaterialCommunityIcons name="star" size={18} color="#f59e0b" />
-                </View>
-                <Text style={[styles.spValue, { color: COLORS.text }]}>
-                  {stats.rating > 0 ? stats.rating.toFixed(1) : '5.0'}
-                </Text>
-                <Text style={[styles.spLabel, { color: COLORS.textSecondary }]}>
-                  {isRTL
-                    ? `من ${stats.reviews || 0} تقييم`
-                    : `from ${stats.reviews || 0} reviews`}
-                </Text>
-              </View>
+          {/* My Orders — prominent, always-visible access to all orders */}
+          <TouchableOpacity
+            onPress={() => router.push('/(customer)/orders')}
+            style={[styles.myOrdersCard, { backgroundColor: COLORS.card, borderColor: COLORS.border }]}
+            activeOpacity={0.85}
+            accessibilityRole="button"
+            accessibilityLabel={isRTL ? 'طلباتي' : 'My orders'}
+          >
+            <View style={[styles.myOrdersIcon, { backgroundColor: COLORS.primary + '15' }]}>
+              <MaterialCommunityIcons name="clipboard-text-clock-outline" size={24} color={COLORS.primary} />
             </View>
-          )}
+            <View style={{ flex: 1, marginHorizontal: 12 }}>
+              <Text style={[styles.myOrdersTitle, { color: COLORS.text }]}>
+                {isRTL ? 'طلباتي' : 'My Orders'}
+              </Text>
+              <Text style={[styles.myOrdersSub, { color: COLORS.textSecondary }]} numberOfLines={1}>
+                {isRTL ? 'تتبّع ومتابعة جميع طلبات الإصلاح' : 'Track and manage all your repairs'}
+              </Text>
+            </View>
+            <RTLIonicon name="chevron-forward" size={20} color={COLORS.primary} />
+          </TouchableOpacity>
 
           {/* Recent order — one-tap repeat for returning customers */}
           {recentOrder && (
@@ -499,24 +471,22 @@ const makeStyles = (C: any, isRTL: boolean, SHADOWS: any) =>
     deviceLabel: { fontSize: 14, fontWeight: '700' },
     devicePrice: { fontSize: 11, fontWeight: '700', marginTop: 2 },
 
-    // Social proof
-    socialProof: {
+    // My Orders quick-access card
+    myOrdersCard: {
       flexDirection: isRTL ? 'row-reverse' : 'row',
-      borderRadius: BORDER_RADIUS.md,
-      paddingVertical: 16,
-      paddingHorizontal: 8,
-      marginBottom: 16,
       alignItems: 'center',
+      borderRadius: BORDER_RADIUS.md,
+      borderWidth: 1,
+      padding: 16,
+      marginBottom: 24,
       ...SHADOWS.small,
     },
-    spItem: { flex: 1, alignItems: 'center', gap: 4 },
-    spIcon: {
-      width: 32, height: 32, borderRadius: 10,
-      alignItems: 'center', justifyContent: 'center', marginBottom: 4,
+    myOrdersIcon: {
+      width: 48, height: 48, borderRadius: 14,
+      alignItems: 'center', justifyContent: 'center',
     },
-    spValue: { fontSize: 19, fontWeight: '800' },
-    spLabel: { fontSize: 11, fontWeight: '500' },
-    spDivider: { width: StyleSheet.hairlineWidth, alignSelf: 'stretch', marginVertical: 6 },
+    myOrdersTitle: { fontSize: 16, fontWeight: '800', textAlign: isRTL ? 'right' : 'left' },
+    myOrdersSub: { fontSize: 12, marginTop: 2, textAlign: isRTL ? 'right' : 'left' },
 
     // Recent activity card
     recentCard: {

@@ -337,7 +337,8 @@ export default function MarketDetailScreen() {
                 {isSold && (
                   <View style={styles.soldOverlay}>
                     <View style={styles.soldBadge}>
-                      <Text style={styles.soldBadgeText}>{isRTL ? 'تم البيع' : 'SOLD'}</Text>
+                      <Ionicons name="checkmark-circle" size={18} color="#fff" />
+                      <Text style={styles.soldBadgeText}>تم البيع</Text>
                     </View>
                   </View>
                 )}
@@ -631,18 +632,20 @@ const createStyles = (C: any, isRTL: boolean) =>
     dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.55)' },
     soldOverlay: {
       ...StyleSheet.absoluteFillObject,
-      backgroundColor: 'rgba(0,0,0,0.4)',
+      backgroundColor: 'rgba(15,23,32,0.35)',
       alignItems: 'center',
       justifyContent: 'center',
     },
     soldBadge: {
-      backgroundColor: '#EF4444',
-      paddingHorizontal: 24,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 7,
+      backgroundColor: '#DC2626',
+      paddingHorizontal: 20,
       paddingVertical: 10,
-      borderRadius: 10,
-      transform: [{ rotate: '-8deg' }],
+      borderRadius: 999,
     },
-    soldBadgeText: { color: '#fff', fontSize: 22, fontWeight: '900', letterSpacing: 2 },
+    soldBadgeText: { color: '#fff', fontSize: 16, fontWeight: '800', letterSpacing: 0.5 },
 
     body: { padding: SPACING.lg, gap: 4 },
     listingTitle: { color: C.text, fontSize: 22, fontWeight: '800', lineHeight: 28, textAlign: isRTL ? 'right' : 'left' },

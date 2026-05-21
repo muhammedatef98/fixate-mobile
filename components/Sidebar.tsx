@@ -10,7 +10,6 @@ import {
   Switch,
   Dimensions,
   Alert,
-  Image,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -21,6 +20,7 @@ import { translations } from '../constants/translations';
 import { supabase } from '../services/supabaseClient';
 import { logger } from '../utils/logger';
 import { RTLMaterialIcon } from './RTLIcon';
+import Avatar from './Avatar';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 const DRAWER_WIDTH = Math.min(320, SCREEN_W * 0.85);
@@ -34,6 +34,7 @@ interface Row {
   icon: any;
   label: string;
   route: string;
+  color: string;
   iconLib?: 'ion' | 'mc';
 }
 
@@ -109,18 +110,17 @@ export default function Sidebar({ visible, onClose }: SidebarProps) {
 
   // Only routes that actually exist in the app. Dead links removed.
   const main: Row[] = [
-    { icon: 'home-outline',     label: isRTL ? 'الرئيسية' : 'Home',         route: '/(customer)' },
-    { icon: 'receipt-outline',  label: isRTL ? 'طلباتي' : 'My orders',      route: '/(customer)/orders' },
-    { icon: 'person-outline',   label: isRTL ? 'حسابي' : 'Profile',         route: '/(customer)/profile' },
-    { icon: 'calculator-outline', label: isRTL ? 'حاسبة الأسعار' : 'Price calc', route: '/(customer)/calculator' },
+    { icon: 'home-outline',     label: isRTL ? 'الرئيسية' : 'Home',     route: '/(customer)',          color: '#10b981' },
+    { icon: 'receipt-outline',  label: isRTL ? 'طلباتي' : 'My orders',  route: '/(customer)/orders',   color: '#3b82f6' },
+    { icon: 'person-outline',   label: isRTL ? 'حسابي' : 'Profile',     route: '/(customer)/profile',  color: '#8b5cf6' },
   ];
 
   const account: Row[] = [
-    { icon: 'location-outline',     label: isRTL ? 'عناويني' : 'Addresses',         route: '/addresses' },
-    { icon: 'wallet-outline',       label: isRTL ? 'محفظتي' : 'Wallet',             route: '/wallet' },
-    { icon: 'notifications-outline', label: isRTL ? 'إشعاراتي' : 'Notifications',   route: '/notifications-settings' },
-    { icon: 'settings-outline',     label: isRTL ? 'الإعدادات' : 'Settings',        route: '/settings' },
-    { icon: 'help-circle-outline',  label: isRTL ? 'الدعم' : 'Help & support',      route: '/contact' },
+    { icon: 'location-outline',      label: isRTL ? 'عناويني' : 'Addresses',     route: '/addresses',             color: '#f59e0b' },
+    { icon: 'wallet-outline',        label: isRTL ? 'محفظتي' : 'Wallet',         route: '/wallet',                color: '#10b981' },
+    { icon: 'notifications-outline', label: isRTL ? 'إشعاراتي' : 'Notifications', route: '/notifications-settings', color: '#3b82f6' },
+    { icon: 'settings-outline',      label: isRTL ? 'الإعدادات' : 'Settings',    route: '/settings',              color: '#64748b' },
+    { icon: 'help-circle-outline',   label: isRTL ? 'الدعم' : 'Help & support',  route: '/contact',               color: '#8b5cf6' },
   ];
 
   return (
@@ -148,15 +148,12 @@ export default function Sidebar({ visible, onClose }: SidebarProps) {
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingVertical: SPACING.lg }}>
             {/* User card */}
             <View style={[styles(COLORS, isRTL).header, { backgroundColor: COLORS.primary + '12' }]}>
-              <View style={[styles(COLORS, isRTL).avatar, { backgroundColor: COLORS.primary }]}>
-                {(userProfile as any)?.avatar_url ? (
-                  <Image source={{ uri: (userProfile as any).avatar_url }} style={{ width: 60, height: 60, borderRadius: 30 }} />
-                ) : (
-                  <Text style={{ color: '#fff', fontSize: 22, fontWeight: '800' }}>
-                    {(displayName.trim()[0] || '?').toUpperCase()}
-                  </Text>
-                )}
-              </View>
+              <Avatar
+                name={displayName}
+                uri={(userProfile as any)?.avatar_url}
+                size={64}
+                style={{ marginBottom: 10 }}
+              />
               <Text style={[styles(COLORS, isRTL).userName, { color: COLORS.text }]} numberOfLines={1}>
                 {displayName}
               </Text>
@@ -207,14 +204,28 @@ export default function Sidebar({ visible, onClose }: SidebarProps) {
             )}
 
             <Section title={isRTL ? 'القائمة الرئيسية' : 'MAIN'} COLORS={COLORS} isRTL={isRTL}>
-              {main.map((row) => (
-                <SidebarRow key={row.route} {...row} onPress={() => goto(row.route)} COLORS={COLORS} isRTL={isRTL} />
+              {main.map((row, i) => (
+                <SidebarRow
+                  key={row.route}
+                  {...row}
+                  isLast={i === main.length - 1}
+                  onPress={() => goto(row.route)}
+                  COLORS={COLORS}
+                  isRTL={isRTL}
+                />
               ))}
             </Section>
 
             <Section title={isRTL ? 'حسابي' : 'ACCOUNT'} COLORS={COLORS} isRTL={isRTL}>
-              {account.map((row) => (
-                <SidebarRow key={row.route} {...row} onPress={() => goto(row.route)} COLORS={COLORS} isRTL={isRTL} />
+              {account.map((row, i) => (
+                <SidebarRow
+                  key={row.route}
+                  {...row}
+                  isLast={i === account.length - 1}
+                  onPress={() => goto(row.route)}
+                  COLORS={COLORS}
+                  isRTL={isRTL}
+                />
               ))}
             </Section>
 
@@ -305,24 +316,35 @@ function Section({ title, children, COLORS, isRTL }: any) {
   );
 }
 
-function SidebarRow({ icon, label, onPress, COLORS, isRTL }: any) {
+function SidebarRow({ icon, label, color, onPress, COLORS, isRTL, isLast }: any) {
   return (
     <TouchableOpacity
       onPress={onPress}
       style={{
         flexDirection: isRTL ? 'row-reverse' : 'row',
         alignItems: 'center',
-        paddingVertical: 14,
-        paddingHorizontal: 14,
-        borderBottomWidth: StyleSheet.hairlineWidth,
+        paddingVertical: 11,
+        paddingHorizontal: 12,
+        borderBottomWidth: isLast ? 0 : StyleSheet.hairlineWidth,
         borderBottomColor: COLORS.border,
         gap: 12,
       }}
       accessibilityRole="button"
     >
-      <Ionicons name={icon} size={20} color={COLORS.primary} />
-      <Text style={{ flex: 1, color: COLORS.text, fontSize: 15, fontWeight: '500' }}>{label}</Text>
-      <RTLMaterialIcon name="chevron-right" size={18} color={COLORS.textSecondary} />
+      <View
+        style={{
+          width: 36,
+          height: 36,
+          borderRadius: 10,
+          backgroundColor: (color || COLORS.primary) + '18',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <Ionicons name={icon} size={19} color={color || COLORS.primary} />
+      </View>
+      <Text style={{ flex: 1, color: COLORS.text, fontSize: 15, fontWeight: '600' }}>{label}</Text>
+      <RTLMaterialIcon name="chevron-right" size={17} color={COLORS.textSecondary} />
     </TouchableOpacity>
   );
 }

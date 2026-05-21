@@ -172,7 +172,8 @@ export default function MarketScreen() {
         {item.status === 'sold' && (
           <View style={styles.soldOverlay}>
             <View style={styles.soldBadge}>
-              <Text style={styles.soldBadgeText}>{isRTL ? 'تم البيع' : 'SOLD'}</Text>
+              <Ionicons name="checkmark-circle" size={14} color="#fff" />
+              <Text style={styles.soldBadgeText}>تم البيع</Text>
             </View>
           </View>
         )}
@@ -592,22 +593,24 @@ const createStyles = (C: any, isRTL: boolean) =>
     conditionText: { color: '#fff', fontSize: 10, fontWeight: '700' },
     soldOverlay: {
       ...StyleSheet.absoluteFillObject,
-      backgroundColor: 'rgba(0,0,0,0.45)',
+      backgroundColor: 'rgba(15,23,32,0.35)',
       alignItems: 'center',
       justifyContent: 'center',
     },
     soldBadge: {
-      backgroundColor: '#EF4444',
-      paddingHorizontal: 16,
-      paddingVertical: 6,
-      borderRadius: 8,
-      transform: [{ rotate: '-8deg' }],
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 5,
+      backgroundColor: '#DC2626',
+      paddingHorizontal: 14,
+      paddingVertical: 7,
+      borderRadius: 999,
     },
     soldBadgeText: {
       color: '#fff',
-      fontSize: 15,
-      fontWeight: '900',
-      letterSpacing: 1,
+      fontSize: 13,
+      fontWeight: '800',
+      letterSpacing: 0.3,
     },
     cardBody: { padding: 10, gap: 4 },
     cardTitle: { color: C.text, fontWeight: '700', fontSize: 13, lineHeight: 18 },

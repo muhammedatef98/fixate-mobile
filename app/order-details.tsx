@@ -25,6 +25,7 @@ import LiveTrackingMap from '../components/LiveTrackingMap';
 import * as reviewService from '../services/reviewService';
 import { supabase } from '../services/supabaseClient';
 import ImageViewer from '../components/ImageViewer';
+import ServiceCenterCard from '../components/ServiceCenterCard';
 import { getPlatformSettings } from '../services/platformSettingsService';
 import { computeCancellationFee } from '../constants/fees';
 
@@ -240,6 +241,11 @@ export default function OrderDetailsScreen() {
   const currentStepIndex = getCurrentStepIndex();
   const isCancelled = order.status === 'cancelled';
   const statusColor = getStatusColor(order.status);
+  // The repair price only exists once the technician submits a quote.
+  const hasFinalPrice = !!(order as any).final_price && order.status !== 'quoted';
+  const orderFulfillment = (order as any).fulfillment_type ?? order.service_type;
+  const usesServiceCenter =
+    orderFulfillment === 'pickup' || orderFulfillment === 'personal_handoff';
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: COLORS.background }]}>
@@ -470,25 +476,50 @@ export default function OrderDetailsScreen() {
           <View style={styles.cardHeader}>
             <MaterialIcons name="payments" size={24} color={COLORS.primary} />
             <Text style={[styles.cardTitle, { color: COLORS.text }]}>
-              {(order as any).final_price && order.status !== 'quoted'
+              {hasFinalPrice
                 ? (isRTL ? 'السعر النهائي' : 'Final Price')
-                : (isRTL ? 'السعر المقدر' : 'Estimated Price')}
+                : (isRTL ? 'التكلفة' : 'Cost')}
             </Text>
           </View>
 
           <View style={styles.priceContainer}>
-            <View style={styles.priceRow}>
-              <Text style={[styles.priceLabel, { color: COLORS.textSecondary }]}>
-                {(order as any).final_price && order.status !== 'quoted'
-                  ? (isRTL ? 'التكلفة النهائية' : 'Final Cost')
-                  : (isRTL ? 'التكلفة المقدرة' : 'Estimated Cost')}
-              </Text>
-              <Text style={[styles.priceAmount, { color: COLORS.primary }]}>
-                {((order as any).final_price && order.status !== 'quoted'
-                  ? (order as any).final_price
-                  : order.estimated_price)} {isRTL ? 'ر.س' : 'SAR'}
-              </Text>
-            </View>
+            {hasFinalPrice ? (
+              <View style={styles.priceRow}>
+                <Text style={[styles.priceLabel, { color: COLORS.textSecondary }]}>
+                  {isRTL ? 'التكلفة النهائية' : 'Final Cost'}
+                </Text>
+                <Text style={[styles.priceAmount, { color: COLORS.primary }]}>
+                  {(order as any).final_price} {isRTL ? 'ر.س' : 'SAR'}
+                </Text>
+              </View>
+            ) : (
+              <View
+                style={{
+                  flexDirection: isRTL ? 'row-reverse' : 'row',
+                  alignItems: 'center',
+                  gap: 10,
+                  backgroundColor: COLORS.primary + '12',
+                  borderRadius: BORDER_RADIUS.md,
+                  padding: 12,
+                }}
+              >
+                <MaterialCommunityIcons name="information" size={20} color={COLORS.primary} />
+                <Text
+                  style={{
+                    flex: 1,
+                    color: COLORS.text,
+                    fontSize: 13,
+                    fontWeight: '600',
+                    lineHeight: 19,
+                    textAlign: isRTL ? 'right' : 'left',
+                  }}
+                >
+                  {isRTL
+                    ? 'يتم تحديد السعر بعد الفحص'
+                    : 'Price will be determined after inspection'}
+                </Text>
+              </View>
+            )}
 
             {!!(order as any).delivery_fee && (order as any).delivery_fee > 0 && (
               <View style={styles.priceRow}>
@@ -513,6 +544,21 @@ export default function OrderDetailsScreen() {
             )}
           </View>
         </View>
+
+        {/* Service center — where to collect the device after completion. */}
+        {order.status === 'completed' && usesServiceCenter && (
+          <View style={{ marginHorizontal: 16, marginBottom: 12 }}>
+            <ServiceCenterCard
+              isRTL={isRTL}
+              COLORS={COLORS}
+              subtitle={
+                isRTL
+                  ? 'جهازك جاهز للاستلام من مركز Fixate'
+                  : 'Your device is ready for collection at the Fixate center'
+              }
+            />
+          </View>
+        )}
 
         {/* Action Buttons */}
         <View style={styles.actionContainer}>

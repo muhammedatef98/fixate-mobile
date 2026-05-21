@@ -18,7 +18,8 @@ import { uploadOrderMedia } from '../services/storageService';
 import { getFriendlyError } from '../utils/errorMessages';
 import { tapLight } from '../utils/haptics';
 import { formatPrice } from '../utils/pricing';
-import { DELIVERY_REGIONS, resolveDeliveryFee, isWithinSupportedArea, type DeliveryRegion } from '../constants/deliveryPricing';
+import { DELIVERY_REGIONS, isWithinSupportedArea, type DeliveryRegion } from '../constants/deliveryPricing';
+import { getRepairRegions } from '../services/deliveryPricingService';
 import { pointsForSpend } from '../constants/loyalty';
 import * as loyaltyService from '../services/loyaltyService';
 import { useLoyalty } from '../contexts/LoyaltyContext';
@@ -41,8 +42,7 @@ import {
   type DiscountCode,
 } from '../services/discountService';
 import { getPlatformSettings, type PlatformSettings } from '../services/platformSettingsService';
-import { buildPricingBreakdown } from '../services/pricingService';
-import InvoiceBreakdown from '../components/InvoiceBreakdown';
+import ServiceCenterCard from '../components/ServiceCenterCard';
 
 const { width } = Dimensions.get('window');
 
@@ -99,7 +99,13 @@ export default function RequestScreen() {
     DELIVERY_REGIONS.find((r) => r.enabled) ?? null;
   const [selectedRegionId] = useState<string | null>(defaultRegion?.id ?? null);
   const [selectedAreaId, setSelectedAreaId] = useState<string | null>(null);
-  const selectedRegion = DELIVERY_REGIONS.find((r) => r.id === selectedRegionId) ?? null;
+  // Repair service areas — admin can enable/disable regions & areas. Starts
+  // with the bundled config, then refreshes from the DB-backed override.
+  const [repairRegions, setRepairRegions] = useState<DeliveryRegion[]>(DELIVERY_REGIONS);
+  useEffect(() => {
+    getRepairRegions().then(setRepairRegions).catch(() => undefined);
+  }, []);
+  const selectedRegion = repairRegions.find((r) => r.id === selectedRegionId) ?? null;
   const [address, setAddress] = useState('');
   // Only flag (don't block) when the resolved address is clearly outside the
   // currently-supported Al Qatif / nearby service area.
@@ -126,10 +132,13 @@ export default function RequestScreen() {
   const [selectedServiceType, setSelectedServiceType] = useState<string>('mobile');
   // Personal hand-off has no delivery leg, so the delivery fee is dropped
   // to zero. Other service types still resolve from the region/area config.
+  const selectedArea = selectedRegion?.areas.find((a) => a.id === selectedAreaId) ?? null;
   const deliveryFee =
-    selectedServiceType === 'personal_handoff'
+    selectedServiceType === 'personal_handoff' ||
+    !selectedRegion ||
+    selectedRegion.enabled === false
       ? 0
-      : resolveDeliveryFee(selectedRegionId, selectedAreaId);
+      : Math.max(0, Math.round(selectedArea ? selectedArea.fee : selectedRegion.baseFee));
   const [selectedDeviceType, setSelectedDeviceType] = useState<string | null>(null);
   const [selectedBrand, setSelectedBrand] = useState<Brand | null>(null);
   const [selectedModel, setSelectedModel] = useState<string | null>(null);
@@ -181,6 +190,15 @@ export default function RequestScreen() {
   useEffect(() => {
     getPlatformSettings().then(setPlatformSettings).catch(() => {});
   }, []);
+
+  // Admin-controlled fees. The real repair price is never known up front —
+  // it is set by the technician's quote after inspection.
+  const inspectionFeeDue = (platformSettings?.inspectionEnabled ?? false)
+    ? Math.max(0, platformSettings?.inspectionFee ?? 0)
+    : 0;
+  const commitmentDue = (platformSettings?.commitmentEnabled ?? false)
+    ? Math.max(0, platformSettings?.commitmentFee ?? 0)
+    : 0;
 
   const [location, setLocation] = useState<any>(null);
   const [isLocating, setIsLocating] = useState(false);
@@ -429,10 +447,7 @@ export default function RequestScreen() {
       // Best-effort persistence of delivery + loyalty snapshot. These columns
       // arrive with a pending migration; until then this update silently
       // no-ops so the (already-created) order is never affected.
-      const commitmentFeeOnOrder =
-        (platformSettings?.commitmentEnabled ?? true)
-          ? (platformSettings?.commitmentFee ?? 50)
-          : 0;
+      const commitmentFeeOnOrder = commitmentDue;
       supabase
         .from('orders')
         .update({
@@ -1059,7 +1074,7 @@ export default function RequestScreen() {
             )}
 
             {/* Delivery area — pricing by region (config-driven, scalable) */}
-            {selectedRegion && (
+            {selectedRegion && selectedRegion.enabled !== false && (
               <View style={styles.deliveryCard}>
                 <View style={styles.deliveryHeader}>
                   <MaterialCommunityIcons name="truck-delivery-outline" size={20} color={COLORS.primary} />
@@ -1071,7 +1086,7 @@ export default function RequestScreen() {
                   {isRTL ? selectedRegion.nameAr : selectedRegion.nameEn}
                 </Text>
                 <View style={styles.areaChips}>
-                  {selectedRegion.areas.map((area) => {
+                  {selectedRegion.areas.filter((area) => area.enabled !== false).map((area) => {
                     const active = selectedAreaId === area.id;
                     return (
                       <TouchableOpacity
@@ -1135,27 +1150,76 @@ export default function RequestScreen() {
               </View>
             </View>
 
-            {/* The single source of truth for what the customer owes. */}
-            <View style={{ marginTop: 12 }}>
-              <InvoiceBreakdown
-                isRTL={isRTL}
-                COLORS={COLORS}
-                hideCommitment={!(platformSettings?.commitmentEnabled ?? true)}
-                breakdown={buildPricingBreakdown({
-                  baseEstimate: selectedIssue?.estimatedPrice ?? 0,
-                  sparePartQuality,
-                  accessories: selectedAccessories,
-                  protection: selectedProtection,
-                  deliveryFee,
-                  commitmentFee: (platformSettings?.commitmentEnabled ?? true)
-                    ? (platformSettings?.commitmentFee ?? 50)
-                    : 0,
-                  discountAmount: appliedDiscount?.amount ?? 0,
-                  discountCode: appliedDiscount?.code.code,
-                  loyaltyPointsPerSAR: platformSettings?.loyalty.pointsPerSAR ?? 1,
-                })}
-              />
+            {/* Pre-inspection cost. The real repair price is only known
+                after the technician inspects the device, so we never show a
+                repair total here. */}
+            <View style={[styles.summaryCard, { marginTop: 12 }]}>
+              <Text style={styles.summaryTitle}>{isRTL ? 'التكلفة' : 'Cost'}</Text>
+
+              <View style={styles.priceNotice}>
+                <MaterialCommunityIcons name="information" size={20} color={COLORS.primary} />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.priceNoticeTitle}>
+                    {isRTL
+                      ? 'يتم تحديد السعر بعد الفحص'
+                      : 'Price will be determined after inspection'}
+                  </Text>
+                  <Text style={styles.priceNoticeBody}>
+                    {isRTL
+                      ? 'سيفحص الفني جهازك ثم يرسل لك عرض سعر دقيق للموافقة عليه قبل بدء الإصلاح.'
+                      : 'The technician will inspect your device, then send an accurate quote for you to approve before any repair begins.'}
+                  </Text>
+                </View>
+              </View>
+
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>{isRTL ? 'الفحص' : 'Inspection'}</Text>
+                <Text
+                  style={[
+                    styles.summaryValue,
+                    inspectionFeeDue === 0 && { color: COLORS.primary, fontWeight: '700' },
+                  ]}
+                >
+                  {inspectionFeeDue > 0
+                    ? `${inspectionFeeDue} ${isRTL ? 'ر.س' : 'SAR'}`
+                    : isRTL ? 'مجاني' : 'Free'}
+                </Text>
+              </View>
+
+              {deliveryFee > 0 && (
+                <View style={styles.summaryRow}>
+                  <Text style={styles.summaryLabel}>{isRTL ? 'رسوم التوصيل' : 'Delivery fee'}</Text>
+                  <Text style={styles.summaryValue}>
+                    {deliveryFee} {isRTL ? 'ر.س' : 'SAR'}
+                  </Text>
+                </View>
+              )}
+
+              {commitmentDue > 0 && (
+                <View style={styles.summaryRow}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.summaryLabel}>
+                      {isRTL ? 'مبلغ التأكيد' : 'Confirmation amount'}
+                    </Text>
+                    <Text style={styles.costNote}>
+                      {isRTL
+                        ? 'يُدفع الآن ويُخصم من الفاتورة النهائية'
+                        : 'Paid now, deducted from the final bill'}
+                    </Text>
+                  </View>
+                  <Text style={styles.summaryValue}>
+                    {commitmentDue} {isRTL ? 'ر.س' : 'SAR'}
+                  </Text>
+                </View>
+              )}
             </View>
+
+            {/* Service center — shown for drop-off / personal handoff only. */}
+            {(selectedServiceType === 'pickup' || selectedServiceType === 'personal_handoff') && (
+              <View style={{ marginTop: 12 }}>
+                <ServiceCenterCard isRTL={isRTL} COLORS={COLORS} />
+              </View>
+            )}
 
             {/* Payment method picker — last decision before submit. */}
             <Text style={[styles.sectionTitle, { marginTop: 20 }]}>
@@ -1403,6 +1467,10 @@ const createStyles = (COLORS: any, isRTL: boolean, SHADOWS: any) => StyleSheet.c
   summaryRow: { flexDirection: isRTL ? 'row-reverse' : 'row', justifyContent: 'space-between', paddingVertical: 6, gap: 12 },
   summaryLabel: { fontSize: 14, color: COLORS.gray },
   summaryValue: { fontSize: 14, color: COLORS.text, fontWeight: '600', flex: 1, textAlign: isRTL ? 'left' : 'right' },
+  priceNotice: { flexDirection: isRTL ? 'row-reverse' : 'row', gap: 10, backgroundColor: COLORS.lightGreen, borderRadius: 12, padding: 12, marginVertical: 8 },
+  priceNoticeTitle: { fontSize: 14, fontWeight: '800', color: COLORS.primary, textAlign: isRTL ? 'right' : 'left' },
+  priceNoticeBody: { fontSize: 12, color: COLORS.gray, marginTop: 3, lineHeight: 18, textAlign: isRTL ? 'right' : 'left' },
+  costNote: { fontSize: 11, color: COLORS.gray, marginTop: 2, textAlign: isRTL ? 'right' : 'left' },
   footer: { padding: 16, backgroundColor: COLORS.card, borderTopWidth: 1, borderTopColor: COLORS.border },
   nextButton: { backgroundColor: COLORS.primary, height: 54, borderRadius: BORDER_RADIUS.sm, justifyContent: 'center', alignItems: 'center', ...SHADOWS.small },
   nextButtonText: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
