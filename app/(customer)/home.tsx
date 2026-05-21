@@ -1,11 +1,27 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, SafeAreaView, Dimensions, StatusBar, I18nManager } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  SafeAreaView,
+  Dimensions,
+  StatusBar,
+} from 'react-native';
 import { useRouter } from 'expo-router';
 import { COLORS, SPACING, SHADOWS } from '../../constants/theme';
 import { MaterialIcons, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../../contexts/AuthContext';
 import { useApp } from '../../contexts/AppContext';
+import { useOrders } from '../../contexts/OrdersContext';
+import NotificationBell from '../../components/NotificationBell';
+import {
+  ORDER_STATUS_LABELS_AR,
+  ORDER_STATUS_LABELS_EN,
+  isTerminalStatus,
+} from '../../types/order';
 
 const { width } = Dimensions.get('window');
 
@@ -19,40 +35,18 @@ const SERVICES = [
 ];
 
 const PROMOTIONS = [
-  {
-    id: 1,
-    title: 'خصم 25%',
-    subtitle: 'على صيانة الشاشات الأصلية',
-    icon: 'cellphone-screenshot',
-    color: '#10B981',
-    bgFrom: '#10B981',
-    bgTo: '#059669',
-  },
-  {
-    id: 2,
-    title: 'فحص مجاني',
-    subtitle: 'شامل لجميع أجهزة آبل',
-    icon: 'apple',
-    color: '#3B82F6',
-    bgFrom: '#3B82F6',
-    bgTo: '#1D4ED8',
-  },
-  {
-    id: 3,
-    title: 'وصول خلال 30 دقيقة',
-    subtitle: 'فني محترف يصلك في موقعك',
-    icon: 'clock-fast',
-    color: '#F59E0B',
-    bgFrom: '#F59E0B',
-    bgTo: '#D97706',
-  },
+  { id: 1, title: 'خصم 25%', titleEn: '25% OFF', subtitle: 'على صيانة الشاشات الأصلية', subtitleEn: 'On original screen repairs', icon: 'cellphone-screenshot', bgFrom: '#10B981', bgTo: '#059669' },
+  { id: 2, title: 'فحص مجاني', titleEn: 'Free check-up', subtitle: 'شامل لجميع أجهزة آبل', subtitleEn: 'For all Apple devices', icon: 'apple', bgFrom: '#3B82F6', bgTo: '#1D4ED8' },
+  { id: 3, title: 'وصول سريع', titleEn: 'Fast arrival', subtitle: 'فني محترف يصلك في موقعك', subtitleEn: 'A pro technician comes to you', icon: 'clock-fast', bgFrom: '#F59E0B', bgTo: '#D97706' },
 ];
 
 export default function CustomerHomeScreen() {
   const router = useRouter();
   const { userProfile } = useAuth();
+  const { orders } = useOrders();
   const { language } = useApp();
   const isRTL = language !== 'en';
+
   const hour = new Date().getHours();
   const greetingWord = isRTL
     ? hour < 12 ? 'صباح الخير' : hour < 18 ? 'مساء الخير' : 'مساءك سعيد'
@@ -60,35 +54,31 @@ export default function CustomerHomeScreen() {
   const firstName =
     userProfile?.name?.split(' ')[0] || (isRTL ? 'صديقنا' : 'there');
 
+  // Most recent order that is not completed/cancelled.
+  const activeOrder = orders.find((o) => !isTerminalStatus(o.status));
+  const statusLabel = activeOrder
+    ? (isRTL ? ORDER_STATUS_LABELS_AR : ORDER_STATUS_LABELS_EN)[activeOrder.status]
+    : '';
+  const isPending = activeOrder?.status === 'pending';
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-        {/* Header Section */}
+        {/* ── Header: greeting + bell ─────────────────────── */}
         <View style={styles.header}>
-          <View>
-            <Text style={styles.greeting}>{`${greetingWord}، ${firstName} 👋`}</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.greeting} numberOfLines={1}>
+              {`${greetingWord}، ${firstName} 👋`}
+            </Text>
             <Text style={styles.greetingSub}>
               {isRTL ? 'كيف نقدر نساعدك اليوم؟' : 'How can we help you today?'}
             </Text>
-            <View style={styles.locationContainer}>
-              <MaterialIcons name="location-on" size={16} color={COLORS.primary} />
-              <Text style={styles.location}>الرياض، حي الملقا</Text>
-              <MaterialIcons name="keyboard-arrow-down" size={16} color={COLORS.textSecondary} />
-            </View>
           </View>
-          <TouchableOpacity
-            style={[styles.notificationBtn, SHADOWS.small]}
-            onPress={() => router.push('/notifications')}
-            accessibilityRole="button"
-            accessibilityLabel={isRTL ? 'الإشعارات' : 'Notifications'}
-          >
-            <Ionicons name="notifications-outline" size={24} color={COLORS.text} />
-            <View style={styles.badge} />
-          </TouchableOpacity>
+          <NotificationBell style={[styles.notificationBtn, SHADOWS.small]} color={COLORS.text} />
         </View>
 
-        {/* Search Bar — taps through to the services browser */}
+        {/* ── Search ──────────────────────────────────────── */}
         <TouchableOpacity
           style={[styles.searchContainer, SHADOWS.small]}
           onPress={() => router.push('/(customer)/services')}
@@ -100,79 +90,117 @@ export default function CustomerHomeScreen() {
           </Text>
         </TouchableOpacity>
 
-        {/* Fixate Market Banner (replaces the old calculator slot) */}
+        {/* ── Active order card OR welcome hero ───────────── */}
+        {activeOrder ? (
+          <TouchableOpacity
+            style={[styles.activeOrderCard, SHADOWS.medium]}
+            activeOpacity={0.9}
+            onPress={() => router.push(`/track/${activeOrder.id}`)}
+          >
+            <View style={styles.orderStatusLine}>
+              <View style={[styles.statusDot, { backgroundColor: isPending ? COLORS.warning : COLORS.success }]} />
+              <Text style={[styles.orderStatusText, { color: isPending ? COLORS.warning : COLORS.success }]}>
+                {statusLabel}
+              </Text>
+              <Text style={styles.orderTrackLink}>{isRTL ? 'تتبّع ‹' : 'Track ›'}</Text>
+            </View>
+            <View style={styles.divider} />
+            <View style={styles.orderContent}>
+              <View style={styles.deviceIcon}>
+                <MaterialCommunityIcons name="cellphone-cog" size={24} color={COLORS.primary} />
+              </View>
+              <View style={styles.orderDetails}>
+                <Text style={styles.deviceName} numberOfLines={1}>
+                  {[activeOrder.device_brand, activeOrder.device_model].filter(Boolean).join(' ') ||
+                    (isRTL ? 'طلب إصلاح' : 'Repair order')}
+                </Text>
+                <Text style={styles.issueType} numberOfLines={1}>
+                  {activeOrder.issue_description || (isRTL ? 'قيد المتابعة' : 'In progress')}
+                </Text>
+              </View>
+              <MaterialIcons
+                name={isRTL ? 'arrow-back-ios' : 'arrow-forward-ios'}
+                size={16}
+                color={COLORS.textSecondary}
+              />
+            </View>
+          </TouchableOpacity>
+        ) : (
+          <View style={[styles.welcomeHero, SHADOWS.medium]}>
+            <MaterialCommunityIcons name="tools" size={32} color={COLORS.primary} />
+            <Text style={styles.welcomeTitle}>
+              {isRTL ? 'جهازك يحتاج إصلاح؟' : 'Device needs a fix?'}
+            </Text>
+            <Text style={styles.welcomeSub}>
+              {isRTL
+                ? 'احجز فنياً محترفاً خلال دقيقة واحدة.'
+                : 'Book a professional technician in under a minute.'}
+            </Text>
+          </View>
+        )}
+
+        {/* ── Primary CTA: New Repair Request ─────────────── */}
         <TouchableOpacity
-          style={[styles.calculatorBanner, SHADOWS.medium]}
-          onPress={() => router.push('/market')}
-          accessibilityRole="button"
-          accessibilityLabel={isRTL ? 'فتح سوق Fixate' : 'Open Fixate Market'}
+          style={[styles.primaryCta, SHADOWS.medium]}
+          activeOpacity={0.9}
+          onPress={() => router.push('/request')}
         >
           <LinearGradient
             colors={[COLORS.primary, COLORS.primaryDark]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
-            style={styles.calculatorGradient}
+            style={styles.primaryCtaGradient}
           >
-            <View style={styles.calculatorContent}>
-              <Text style={styles.calculatorTitle}>
-                {isRTL ? 'سوق Fixate' : 'Fixate Market'}
-              </Text>
-              <Text style={styles.calculatorSubtitle}>
-                {isRTL
-                  ? 'بيع واشترِ أجهزة، إكسسوارات، وقطع غيار بأمان'
-                  : 'Buy & sell devices, accessories, and spare parts safely'}
-              </Text>
-              <View style={styles.calculatorBtn}>
-                <Text style={styles.calculatorBtnText}>
-                  {isRTL ? 'تصفّح السوق' : 'Browse market'}
-                </Text>
-                <MaterialIcons name={isRTL ? 'arrow-back' : 'arrow-forward'} size={16} color={COLORS.primary} />
-              </View>
+            <View style={styles.primaryCtaIcon}>
+              <MaterialCommunityIcons name="plus-circle" size={26} color="#fff" />
             </View>
-            <MaterialCommunityIcons name="storefront-outline" size={80} color="rgba(255,255,255,0.2)" style={styles.calculatorIcon} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.primaryCtaTitle}>
+                {isRTL ? 'طلب إصلاح جديد' : 'Request New Repair'}
+              </Text>
+              <Text style={styles.primaryCtaSub}>
+                {isRTL ? 'فني يصلك أينما كنت' : 'A technician comes to you'}
+              </Text>
+            </View>
+            <MaterialIcons
+              name={isRTL ? 'arrow-back' : 'arrow-forward'}
+              size={22}
+              color="#fff"
+            />
           </LinearGradient>
         </TouchableOpacity>
 
-        {/* Promotions Slider */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.promoContainer}>
-          {PROMOTIONS.map((promo) => (
-            <TouchableOpacity key={promo.id} style={[styles.promoCard, SHADOWS.medium]}>
-              <LinearGradient
-                colors={[promo.bgFrom, promo.bgTo]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={[StyleSheet.absoluteFillObject, { borderRadius: 16 }]}
-              />
-              <MaterialCommunityIcons
-                name={promo.icon as any}
-                size={120}
-                color="rgba(255,255,255,0.18)"
-                style={{ position: 'absolute', right: -16, top: -16 }}
-              />
-              <View style={styles.promoOverlay}>
-                <View style={styles.promoContent}>
-                  <Text style={styles.promoTitle}>{promo.title}</Text>
-                  <Text style={styles.promoSubtitle}>{promo.subtitle}</Text>
-                  <View style={[styles.promoBtn, { backgroundColor: 'rgba(255,255,255,0.95)' }]}>
-                    <Text style={[styles.promoBtnText, { color: promo.color }]}>اطلب الآن</Text>
-                  </View>
-                </View>
-              </View>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
+        {/* ── Quick actions: My Orders / Market / Track ───── */}
+        <View style={styles.quickRow}>
+          <QuickAction
+            icon="clipboard-text-outline"
+            label={isRTL ? 'طلباتي' : 'My Orders'}
+            color="#3B82F6"
+            onPress={() => router.push('/(customer)/orders')}
+          />
+          <QuickAction
+            icon="storefront-outline"
+            label={isRTL ? 'السوق' : 'Market'}
+            color="#F59E0B"
+            onPress={() => router.push('/market')}
+          />
+          <QuickAction
+            icon="map-marker-path"
+            label={isRTL ? 'تتبّع الطلب' : 'Track Order'}
+            color="#10B981"
+            onPress={() =>
+              router.push(activeOrder ? `/track/${activeOrder.id}` : '/(customer)/orders')
+            }
+          />
+        </View>
 
-        {/* Fixate Market now lives inside the Services section (see
-            app/(customer)/services.tsx), not as a homepage main block. */}
-
-        {/* Services Grid */}
+        {/* ── Services grid ───────────────────────────────── */}
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>{isRTL ? 'خدماتنا' : 'Our services'}</Text>
           <TouchableOpacity onPress={() => router.push('/(customer)/services')}>
             <Text style={styles.seeAll}>{isRTL ? 'عرض الكل' : 'See all'}</Text>
           </TouchableOpacity>
         </View>
-
         <View style={styles.servicesGrid}>
           {SERVICES.map((service) => (
             <TouchableOpacity
@@ -189,73 +217,67 @@ export default function CustomerHomeScreen() {
           ))}
         </View>
 
-        {/* Active Request Banner */}
+        {/* ── Promotions (bottom) ─────────────────────────── */}
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>{isRTL ? 'طلباتي النشطة' : 'My active requests'}</Text>
+          <Text style={styles.sectionTitle}>{isRTL ? 'عروض وأخبار' : 'Offers & news'}</Text>
         </View>
-        
-        <TouchableOpacity style={[styles.activeOrderCard, SHADOWS.medium]} onPress={() => router.push('/track/123')}>
-          <View style={styles.orderStatusLine}>
-            <View style={styles.pulsingDot} />
-            <Text style={styles.orderStatusText}>الفني في الطريق إليك</Text>
-            <Text style={styles.orderTime}>يصل خلال 15 دقيقة</Text>
-          </View>
-          
-          <View style={styles.divider} />
-          
-          <View style={styles.orderContent}>
-            <View style={styles.deviceIcon}>
-              <MaterialCommunityIcons name="cellphone" size={24} color={COLORS.primary} />
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ paddingHorizontal: SPACING.l, gap: SPACING.m }}
+        >
+          {PROMOTIONS.map((promo) => (
+            <View key={promo.id} style={[styles.promoCard, SHADOWS.medium]}>
+              <LinearGradient
+                colors={[promo.bgFrom, promo.bgTo]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={StyleSheet.absoluteFillObject}
+              />
+              <MaterialCommunityIcons
+                name={promo.icon as any}
+                size={120}
+                color="rgba(255,255,255,0.18)"
+                style={{ position: 'absolute', right: -16, top: -16 }}
+              />
+              <View style={styles.promoContent}>
+                <Text style={styles.promoTitle}>{isRTL ? promo.title : promo.titleEn}</Text>
+                <Text style={styles.promoSubtitle}>{isRTL ? promo.subtitle : promo.subtitleEn}</Text>
+              </View>
             </View>
-            <View style={styles.orderDetails}>
-              <Text style={styles.deviceName}>iPhone 13 Pro Max</Text>
-              <Text style={styles.issueType}>كسر في الشاشة الأمامية</Text>
-            </View>
-            <MaterialIcons name="arrow-forward-ios" size={16} color={COLORS.textSecondary} />
-          </View>
-        </TouchableOpacity>
-
+          ))}
+        </ScrollView>
       </ScrollView>
     </SafeAreaView>
   );
 }
 
+function QuickAction({ icon, label, color, onPress }: {
+  icon: any; label: string; color: string; onPress: () => void;
+}) {
+  return (
+    <TouchableOpacity style={[styles.quickCard, SHADOWS.small]} activeOpacity={0.8} onPress={onPress}>
+      <View style={[styles.quickIcon, { backgroundColor: color + '18' }]}>
+        <MaterialCommunityIcons name={icon} size={24} color={color} />
+      </View>
+      <Text style={styles.quickLabel}>{label}</Text>
+    </TouchableOpacity>
+  );
+}
+
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
-  scrollContent: {
-    paddingBottom: SPACING.xxl,
-  },
+  container: { flex: 1, backgroundColor: COLORS.background },
+  scrollContent: { paddingBottom: SPACING.xxl },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: SPACING.l,
     paddingTop: SPACING.xl,
+    gap: SPACING.m,
   },
-  greeting: {
-    fontSize: 23,
-    fontWeight: 'bold',
-    color: COLORS.text,
-    marginBottom: 2,
-  },
-  greetingSub: {
-    fontSize: 13,
-    color: COLORS.textSecondary,
-    marginBottom: 6,
-  },
-  locationContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  location: {
-    fontSize: 14,
-    color: COLORS.textSecondary,
-    fontWeight: '500',
-  },
+  greeting: { fontSize: 22, fontWeight: 'bold', color: COLORS.text, marginBottom: 2 },
+  greetingSub: { fontSize: 13, color: COLORS.textSecondary },
   notificationBtn: {
     width: 44,
     height: 44,
@@ -265,17 +287,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1,
     borderColor: COLORS.border,
-  },
-  badge: {
-    position: 'absolute',
-    top: 10,
-    right: 10,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: COLORS.error,
-    borderWidth: 1,
-    borderColor: COLORS.surface,
   },
   searchContainer: {
     flexDirection: 'row',
@@ -287,107 +298,99 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.l,
     borderWidth: 1,
     borderColor: COLORS.border,
+    gap: SPACING.s,
   },
-  searchPlaceholder: {
-    marginLeft: SPACING.s,
-    color: COLORS.textSecondary,
-    fontSize: 14,
-    flex: 1,
-  },
-  calculatorBanner: {
+  searchPlaceholder: { color: COLORS.textSecondary, fontSize: 14, flex: 1 },
+
+  activeOrderCard: {
     marginHorizontal: SPACING.l,
-    marginBottom: SPACING.l,
+    backgroundColor: COLORS.surface,
     borderRadius: 20,
+    padding: SPACING.m,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    marginBottom: SPACING.l,
   },
-  calculatorGradient: {
+  orderStatusLine: { flexDirection: 'row', alignItems: 'center', marginBottom: SPACING.s, gap: 8 },
+  statusDot: { width: 9, height: 9, borderRadius: 5 },
+  orderStatusText: { fontSize: 14, fontWeight: 'bold', flex: 1 },
+  orderTrackLink: { fontSize: 13, color: COLORS.primary, fontWeight: '700' },
+  divider: { height: 1, backgroundColor: COLORS.border, marginVertical: SPACING.s },
+  orderContent: { flexDirection: 'row', alignItems: 'center', gap: SPACING.m },
+  deviceIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: COLORS.primaryLight,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  orderDetails: { flex: 1 },
+  deviceName: { fontSize: 16, fontWeight: 'bold', color: COLORS.text },
+  issueType: { fontSize: 13, color: COLORS.textSecondary, marginTop: 2 },
+
+  welcomeHero: {
+    marginHorizontal: SPACING.l,
+    backgroundColor: COLORS.surface,
     borderRadius: 20,
     padding: SPACING.l,
-    position: 'relative',
-    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    marginBottom: SPACING.l,
+    alignItems: 'flex-start',
+    gap: 6,
   },
-  calculatorContent: {
-    zIndex: 1,
+  welcomeTitle: { fontSize: 17, fontWeight: 'bold', color: COLORS.text, marginTop: 6 },
+  welcomeSub: { fontSize: 13, color: COLORS.textSecondary },
+
+  primaryCta: {
+    marginHorizontal: SPACING.l,
+    borderRadius: 18,
+    marginBottom: SPACING.l,
   },
-  calculatorTitle: {
-    color: '#FFF',
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginBottom: 4,
-  },
-  calculatorSubtitle: {
-    color: 'rgba(255,255,255,0.9)',
-    fontSize: 14,
-    marginBottom: SPACING.m,
-  },
-  calculatorBtn: {
-    backgroundColor: '#FFF',
-    paddingHorizontal: SPACING.m,
-    paddingVertical: 8,
-    borderRadius: 12,
-    alignSelf: 'flex-start',
+  primaryCtaGradient: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: SPACING.m,
+    padding: SPACING.l,
+    borderRadius: 18,
   },
-  calculatorBtnText: {
-    color: COLORS.primary,
-    fontWeight: 'bold',
-    fontSize: 14,
+  primaryCtaIcon: {
+    width: 46,
+    height: 46,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  calculatorIcon: {
-    position: 'absolute',
-    bottom: -10,
-    left: -10,
-    transform: [{ rotate: '-15deg' }],
-  },
-  promoContainer: {
-    paddingLeft: SPACING.l,
+  primaryCtaTitle: { color: '#fff', fontSize: 17, fontWeight: 'bold' },
+  primaryCtaSub: { color: 'rgba(255,255,255,0.9)', fontSize: 13, marginTop: 2 },
+
+  quickRow: {
+    flexDirection: 'row',
+    paddingHorizontal: SPACING.l,
+    gap: SPACING.m,
     marginBottom: SPACING.xl,
   },
-  promoCard: {
-    width: width * 0.8,
-    height: 160,
-    borderRadius: 20,
-    marginRight: SPACING.m,
-    overflow: 'hidden',
+  quickCard: {
+    flex: 1,
+    backgroundColor: COLORS.surface,
+    borderRadius: 16,
+    paddingVertical: SPACING.m,
+    alignItems: 'center',
+    gap: 8,
+    borderWidth: 1,
+    borderColor: COLORS.border,
   },
-  promoImage: {
-    width: '100%',
-    height: '100%',
+  quickIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  promoOverlay: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: '100%',
-    justifyContent: 'flex-end',
-    padding: SPACING.l,
-  },
-  promoContent: {
-    alignItems: 'flex-start',
-  },
-  promoTitle: {
-    color: '#FFF',
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 4,
-  },
-  promoSubtitle: {
-    color: 'rgba(255,255,255,0.9)',
-    fontSize: 14,
-    marginBottom: SPACING.m,
-  },
-  promoBtn: {
-    paddingHorizontal: SPACING.m,
-    paddingVertical: 6,
-    borderRadius: 8,
-  },
-  promoBtnText: {
-    color: '#FFF',
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
+  quickLabel: { fontSize: 13, fontWeight: '600', color: COLORS.text },
+
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -395,16 +398,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.l,
     marginBottom: SPACING.m,
   },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: COLORS.text,
-  },
-  seeAll: {
-    fontSize: 14,
-    color: COLORS.primary,
-    fontWeight: '600',
-  },
+  sectionTitle: { fontSize: 18, fontWeight: 'bold', color: COLORS.text },
+  seeAll: { fontSize: 14, color: COLORS.primary, fontWeight: '600' },
+
   servicesGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -425,69 +421,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: SPACING.s,
   },
-  serviceName: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: COLORS.text,
-  },
-  activeOrderCard: {
-    marginHorizontal: SPACING.l,
-    backgroundColor: COLORS.surface,
+  serviceName: { fontSize: 14, fontWeight: '600', color: COLORS.text },
+
+  promoCard: {
+    width: width * 0.72,
+    height: 130,
     borderRadius: 20,
-    padding: SPACING.m,
-    borderWidth: 1,
-    borderColor: COLORS.border,
+    overflow: 'hidden',
+    justifyContent: 'flex-end',
+    padding: SPACING.l,
   },
-  orderStatusLine: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: SPACING.s,
-  },
-  pulsingDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: COLORS.success,
-    marginRight: 8,
-  },
-  orderStatusText: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: COLORS.success,
-    flex: 1,
-  },
-  orderTime: {
-    fontSize: 12,
-    color: COLORS.textSecondary,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: COLORS.border,
-    marginVertical: SPACING.s,
-  },
-  orderContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  deviceIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: '#ECFDF5',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: SPACING.m,
-  },
-  orderDetails: {
-    flex: 1,
-  },
-  deviceName: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: COLORS.text,
-  },
-  issueType: {
-    fontSize: 13,
-    color: COLORS.textSecondary,
-  },
+  promoContent: { alignItems: 'flex-start' },
+  promoTitle: { color: '#FFF', fontSize: 22, fontWeight: 'bold', marginBottom: 4 },
+  promoSubtitle: { color: 'rgba(255,255,255,0.9)', fontSize: 13 },
 });

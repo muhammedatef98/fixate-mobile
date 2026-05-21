@@ -56,6 +56,11 @@ export interface PlatformSettings {
   loyalty: LoyaltySettings;
   commitmentFee: number;
   commitmentEnabled: boolean;
+  maintenanceMode: boolean;
+  announcementEnabled: boolean;
+  announcementAr: string;
+  announcementEn: string;
+  minAppVersion: string;
 }
 
 export const PLATFORM_SETTINGS_KEYS = {
@@ -73,6 +78,11 @@ export const PLATFORM_SETTINGS_KEYS = {
   loyaltyTiers: 'loyalty_tiers',
   commitmentFee: 'commitment_fee_default',
   commitmentEnabled: 'commitment_enabled',
+  maintenanceMode: 'maintenance_mode',
+  announcementEnabled: 'announcement_enabled',
+  announcementAr: 'announcement_ar',
+  announcementEn: 'announcement_en',
+  minAppVersion: 'min_app_version',
 } as const;
 
 const boolFromValue = (raw: any, fallback: boolean): boolean => {
@@ -134,6 +144,11 @@ const DEFAULTS: PlatformSettings = {
   loyalty: DEFAULT_LOYALTY,
   commitmentFee: 50,
   commitmentEnabled: true,
+  maintenanceMode: false,
+  announcementEnabled: false,
+  announcementAr: '',
+  announcementEn: '',
+  minAppVersion: '',
 };
 
 const loadRaw = async (): Promise<Record<string, any>> => {
@@ -177,6 +192,11 @@ export const getPlatformSettings = async (): Promise<PlatformSettings> => {
     },
     commitmentFee: numFromValue(raw[PLATFORM_SETTINGS_KEYS.commitmentFee], DEFAULTS.commitmentFee),
     commitmentEnabled: boolFromValue(raw[PLATFORM_SETTINGS_KEYS.commitmentEnabled], DEFAULTS.commitmentEnabled),
+    maintenanceMode: boolFromValue(raw[PLATFORM_SETTINGS_KEYS.maintenanceMode], DEFAULTS.maintenanceMode),
+    announcementEnabled: boolFromValue(raw[PLATFORM_SETTINGS_KEYS.announcementEnabled], DEFAULTS.announcementEnabled),
+    announcementAr: strFromValue(raw[PLATFORM_SETTINGS_KEYS.announcementAr], DEFAULTS.announcementAr),
+    announcementEn: strFromValue(raw[PLATFORM_SETTINGS_KEYS.announcementEn], DEFAULTS.announcementEn),
+    minAppVersion: strFromValue(raw[PLATFORM_SETTINGS_KEYS.minAppVersion], DEFAULTS.minAppVersion),
   };
 };
 

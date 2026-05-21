@@ -8,7 +8,6 @@ import {
   SafeAreaView,
   StatusBar,
   ActivityIndicator,
-  Image,
   RefreshControl,
 } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -21,6 +20,7 @@ import NeuCard from '../../components/NeuCard';
 import BottomNav from '../../components/BottomNav';
 import { logger } from '../../utils/logger';
 import { RTLMaterialIcon } from '../../components/RTLIcon';
+import Avatar from '../../components/Avatar';
 
 export default function TechniciansScreen() {
   const router = useRouter();
@@ -105,11 +105,10 @@ export default function TechniciansScreen() {
               <NeuCard key={tech.id} style={styles.techCard}>
                 <View style={styles.techHeader}>
                   <View style={styles.avatarContainer}>
-                    <Image 
-                      source={{ 
-                        uri: tech.users?.avatar_url || `https://ui-avatars.com/api/?name=${tech.users?.name || 'Tech'}&background=10B981&color=fff&size=128` 
-                      }} 
-                      style={styles.avatar} 
+                    <Avatar
+                      name={tech.users?.name}
+                      uri={tech.users?.avatar_url}
+                      size={60}
                     />
                     {tech.available && <View style={styles.availableBadge} />}
                   </View>

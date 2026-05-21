@@ -21,6 +21,7 @@ import { supabase } from '../../services/supabaseClient';
 import { getColors, getShadows, SPACING, BORDER_RADIUS } from '../../constants/theme';
 import { RTLIonicon } from '../../components/RTLIcon';
 import { PressableScale } from '../../components/ui/PressableScale';
+import Avatar from '../../components/Avatar';
 
 interface MenuRow {
   id: string;
@@ -118,7 +119,6 @@ export default function ProfileScreen() {
   const styles = makeStyles(COLORS, isRTL, SHADOWS);
   const displayName = userProfile?.name?.trim() || user?.email?.split('@')[0] || (isRTL ? 'مرحبًا' : 'Welcome');
   const displayEmail = userProfile?.email || user?.email || '';
-  const initial = (displayName[0] || '?').toUpperCase();
 
   return (
     <SafeAreaView style={styles.container}>
@@ -135,9 +135,12 @@ export default function ProfileScreen() {
         <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }], paddingHorizontal: SPACING.m, paddingTop: SPACING.m, paddingBottom: SPACING.l }}>
           {/* Profile hero */}
           <View style={[styles.hero, { backgroundColor: COLORS.primary }]}>
-            <View style={styles.avatar}>
-              <Text style={styles.avatarText}>{initial}</Text>
-            </View>
+            <Avatar
+              name={displayName}
+              uri={userProfile?.avatar_url}
+              size={76}
+              style={styles.avatar}
+            />
             <Text style={styles.heroName} numberOfLines={1}>{displayName}</Text>
             {!!displayEmail && <Text style={styles.heroEmail} numberOfLines={1}>{displayEmail}</Text>}
             <TouchableOpacity onPress={() => goto('/edit-profile')} style={styles.editPill}>
@@ -268,12 +271,8 @@ const makeStyles = (C: any, isRTL: boolean, SHADOWS: any) =>
       elevation: 6,
     },
     avatar: {
-      width: 76, height: 76, borderRadius: 38,
-      backgroundColor: '#ffffff25',
-      alignItems: 'center', justifyContent: 'center',
       borderWidth: 3, borderColor: '#ffffff40',
     },
-    avatarText: { color: '#fff', fontSize: 28, fontWeight: '800' },
     heroName: { color: '#fff', fontSize: 18, fontWeight: '800', marginTop: 12, maxWidth: '90%' },
     heroEmail: { color: '#ffffffcc', fontSize: 12, marginTop: 4, maxWidth: '90%' },
     editPill: {

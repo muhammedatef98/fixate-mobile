@@ -30,6 +30,7 @@ import {
   type DeviceType,
   type SortKey,
 } from '../services/marketService';
+import SaudiCityPicker from '../components/SaudiCityPicker';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 const GRID_GUTTER = 12;
@@ -168,6 +169,13 @@ export default function MarketScreen() {
             </Text>
           </View>
         )}
+        {item.status === 'sold' && (
+          <View style={styles.soldOverlay}>
+            <View style={styles.soldBadge}>
+              <Text style={styles.soldBadgeText}>{isRTL ? 'تم البيع' : 'SOLD'}</Text>
+            </View>
+          </View>
+        )}
       </View>
       <View style={styles.cardBody}>
         <Text style={styles.cardTitle} numberOfLines={2}>{item.title}</Text>
@@ -199,9 +207,7 @@ export default function MarketScreen() {
           <RTLIonicon name="chevron-back" size={26} color={COLORS.text} />
         </TouchableOpacity>
         <Text style={styles.title}>{isRTL ? 'سوق Fixate' : 'Fixate Market'}</Text>
-        <TouchableOpacity onPress={() => router.push('/market-new')} accessibilityRole="button">
-          <Ionicons name="add-circle" size={28} color={COLORS.primary} />
-        </TouchableOpacity>
+        <View style={{ width: 28 }} />
       </View>
 
       {/* Search + filter button */}
@@ -237,21 +243,43 @@ export default function MarketScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Tabs */}
+      {/* Internal Market tab bar */}
       <View style={styles.tabs}>
-        {(['browse', 'mine'] as const).map((t) => (
-          <TouchableOpacity
-            key={t}
-            onPress={() => setTab(t)}
-            style={[styles.tab, tab === t && { backgroundColor: COLORS.primary }]}
-          >
-            <Text style={[styles.tabText, tab === t && { color: '#fff' }]}>
-              {t === 'browse'
-                ? (isRTL ? 'تصفّح' : 'Browse')
-                : (isRTL ? 'إعلاناتي' : 'My listings')}
-            </Text>
-          </TouchableOpacity>
-        ))}
+        <TouchableOpacity
+          onPress={() => setTab('browse')}
+          style={[styles.tab, tab === 'browse' && { backgroundColor: COLORS.primary }]}
+        >
+          <Ionicons
+            name="grid-outline"
+            size={15}
+            color={tab === 'browse' ? '#fff' : COLORS.textSecondary}
+          />
+          <Text style={[styles.tabText, tab === 'browse' && { color: '#fff' }]}>
+            {isRTL ? 'تصفّح' : 'Browse'}
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => setTab('mine')}
+          style={[styles.tab, tab === 'mine' && { backgroundColor: COLORS.primary }]}
+        >
+          <Ionicons
+            name="pricetags-outline"
+            size={15}
+            color={tab === 'mine' ? '#fff' : COLORS.textSecondary}
+          />
+          <Text style={[styles.tabText, tab === 'mine' && { color: '#fff' }]}>
+            {isRTL ? 'إعلاناتي' : 'My Listings'}
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => router.push('/market-new')}
+          style={styles.tab}
+        >
+          <Ionicons name="add-circle-outline" size={15} color={COLORS.primary} />
+          <Text style={[styles.tabText, { color: COLORS.primary }]}>
+            {isRTL ? 'إضافة إعلان' : 'Add Listing'}
+          </Text>
+        </TouchableOpacity>
       </View>
 
       {/* Device-type chips (Browse tab only) */}
@@ -368,12 +396,11 @@ export default function MarketScreen() {
             </View>
 
             <Text style={styles.sheetLabel}>{isRTL ? 'المدينة' : 'City'}</Text>
-            <TextInput
+            <SaudiCityPicker
               value={city}
-              onChangeText={setCity}
-              placeholder={isRTL ? 'مثال: الرياض' : 'e.g. Riyadh'}
-              placeholderTextColor={COLORS.textSecondary}
-              style={[styles.sheetInput, { color: COLORS.text, textAlign: isRTL ? 'right' : 'left' }]}
+              onSelect={setCity}
+              isRTL={isRTL}
+              placeholder={isRTL ? 'كل المدن' : 'All cities'}
             />
 
             <Text style={styles.sheetLabel}>{isRTL ? 'السعر (ر.س)' : 'Price (SAR)'}</Text>
@@ -504,8 +531,16 @@ const createStyles = (C: any, isRTL: boolean) =>
       borderRadius: BORDER_RADIUS.md,
       padding: 4,
     },
-    tab: { flex: 1, alignItems: 'center', paddingVertical: 10, borderRadius: BORDER_RADIUS.md - 2 },
-    tabText: { color: C.text, fontWeight: '700' },
+    tab: {
+      flex: 1,
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 5,
+      paddingVertical: 10,
+      borderRadius: BORDER_RADIUS.md - 2,
+    },
+    tabText: { color: C.textSecondary, fontWeight: '700', fontSize: 13 },
     deviceStrip: { paddingHorizontal: SPACING.lg, gap: 8, paddingVertical: 4 },
     deviceChip: {
       flexDirection: isRTL ? 'row-reverse' : 'row',
@@ -555,6 +590,25 @@ const createStyles = (C: any, isRTL: boolean) =>
       borderRadius: 999,
     },
     conditionText: { color: '#fff', fontSize: 10, fontWeight: '700' },
+    soldOverlay: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: 'rgba(0,0,0,0.45)',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    soldBadge: {
+      backgroundColor: '#EF4444',
+      paddingHorizontal: 16,
+      paddingVertical: 6,
+      borderRadius: 8,
+      transform: [{ rotate: '-8deg' }],
+    },
+    soldBadgeText: {
+      color: '#fff',
+      fontSize: 15,
+      fontWeight: '900',
+      letterSpacing: 1,
+    },
     cardBody: { padding: 10, gap: 4 },
     cardTitle: { color: C.text, fontWeight: '700', fontSize: 13, lineHeight: 18 },
     cardPrice: { color: C.primary, fontWeight: '800', fontSize: 15 },

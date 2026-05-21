@@ -10,8 +10,8 @@ import {
   ActivityIndicator,
   Alert,
   RefreshControl,
+  Switch,
 } from 'react-native';
-import { useRouter } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useApp } from '../contexts/AppContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -22,34 +22,49 @@ import { getFriendlyError } from '../utils/errorMessages';
 import { success, warning } from '../utils/haptics';
 import { safeBack } from '../utils/navigation';
 
-interface Submission {
+interface Technician {
   id: string;
   user_id: string;
   national_id?: string;
   iban?: string;
   city?: string;
-  specialty: string;
+  specialty?: string;
+  specialization?: string[];
   years_of_experience: number;
   bio?: string;
-  id_document_url?: string;
-  certificate_url?: string;
   verification_status: string;
+  is_mobile?: boolean;
   created_at?: string;
-  user_name?: string;
-  user_phone?: string;
+  full_name?: string;
+  phone?: string;
 }
 
-export default function AdminVerificationsScreen() {
-  const router = useRouter();
+type FilterKey = 'pending' | 'approved' | 'all';
+
+const STATUS_META = (s: string, isRTL: boolean) => {
+  switch (s) {
+    case 'submitted':
+      return { label: isRTL ? 'بانتظار المراجعة' : 'Pending review', color: '#F59E0B' };
+    case 'approved':
+      return { label: isRTL ? 'معتمد' : 'Approved', color: '#16A34A' };
+    case 'rejected':
+      return { label: isRTL ? 'مرفوض' : 'Rejected', color: '#DC2626' };
+    default:
+      return { label: isRTL ? 'مسودة' : 'Draft', color: '#8A94A3' };
+  }
+};
+
+export default function AdminTechniciansScreen() {
   const { language, isDark } = useApp();
   const { userProfile } = useAuth();
   const COLORS = getColors(isDark);
   const isRTL = language === 'ar';
 
-  const [items, setItems] = useState<Submission[]>([]);
+  const [items, setItems] = useState<Technician[]>([]);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [filter, setFilter] = useState<FilterKey>('pending');
 
   const profileLoaded = userProfile !== null;
   const isAdmin = (userProfile as any)?.is_admin === true;
@@ -57,21 +72,16 @@ export default function AdminVerificationsScreen() {
   const load = useCallback(async () => {
     try {
       setLoading(true);
-      // Don't embed users:user_id(name, phone) — RLS on the users table only
-      // lets each user see their own row, so the embed would either return
-      // null fields or block the whole query for admins. The technicians row
-      // already carries full_name and phone after onboarding, so use those.
       const { data, error } = await supabase
         .from('technicians')
         .select('*')
-        .eq('verification_status', 'submitted')
+        .is('deleted_at', null)
         .order('created_at', { ascending: false });
       if (error) throw error;
       setItems(
         (data ?? []).map((d: any) => ({
           ...d,
-          user_name: d.full_name,
-          user_phone: d.phone,
+          specialty: d.specialty ?? (Array.isArray(d.specialization) ? d.specialization.join(', ') : ''),
         }))
       );
     } catch (e: any) {
@@ -86,7 +96,7 @@ export default function AdminVerificationsScreen() {
     if (profileLoaded && isAdmin) load();
   }, [profileLoaded, isAdmin, load]);
 
-  const decide = async (item: Submission, decision: 'approved' | 'rejected') => {
+  const decide = async (item: Technician, decision: 'approved' | 'rejected') => {
     setBusyId(item.id);
     try {
       const { error } = await supabase
@@ -98,7 +108,9 @@ export default function AdminVerificationsScreen() {
         .eq('id', item.id);
       if (error) throw error;
       decision === 'approved' ? success() : warning();
-      await load();
+      setItems((prev) =>
+        prev.map((x) => (x.id === item.id ? { ...x, verification_status: decision } : x))
+      );
     } catch (e: any) {
       Alert.alert(isRTL ? 'خطأ' : 'Error', getFriendlyError(e, language));
     } finally {
@@ -106,11 +118,31 @@ export default function AdminVerificationsScreen() {
     }
   };
 
+  const toggleMobile = async (item: Technician, next: boolean) => {
+    // Optimistic flip — revert if the DB write fails.
+    setItems((prev) => prev.map((x) => (x.id === item.id ? { ...x, is_mobile: next } : x)));
+    try {
+      const { error } = await supabase
+        .from('technicians')
+        .update({ is_mobile: next })
+        .eq('id', item.id);
+      if (error) throw error;
+    } catch (e: any) {
+      setItems((prev) => prev.map((x) => (x.id === item.id ? { ...x, is_mobile: !next } : x)));
+      Alert.alert(isRTL ? 'خطأ' : 'Error', getFriendlyError(e, language));
+    }
+  };
+
   const styles = createStyles(COLORS, isRTL);
 
+  const visible = items.filter((it) => {
+    if (filter === 'pending') return it.verification_status === 'submitted';
+    if (filter === 'approved') return it.verification_status === 'approved';
+    return true;
+  });
+  const pendingCount = items.filter((i) => i.verification_status === 'submitted').length;
+
   if (!profileLoaded) {
-    // userProfile is still loading; show a spinner so admins don't briefly
-    // flash through the "Admins only" screen before the role check resolves.
     return (
       <SafeAreaView style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
         <ActivityIndicator size="large" color={COLORS.primary} />
@@ -123,11 +155,7 @@ export default function AdminVerificationsScreen() {
       <SafeAreaView style={styles.container}>
         <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
         <View style={styles.header}>
-          <TouchableOpacity
-            onPress={() => safeBack()}
-            accessibilityRole="button"
-            accessibilityLabel={isRTL ? 'رجوع' : 'Back'}
-          >
+          <TouchableOpacity onPress={() => safeBack()} accessibilityRole="button">
             <RTLIonicon name="chevron-back" size={26} color={COLORS.text} />
           </TouchableOpacity>
           <Text style={styles.title}>{isRTL ? 'الإدارة' : 'Admin'}</Text>
@@ -138,11 +166,6 @@ export default function AdminVerificationsScreen() {
           <Text style={[styles.unauthText, { color: COLORS.text }]}>
             {isRTL ? 'هذه الصفحة للأدمن فقط' : 'Admins only'}
           </Text>
-          <Text style={{ color: COLORS.textSecondary, textAlign: 'center', marginTop: 8 }}>
-            {isRTL
-              ? 'لتفعيل صلاحية الأدمن: حدّث users.is_admin = true لحسابك من Supabase'
-              : 'To enable admin access: set users.is_admin = true for your row in Supabase'}
-          </Text>
         </View>
       </SafeAreaView>
     );
@@ -152,79 +175,138 @@ export default function AdminVerificationsScreen() {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
       <View style={styles.header}>
-        <TouchableOpacity
-          onPress={() => safeBack()}
-          accessibilityRole="button"
-          accessibilityLabel={isRTL ? 'رجوع' : 'Back'}
-        >
+        <TouchableOpacity onPress={() => safeBack('/admin')} accessibilityRole="button">
           <RTLIonicon name="chevron-back" size={26} color={COLORS.text} />
         </TouchableOpacity>
-        <Text style={styles.title}>{isRTL ? 'مراجعة الفنيين' : 'Verify technicians'}</Text>
-        <Text style={[styles.title, { color: COLORS.primary, fontSize: 14 }]}>{items.length}</Text>
+        <Text style={styles.title}>{isRTL ? 'إدارة الفنيين' : 'Technician Management'}</Text>
+        <View style={{ width: 26 }} />
+      </View>
+
+      {/* Filter chips */}
+      <View style={styles.filterRow}>
+        {(['pending', 'approved', 'all'] as FilterKey[]).map((f) => {
+          const active = filter === f;
+          const label =
+            f === 'pending'
+              ? isRTL ? 'قيد المراجعة' : 'Pending'
+              : f === 'approved'
+              ? isRTL ? 'المعتمدون' : 'Approved'
+              : isRTL ? 'الكل' : 'All';
+          return (
+            <TouchableOpacity
+              key={f}
+              onPress={() => setFilter(f)}
+              style={[styles.filterChip, active && { backgroundColor: COLORS.primary, borderColor: COLORS.primary }]}
+            >
+              <Text style={[styles.filterChipText, active && { color: '#fff' }]}>{label}</Text>
+              {f === 'pending' && pendingCount > 0 && (
+                <View style={[styles.filterBadge, active && { backgroundColor: '#fff' }]}>
+                  <Text style={[styles.filterBadgeText, active && { color: COLORS.primary }]}>
+                    {pendingCount}
+                  </Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          );
+        })}
       </View>
 
       <ScrollView
-        contentContainerStyle={{ padding: SPACING.lg }}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} />}
+        contentContainerStyle={{ padding: SPACING.lg, paddingBottom: 40 }}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => { setRefreshing(true); load(); }}
+            tintColor={COLORS.primary}
+          />
+        }
       >
         {loading ? (
           <ActivityIndicator size="large" color={COLORS.primary} style={{ marginTop: 40 }} />
-        ) : items.length === 0 ? (
+        ) : visible.length === 0 ? (
           <View style={styles.empty}>
-            <MaterialCommunityIcons name="check-decagram" size={64} color={COLORS.success} />
+            <MaterialCommunityIcons name="account-wrench-outline" size={64} color={COLORS.textSecondary} />
             <Text style={{ color: COLORS.text, fontSize: 16, fontWeight: '600', marginTop: 12 }}>
-              {isRTL ? 'لا توجد طلبات معلّقة' : 'No pending submissions'}
+              {isRTL ? 'لا يوجد فنيون هنا' : 'No technicians here'}
             </Text>
           </View>
         ) : (
-          items.map((it) => (
-            <View key={it.id} style={[styles.card, { backgroundColor: COLORS.card, borderColor: COLORS.border }]}>
-              <Text style={[styles.name, { color: COLORS.text }]}>{it.user_name || '—'}</Text>
-              <Text style={{ color: COLORS.textSecondary }}>{it.user_phone || '—'}</Text>
+          visible.map((it) => {
+            const status = STATUS_META(it.verification_status, isRTL);
+            const isSubmitted = it.verification_status === 'submitted';
+            return (
+              <View key={it.id} style={[styles.card, { backgroundColor: COLORS.card, borderColor: COLORS.border }]}>
+                <View style={styles.cardTop}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.name, { color: COLORS.text }]} numberOfLines={1}>
+                      {it.full_name || '—'}
+                    </Text>
+                    <Text style={{ color: COLORS.textSecondary, fontSize: 13 }}>{it.phone || '—'}</Text>
+                  </View>
+                  <View style={[styles.statusPill, { backgroundColor: status.color + '20' }]}>
+                    <Text style={[styles.statusPillText, { color: status.color }]}>{status.label}</Text>
+                  </View>
+                </View>
 
-              <View style={styles.row}>
-                <Field label={isRTL ? 'التخصّص' : 'Specialty'} value={it.specialty} C={COLORS} />
-                <Field label={isRTL ? 'الخبرة' : 'Experience'} value={`${it.years_of_experience} ${isRTL ? 'سنة' : 'yr'}`} C={COLORS} />
-              </View>
-              <View style={styles.row}>
-                <Field label={isRTL ? 'المدينة' : 'City'} value={it.city ?? '—'} C={COLORS} />
-                <Field label={isRTL ? 'الهوية' : 'Nat. ID'} value={it.national_id ?? '—'} C={COLORS} />
-              </View>
-              <Field label="IBAN" value={it.iban ?? '—'} C={COLORS} />
-              {it.bio ? (
-                <Text style={{ color: COLORS.text, marginTop: 8, fontSize: 13, lineHeight: 20 }}>{it.bio}</Text>
-              ) : null}
+                <View style={styles.row}>
+                  <Field label={isRTL ? 'التخصّص' : 'Specialty'} value={it.specialty || '—'} C={COLORS} />
+                  <Field label={isRTL ? 'الخبرة' : 'Experience'} value={`${it.years_of_experience ?? 0} ${isRTL ? 'سنة' : 'yr'}`} C={COLORS} />
+                </View>
+                <View style={styles.row}>
+                  <Field label={isRTL ? 'المدينة' : 'City'} value={it.city ?? '—'} C={COLORS} />
+                  <Field label={isRTL ? 'الهوية' : 'Nat. ID'} value={it.national_id ?? '—'} C={COLORS} />
+                </View>
+                {it.bio ? (
+                  <Text style={{ color: COLORS.text, marginTop: 8, fontSize: 13, lineHeight: 20 }}>{it.bio}</Text>
+                ) : null}
 
-              <View style={styles.actions}>
-                <TouchableOpacity
-                  onPress={() => decide(it, 'rejected')}
-                  disabled={busyId === it.id}
-                  style={[styles.btn, { backgroundColor: COLORS.error + '20' }]}
-                  accessibilityRole="button"
-                  accessibilityLabel={isRTL ? 'رفض' : 'Reject'}
-                >
-                  <Ionicons name="close" size={18} color={COLORS.error} />
-                  <Text style={{ color: COLORS.error, fontWeight: '700' }}>{isRTL ? 'رفض' : 'Reject'}</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={() => decide(it, 'approved')}
-                  disabled={busyId === it.id}
-                  style={[styles.btn, { backgroundColor: COLORS.success }]}
-                  accessibilityRole="button"
-                  accessibilityLabel={isRTL ? 'اعتماد' : 'Approve'}
-                >
-                  {busyId === it.id ? (
-                    <ActivityIndicator color="#fff" />
-                  ) : (
-                    <>
-                      <Ionicons name="checkmark" size={18} color="#fff" />
-                      <Text style={{ color: '#fff', fontWeight: '700' }}>{isRTL ? 'اعتماد' : 'Approve'}</Text>
-                    </>
-                  )}
-                </TouchableOpacity>
+                {/* Mobile-technician toggle */}
+                <View style={[styles.mobileRow, { borderTopColor: COLORS.border }]}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.mobileLabel, { color: COLORS.text }]}>
+                      {isRTL ? 'فني متنقل' : 'Mobile technician'}
+                    </Text>
+                    <Text style={{ color: COLORS.textSecondary, fontSize: 11 }}>
+                      {isRTL ? 'يصل إلى موقع العميل لتقديم الخدمة' : 'Travels to the customer location'}
+                    </Text>
+                  </View>
+                  <Switch
+                    value={!!it.is_mobile}
+                    onValueChange={(v) => toggleMobile(it, v)}
+                    trackColor={{ false: COLORS.border, true: COLORS.primary }}
+                    thumbColor="#fff"
+                  />
+                </View>
+
+                {isSubmitted && (
+                  <View style={styles.actions}>
+                    <TouchableOpacity
+                      onPress={() => decide(it, 'rejected')}
+                      disabled={busyId === it.id}
+                      style={[styles.btn, { backgroundColor: COLORS.error + '20' }]}
+                    >
+                      <Ionicons name="close" size={18} color={COLORS.error} />
+                      <Text style={{ color: COLORS.error, fontWeight: '700' }}>{isRTL ? 'رفض' : 'Reject'}</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={() => decide(it, 'approved')}
+                      disabled={busyId === it.id}
+                      style={[styles.btn, { backgroundColor: COLORS.success }]}
+                    >
+                      {busyId === it.id ? (
+                        <ActivityIndicator color="#fff" />
+                      ) : (
+                        <>
+                          <Ionicons name="checkmark" size={18} color="#fff" />
+                          <Text style={{ color: '#fff', fontWeight: '700' }}>{isRTL ? 'اعتماد' : 'Approve'}</Text>
+                        </>
+                      )}
+                    </TouchableOpacity>
+                  </View>
+                )}
               </View>
-            </View>
-          ))
+            );
+          })
         )}
       </ScrollView>
     </SafeAreaView>
@@ -235,7 +317,7 @@ function Field({ label, value, C }: { label: string; value: string; C: any }) {
   return (
     <View style={{ flex: 1, marginTop: 8 }}>
       <Text style={{ fontSize: 11, color: C.textSecondary, fontWeight: '600' }}>{label}</Text>
-      <Text style={{ color: C.text, fontSize: 14 }}>{value}</Text>
+      <Text style={{ color: C.text, fontSize: 14 }} numberOfLines={1}>{value}</Text>
     </View>
   );
 }
@@ -251,20 +333,64 @@ const createStyles = (C: any, isRTL: boolean) =>
       paddingVertical: SPACING.m,
       backgroundColor: C.background,
     },
-    title: { fontSize: 22, fontWeight: '800', color: C.text },
+    title: { fontSize: 20, fontWeight: '800', color: C.text },
+    filterRow: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      gap: 8,
+      paddingHorizontal: SPACING.lg,
+      paddingBottom: SPACING.s,
+    },
+    filterChip: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
+      gap: 6,
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+      borderRadius: 999,
+      borderWidth: 1,
+      borderColor: C.border,
+      backgroundColor: C.card,
+    },
+    filterChipText: { color: C.text, fontWeight: '700', fontSize: 13 },
+    filterBadge: {
+      minWidth: 18,
+      height: 18,
+      borderRadius: 9,
+      paddingHorizontal: 5,
+      backgroundColor: C.primary,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    filterBadgeText: { color: '#fff', fontSize: 10, fontWeight: '800' },
     card: {
       borderRadius: BORDER_RADIUS.md,
+      borderWidth: 1,
       padding: SPACING.l,
       marginBottom: SPACING.md,
-      backgroundColor: C.card,
       shadowColor: '#000',
       shadowOffset: { width: 0, height: 2 },
       shadowOpacity: 0.06,
       shadowRadius: 8,
       elevation: 2,
     },
+    cardTop: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
+      gap: 10,
+    },
     name: { fontSize: 16, fontWeight: '800' },
+    statusPill: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999 },
+    statusPillText: { fontSize: 11, fontWeight: '800' },
     row: { flexDirection: isRTL ? 'row-reverse' : 'row', gap: 12 },
+    mobileRow: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
+      gap: 10,
+      marginTop: 12,
+      paddingTop: 12,
+      borderTopWidth: StyleSheet.hairlineWidth,
+    },
+    mobileLabel: { fontWeight: '700', fontSize: 14 },
     actions: { flexDirection: isRTL ? 'row-reverse' : 'row', gap: 12, marginTop: SPACING.md },
     btn: {
       flex: 1,

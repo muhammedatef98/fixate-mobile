@@ -22,6 +22,8 @@ import { getColors, SPACING, BORDER_RADIUS } from '../constants/theme';
 import { RTLIonicon } from '../components/RTLIcon';
 import { createListing, type ListingCategory, type ContactPreference } from '../services/marketService';
 import { uploadOrderMedia } from '../services/storageService';
+import SaudiCityPicker from '../components/SaudiCityPicker';
+import ImagePickerSheet from '../components/ImagePickerSheet';
 
 const CONDITIONS: { id: string; ar: string; en: string }[] = [
   { id: 'new', ar: 'جديد', en: 'New' },
@@ -54,20 +56,43 @@ export default function MarketNewScreen() {
   const [condition, setCondition] = useState<string>('used');
   const [images, setImages] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const [imageSheetOpen, setImageSheetOpen] = useState(false);
 
-  const addImages = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert(isRTL ? 'تنبيه' : 'Alert', isRTL ? 'نحتاج إذن الوصول للصور' : 'Gallery permission is required');
-      return;
-    }
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsMultipleSelection: true,
-      quality: 0.7,
-    });
-    if (!result.canceled) {
-      setImages((prev) => [...prev, ...result.assets.map((a) => a.uri)].slice(0, 8));
+  const pickFrom = async (source: 'camera' | 'gallery') => {
+    try {
+      if (source === 'camera') {
+        const { status } = await ImagePicker.requestCameraPermissionsAsync();
+        if (status !== 'granted') {
+          Alert.alert(
+            isRTL ? 'تنبيه' : 'Alert',
+            isRTL ? 'نحتاج إذن الكاميرا' : 'Camera permission is required'
+          );
+          return;
+        }
+        const result = await ImagePicker.launchCameraAsync({ quality: 0.7 });
+        if (!result.canceled) {
+          setImages((prev) => [...prev, ...result.assets.map((a) => a.uri)].slice(0, 8));
+        }
+      } else {
+        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (status !== 'granted') {
+          Alert.alert(
+            isRTL ? 'تنبيه' : 'Alert',
+            isRTL ? 'نحتاج إذن الوصول للصور' : 'Gallery permission is required'
+          );
+          return;
+        }
+        const result = await ImagePicker.launchImageLibraryAsync({
+          mediaTypes: ImagePicker.MediaTypeOptions.Images,
+          allowsMultipleSelection: true,
+          quality: 0.7,
+        });
+        if (!result.canceled) {
+          setImages((prev) => [...prev, ...result.assets.map((a) => a.uri)].slice(0, 8));
+        }
+      }
+    } catch (e: any) {
+      Alert.alert(isRTL ? 'خطأ' : 'Error', e?.message ?? String(e));
     }
   };
 
@@ -158,7 +183,7 @@ export default function MarketNewScreen() {
 
           <Field label={isRTL ? 'الصور' : 'Photos'} COLORS={COLORS}>
             <View style={styles.chipsWrap}>
-              <TouchableOpacity onPress={addImages} style={styles.addImg}>
+              <TouchableOpacity onPress={() => setImageSheetOpen(true)} style={styles.addImg}>
                 <Ionicons name="camera" size={22} color={COLORS.textSecondary} />
                 <Text style={{ color: COLORS.textSecondary, fontSize: 11, marginTop: 2 }}>
                   {isRTL ? 'إضافة' : 'Add'}
@@ -243,12 +268,11 @@ export default function MarketNewScreen() {
           </Field>
 
           <Field label={isRTL ? 'المدينة' : 'City'} COLORS={COLORS}>
-            <TextInput
+            <SaudiCityPicker
               value={city}
-              onChangeText={setCity}
-              placeholder={isRTL ? 'مثال: الرياض' : 'e.g. Riyadh'}
-              placeholderTextColor={COLORS.textSecondary}
-              style={[styles.input, { color: COLORS.text }]}
+              onSelect={setCity}
+              isRTL={isRTL}
+              placeholder={isRTL ? 'اختر المدينة' : 'Select city'}
             />
           </Field>
 
@@ -286,15 +310,6 @@ export default function MarketNewScreen() {
             </Field>
           )}
 
-          <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center', marginTop: 4 }}>
-            <MaterialCommunityIcons name="information-outline" size={16} color={COLORS.textSecondary} />
-            <Text style={{ color: COLORS.textSecondary, fontSize: 12, flex: 1 }}>
-              {isRTL
-                ? 'سيظهر إعلانك بعد مراجعة فريق Fixate.'
-                : 'Listings appear after review by the Fixate team.'}
-            </Text>
-          </View>
-
           <TouchableOpacity
             style={[styles.submit, { backgroundColor: COLORS.primary, opacity: submitting ? 0.6 : 1 }]}
             onPress={submit}
@@ -303,11 +318,24 @@ export default function MarketNewScreen() {
             {submitting ? (
               <ActivityIndicator color="#fff" />
             ) : (
-              <Text style={styles.submitText}>{isRTL ? 'إرسال للمراجعة' : 'Submit for review'}</Text>
+              <Text style={styles.submitText}>{isRTL ? 'نشر الإعلان' : 'Publish Listing'}</Text>
             )}
           </TouchableOpacity>
+
+          <Text style={styles.publishNote}>
+            {isRTL
+              ? 'لن يظهر إعلانك إلا بعد موافقة فريق المراجعة، وسيتم إشعارك عند القبول'
+              : "Your listing won't be visible until reviewed and approved. You'll be notified upon approval."}
+          </Text>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      <ImagePickerSheet
+        visible={imageSheetOpen}
+        onClose={() => setImageSheetOpen(false)}
+        onPick={pickFrom}
+        isRTL={isRTL}
+      />
     </SafeAreaView>
   );
 }
@@ -358,4 +386,11 @@ const createStyles = (C: any, isRTL: boolean) => StyleSheet.create({
   chipText: { color: C.text, fontWeight: '600', fontSize: 13 },
   submit: { paddingVertical: 14, borderRadius: BORDER_RADIUS.md, alignItems: 'center', marginTop: 16 },
   submitText: { color: '#fff', fontWeight: '700', fontSize: 16 },
+  publishNote: {
+    color: C.textSecondary,
+    fontSize: 12,
+    lineHeight: 18,
+    textAlign: 'center',
+    marginTop: 10,
+  },
 });
