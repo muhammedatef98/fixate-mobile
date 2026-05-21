@@ -25,14 +25,19 @@ import { useApp } from '../contexts/AppContext';
 import { useAuth } from '../contexts/AuthContext';
 import { getColors, SPACING, BORDER_RADIUS } from '../constants/theme';
 import { RTLIonicon } from '../components/RTLIcon';
+import ImageViewer from '../components/ImageViewer';
+import Avatar from '../components/Avatar';
 import {
   getListing,
   listComments,
   addComment,
   deleteComment,
   resolveContactMethods,
+  getUserCard,
+  updateListingStatus,
   type MarketListing,
   type ListingComment,
+  type UserCard,
 } from '../services/marketService';
 
 const { width: SCREEN_W } = Dimensions.get('window');
@@ -77,16 +82,17 @@ export default function MarketDetailScreen() {
   const isRTL = language === 'ar';
 
   const [listing, setListing] = useState<MarketListing | null>(null);
+  const [seller, setSeller] = useState<UserCard | null>(null);
   const [comments, setComments] = useState<ListingComment[]>([]);
   const [loading, setLoading] = useState(true);
   const [commentText, setCommentText] = useState('');
   const [posting, setPosting] = useState(false);
   const [replyTo, setReplyTo] = useState<ListingComment | null>(null);
+  const [marking, setMarking] = useState(false);
 
-  // Photo pager — track which index is currently visible for the dot
-  // indicator. Updated on momentum-scroll-end so we only re-render
-  // when the user actually settles on a page.
   const [photoIdx, setPhotoIdx] = useState(0);
+  const [viewerOpen, setViewerOpen] = useState(false);
+  const [viewerIndex, setViewerIndex] = useState(0);
   const heroRef = useRef<ScrollView>(null);
 
   const load = useCallback(async () => {
@@ -96,6 +102,9 @@ export default function MarketDetailScreen() {
       const [l, c] = await Promise.all([getListing(id), listComments(id)]);
       setListing(l);
       setComments(c);
+      if (l?.seller_id) {
+        getUserCard(l.seller_id).then(setSeller).catch(() => undefined);
+      }
     } finally {
       setLoading(false);
     }
@@ -104,6 +113,9 @@ export default function MarketDetailScreen() {
   useEffect(() => { load(); }, [load]);
 
   const styles = useMemo(() => createStyles(COLORS, isRTL), [COLORS, isRTL]);
+
+  const isOwner = !!listing && listing.seller_id === user?.id;
+  const isSold = listing?.status === 'sold';
 
   const submitComment = async () => {
     if (!user) {
@@ -115,7 +127,7 @@ export default function MarketDetailScreen() {
     setPosting(true);
     try {
       const authorName =
-        (userProfile as any)?.name ||
+        userProfile?.name ||
         (user as any)?.user_metadata?.name ||
         (isRTL ? 'مستخدم' : 'User');
       await addComment(id, user.id, text, {
@@ -170,6 +182,17 @@ export default function MarketDetailScreen() {
     );
     Linking.openURL(`https://wa.me/${digits}?text=${text}`);
   };
+  const handleSendMessage = () => {
+    if (!user) {
+      Alert.alert(isRTL ? 'تسجيل الدخول مطلوب' : 'Login required');
+      return;
+    }
+    if (!listing) return;
+    router.push({
+      pathname: '/market-chat',
+      params: { listingId: listing.id, sellerId: listing.seller_id },
+    });
+  };
   const handleShare = async () => {
     if (!listing) return;
     try {
@@ -188,6 +211,32 @@ export default function MarketDetailScreen() {
       [{ text: 'OK' }]
     );
   };
+  const handleMarkSold = () => {
+    if (!listing) return;
+    Alert.alert(
+      isRTL ? 'تعليم كمباع' : 'Mark as sold',
+      isRTL
+        ? 'سيتم تعليم هذا الإعلان كمباع وإزالته من نتائج التصفّح.'
+        : 'This listing will be marked as sold and removed from browse results.',
+      [
+        { text: isRTL ? 'إلغاء' : 'Cancel', style: 'cancel' },
+        {
+          text: isRTL ? 'تأكيد' : 'Confirm',
+          onPress: async () => {
+            setMarking(true);
+            try {
+              const updated = await updateListingStatus(listing.id, 'sold');
+              setListing(updated);
+            } catch (e: any) {
+              Alert.alert(isRTL ? 'خطأ' : 'Error', e?.message ?? String(e));
+            } finally {
+              setMarking(false);
+            }
+          },
+        },
+      ]
+    );
+  };
 
   const onHeroScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
     const x = e.nativeEvent.contentOffset.x;
@@ -195,13 +244,19 @@ export default function MarketDetailScreen() {
     if (idx !== photoIdx) setPhotoIdx(idx);
   };
 
+  const openViewer = (index: number) => {
+    setViewerIndex(index);
+    setViewerOpen(true);
+  };
+
   const methods = listing ? resolveContactMethods(listing) : new Set<string>();
-  const showPhone   = methods.has('phone')    && !!listing?.contact_phone;
-  const showWhats   = methods.has('whatsapp') && !!listing?.contact_phone;
-  const showInApp   = methods.has('in_app');
+  const showPhone = methods.has('phone') && !!listing?.contact_phone;
+  const showWhats = methods.has('whatsapp') && !!listing?.contact_phone;
+  const showInApp = methods.has('in_app');
 
   const deviceLbl = listing?.device_type ? DEVICE_LABEL[listing.device_type]?.[isRTL ? 'ar' : 'en'] : null;
   const conditionLbl = listing?.condition ? CONDITION_LABEL[listing.condition]?.[isRTL ? 'ar' : 'en'] : null;
+  const sellerName = seller?.name?.trim() || (isRTL ? 'بائع' : 'Seller');
 
   return (
     <SafeAreaView style={styles.container}>
@@ -237,7 +292,7 @@ export default function MarketDetailScreen() {
       ) : (
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           <ScrollView contentContainerStyle={{ paddingBottom: 24 }} showsVerticalScrollIndicator={false}>
-            {/* Photo swiper with paging dots + counter pill. */}
+            {/* Hero carousel — tap any image to open the full-screen viewer. */}
             {listing.images && listing.images.length > 0 ? (
               <View style={styles.heroWrap}>
                 <ScrollView
@@ -248,17 +303,24 @@ export default function MarketDetailScreen() {
                   onMomentumScrollEnd={onHeroScroll}
                 >
                   {listing.images.map((uri, i) => (
-                    <Image key={i} source={{ uri }} style={{ width: SCREEN_W, height: HERO_H }} resizeMode="cover" />
+                    <TouchableOpacity
+                      key={i}
+                      activeOpacity={0.95}
+                      onPress={() => openViewer(i)}
+                    >
+                      <Image source={{ uri }} style={{ width: SCREEN_W, height: HERO_H }} resizeMode="cover" />
+                    </TouchableOpacity>
                   ))}
                 </ScrollView>
-                {/* Counter pill (top-right) */}
                 <View style={styles.heroCounter}>
                   <Ionicons name="images" size={11} color="#fff" />
                   <Text style={styles.heroCounterText}>
                     {photoIdx + 1} / {listing.images.length}
                   </Text>
                 </View>
-                {/* Paging dots */}
+                <View style={styles.zoomHint} pointerEvents="none">
+                  <Ionicons name="expand" size={12} color="#fff" />
+                </View>
                 {listing.images.length > 1 && (
                   <View style={styles.dotsRow} pointerEvents="none">
                     {listing.images.map((_, i) => (
@@ -272,6 +334,13 @@ export default function MarketDetailScreen() {
                     ))}
                   </View>
                 )}
+                {isSold && (
+                  <View style={styles.soldOverlay}>
+                    <View style={styles.soldBadge}>
+                      <Text style={styles.soldBadgeText}>{isRTL ? 'تم البيع' : 'SOLD'}</Text>
+                    </View>
+                  </View>
+                )}
               </View>
             ) : (
               <View style={[styles.heroWrap, styles.heroPlaceholder, { backgroundColor: COLORS.card }]}>
@@ -280,13 +349,12 @@ export default function MarketDetailScreen() {
             )}
 
             <View style={styles.body}>
-              {/* Title + price hero */}
               <Text style={styles.listingTitle}>{listing.title}</Text>
               <Text style={styles.price}>
                 {listing.price.toLocaleString(isRTL ? 'ar-SA' : 'en-US')} {isRTL ? 'ر.س' : listing.currency}
               </Text>
 
-              {/* Pills: device / condition / city */}
+              {/* Chips: device / condition / city / posted */}
               <View style={styles.pillsRow}>
                 {deviceLbl && (
                   <View style={[styles.pill, { backgroundColor: COLORS.primary + '15' }]}>
@@ -301,12 +369,12 @@ export default function MarketDetailScreen() {
                   </View>
                 )}
                 {listing.city ? (
-                  <View style={[styles.pill, { backgroundColor: COLORS.border }]}>
+                  <View style={[styles.pill, { backgroundColor: COLORS.cardAlt }]}>
                     <Ionicons name="location-outline" size={12} color={COLORS.textSecondary} />
                     <Text style={[styles.pillText, { color: COLORS.text }]}>{listing.city}</Text>
                   </View>
                 ) : null}
-                <View style={[styles.pill, { backgroundColor: COLORS.border }]}>
+                <View style={[styles.pill, { backgroundColor: COLORS.cardAlt }]}>
                   <Ionicons name="time-outline" size={12} color={COLORS.textSecondary} />
                   <Text style={[styles.pillText, { color: COLORS.text }]}>
                     {timeAgo(listing.created_at, isRTL)}
@@ -314,26 +382,64 @@ export default function MarketDetailScreen() {
                 </View>
               </View>
 
-              {/* Description */}
-              {listing.description ? (
-                <View style={{ gap: 6, marginTop: 18 }}>
-                  <Text style={styles.sectionTitle}>{isRTL ? 'الوصف' : 'Description'}</Text>
-                  <Text style={styles.desc}>{listing.description}</Text>
+              {/* Seller card */}
+              <View style={styles.sellerCard}>
+                <View style={styles.sellerRow}>
+                  <Avatar name={sellerName} uri={seller?.avatar_url} size={46} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.sellerName} numberOfLines={1}>{sellerName}</Text>
+                    <Text style={styles.sellerMeta}>
+                      {isOwner
+                        ? (isRTL ? 'هذا إعلانك' : 'This is your listing')
+                        : (isRTL ? 'البائع' : 'Seller')}
+                    </Text>
+                  </View>
+                  {!isOwner && showPhone && (
+                    <Text style={styles.sellerPhone}>{listing.contact_phone}</Text>
+                  )}
                 </View>
-              ) : null}
 
-              {/* Seller contact CTAs — only the methods the seller picked. */}
-              {listing.seller_id !== user?.id && (
-                <View style={{ gap: 8, marginTop: 22 }}>
-                  <Text style={styles.sectionTitle}>
-                    {isRTL ? 'التواصل مع البائع' : 'Contact the seller'}
-                  </Text>
+                {isOwner ? (
+                  isSold ? (
+                    <View style={styles.soldInline}>
+                      <Ionicons name="checkmark-circle" size={16} color="#EF4444" />
+                      <Text style={styles.soldInlineText}>
+                        {isRTL ? 'تم بيع هذا الإعلان' : 'This listing is sold'}
+                      </Text>
+                    </View>
+                  ) : (
+                    <TouchableOpacity
+                      style={[styles.markSoldBtn, { opacity: marking ? 0.6 : 1 }]}
+                      onPress={handleMarkSold}
+                      disabled={marking}
+                    >
+                      {marking ? (
+                        <ActivityIndicator color="#fff" size="small" />
+                      ) : (
+                        <>
+                          <Ionicons name="checkmark-done" size={18} color="#fff" />
+                          <Text style={styles.markSoldText}>
+                            {isRTL ? 'تعليم كمباع' : 'Mark as Sold'}
+                          </Text>
+                        </>
+                      )}
+                    </TouchableOpacity>
+                  )
+                ) : (
                   <View style={styles.contactRow}>
+                    {showInApp && (
+                      <TouchableOpacity
+                        onPress={handleSendMessage}
+                        style={[styles.contactBtn, { backgroundColor: COLORS.primary }]}
+                      >
+                        <Ionicons name="chatbubble-ellipses" size={18} color="#fff" />
+                        <Text style={styles.contactBtnText}>{isRTL ? 'إرسال رسالة' : 'Send Message'}</Text>
+                      </TouchableOpacity>
+                    )}
                     {showPhone && (
                       <TouchableOpacity
                         onPress={handleCallSeller}
                         style={[styles.contactBtn, { backgroundColor: '#10B981' }]}
-                        accessibilityRole="button"
                       >
                         <Ionicons name="call" size={18} color="#fff" />
                         <Text style={styles.contactBtnText}>{isRTL ? 'اتصال' : 'Call'}</Text>
@@ -342,40 +448,27 @@ export default function MarketDetailScreen() {
                     {showWhats && (
                       <TouchableOpacity
                         onPress={handleWhatsAppSeller}
-                        style={[styles.contactBtn, { backgroundColor: '#25D366' }]}
-                        accessibilityRole="button"
+                        style={[styles.contactBtn, styles.contactBtnNarrow, { backgroundColor: '#25D366' }]}
                       >
                         <Ionicons name="logo-whatsapp" size={18} color="#fff" />
-                        <Text style={styles.contactBtnText}>{isRTL ? 'واتساب' : 'WhatsApp'}</Text>
-                      </TouchableOpacity>
-                    )}
-                    {showInApp && (
-                      <TouchableOpacity
-                        onPress={() => {
-                          if (!user) {
-                            Alert.alert(isRTL ? 'تسجيل الدخول مطلوب' : 'Login required');
-                            return;
-                          }
-                          // Drop the user into the comments composer as the
-                          // in-app contact channel for now.
-                          setReplyTo(null);
-                          setCommentText('');
-                        }}
-                        style={[styles.contactBtn, { backgroundColor: '#3b82f6' }]}
-                        accessibilityRole="button"
-                      >
-                        <Ionicons name="chatbubble-ellipses" size={18} color="#fff" />
-                        <Text style={styles.contactBtnText}>{isRTL ? 'مراسلة' : 'Message'}</Text>
                       </TouchableOpacity>
                     )}
                   </View>
-                </View>
-              )}
+                )}
+              </View>
 
-              {/* Comments */}
-              <View style={{ marginTop: 22 }}>
+              {/* Description */}
+              {listing.description ? (
+                <View style={styles.section}>
+                  <Text style={styles.sectionTitle}>{isRTL ? 'الوصف' : 'Description'}</Text>
+                  <Text style={styles.desc}>{listing.description}</Text>
+                </View>
+              ) : null}
+
+              {/* Comments / Q&A */}
+              <View style={[styles.section, styles.commentsSection]}>
                 <Text style={styles.sectionTitle}>
-                  {isRTL ? `التعليقات (${comments.length})` : `Comments (${comments.length})`}
+                  {isRTL ? `الأسئلة والتعليقات (${comments.length})` : `Questions & Comments (${comments.length})`}
                 </Text>
                 {comments.length === 0 ? (
                   <Text style={styles.noComments}>
@@ -390,11 +483,7 @@ export default function MarketDetailScreen() {
                       return (
                         <View key={c.id}>
                           <View style={styles.commentRow}>
-                            <View style={[styles.avatar, { backgroundColor: COLORS.primary }]}>
-                              <Text style={styles.avatarText}>
-                                {(c.author_name || '?').slice(0, 1).toUpperCase()}
-                              </Text>
-                            </View>
+                            <Avatar name={c.author_name} size={32} />
                             <View style={{ flex: 1 }}>
                               <View style={styles.commentTopRow}>
                                 <Text style={styles.commentAuthor}>
@@ -421,11 +510,7 @@ export default function MarketDetailScreen() {
                           </View>
                           {replies.map((r) => (
                             <View key={r.id} style={[styles.commentRow, styles.replyRow]}>
-                              <View style={[styles.avatar, { backgroundColor: COLORS.primary + '40' }]}>
-                                <Text style={styles.avatarText}>
-                                  {(r.author_name || '?').slice(0, 1).toUpperCase()}
-                                </Text>
-                              </View>
+                              <Avatar name={r.author_name} size={28} />
                               <View style={{ flex: 1 }}>
                                 <View style={styles.commentTopRow}>
                                   <Text style={styles.commentAuthor}>
@@ -445,7 +530,7 @@ export default function MarketDetailScreen() {
             </View>
           </ScrollView>
 
-          {/* Composer (sticky bottom) */}
+          {/* Comment composer (sticky bottom) */}
           <View style={[styles.composer, { backgroundColor: COLORS.card, borderTopColor: COLORS.border }]}>
             {replyTo && (
               <View style={styles.replyBanner}>
@@ -462,7 +547,7 @@ export default function MarketDetailScreen() {
                 style={[styles.composerInput, { color: COLORS.text, backgroundColor: COLORS.background, borderColor: COLORS.border, textAlign: isRTL ? 'right' : 'left' }]}
                 value={commentText}
                 onChangeText={setCommentText}
-                placeholder={isRTL ? 'اكتب تعليقاً…' : 'Write a comment…'}
+                placeholder={isRTL ? 'اكتب سؤالاً أو تعليقاً…' : 'Ask a question or comment…'}
                 placeholderTextColor={COLORS.textSecondary}
                 multiline
               />
@@ -477,6 +562,13 @@ export default function MarketDetailScreen() {
           </View>
         </KeyboardAvoidingView>
       )}
+
+      <ImageViewer
+        visible={viewerOpen}
+        images={listing?.images ?? []}
+        initialIndex={viewerIndex}
+        onClose={() => setViewerOpen(false)}
+      />
     </SafeAreaView>
   );
 }
@@ -516,6 +608,17 @@ const createStyles = (C: any, isRTL: boolean) =>
       borderRadius: 999,
     },
     heroCounterText: { color: '#fff', fontSize: 11, fontWeight: '700' },
+    zoomHint: {
+      position: 'absolute',
+      top: 12,
+      left: 12,
+      width: 26,
+      height: 26,
+      borderRadius: 13,
+      backgroundColor: 'rgba(0,0,0,0.55)',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
     dotsRow: {
       position: 'absolute',
       bottom: 12,
@@ -525,9 +628,21 @@ const createStyles = (C: any, isRTL: boolean) =>
       justifyContent: 'center',
       gap: 5,
     },
-    dot: {
-      width: 6, height: 6, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.55)',
+    dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.55)' },
+    soldOverlay: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: 'rgba(0,0,0,0.4)',
+      alignItems: 'center',
+      justifyContent: 'center',
     },
+    soldBadge: {
+      backgroundColor: '#EF4444',
+      paddingHorizontal: 24,
+      paddingVertical: 10,
+      borderRadius: 10,
+      transform: [{ rotate: '-8deg' }],
+    },
+    soldBadgeText: { color: '#fff', fontSize: 22, fontWeight: '900', letterSpacing: 2 },
 
     body: { padding: SPACING.lg, gap: 4 },
     listingTitle: { color: C.text, fontSize: 22, fontWeight: '800', lineHeight: 28, textAlign: isRTL ? 'right' : 'left' },
@@ -544,22 +659,76 @@ const createStyles = (C: any, isRTL: boolean) =>
     },
     pillText: { fontSize: 12, fontWeight: '700' },
 
-    sectionTitle: { color: C.text, fontWeight: '800', fontSize: 14, textAlign: isRTL ? 'right' : 'left' },
-    desc: { color: C.text, fontSize: 14, lineHeight: 22, textAlign: isRTL ? 'right' : 'left' },
+    sellerCard: {
+      marginTop: 18,
+      padding: 14,
+      borderRadius: BORDER_RADIUS.lg,
+      backgroundColor: C.card,
+      borderWidth: 1,
+      borderColor: C.border,
+      gap: 12,
+    },
+    sellerRow: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
+      gap: 12,
+    },
+    sellerName: {
+      color: C.text,
+      fontWeight: '800',
+      fontSize: 15,
+      textAlign: isRTL ? 'right' : 'left',
+    },
+    sellerMeta: {
+      color: C.textSecondary,
+      fontSize: 12,
+      marginTop: 2,
+      textAlign: isRTL ? 'right' : 'left',
+    },
+    sellerPhone: { color: C.primary, fontWeight: '800', fontSize: 13 },
 
-    contactRow: { flexDirection: isRTL ? 'row-reverse' : 'row', flexWrap: 'wrap', gap: 8 },
+    contactRow: { flexDirection: isRTL ? 'row-reverse' : 'row', gap: 8 },
     contactBtn: {
       flexDirection: isRTL ? 'row-reverse' : 'row',
       alignItems: 'center',
       gap: 6,
-      paddingHorizontal: 14,
       paddingVertical: 12,
       borderRadius: BORDER_RADIUS.md,
       flex: 1,
-      minWidth: 96,
       justifyContent: 'center',
     },
+    contactBtnNarrow: { flex: 0, paddingHorizontal: 16 },
     contactBtnText: { color: '#fff', fontWeight: '800', fontSize: 14 },
+
+    markSoldBtn: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      paddingVertical: 13,
+      borderRadius: BORDER_RADIUS.md,
+      backgroundColor: '#EF4444',
+    },
+    markSoldText: { color: '#fff', fontWeight: '800', fontSize: 14 },
+    soldInline: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 6,
+      paddingVertical: 10,
+      borderRadius: BORDER_RADIUS.md,
+      backgroundColor: '#EF444415',
+    },
+    soldInlineText: { color: '#EF4444', fontWeight: '800', fontSize: 13 },
+
+    section: { marginTop: 22, gap: 6 },
+    commentsSection: {
+      borderTopWidth: 1,
+      borderTopColor: C.border,
+      paddingTop: 18,
+    },
+    sectionTitle: { color: C.text, fontWeight: '800', fontSize: 15, textAlign: isRTL ? 'right' : 'left' },
+    desc: { color: C.text, fontSize: 14, lineHeight: 22, textAlign: isRTL ? 'right' : 'left' },
 
     noComments: { color: C.textSecondary, fontStyle: 'italic', marginTop: 8, textAlign: isRTL ? 'right' : 'left' },
     commentRow: {
@@ -570,8 +739,6 @@ const createStyles = (C: any, isRTL: boolean) =>
       borderBottomColor: C.border,
     },
     replyRow: { paddingLeft: isRTL ? 0 : 28, paddingRight: isRTL ? 28 : 0, borderBottomWidth: 0, paddingVertical: 8 },
-    avatar: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
-    avatarText: { color: '#fff', fontWeight: '800', fontSize: 13 },
     commentTopRow: {
       flexDirection: isRTL ? 'row-reverse' : 'row',
       alignItems: 'baseline',

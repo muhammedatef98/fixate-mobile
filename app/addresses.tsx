@@ -25,6 +25,7 @@ import { getFriendlyError } from '../utils/errorMessages';
 import ErrorState from '../components/ErrorState';
 import { safeBack } from '../utils/navigation';
 import * as Location from 'expo-location';
+import SaudiCityPicker from '../components/SaudiCityPicker';
 
 export default function AddressesScreen() {
   const router = useRouter();
@@ -337,14 +338,14 @@ export default function AddressesScreen() {
                     style={[styles.input, { color: COLORS.text, borderColor: COLORS.border, flex: 1 }]}
                     textAlign={isRTL ? 'right' : 'left'}
                   />
-                  <TextInput
-                    placeholder={isRTL ? 'المدينة' : 'City'}
-                    placeholderTextColor={COLORS.textSecondary}
-                    value={city}
-                    onChangeText={setCity}
-                    style={[styles.input, { color: COLORS.text, borderColor: COLORS.border, flex: 1 }]}
-                    textAlign={isRTL ? 'right' : 'left'}
-                  />
+                  <View style={{ flex: 1 }}>
+                    <SaudiCityPicker
+                      value={city}
+                      onSelect={setCity}
+                      isRTL={isRTL}
+                      placeholder={isRTL ? 'المدينة' : 'City'}
+                    />
+                  </View>
                 </View>
 
                 {/* Saudi National Address — optional precision fields */}

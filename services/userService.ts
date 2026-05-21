@@ -65,6 +65,26 @@ export const createOrUpdateUserProfile = async (
   }
 };
 
+export const updateUserProfile = async (
+  userId: string,
+  updates: Partial<UserProfile>
+): Promise<UserProfile | null> => {
+  try {
+    const { data, error } = await supabase
+      .from('users')
+      .update(updates)
+      .eq('id', userId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  } catch (error: any) {
+    logger.error('Update user profile error', error);
+    throw error;
+  }
+};
+
 export const getTechnicianProfileByUserId = async (
   userId: string
 ): Promise<TechnicianProfile | null> => {

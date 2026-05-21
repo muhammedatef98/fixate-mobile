@@ -25,6 +25,7 @@ import { validateSaudiId, validateSaudiIban, validatePhone } from '../utils/vali
 import { submitTechnicianApplication } from '../services/technicianOnboardingService';
 import { getFriendlyError } from '../utils/errorMessages';
 import { safeBack } from '../utils/navigation';
+import SaudiCityPicker from '../components/SaudiCityPicker';
 
 const SPECIALTIES: { id: string; ar: string; en: string; icon: any }[] = [
   { id: 'mobile', ar: 'جوالات', en: 'Mobile phones', icon: 'cellphone' },
@@ -33,8 +34,6 @@ const SPECIALTIES: { id: string; ar: string; en: string; icon: any }[] = [
   { id: 'home', ar: 'أجهزة منزلية', en: 'Home appliances', icon: 'home-outline' },
   { id: 'watch', ar: 'ساعات ذكية', en: 'Smart watches', icon: 'watch' },
 ];
-
-const CITIES = ['الرياض', 'جدة', 'الدمام', 'مكة', 'المدينة', 'الخبر', 'الطائف', 'تبوك'];
 
 export default function TechnicianOnboardingScreen() {
   const router = useRouter();
@@ -230,26 +229,12 @@ export default function TechnicianOnboardingScreen() {
               <Text style={[styles.fieldLabel, { color: COLORS.text, marginTop: 4 }]}>
                 {isRTL ? 'مدينتك' : 'Your city'}
               </Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingVertical: 4 }}>
-                {CITIES.map((c) => {
-                  const selected = city === c;
-                  return (
-                    <TouchableOpacity
-                      key={c}
-                      style={[
-                        styles.chip,
-                        { borderColor: COLORS.border, backgroundColor: COLORS.card },
-                        selected && { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
-                      ]}
-                      onPress={() => setCity(c)}
-                      accessibilityRole="button"
-                      accessibilityState={{ selected }}
-                    >
-                      <Text style={[styles.chipText, { color: selected ? '#fff' : COLORS.text }]}>{c}</Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </ScrollView>
+              <SaudiCityPicker
+                value={city}
+                onSelect={setCity}
+                isRTL={isRTL}
+                placeholder={isRTL ? 'اختر مدينتك' : 'Select your city'}
+              />
 
               <PrimaryButton
                 disabled={!step1Valid}

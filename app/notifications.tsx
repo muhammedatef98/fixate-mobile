@@ -1,58 +1,136 @@
-import React from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   SafeAreaView,
-  ScrollView,
+  FlatList,
   TouchableOpacity,
   StatusBar,
+  RefreshControl,
+  ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { getColors, getShadows, SPACING, BORDER_RADIUS } from '../constants/theme';
 import { useApp } from '../contexts/AppContext';
+import { useAuth } from '../contexts/AuthContext';
 import { RTLIonicon } from '../components/RTLIcon';
 import { safeBack } from '../utils/navigation';
 import { PressableScale } from '../components/ui/PressableScale';
 import { EmptyState } from '../components/ui/EmptyState';
+import {
+  fetchNotifications,
+  markAsRead,
+  markAllAsRead,
+  type AppNotification,
+} from '../utils/notifications';
+
+const TYPE_META: Record<string, { icon: any; color: string }> = {
+  order: { icon: 'cube-outline', color: '#2563EB' },
+  listing: { icon: 'pricetag-outline', color: '#10B981' },
+  message: { icon: 'chatbubble-ellipses-outline', color: '#8B5CF6' },
+  comment: { icon: 'chatbox-ellipses-outline', color: '#F59E0B' },
+  general: { icon: 'notifications-outline', color: '#64748B' },
+};
+
+function timeAgo(iso: string, isRTL: boolean): string {
+  const diff = Date.now() - new Date(iso).getTime();
+  const min = Math.floor(diff / 60000);
+  if (min < 1) return isRTL ? 'الآن' : 'just now';
+  if (min < 60) return isRTL ? `قبل ${min} دقيقة` : `${min}m ago`;
+  const hr = Math.floor(min / 60);
+  if (hr < 24) return isRTL ? `قبل ${hr} ساعة` : `${hr}h ago`;
+  const d = Math.floor(hr / 24);
+  if (d < 7) return isRTL ? `قبل ${d} يوم` : `${d}d ago`;
+  return new Date(iso).toLocaleDateString(isRTL ? 'ar-SA' : 'en-US');
+}
 
 export default function NotificationsScreen() {
   const router = useRouter();
   const { language, isDark } = useApp();
+  const { user } = useAuth();
   const COLORS = getColors(isDark);
   const SHADOWS = getShadows(isDark);
   const isRTL = language === 'ar';
   const styles = makeStyles(COLORS, isRTL, SHADOWS);
 
-  const NOTIFICATIONS = [
-    {
-      id: 1,
-      titleEn: 'Order Confirmed',
-      titleAr: 'تم تأكيد الطلب',
-      descEn: 'Your repair request #1234 has been confirmed.',
-      descAr: 'تم تأكيد طلب الإصلاح الخاص بك رقم #1234.',
-      timeEn: '2 hours ago',
-      timeAr: 'منذ ساعتين',
-      icon: 'check-circle',
-      color: COLORS.success,
-    },
-    {
-      id: 2,
-      titleEn: 'Technician Assigned',
-      titleAr: 'تم تعيين فني',
-      descEn: 'Ahmed has been assigned to your request.',
-      descAr: 'تم تعيين أحمد للقيام بطلبك.',
-      timeEn: '1 hour ago',
-      timeAr: 'منذ ساعة',
-      icon: 'account-check',
-      color: COLORS.info,
-    },
-  ];
+  const [items, setItems] = useState<AppNotification[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const load = useCallback(async () => {
+    if (!user?.id) {
+      setItems([]);
+      setLoading(false);
+      return;
+    }
+    const data = await fetchNotifications(user.id);
+    setItems(data);
+    setLoading(false);
+    // Mark everything read so the header badge clears. The list keeps the
+    // is_read values it loaded with, so freshly-arrived items stay
+    // highlighted for this viewing session.
+    if (data.some((n) => !n.is_read)) {
+      markAllAsRead(user.id).catch(() => undefined);
+    }
+  }, [user?.id]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await load();
+    setRefreshing(false);
+  };
+
+  const handlePress = (n: AppNotification) => {
+    if (!n.is_read) markAsRead(n.id).catch(() => undefined);
+    if (!n.related_id) return;
+    if (n.type === 'order' || n.type === 'message') {
+      router.push({ pathname: '/order-details', params: { id: n.related_id } });
+    } else if (n.type === 'listing' || n.type === 'comment') {
+      router.push({ pathname: '/market-detail', params: { id: n.related_id } });
+    }
+  };
+
+  const renderItem = ({ item }: { item: AppNotification }) => {
+    const meta = TYPE_META[item.type] ?? TYPE_META.general;
+    const title = isRTL ? item.title_ar : item.title_en;
+    const body = isRTL ? item.body_ar : item.body_en;
+    return (
+      <PressableScale
+        to={0.985}
+        onPress={() => handlePress(item)}
+        style={[styles.card, !item.is_read && styles.cardUnread]}
+      >
+        <View style={[styles.iconContainer, { backgroundColor: meta.color + '20' }]}>
+          <Ionicons name={meta.icon} size={22} color={meta.color} />
+        </View>
+        <View style={styles.info}>
+          <Text style={styles.title} numberOfLines={1}>
+            {title}
+          </Text>
+          {!!body && (
+            <Text style={styles.body} numberOfLines={2}>
+              {body}
+            </Text>
+          )}
+          <Text style={styles.time}>{timeAgo(item.created_at, isRTL)}</Text>
+        </View>
+        {!item.is_read && <View style={styles.unreadDot} />}
+      </PressableScale>
+    );
+  };
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={COLORS.background} />
+      <StatusBar
+        barStyle={isDark ? 'light-content' : 'dark-content'}
+        backgroundColor={COLORS.background}
+      />
 
       <View style={styles.header}>
         <TouchableOpacity
@@ -63,42 +141,45 @@ export default function NotificationsScreen() {
         >
           <RTLIonicon name="arrow-back" size={24} color={COLORS.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>{isRTL ? 'الإشعارات' : 'Notifications'}</Text>
+        <Text style={styles.headerTitle}>
+          {isRTL ? 'الإشعارات' : 'Notifications'}
+        </Text>
         <View style={{ width: 40 }} />
       </View>
 
-      <ScrollView
-        style={{ flex: 1 }}
-        contentContainerStyle={{ padding: SPACING.m, paddingBottom: 40 }}
-        showsVerticalScrollIndicator={false}
-      >
-        {NOTIFICATIONS.length > 0 ? (
-          NOTIFICATIONS.map((item) => (
-            <PressableScale key={item.id} to={0.985} style={styles.notificationCard}>
-              <View style={[styles.iconContainer, { backgroundColor: item.color + '20' }]}>
-                <MaterialCommunityIcons name={item.icon as any} size={24} color={item.color} />
-              </View>
-              <View style={styles.notificationInfo}>
-                <Text style={styles.notificationTitle}>{isRTL ? item.titleAr : item.titleEn}</Text>
-                <Text style={styles.notificationDesc}>{isRTL ? item.descAr : item.descEn}</Text>
-                <Text style={styles.notificationTime}>{isRTL ? item.timeAr : item.timeEn}</Text>
-              </View>
-            </PressableScale>
-          ))
-        ) : (
-          <View style={{ marginTop: 60 }}>
-            <EmptyState
-              icon="bell-off-outline"
-              title={isRTL ? 'لا توجد إشعارات حالياً' : 'No notifications yet'}
-              description={
-                isRTL
-                  ? 'سنخبرك هنا بكل تحديثات طلباتك أولاً بأول.'
-                  : "We'll let you know here as soon as your orders update."
-              }
+      {loading ? (
+        <View style={styles.loader}>
+          <ActivityIndicator size="large" color={COLORS.primary} />
+        </View>
+      ) : (
+        <FlatList
+          data={items}
+          keyExtractor={(n) => n.id}
+          renderItem={renderItem}
+          contentContainerStyle={{ padding: SPACING.m, paddingBottom: 40, flexGrow: 1 }}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={COLORS.primary}
             />
-          </View>
-        )}
-      </ScrollView>
+          }
+          ListEmptyComponent={
+            <View style={{ marginTop: 60 }}>
+              <EmptyState
+                icon="bell-off-outline"
+                title={isRTL ? 'لا توجد إشعارات حالياً' : 'No notifications yet'}
+                description={
+                  isRTL
+                    ? 'سنخبرك هنا بكل تحديثات طلباتك وإعلاناتك أولاً بأول.'
+                    : "We'll let you know here as soon as something happens."
+                }
+              />
+            </View>
+          }
+        />
+      )}
     </SafeAreaView>
   );
 }
@@ -116,7 +197,8 @@ const makeStyles = (C: any, isRTL: boolean, SHADOWS: any) =>
     },
     backButton: { padding: 8 },
     headerTitle: { fontSize: 22, fontWeight: '800', color: C.text },
-    notificationCard: {
+    loader: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+    card: {
       flexDirection: isRTL ? 'row-reverse' : 'row',
       padding: 16,
       marginBottom: 12,
@@ -126,26 +208,42 @@ const makeStyles = (C: any, isRTL: boolean, SHADOWS: any) =>
       gap: 14,
       ...SHADOWS.small,
     },
+    cardUnread: {
+      borderWidth: 1,
+      borderColor: C.primary + '40',
+      backgroundColor: C.primarySoft,
+    },
     iconContainer: {
-      width: 48,
-      height: 48,
+      width: 46,
+      height: 46,
       borderRadius: 14,
       justifyContent: 'center',
       alignItems: 'center',
     },
-    notificationInfo: { flex: 1 },
-    notificationTitle: {
-      fontSize: 16,
+    info: { flex: 1 },
+    title: {
+      fontSize: 15,
       fontWeight: '700',
-      marginBottom: 4,
+      marginBottom: 3,
       color: C.text,
       textAlign: isRTL ? 'right' : 'left',
     },
-    notificationDesc: {
-      fontSize: 14,
+    body: {
+      fontSize: 13,
       marginBottom: 4,
       color: C.textSecondary,
       textAlign: isRTL ? 'right' : 'left',
+      lineHeight: 19,
     },
-    notificationTime: { fontSize: 12, color: C.textLight, textAlign: isRTL ? 'right' : 'left' },
+    time: {
+      fontSize: 11,
+      color: C.textLight,
+      textAlign: isRTL ? 'right' : 'left',
+    },
+    unreadDot: {
+      width: 9,
+      height: 9,
+      borderRadius: 5,
+      backgroundColor: C.primary,
+    },
   });

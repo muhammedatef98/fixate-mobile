@@ -68,6 +68,28 @@ export interface ListingComment {
   author_name?: string | null;
 }
 
+export interface UserCard {
+  id: string;
+  name: string | null;
+  avatar_url: string | null;
+}
+
+/** Read a user's public display card (name + avatar) via the
+ *  `public_user_cards` view, which is readable regardless of the
+ *  users-table RLS. */
+export const getUserCard = async (userId: string): Promise<UserCard | null> => {
+  const { data, error } = await supabase
+    .from('public_user_cards')
+    .select('id, name, avatar_url')
+    .eq('id', userId)
+    .maybeSingle();
+  if (error) {
+    logger.warn('getUserCard failed', error);
+    return null;
+  }
+  return (data ?? null) as UserCard | null;
+};
+
 export const getListing = async (id: string): Promise<MarketListing | null> => {
   const { data, error } = await supabase
     .from('market_listings')

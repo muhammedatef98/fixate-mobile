@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, Image, Animated, StatusBar, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, Animated, StatusBar, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { useApp } from '../../contexts/AppContext';
@@ -8,6 +8,7 @@ import { RTLIonicon } from '../../components/RTLIcon';
 import { getColors, getShadows, BORDER_RADIUS } from '../../constants/theme';
 import { PressableScale } from '../../components/ui/PressableScale';
 import { supabase } from '../../services/supabaseClient';
+import Avatar from '../../components/Avatar';
 
 export default function TechnicianProfile() {
   const router = useRouter();
@@ -99,9 +100,11 @@ export default function TechnicianProfile() {
           {/* Profile Header Card */}
           <View style={styles.profileCard}>
             <View style={styles.avatarContainer}>
-              <Image 
-                source={{ uri: `https://ui-avatars.com/api/?name=${userProfile?.name || 'Tech'}&background=10b981&color=fff` }} 
-                style={styles.avatar} 
+              <Avatar
+                name={userProfile?.name}
+                uri={userProfile?.avatar_url}
+                size={100}
+                style={styles.avatar}
               />
               <View style={styles.verifiedBadge}>
                 <MaterialIcons name="verified" size={18} color="#fff" />
@@ -171,7 +174,7 @@ const createStyles = (COLORS: any, isRTL: boolean, SHADOWS: any) => StyleSheet.c
   scrollContent: { padding: 16 },
   profileCard: { backgroundColor: COLORS.white, borderRadius: BORDER_RADIUS.xxl, padding: 24, alignItems: 'center', marginBottom: 24, ...SHADOWS.small },
   avatarContainer: { position: 'relative', marginBottom: 16 },
-  avatar: { width: 100, height: 100, borderRadius: 50, borderWidth: 4, borderColor: COLORS.primarySoft },
+  avatar: { borderWidth: 4, borderColor: COLORS.primarySoft },
   verifiedBadge: { position: 'absolute', bottom: 0, right: 0, width: 28, height: 28, borderRadius: 14, backgroundColor: COLORS.primary, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: COLORS.white },
   userName: { fontSize: 22, fontWeight: 'bold', color: COLORS.text },
   userEmail: { fontSize: 14, color: COLORS.textSecondary, marginTop: 4 },

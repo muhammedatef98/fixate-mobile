@@ -53,6 +53,11 @@ interface FormState {
   loyaltyTiersJson: string;
   commitmentFee: string;
   commitmentEnabled: boolean;
+  maintenanceMode: boolean;
+  announcementEnabled: boolean;
+  announcementAr: string;
+  announcementEn: string;
+  minAppVersion: string;
 }
 
 const toForm = (s: PlatformSettings): FormState => ({
@@ -70,6 +75,11 @@ const toForm = (s: PlatformSettings): FormState => ({
   loyaltyTiersJson: JSON.stringify(s.loyalty.tiers, null, 2),
   commitmentFee: String(s.commitmentFee),
   commitmentEnabled: s.commitmentEnabled,
+  maintenanceMode: s.maintenanceMode,
+  announcementEnabled: s.announcementEnabled,
+  announcementAr: s.announcementAr,
+  announcementEn: s.announcementEn,
+  minAppVersion: s.minAppVersion,
 });
 
 interface FieldErrors {
@@ -222,6 +232,11 @@ export default function AdminPlatformSettingsScreen() {
         { key: PLATFORM_SETTINGS_KEYS.loyaltyTiers, value: tiers },
         { key: PLATFORM_SETTINGS_KEYS.commitmentFee, value: Number(form.commitmentFee) },
         { key: PLATFORM_SETTINGS_KEYS.commitmentEnabled, value: form.commitmentEnabled },
+        { key: PLATFORM_SETTINGS_KEYS.maintenanceMode, value: form.maintenanceMode },
+        { key: PLATFORM_SETTINGS_KEYS.announcementEnabled, value: form.announcementEnabled },
+        { key: PLATFORM_SETTINGS_KEYS.announcementAr, value: form.announcementAr.trim() },
+        { key: PLATFORM_SETTINGS_KEYS.announcementEn, value: form.announcementEn.trim() },
+        { key: PLATFORM_SETTINGS_KEYS.minAppVersion, value: form.minAppVersion.trim() },
       ]);
       Alert.alert(
         isRTL ? 'تم الحفظ ✓' : 'Saved ✓',
@@ -344,6 +359,79 @@ export default function AdminPlatformSettingsScreen() {
                 ? 'هذه القيم تُطبَّق على كامل المنصة. التعديلات تحتاج صلاحية مدير.'
                 : 'These values apply platform-wide. Changes require admin privileges.'}
             </Text>
+
+            {/* App control */}
+            <SectionTitle isRTL={isRTL} COLORS={COLORS}>
+              {isRTL ? 'التحكم بالتطبيق' : 'App control'}
+            </SectionTitle>
+
+            <View style={styles.switchRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.label}>
+                  {isRTL ? 'وضع الصيانة' : 'Maintenance mode'}
+                </Text>
+                <Text style={styles.hint}>
+                  {isRTL
+                    ? 'عند التفعيل، يُعرض للمستخدمين إشعار بأن التطبيق تحت الصيانة.'
+                    : 'When on, users are shown a maintenance notice.'}
+                </Text>
+              </View>
+              <Switch
+                value={form.maintenanceMode}
+                onValueChange={(v) => setForm({ ...form, maintenanceMode: v })}
+                trackColor={{ false: COLORS.border, true: COLORS.primary }}
+                thumbColor="#fff"
+              />
+            </View>
+
+            <View style={styles.switchRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.label}>
+                  {isRTL ? 'شريط الإعلان' : 'Announcement banner'}
+                </Text>
+                <Text style={styles.hint}>
+                  {isRTL
+                    ? 'يعرض شريطاً في أعلى التطبيق بالرسالة أدناه.'
+                    : 'Shows a banner at the top of the app with the message below.'}
+                </Text>
+              </View>
+              <Switch
+                value={form.announcementEnabled}
+                onValueChange={(v) => setForm({ ...form, announcementEnabled: v })}
+                trackColor={{ false: COLORS.border, true: COLORS.primary }}
+                thumbColor="#fff"
+              />
+            </View>
+
+            <FieldMultiline
+              label={isRTL ? 'نص الإعلان (عربي)' : 'Announcement text (Arabic)'}
+              value={form.announcementAr}
+              onChangeText={(v) => setForm({ ...form, announcementAr: v })}
+              COLORS={COLORS}
+              isRTL={isRTL}
+              forceRTL
+            />
+            <FieldMultiline
+              label={isRTL ? 'نص الإعلان (إنجليزي)' : 'Announcement text (English)'}
+              value={form.announcementEn}
+              onChangeText={(v) => setForm({ ...form, announcementEn: v })}
+              COLORS={COLORS}
+              isRTL={isRTL}
+            />
+
+            <FieldNumber
+              label={isRTL ? 'أدنى إصدار مطلوب للتطبيق' : 'Minimum required app version'}
+              hint={
+                isRTL
+                  ? 'مثال: 1.2.0 — المستخدمون على إصدار أقدم سيُطلب منهم التحديث.'
+                  : 'e.g. 1.2.0 — users on an older version will be asked to update.'
+              }
+              value={form.minAppVersion}
+              onChangeText={(v) => setForm({ ...form, minAppVersion: v })}
+              COLORS={COLORS}
+              isRTL={isRTL}
+              step="0.1"
+            />
 
             {/* Fees */}
             <SectionTitle isRTL={isRTL} COLORS={COLORS}>

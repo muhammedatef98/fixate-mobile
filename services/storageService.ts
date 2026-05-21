@@ -8,6 +8,7 @@ import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
 import { logger } from '../utils/logger';
 
 const ORDERS_BUCKET = 'orders';
+const AVATARS_BUCKET = 'avatars';
 
 const isImage = (uri: string) => /\.(jpe?g|png|webp|heic|heif)(\?.*)?$/i.test(uri);
 
@@ -107,4 +108,52 @@ export const uploadOrderMedia = async (
   const folder = folderHint || `${userId}/${Date.now()}`;
   const results = await Promise.all(localUris.map((uri, i) => uploadOne(folder, uri, i)));
   return results.filter((u): u is string => !!u);
+};
+
+/**
+ * Upload a profile photo to the public `avatars` bucket. The storage RLS
+ * policy requires the first path segment to be the user's id. Returns the
+ * public URL ready to store in users.avatar_url.
+ */
+export const uploadAvatar = async (
+  userId: string,
+  uri: string
+): Promise<string> => {
+  try {
+    let workingUri = uri;
+    try {
+      const resized = await manipulateAsync(
+        uri,
+        [{ resize: { width: 512 } }],
+        { compress: 0.7, format: SaveFormat.JPEG }
+      );
+      workingUri = resized.uri;
+    } catch (e) {
+      logger.warn('avatar resize failed, using original', e);
+    }
+
+    const path = `${userId}/avatar-${Date.now()}.jpg`;
+    const base64 = await withTimeout(
+      readAsStringAsync(workingUri, { encoding: 'base64' }),
+      20000,
+      'Read avatar'
+    );
+    const fileBytes = decode(base64);
+
+    const { error } = await withTimeout(
+      supabase.storage
+        .from(AVATARS_BUCKET)
+        .upload(path, fileBytes, { contentType: 'image/jpeg', upsert: true }),
+      60000,
+      'Upload avatar'
+    );
+    if (error) throw error;
+
+    const { data: pub } = supabase.storage.from(AVATARS_BUCKET).getPublicUrl(path);
+    if (!pub?.publicUrl) throw new Error('Failed to resolve avatar URL');
+    return pub.publicUrl;
+  } catch (err) {
+    logger.error('uploadAvatar failed', err);
+    throw err;
+  }
 };
