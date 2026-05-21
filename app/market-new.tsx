@@ -24,6 +24,7 @@ import { createListing, type ListingCategory, type ContactPreference } from '../
 import { uploadOrderMedia } from '../services/storageService';
 import SaudiCityPicker from '../components/SaudiCityPicker';
 import ImagePickerSheet from '../components/ImagePickerSheet';
+import SelectField from '../components/SelectField';
 
 const CONDITIONS: { id: string; ar: string; en: string }[] = [
   { id: 'new', ar: 'جديد', en: 'New' },
@@ -56,6 +57,7 @@ export default function MarketNewScreen() {
   const [condition, setCondition] = useState<string>('used');
   const [images, setImages] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const [submitStage, setSubmitStage] = useState<'idle' | 'uploading' | 'publishing'>('idle');
   const [imageSheetOpen, setImageSheetOpen] = useState(false);
 
   const pickFrom = async (source: 'camera' | 'gallery') => {
@@ -83,7 +85,7 @@ export default function MarketNewScreen() {
           return;
         }
         const result = await ImagePicker.launchImageLibraryAsync({
-          mediaTypes: ImagePicker.MediaTypeOptions.Images,
+          mediaTypes: ['images'],
           allowsMultipleSelection: true,
           quality: 0.7,
         });
@@ -108,10 +110,21 @@ export default function MarketNewScreen() {
       );
       return;
     }
+    // Validate before any upload so the seller never waits on a doomed submit.
+    if ((contactPreference === 'phone' || contactPreference === 'both') && !contactPhone.trim()) {
+      Alert.alert(
+        isRTL ? 'رقم التواصل مطلوب' : 'Phone required',
+        isRTL
+          ? 'اخترت تلقي الاتصال عبر الهاتف. أدخل رقماً أو غيّر طريقة التواصل إلى رسالة فقط.'
+          : 'You chose to receive phone contact. Enter a number or switch the contact method to DM only.'
+      );
+      return;
+    }
     setSubmitting(true);
     try {
       let uploaded: string[] = [];
       if (images.length > 0) {
+        setSubmitStage('uploading');
         uploaded = await uploadOrderMedia(user.id, images, `market/${user.id}/${Date.now()}`);
       }
       const conditionLabel = CONDITIONS.find((c) => c.id === condition);
@@ -121,18 +134,7 @@ export default function MarketNewScreen() {
       const fullDescription = [conditionLine, description.trim()]
         .filter(Boolean)
         .join('\n');
-      // Phone is required when seller wants buyers to call/WhatsApp. If
-      // they chose DM-only we don't force a phone number.
-      if ((contactPreference === 'phone' || contactPreference === 'both') && !contactPhone.trim()) {
-        Alert.alert(
-          isRTL ? 'رقم التواصل مطلوب' : 'Phone required',
-          isRTL
-            ? 'اخترت تلقي الاتصال عبر الهاتف. أدخل رقماً أو غيّر طريقة التواصل إلى رسالة فقط.'
-            : 'You chose to receive phone contact. Enter a number or switch the contact method to DM only.'
-        );
-        setSubmitting(false);
-        return;
-      }
+      setSubmitStage('publishing');
       await createListing(user.id, {
         title: title.trim(),
         description: fullDescription || undefined,
@@ -154,6 +156,7 @@ export default function MarketNewScreen() {
       Alert.alert(isRTL ? 'خطأ' : 'Error', e?.message ?? String(e));
     } finally {
       setSubmitting(false);
+      setSubmitStage('idle');
     }
   };
 
@@ -207,41 +210,23 @@ export default function MarketNewScreen() {
           </Field>
 
           <Field label={isRTL ? 'الحالة' : 'Condition'} COLORS={COLORS}>
-            <View style={styles.chipsWrap}>
-              {CONDITIONS.map((c) => (
-                <TouchableOpacity
-                  key={c.id}
-                  onPress={() => setCondition(c.id)}
-                  style={[
-                    styles.chip,
-                    condition === c.id && { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
-                  ]}
-                >
-                  <Text style={[styles.chipText, condition === c.id && { color: '#fff' }]}>
-                    {isRTL ? c.ar : c.en}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
+            <SelectField
+              value={condition}
+              options={CONDITIONS.map((c) => ({ id: c.id, label: isRTL ? c.ar : c.en }))}
+              onSelect={setCondition}
+              isRTL={isRTL}
+              placeholder={isRTL ? 'اختر الحالة' : 'Select condition'}
+            />
           </Field>
 
           <Field label={isRTL ? 'التصنيف' : 'Category'} COLORS={COLORS}>
-            <View style={styles.chipsWrap}>
-              {CATEGORY_OPTIONS.map((c) => (
-                <TouchableOpacity
-                  key={c.id}
-                  onPress={() => setCategory(c.id)}
-                  style={[
-                    styles.chip,
-                    category === c.id && { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
-                  ]}
-                >
-                  <Text style={[styles.chipText, category === c.id && { color: '#fff' }]}>
-                    {isRTL ? c.ar : c.en}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
+            <SelectField
+              value={category}
+              options={CATEGORY_OPTIONS.map((c) => ({ id: c.id, label: isRTL ? c.ar : c.en }))}
+              onSelect={(id) => setCategory(id as ListingCategory)}
+              isRTL={isRTL}
+              placeholder={isRTL ? 'اختر التصنيف' : 'Select category'}
+            />
           </Field>
 
           <Field label={isRTL ? 'السعر (SAR)' : 'Price (SAR)'} COLORS={COLORS}>
@@ -316,7 +301,14 @@ export default function MarketNewScreen() {
             disabled={submitting}
           >
             {submitting ? (
-              <ActivityIndicator color="#fff" />
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <ActivityIndicator color="#fff" />
+                <Text style={styles.submitText}>
+                  {submitStage === 'uploading'
+                    ? (isRTL ? 'جارٍ رفع الصور…' : 'Uploading photos…')
+                    : (isRTL ? 'جارٍ النشر…' : 'Publishing…')}
+                </Text>
+              </View>
             ) : (
               <Text style={styles.submitText}>{isRTL ? 'نشر الإعلان' : 'Publish Listing'}</Text>
             )}

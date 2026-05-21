@@ -1,9 +1,6 @@
 import { supabase } from './supabaseClient';
 import { logger } from '../utils/logger';
-import {
-  DEFAULT_INSPECTION_FEE_SAR,
-  DEFAULT_RETURN_FEE_SAR,
-} from '../constants/fees';
+import { DEFAULT_RETURN_FEE_SAR } from '../constants/fees';
 
 // Tiny in-memory cache so paying-attention screens don't hammer the DB.
 // 5 minutes is generous: admins will rarely change these values.
@@ -48,6 +45,7 @@ export interface LoyaltySettings {
 
 export interface PlatformSettings {
   inspectionFee: number;
+  inspectionEnabled: boolean;
   returnFee: number;
   commissionRate: number;
   easternProvinceEnabled: boolean;
@@ -65,6 +63,7 @@ export interface PlatformSettings {
 
 export const PLATFORM_SETTINGS_KEYS = {
   inspectionFee: 'inspection_fee_default',
+  inspectionEnabled: 'inspection_enabled',
   returnFee: 'return_fee_default',
   commissionRate: 'platform_commission_rate',
   easternProvinceEnabled: 'eastern_province_enabled',
@@ -133,7 +132,9 @@ const tiersFromValue = (raw: any, fallback: LoyaltyTierConfig[]): LoyaltyTierCon
 };
 
 const DEFAULTS: PlatformSettings = {
-  inspectionFee: DEFAULT_INSPECTION_FEE_SAR,
+  // Inspection is free by default; admins can enable a fee from settings.
+  inspectionFee: 0,
+  inspectionEnabled: false,
   returnFee: DEFAULT_RETURN_FEE_SAR,
   commissionRate: 0.15,
   easternProvinceEnabled: false,
@@ -143,7 +144,8 @@ const DEFAULTS: PlatformSettings = {
     'Service is currently available in Al Qatif and nearby areas only. Soon we will expand across the Eastern Province and then all of Saudi Arabia.',
   loyalty: DEFAULT_LOYALTY,
   commitmentFee: 50,
-  commitmentEnabled: true,
+  // Confirmation (commitment) amount is disabled by default.
+  commitmentEnabled: false,
   maintenanceMode: false,
   announcementEnabled: false,
   announcementAr: '',
@@ -177,6 +179,7 @@ export const getPlatformSettings = async (): Promise<PlatformSettings> => {
   const raw = await loadRaw();
   return {
     inspectionFee: numFromValue(raw[PLATFORM_SETTINGS_KEYS.inspectionFee], DEFAULTS.inspectionFee),
+    inspectionEnabled: boolFromValue(raw[PLATFORM_SETTINGS_KEYS.inspectionEnabled], DEFAULTS.inspectionEnabled),
     returnFee: numFromValue(raw[PLATFORM_SETTINGS_KEYS.returnFee], DEFAULTS.returnFee),
     commissionRate: numFromValue(raw[PLATFORM_SETTINGS_KEYS.commissionRate], DEFAULTS.commissionRate),
     easternProvinceEnabled: boolFromValue(raw[PLATFORM_SETTINGS_KEYS.easternProvinceEnabled], DEFAULTS.easternProvinceEnabled),

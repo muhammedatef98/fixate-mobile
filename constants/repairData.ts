@@ -44,7 +44,8 @@ export const BRANDS: Brand[] = [
       'iPhone XS Max', 'iPhone XS', 'iPhone XR', 'iPhone X',
       'iPhone 8 Plus', 'iPhone 8', 'iPhone 7 Plus', 'iPhone 7',
       'iPhone 6s Plus', 'iPhone 6s', 'iPhone 6 Plus', 'iPhone 6',
-      'iPhone SE (2022)', 'iPhone SE (2020)', 'iPhone SE (2016)'
+      'iPhone SE (2022)', 'iPhone SE (2020)', 'iPhone SE (2016)',
+      'iPhone 5s', 'iPhone 5c', 'iPhone 5', 'iPhone 4s'
     ]
   },
   {
@@ -65,7 +66,13 @@ export const BRANDS: Brand[] = [
       'Galaxy A24', 'Galaxy A23', 'Galaxy A22', 'Galaxy A21',
       'Galaxy A14', 'Galaxy A13', 'Galaxy A12', 'Galaxy A11',
       'Galaxy M54', 'Galaxy M53', 'Galaxy M52', 'Galaxy M51',
-      'Galaxy Note 20 Ultra', 'Galaxy Note 20', 'Galaxy Note 10+'
+      'Galaxy Note 20 Ultra', 'Galaxy Note 20', 'Galaxy Note 10+', 'Galaxy Note 10',
+      'Galaxy Note 9', 'Galaxy Note 8',
+      'Galaxy S20 Ultra', 'Galaxy S20+', 'Galaxy S20', 'Galaxy S20 FE',
+      'Galaxy S10+', 'Galaxy S10', 'Galaxy S10e', 'Galaxy S10 Lite',
+      'Galaxy S9+', 'Galaxy S9', 'Galaxy S8+', 'Galaxy S8',
+      'Galaxy A05s', 'Galaxy A05', 'Galaxy A04', 'Galaxy A03', 'Galaxy A03s',
+      'Galaxy J7', 'Galaxy J6', 'Galaxy J5', 'Galaxy J2'
     ]
   },
   {
@@ -80,7 +87,9 @@ export const BRANDS: Brand[] = [
       'P30 Pro', 'P30', 'P20 Pro', 'P20',
       'Nova 12 Pro', 'Nova 12', 'Nova 11 Pro', 'Nova 11',
       'Nova 10 Pro', 'Nova 10', 'Nova 9 Pro', 'Nova 9',
-      'Y9s', 'Y9 Prime', 'Y9', 'Y7 Pro', 'Y7', 'Y6 Pro', 'Y6'
+      'Y9s', 'Y9 Prime', 'Y9', 'Y7 Pro', 'Y7', 'Y6 Pro', 'Y6', 'Y5', 'Y3',
+      'Mate 20 Pro', 'Mate 20', 'Mate 10 Pro', 'Mate 10',
+      'P10 Plus', 'P10', 'P9', 'Nova 8', 'Nova 7', 'Nova 5T', 'Nova 3i'
     ]
   },
   {
@@ -98,7 +107,10 @@ export const BRANDS: Brand[] = [
       'Redmi 13C', 'Redmi 12C', 'Redmi 11C', 'Redmi 10C',
       'Poco X6 Pro', 'Poco X6', 'Poco X5 Pro', 'Poco X5',
       'Poco F5 Pro', 'Poco F5', 'Poco F4', 'Poco F3',
-      'Poco M6 Pro', 'Poco M6', 'Poco M5', 'Poco M4'
+      'Poco M6 Pro', 'Poco M6', 'Poco M5', 'Poco M4',
+      'Redmi Note 8 Pro', 'Redmi Note 8', 'Redmi Note 7',
+      'Redmi 12', 'Redmi 10', 'Redmi 9', 'Redmi 9A', 'Redmi 9C',
+      'Xiaomi 10', 'Mi 9', 'Mi 8'
     ]
   },
   {
@@ -113,7 +125,8 @@ export const BRANDS: Brand[] = [
       'Reno 9 Pro+', 'Reno 9 Pro', 'Reno 9', 'Reno 8 Pro', 'Reno 8',
       'Reno 7 Pro', 'Reno 7', 'Reno 6 Pro', 'Reno 6',
       'A98', 'A78', 'A58', 'A38', 'A18', 'A17',
-      'F23', 'F21 Pro', 'F21', 'F19 Pro', 'F19'
+      'F23', 'F21 Pro', 'F21', 'F19 Pro', 'F19', 'F17', 'F11 Pro', 'F11',
+      'A96', 'A76', 'A74', 'A57', 'A54', 'A53', 'A16', 'A15', 'A12', 'A9', 'A5'
     ]
   },
   {
@@ -167,7 +180,8 @@ export const BRANDS: Brand[] = [
     logo: require('../assets/google-logo.png'),
     models: [
       'Pixel 8 Pro', 'Pixel 8', 'Pixel 7 Pro', 'Pixel 7', 'Pixel 7a',
-      'Pixel 6 Pro', 'Pixel 6', 'Pixel 6a', 'Pixel 5', 'Pixel 4a'
+      'Pixel 6 Pro', 'Pixel 6', 'Pixel 6a', 'Pixel 5', 'Pixel 4a',
+      'Pixel 4 XL', 'Pixel 4', 'Pixel 3a', 'Pixel 3'
     ]
   },
   {
@@ -267,8 +281,10 @@ export const BRANDS: Brand[] = [
     logo: require('../assets/apple-logo.png'),
     models: [
       'iPad Pro 12.9" (2024)', 'iPad Pro 11" (2024)', 'iPad Pro 12.9" (2022)', 'iPad Pro 11" (2022)',
-      'iPad Air (2024)', 'iPad Air (2022)', 'iPad (10th gen)', 'iPad (9th gen)',
-      'iPad mini (6th gen)', 'iPad mini (5th gen)'
+      'iPad Pro 12.9" (2020)', 'iPad Pro 11" (2020)',
+      'iPad Air (2024)', 'iPad Air (2022)', 'iPad Air (2019)',
+      'iPad (10th gen)', 'iPad (9th gen)', 'iPad (8th gen)', 'iPad (7th gen)',
+      'iPad mini (6th gen)', 'iPad mini (5th gen)', 'iPad mini (4th gen)'
     ]
   },
   {
@@ -279,6 +295,7 @@ export const BRANDS: Brand[] = [
     models: [
       'Galaxy Tab S9 Ultra', 'Galaxy Tab S9+', 'Galaxy Tab S9',
       'Galaxy Tab S8 Ultra', 'Galaxy Tab S8+', 'Galaxy Tab S8',
+      'Galaxy Tab S7+', 'Galaxy Tab S7', 'Galaxy Tab S6 Lite', 'Galaxy Tab S6',
       'Galaxy Tab A9+', 'Galaxy Tab A9', 'Galaxy Tab A8', 'Galaxy Tab A7'
     ]
   },
@@ -326,7 +343,9 @@ export const BRANDS: Brand[] = [
     models: [
       'MacBook Pro 16" (M3)', 'MacBook Pro 14" (M3)', 'MacBook Pro 16" (M2)', 'MacBook Pro 14" (M2)',
       'MacBook Air 15" (M3)', 'MacBook Air 13" (M3)', 'MacBook Air 15" (M2)', 'MacBook Air 13" (M2)',
-      'MacBook Air (M1)', 'MacBook Pro 13" (M1)'
+      'MacBook Air (M1)', 'MacBook Pro 13" (M1)',
+      'MacBook Pro 16" (Intel)', 'MacBook Pro 15" (Intel)', 'MacBook Pro 13" (Intel)',
+      'MacBook Air (Intel, 2020)', 'MacBook Air (Intel, 2019)', 'MacBook 12" (Retina)'
     ]
   },
   {

@@ -15,7 +15,6 @@ import {
   Platform,
   RefreshControl,
 } from 'react-native';
-import { useRouter } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useApp } from '../contexts/AppContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -31,14 +30,18 @@ import {
   invalidatePlatformSettingsCache,
   type PlatformSettings,
 } from '../services/platformSettingsService';
+import {
+  getRepairAreaMap,
+  saveRepairAreaMap,
+  type RepairAreaMap,
+} from '../services/deliveryPricingService';
+import { DELIVERY_REGIONS } from '../constants/deliveryPricing';
 import { getFriendlyError } from '../utils/errorMessages';
 import { logger } from '../utils/logger';
 
-// Local working copy of the settings — numbers stay as strings while the
-// admin types so we can preserve partial input ("3" -> "3.5") without
-// fighting React. They're parsed/validated at save time.
 interface FormState {
   inspectionFee: string;
+  inspectionEnabled: boolean;
   returnFee: string;
   commissionRate: string;
   easternProvinceEnabled: boolean;
@@ -49,7 +52,6 @@ interface FormState {
   loyaltyRedeemMin: string;
   loyaltyRedeemRate: string;
   loyaltyRedeemMaxPct: string;
-  /** JSON-encoded tier list, edited as raw text for now. */
   loyaltyTiersJson: string;
   commitmentFee: string;
   commitmentEnabled: boolean;
@@ -62,6 +64,7 @@ interface FormState {
 
 const toForm = (s: PlatformSettings): FormState => ({
   inspectionFee: String(s.inspectionFee),
+  inspectionEnabled: s.inspectionEnabled,
   returnFee: String(s.returnFee),
   commissionRate: String(s.commissionRate),
   easternProvinceEnabled: s.easternProvinceEnabled,
@@ -97,7 +100,6 @@ interface FieldErrors {
 }
 
 export default function AdminPlatformSettingsScreen() {
-  const router = useRouter();
   const { language, isDark } = useApp();
   const { user, userProfile } = useAuth();
   const COLORS = getColors(isDark);
@@ -111,8 +113,6 @@ export default function AdminPlatformSettingsScreen() {
   const [form, setForm] = useState<FormState | null>(null);
   const [errors, setErrors] = useState<FieldErrors>({});
 
-  // Same admin gate the dashboard uses, so this screen is safe even if a
-  // non-admin lands on it directly via a deep link.
   useEffect(() => {
     let cancelled = false;
     if (!user?.id) {
@@ -148,58 +148,40 @@ export default function AdminPlatformSettingsScreen() {
   }, [language]);
 
   useEffect(() => {
-    if (adminChecked === null) return; // wait for gate
+    if (adminChecked === null) return;
     load();
   }, [adminChecked, load]);
 
   const validate = (f: FormState): FieldErrors => {
     const err: FieldErrors = {};
-    const inspection = Number(f.inspectionFee);
-    if (!Number.isFinite(inspection) || inspection < 0) {
+    const num = (v: string) => Number(v);
+    if (!Number.isFinite(num(f.inspectionFee)) || num(f.inspectionFee) < 0)
       err.inspectionFee = isRTL ? 'أدخل رقماً صحيحاً' : 'Enter a valid number';
-    }
-    const ret = Number(f.returnFee);
-    if (!Number.isFinite(ret) || ret < 0) {
+    if (!Number.isFinite(num(f.returnFee)) || num(f.returnFee) < 0)
       err.returnFee = isRTL ? 'أدخل رقماً صحيحاً' : 'Enter a valid number';
-    }
-    const rate = Number(f.commissionRate);
-    if (!Number.isFinite(rate) || rate < 0 || rate > 1) {
-      err.commissionRate = isRTL
-        ? 'النسبة يجب أن تكون بين 0 و 1'
-        : 'Rate must be between 0 and 1';
-    }
-    const lpps = Number(f.loyaltyPointsPerSAR);
-    if (!Number.isFinite(lpps) || lpps < 0) {
+    const rate = num(f.commissionRate);
+    if (!Number.isFinite(rate) || rate < 0 || rate > 1)
+      err.commissionRate = isRTL ? 'النسبة بين 0 و 1' : 'Rate must be 0–1';
+    if (!Number.isFinite(num(f.loyaltyPointsPerSAR)) || num(f.loyaltyPointsPerSAR) < 0)
       err.loyaltyPointsPerSAR = isRTL ? 'أدخل رقماً صحيحاً' : 'Enter a valid number';
-    }
-    const lmin = Number(f.loyaltyRedeemMin);
-    if (!Number.isFinite(lmin) || lmin < 0) {
+    if (!Number.isFinite(num(f.loyaltyRedeemMin)) || num(f.loyaltyRedeemMin) < 0)
       err.loyaltyRedeemMin = isRTL ? 'أدخل رقماً صحيحاً' : 'Enter a valid number';
-    }
-    const lrate = Number(f.loyaltyRedeemRate);
-    if (!Number.isFinite(lrate) || lrate < 0) {
+    if (!Number.isFinite(num(f.loyaltyRedeemRate)) || num(f.loyaltyRedeemRate) < 0)
       err.loyaltyRedeemRate = isRTL ? 'أدخل رقماً صحيحاً' : 'Enter a valid number';
-    }
-    const lmax = Number(f.loyaltyRedeemMaxPct);
-    if (!Number.isFinite(lmax) || lmax < 0 || lmax > 1) {
+    const lmax = num(f.loyaltyRedeemMaxPct);
+    if (!Number.isFinite(lmax) || lmax < 0 || lmax > 1)
       err.loyaltyRedeemMaxPct = isRTL ? 'بين 0 و 1' : 'Between 0 and 1';
-    }
     try {
-      const parsed = JSON.parse(f.loyaltyTiersJson);
-      if (!Array.isArray(parsed)) throw new Error('not array');
+      if (!Array.isArray(JSON.parse(f.loyaltyTiersJson))) throw new Error('not array');
     } catch {
       err.loyaltyTiersJson = isRTL ? 'JSON غير صالح' : 'Invalid JSON array';
     }
-    const com = Number(f.commitmentFee);
-    if (!Number.isFinite(com) || com < 0) {
+    if (!Number.isFinite(num(f.commitmentFee)) || num(f.commitmentFee) < 0)
       err.commitmentFee = isRTL ? 'أدخل رقماً صحيحاً' : 'Enter a valid number';
-    }
-    if (!f.serviceAreaMessageAr.trim()) {
+    if (!f.serviceAreaMessageAr.trim())
       err.serviceAreaMessageAr = isRTL ? 'مطلوب' : 'Required';
-    }
-    if (!f.serviceAreaMessageEn.trim()) {
+    if (!f.serviceAreaMessageEn.trim())
       err.serviceAreaMessageEn = isRTL ? 'مطلوب' : 'Required';
-    }
     return err;
   };
 
@@ -219,6 +201,7 @@ export default function AdminPlatformSettingsScreen() {
       const tiers = JSON.parse(form.loyaltyTiersJson);
       await upsertPlatformSettings([
         { key: PLATFORM_SETTINGS_KEYS.inspectionFee, value: Number(form.inspectionFee) },
+        { key: PLATFORM_SETTINGS_KEYS.inspectionEnabled, value: form.inspectionEnabled },
         { key: PLATFORM_SETTINGS_KEYS.returnFee, value: Number(form.returnFee) },
         { key: PLATFORM_SETTINGS_KEYS.commissionRate, value: Number(form.commissionRate) },
         { key: PLATFORM_SETTINGS_KEYS.easternProvinceEnabled, value: form.easternProvinceEnabled },
@@ -244,27 +227,18 @@ export default function AdminPlatformSettingsScreen() {
       );
     } catch (e: any) {
       logger.error('admin platform-settings save failed', e);
-      Alert.alert(
-        isRTL ? 'فشل الحفظ' : 'Save failed',
-        getFriendlyError(e, language)
-      );
+      Alert.alert(isRTL ? 'فشل الحفظ' : 'Save failed', getFriendlyError(e, language));
     } finally {
       setSaving(false);
     }
   };
 
-  const onRefresh = () => {
-    setRefreshing(true);
-    load();
-  };
-
   const styles = useMemo(() => createStyles(COLORS, isRTL), [COLORS, isRTL]);
+  const set = (patch: Partial<FormState>) => setForm((f) => (f ? { ...f, ...patch } : f));
 
-  // Admin gate is still resolving
   if (adminChecked === null) {
     return (
       <SafeAreaView style={styles.container}>
-        <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
         <View style={styles.centered}>
           <ActivityIndicator color={COLORS.primary} />
         </View>
@@ -276,21 +250,12 @@ export default function AdminPlatformSettingsScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
-        <Header
-          title={isRTL ? 'إعدادات المنصة' : 'Platform Settings'}
-          isRTL={isRTL}
-          COLORS={COLORS}
-          onBack={() => safeBack('/admin')}
-        />
+        <Header title={isRTL ? 'إعدادات المنصة' : 'Platform Settings'} isRTL={isRTL} COLORS={COLORS} onBack={() => safeBack('/admin')} />
         <View style={styles.centered}>
           <MaterialCommunityIcons name="shield-lock-outline" size={56} color={COLORS.textSecondary} />
-          <Text style={styles.deniedTitle}>
-            {isRTL ? 'صلاحية الوصول مرفوضة' : 'Access denied'}
-          </Text>
+          <Text style={styles.deniedTitle}>{isRTL ? 'صلاحية الوصول مرفوضة' : 'Access denied'}</Text>
           <Text style={styles.deniedBody}>
-            {isRTL
-              ? 'هذه الشاشة مخصصة للمدراء فقط.'
-              : 'This screen is restricted to admins only.'}
+            {isRTL ? 'هذه الشاشة مخصصة للمدراء فقط.' : 'This screen is restricted to admins only.'}
           </Text>
         </View>
       </SafeAreaView>
@@ -307,336 +272,265 @@ export default function AdminPlatformSettingsScreen() {
         onBack={() => safeBack('/admin')}
         right={
           <TouchableOpacity
-            onPress={onRefresh}
+            onPress={() => { setRefreshing(true); load(); }}
             disabled={loading || refreshing || saving}
+            style={{ padding: 4 }}
             accessibilityRole="button"
-            accessibilityLabel={isRTL ? 'تحديث' : 'Refresh'}
-            style={styles.refreshBtn}
           >
             <Ionicons name="refresh" size={20} color={COLORS.primary} />
           </TouchableOpacity>
         }
       />
 
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         {loading && !form ? (
           <View style={styles.centered}>
             <ActivityIndicator color={COLORS.primary} />
-            <Text style={styles.loadingText}>
-              {isRTL ? 'جاري تحميل الإعدادات…' : 'Loading settings…'}
-            </Text>
+            <Text style={styles.loadingText}>{isRTL ? 'جاري تحميل الإعدادات…' : 'Loading settings…'}</Text>
           </View>
         ) : error ? (
           <ErrorState message={error} onRetry={load} />
         ) : !form ? (
           <View style={styles.centered}>
-            <MaterialCommunityIcons name="tune-vertical" size={56} color={COLORS.textSecondary} />
-            <Text style={styles.emptyTitle}>
-              {isRTL ? 'لا توجد إعدادات بعد' : 'No settings yet'}
-            </Text>
-            <Text style={styles.emptyBody}>
-              {isRTL
-                ? 'سيتم إنشاء الصفوف عند الحفظ لأول مرة.'
-                : 'Rows will be created on first save.'}
-            </Text>
-            <TouchableOpacity onPress={load} style={styles.primaryBtn}>
-              <Text style={styles.primaryBtnText}>{isRTL ? 'تحميل' : 'Load'}</Text>
-            </TouchableOpacity>
+            <ActivityIndicator color={COLORS.primary} />
           </View>
         ) : (
           <ScrollView
-            contentContainerStyle={{ padding: SPACING.lg, paddingBottom: 140 }}
+            contentContainerStyle={{ padding: SPACING.lg, paddingBottom: 150, gap: 12 }}
             showsVerticalScrollIndicator={false}
             refreshControl={
-              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} />
+              <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={COLORS.primary} />
             }
           >
             <Text style={styles.intro}>
               {isRTL
-                ? 'هذه القيم تُطبَّق على كامل المنصة. التعديلات تحتاج صلاحية مدير.'
-                : 'These values apply platform-wide. Changes require admin privileges.'}
+                ? 'القيم تُطبَّق على كامل المنصة. اضغط على القسم لفتحه.'
+                : 'Values apply platform-wide. Tap a section to expand it.'}
             </Text>
 
-            {/* App control */}
-            <SectionTitle isRTL={isRTL} COLORS={COLORS}>
-              {isRTL ? 'التحكم بالتطبيق' : 'App control'}
-            </SectionTitle>
-
-            <View style={styles.switchRow}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.label}>
-                  {isRTL ? 'وضع الصيانة' : 'Maintenance mode'}
-                </Text>
-                <Text style={styles.hint}>
-                  {isRTL
-                    ? 'عند التفعيل، يُعرض للمستخدمين إشعار بأن التطبيق تحت الصيانة.'
-                    : 'When on, users are shown a maintenance notice.'}
-                </Text>
-              </View>
-              <Switch
-                value={form.maintenanceMode}
-                onValueChange={(v) => setForm({ ...form, maintenanceMode: v })}
-                trackColor={{ false: COLORS.border, true: COLORS.primary }}
-                thumbColor="#fff"
-              />
-            </View>
-
-            <View style={styles.switchRow}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.label}>
-                  {isRTL ? 'شريط الإعلان' : 'Announcement banner'}
-                </Text>
-                <Text style={styles.hint}>
-                  {isRTL
-                    ? 'يعرض شريطاً في أعلى التطبيق بالرسالة أدناه.'
-                    : 'Shows a banner at the top of the app with the message below.'}
-                </Text>
-              </View>
-              <Switch
-                value={form.announcementEnabled}
-                onValueChange={(v) => setForm({ ...form, announcementEnabled: v })}
-                trackColor={{ false: COLORS.border, true: COLORS.primary }}
-                thumbColor="#fff"
-              />
-            </View>
-
-            <FieldMultiline
-              label={isRTL ? 'نص الإعلان (عربي)' : 'Announcement text (Arabic)'}
-              value={form.announcementAr}
-              onChangeText={(v) => setForm({ ...form, announcementAr: v })}
+            {/* 1. Confirmation amount */}
+            <CollapsibleSection
+              icon="cash-lock"
+              iconColor="#8b5cf6"
+              title={isRTL ? 'مبلغ التأكيد' : 'Confirmation amount'}
+              subtitle={isRTL ? 'المبلغ المدفوع قبل الفحص' : 'Amount paid before inspection'}
+              defaultOpen
               COLORS={COLORS}
               isRTL={isRTL}
-              forceRTL
-            />
-            <FieldMultiline
-              label={isRTL ? 'نص الإعلان (إنجليزي)' : 'Announcement text (English)'}
-              value={form.announcementEn}
-              onChangeText={(v) => setForm({ ...form, announcementEn: v })}
-              COLORS={COLORS}
-              isRTL={isRTL}
-            />
-
-            <FieldNumber
-              label={isRTL ? 'أدنى إصدار مطلوب للتطبيق' : 'Minimum required app version'}
-              hint={
-                isRTL
-                  ? 'مثال: 1.2.0 — المستخدمون على إصدار أقدم سيُطلب منهم التحديث.'
-                  : 'e.g. 1.2.0 — users on an older version will be asked to update.'
-              }
-              value={form.minAppVersion}
-              onChangeText={(v) => setForm({ ...form, minAppVersion: v })}
-              COLORS={COLORS}
-              isRTL={isRTL}
-              step="0.1"
-            />
-
-            {/* Fees */}
-            <SectionTitle isRTL={isRTL} COLORS={COLORS}>
-              {isRTL ? 'الرسوم' : 'Fees'}
-            </SectionTitle>
-
-            <FieldNumber
-              label={isRTL ? 'رسوم الفحص الافتراضية (ر.س)' : 'Default inspection fee (SAR)'}
-              hint={
-                isRTL
-                  ? 'تُحتسب عند رفض العميل لعرض السعر بعد فحص الفني.'
-                  : 'Charged when the customer rejects the technician quote.'
-              }
-              value={form.inspectionFee}
-              onChangeText={(v) => setForm({ ...form, inspectionFee: v })}
-              error={errors.inspectionFee}
-              COLORS={COLORS}
-              isRTL={isRTL}
-            />
-
-            <FieldNumber
-              label={isRTL ? 'رسوم الإرجاع الافتراضية (ر.س)' : 'Default return fee (SAR)'}
-              hint={
-                isRTL
-                  ? 'تُضاف لرسوم الفحص في حالة الاستلام والتوصيل عند الرفض.'
-                  : 'Added to the inspection fee when a picked-up device is returned.'
-              }
-              value={form.returnFee}
-              onChangeText={(v) => setForm({ ...form, returnFee: v })}
-              error={errors.returnFee}
-              COLORS={COLORS}
-              isRTL={isRTL}
-            />
-
-            <FieldNumber
-              label={isRTL ? 'عمولة المنصة (0 - 1)' : 'Platform commission (0 - 1)'}
-              hint={
-                isRTL
-                  ? 'نسبة بين 0 و 1. مثال: 0.15 تعني 15٪.'
-                  : 'A ratio between 0 and 1. Example: 0.15 means 15%.'
-              }
-              value={form.commissionRate}
-              onChangeText={(v) => setForm({ ...form, commissionRate: v })}
-              error={errors.commissionRate}
-              COLORS={COLORS}
-              isRTL={isRTL}
-              step="0.01"
-            />
-
-            {/* Service area */}
-            <SectionTitle isRTL={isRTL} COLORS={COLORS}>
-              {isRTL ? 'منطقة الخدمة' : 'Service area'}
-            </SectionTitle>
-
-            <View style={styles.switchRow}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.label}>
-                  {isRTL ? 'تفعيل المنطقة الشرقية' : 'Eastern Province enabled'}
-                </Text>
-                <Text style={styles.hint}>
-                  {isRTL
-                    ? 'فعّل هذا الخيار عند توسّع الخدمة لكامل المنطقة الشرقية.'
-                    : 'Turn on once service expands across the Eastern Province.'}
-                </Text>
-              </View>
-              <Switch
-                value={form.easternProvinceEnabled}
-                onValueChange={(v) => setForm({ ...form, easternProvinceEnabled: v })}
-                trackColor={{ false: COLORS.border, true: COLORS.primary }}
-                thumbColor="#fff"
-              />
-            </View>
-
-            <FieldMultiline
-              label={isRTL ? 'رسالة منطقة الخدمة (عربي)' : 'Service-area message (Arabic)'}
-              value={form.serviceAreaMessageAr}
-              onChangeText={(v) => setForm({ ...form, serviceAreaMessageAr: v })}
-              error={errors.serviceAreaMessageAr}
-              COLORS={COLORS}
-              isRTL={isRTL}
-              forceRTL
-            />
-
-            <FieldMultiline
-              label={isRTL ? 'رسالة منطقة الخدمة (إنجليزي)' : 'Service-area message (English)'}
-              value={form.serviceAreaMessageEn}
-              onChangeText={(v) => setForm({ ...form, serviceAreaMessageEn: v })}
-              error={errors.serviceAreaMessageEn}
-              COLORS={COLORS}
-              isRTL={isRTL}
-            />
-
-            {/* Commitment amount (pre-inspection) */}
-            <SectionTitle isRTL={isRTL} COLORS={COLORS}>
-              {isRTL ? 'مبلغ التأكيد قبل الفحص' : 'Pre-inspection commitment'}
-            </SectionTitle>
-
-            <View style={styles.switchRow}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.label}>
-                  {isRTL ? 'تفعيل مبلغ التأكيد' : 'Enable commitment amount'}
-                </Text>
-                <Text style={styles.hint}>
-                  {isRTL
-                    ? 'عند الإيقاف، لا يُطلب من العميل دفع أي مبلغ قبل بدء الفحص.'
-                    : 'When off, the customer is not asked to pay anything before inspection.'}
-                </Text>
-              </View>
-              <Switch
+            >
+              <SwitchRow
+                label={isRTL ? 'تفعيل مبلغ التأكيد' : 'Enable confirmation amount'}
+                hint={isRTL
+                  ? 'عند الإيقاف، لا يُطلب من العميل دفع أي مبلغ قبل الفحص.'
+                  : 'When off, the customer pays nothing before inspection.'}
                 value={form.commitmentEnabled}
-                onValueChange={(v) => setForm({ ...form, commitmentEnabled: v })}
-                trackColor={{ false: COLORS.border, true: COLORS.primary }}
-                thumbColor="#fff"
+                onChange={(v) => set({ commitmentEnabled: v })}
+                COLORS={COLORS} isRTL={isRTL}
               />
-            </View>
+              {form.commitmentEnabled && (
+                <FieldNumber
+                  label={isRTL ? 'قيمة مبلغ التأكيد (ر.س)' : 'Confirmation amount (SAR)'}
+                  hint={isRTL ? 'يُخصم من الفاتورة النهائية بعد الإصلاح.' : 'Deducted from the final invoice after the repair.'}
+                  value={form.commitmentFee}
+                  onChangeText={(v) => set({ commitmentFee: v })}
+                  error={errors.commitmentFee}
+                  COLORS={COLORS} isRTL={isRTL}
+                />
+              )}
+            </CollapsibleSection>
 
-            <FieldNumber
-              label={isRTL ? 'مبلغ التأكيد (ر.س)' : 'Commitment amount (SAR)'}
-              hint={
-                isRTL
-                  ? 'يدفعه العميل قبل بدء الفحص لتأكيد جدية الحجز. يُخصم من الفاتورة النهائية بعد انتهاء الإصلاح.'
-                  : 'Paid by the customer before inspection to confirm seriousness of booking. Deducted from the final invoice after the repair completes.'
-              }
-              value={form.commitmentFee}
-              onChangeText={(v) => setForm({ ...form, commitmentFee: v })}
-              error={errors.commitmentFee}
+            {/* 2. Inspection */}
+            <CollapsibleSection
+              icon="magnify-scan"
+              iconColor="#3b82f6"
+              title={isRTL ? 'الفحص' : 'Inspection'}
+              subtitle={isRTL ? 'رسوم فحص الجهاز' : 'Device inspection fee'}
               COLORS={COLORS}
               isRTL={isRTL}
-            />
+            >
+              <SwitchRow
+                label={isRTL ? 'تفعيل رسوم الفحص' : 'Charge an inspection fee'}
+                hint={isRTL
+                  ? 'عند الإيقاف، يكون الفحص مجانياً للعميل.'
+                  : 'When off, inspection is free for the customer.'}
+                value={form.inspectionEnabled}
+                onChange={(v) => set({ inspectionEnabled: v })}
+                COLORS={COLORS} isRTL={isRTL}
+              />
+              {form.inspectionEnabled && (
+                <FieldNumber
+                  label={isRTL ? 'قيمة رسوم الفحص (ر.س)' : 'Inspection fee (SAR)'}
+                  hint={isRTL
+                    ? 'تُحتسب عند رفض العميل لعرض السعر بعد الفحص.'
+                    : 'Charged when the customer rejects the post-inspection quote.'}
+                  value={form.inspectionFee}
+                  onChangeText={(v) => set({ inspectionFee: v })}
+                  error={errors.inspectionFee}
+                  COLORS={COLORS} isRTL={isRTL}
+                />
+              )}
+            </CollapsibleSection>
 
-            {/* Loyalty program */}
-            <SectionTitle isRTL={isRTL} COLORS={COLORS}>
-              {isRTL ? 'برنامج الولاء' : 'Loyalty program'}
-            </SectionTitle>
+            {/* 3. Repair service areas */}
+            <ServiceAreasSection COLORS={COLORS} isRTL={isRTL} language={language} />
 
-            <View style={styles.switchRow}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.label}>
-                  {isRTL ? 'تفعيل برنامج الولاء' : 'Enable loyalty program'}
-                </Text>
-                <Text style={styles.hint}>
-                  {isRTL
-                    ? 'عند الإيقاف، يتم إخفاء كسب النقاط واستبدالها من تطبيق العميل.'
-                    : 'When off, earning and redeeming are hidden from the customer app.'}
-                </Text>
-              </View>
-              <Switch
+            {/* 4. Fees & commission */}
+            <CollapsibleSection
+              icon="percent"
+              iconColor="#f59e0b"
+              title={isRTL ? 'الرسوم والعمولة' : 'Fees & commission'}
+              subtitle={isRTL ? 'الإرجاع وعمولة المنصة' : 'Return fee and platform commission'}
+              COLORS={COLORS}
+              isRTL={isRTL}
+            >
+              <FieldNumber
+                label={isRTL ? 'رسوم الإرجاع (ر.س)' : 'Return fee (SAR)'}
+                hint={isRTL
+                  ? 'تُضاف لرسوم الفحص عند إرجاع جهاز تم استلامه.'
+                  : 'Added to the inspection fee when a picked-up device is returned.'}
+                value={form.returnFee}
+                onChangeText={(v) => set({ returnFee: v })}
+                error={errors.returnFee}
+                COLORS={COLORS} isRTL={isRTL}
+              />
+              <FieldNumber
+                label={isRTL ? 'عمولة المنصة (0 - 1)' : 'Platform commission (0 - 1)'}
+                hint={isRTL ? 'مثال: 0.15 تعني 15٪.' : 'Example: 0.15 means 15%.'}
+                value={form.commissionRate}
+                onChangeText={(v) => set({ commissionRate: v })}
+                error={errors.commissionRate}
+                COLORS={COLORS} isRTL={isRTL}
+              />
+            </CollapsibleSection>
+
+            {/* 5. Service-area messaging */}
+            <CollapsibleSection
+              icon="map-marker-radius"
+              iconColor="#10b981"
+              title={isRTL ? 'رسائل منطقة الخدمة' : 'Service-area messaging'}
+              subtitle={isRTL ? 'النصوص المعروضة للعميل' : 'Text shown to the customer'}
+              COLORS={COLORS}
+              isRTL={isRTL}
+            >
+              <SwitchRow
+                label={isRTL ? 'تفعيل المنطقة الشرقية' : 'Eastern Province enabled'}
+                hint={isRTL ? 'فعّله عند توسّع الخدمة لكامل المنطقة الشرقية.' : 'Turn on once service covers the whole Eastern Province.'}
+                value={form.easternProvinceEnabled}
+                onChange={(v) => set({ easternProvinceEnabled: v })}
+                COLORS={COLORS} isRTL={isRTL}
+              />
+              <FieldMultiline
+                label={isRTL ? 'رسالة منطقة الخدمة (عربي)' : 'Service-area message (Arabic)'}
+                value={form.serviceAreaMessageAr}
+                onChangeText={(v) => set({ serviceAreaMessageAr: v })}
+                error={errors.serviceAreaMessageAr}
+                COLORS={COLORS} isRTL={isRTL} forceRTL
+              />
+              <FieldMultiline
+                label={isRTL ? 'رسالة منطقة الخدمة (إنجليزي)' : 'Service-area message (English)'}
+                value={form.serviceAreaMessageEn}
+                onChangeText={(v) => set({ serviceAreaMessageEn: v })}
+                error={errors.serviceAreaMessageEn}
+                COLORS={COLORS} isRTL={isRTL}
+              />
+            </CollapsibleSection>
+
+            {/* 6. App control */}
+            <CollapsibleSection
+              icon="cellphone-cog"
+              iconColor="#ef4444"
+              title={isRTL ? 'التحكم بالتطبيق' : 'App control'}
+              subtitle={isRTL ? 'الصيانة، الإعلانات، الإصدار' : 'Maintenance, announcements, version'}
+              COLORS={COLORS}
+              isRTL={isRTL}
+            >
+              <SwitchRow
+                label={isRTL ? 'وضع الصيانة' : 'Maintenance mode'}
+                hint={isRTL ? 'يُعرض للمستخدمين إشعار بأن التطبيق تحت الصيانة.' : 'Users are shown a maintenance notice.'}
+                value={form.maintenanceMode}
+                onChange={(v) => set({ maintenanceMode: v })}
+                COLORS={COLORS} isRTL={isRTL}
+              />
+              <SwitchRow
+                label={isRTL ? 'شريط الإعلان' : 'Announcement banner'}
+                hint={isRTL ? 'يعرض شريطاً في أعلى التطبيق بالرسالة أدناه.' : 'Shows a banner at the top of the app.'}
+                value={form.announcementEnabled}
+                onChange={(v) => set({ announcementEnabled: v })}
+                COLORS={COLORS} isRTL={isRTL}
+              />
+              <FieldMultiline
+                label={isRTL ? 'نص الإعلان (عربي)' : 'Announcement text (Arabic)'}
+                value={form.announcementAr}
+                onChangeText={(v) => set({ announcementAr: v })}
+                COLORS={COLORS} isRTL={isRTL} forceRTL
+              />
+              <FieldMultiline
+                label={isRTL ? 'نص الإعلان (إنجليزي)' : 'Announcement text (English)'}
+                value={form.announcementEn}
+                onChangeText={(v) => set({ announcementEn: v })}
+                COLORS={COLORS} isRTL={isRTL}
+              />
+              <FieldNumber
+                label={isRTL ? 'أدنى إصدار مطلوب' : 'Minimum required app version'}
+                hint={isRTL ? 'مثال: 1.2.0' : 'e.g. 1.2.0'}
+                value={form.minAppVersion}
+                onChangeText={(v) => set({ minAppVersion: v })}
+                COLORS={COLORS} isRTL={isRTL}
+              />
+            </CollapsibleSection>
+
+            {/* 7. Loyalty program */}
+            <CollapsibleSection
+              icon="star-circle"
+              iconColor="#eab308"
+              title={isRTL ? 'برنامج الولاء' : 'Loyalty program'}
+              subtitle={isRTL ? 'كسب واستبدال النقاط' : 'Earning and redeeming points'}
+              COLORS={COLORS}
+              isRTL={isRTL}
+            >
+              <SwitchRow
+                label={isRTL ? 'تفعيل برنامج الولاء' : 'Enable loyalty program'}
+                hint={isRTL ? 'عند الإيقاف، يُخفى من تطبيق العميل.' : 'When off, hidden from the customer app.'}
                 value={form.loyaltyEnabled}
-                onValueChange={(v) => setForm({ ...form, loyaltyEnabled: v })}
-                trackColor={{ false: COLORS.border, true: COLORS.primary }}
-                thumbColor="#fff"
+                onChange={(v) => set({ loyaltyEnabled: v })}
+                COLORS={COLORS} isRTL={isRTL}
               />
-            </View>
-
-            <FieldNumber
-              label={isRTL ? 'النقاط لكل ريال (معدل الكسب)' : 'Points per SAR (earn rate)'}
-              hint={isRTL ? 'كم نقطة يحصل عليها العميل لكل ريال يصرفه.' : 'How many points the customer earns per SAR spent.'}
-              value={form.loyaltyPointsPerSAR}
-              onChangeText={(v) => setForm({ ...form, loyaltyPointsPerSAR: v })}
-              error={errors.loyaltyPointsPerSAR}
-              COLORS={COLORS}
-              isRTL={isRTL}
-              step="0.1"
-            />
-
-            <FieldNumber
-              label={isRTL ? 'الحد الأدنى للاستبدال (نقاط)' : 'Minimum points to redeem'}
-              hint={isRTL ? 'لا يُسمح بالاستبدال أقل من هذا الرصيد.' : 'No redemption is allowed below this balance.'}
-              value={form.loyaltyRedeemMin}
-              onChangeText={(v) => setForm({ ...form, loyaltyRedeemMin: v })}
-              error={errors.loyaltyRedeemMin}
-              COLORS={COLORS}
-              isRTL={isRTL}
-            />
-
-            <FieldNumber
-              label={isRTL ? 'قيمة النقطة (ر.س)' : 'Value per point (SAR)'}
-              hint={isRTL ? 'قيمة النقطة الواحدة عند تطبيقها على الفاتورة.' : 'SAR value of one point when applied to an invoice.'}
-              value={form.loyaltyRedeemRate}
-              onChangeText={(v) => setForm({ ...form, loyaltyRedeemRate: v })}
-              error={errors.loyaltyRedeemRate}
-              COLORS={COLORS}
-              isRTL={isRTL}
-              step="0.01"
-            />
-
-            <FieldNumber
-              label={isRTL ? 'الحد الأقصى من الفاتورة (0 - 1)' : 'Max share of invoice (0 - 1)'}
-              hint={isRTL ? 'مثال: 0.3 يعني أن النقاط لا تغطي أكثر من 30٪ من الفاتورة.' : 'Example: 0.3 means points can cover at most 30% of the bill.'}
-              value={form.loyaltyRedeemMaxPct}
-              onChangeText={(v) => setForm({ ...form, loyaltyRedeemMaxPct: v })}
-              error={errors.loyaltyRedeemMaxPct}
-              COLORS={COLORS}
-              isRTL={isRTL}
-              step="0.01"
-            />
-
-            <FieldMultiline
-              label={isRTL ? 'مستويات الاستبدال (JSON)' : 'Redemption tiers (JSON)'}
-              value={form.loyaltyTiersJson}
-              onChangeText={(v) => setForm({ ...form, loyaltyTiersJson: v })}
-              error={errors.loyaltyTiersJson}
-              COLORS={COLORS}
-              isRTL={isRTL}
-            />
+              <FieldNumber
+                label={isRTL ? 'النقاط لكل ريال' : 'Points per SAR'}
+                value={form.loyaltyPointsPerSAR}
+                onChangeText={(v) => set({ loyaltyPointsPerSAR: v })}
+                error={errors.loyaltyPointsPerSAR}
+                COLORS={COLORS} isRTL={isRTL}
+              />
+              <FieldNumber
+                label={isRTL ? 'الحد الأدنى للاستبدال (نقاط)' : 'Minimum points to redeem'}
+                value={form.loyaltyRedeemMin}
+                onChangeText={(v) => set({ loyaltyRedeemMin: v })}
+                error={errors.loyaltyRedeemMin}
+                COLORS={COLORS} isRTL={isRTL}
+              />
+              <FieldNumber
+                label={isRTL ? 'قيمة النقطة (ر.س)' : 'Value per point (SAR)'}
+                value={form.loyaltyRedeemRate}
+                onChangeText={(v) => set({ loyaltyRedeemRate: v })}
+                error={errors.loyaltyRedeemRate}
+                COLORS={COLORS} isRTL={isRTL}
+              />
+              <FieldNumber
+                label={isRTL ? 'الحد الأقصى من الفاتورة (0 - 1)' : 'Max share of invoice (0 - 1)'}
+                value={form.loyaltyRedeemMaxPct}
+                onChangeText={(v) => set({ loyaltyRedeemMaxPct: v })}
+                error={errors.loyaltyRedeemMaxPct}
+                COLORS={COLORS} isRTL={isRTL}
+              />
+              <FieldMultiline
+                label={isRTL ? 'مستويات الاستبدال (JSON)' : 'Redemption tiers (JSON)'}
+                value={form.loyaltyTiersJson}
+                onChangeText={(v) => set({ loyaltyTiersJson: v })}
+                error={errors.loyaltyTiersJson}
+                COLORS={COLORS} isRTL={isRTL}
+              />
+            </CollapsibleSection>
           </ScrollView>
         )}
 
@@ -647,16 +541,13 @@ export default function AdminPlatformSettingsScreen() {
               disabled={saving}
               style={[styles.saveBtn, saving && { opacity: 0.6 }]}
               accessibilityRole="button"
-              accessibilityLabel={isRTL ? 'حفظ' : 'Save'}
             >
               {saving ? (
                 <ActivityIndicator color="#fff" />
               ) : (
                 <>
                   <MaterialCommunityIcons name="content-save-outline" size={20} color="#fff" />
-                  <Text style={styles.saveBtnText}>
-                    {isRTL ? 'حفظ الإعدادات' : 'Save settings'}
-                  </Text>
+                  <Text style={styles.saveBtnText}>{isRTL ? 'حفظ الإعدادات' : 'Save settings'}</Text>
                 </>
               )}
             </TouchableOpacity>
@@ -664,6 +555,239 @@ export default function AdminPlatformSettingsScreen() {
         )}
       </KeyboardAvoidingView>
     </SafeAreaView>
+  );
+}
+
+// ── Repair service areas section ───────────────────────────────────────────
+function ServiceAreasSection({
+  COLORS,
+  isRTL,
+  language,
+}: {
+  COLORS: any;
+  isRTL: boolean;
+  language: 'ar' | 'en';
+}) {
+  const [map, setMap] = useState<RepairAreaMap | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    getRepairAreaMap().then(setMap).catch(() => setMap({}));
+  }, []);
+
+  const regionOn = (rid: string) => map?.[rid]?.enabled !== false;
+  const areaOn = (rid: string, aid: string) => map?.[rid]?.areas?.[aid] !== false;
+
+  const setRegion = (rid: string, enabled: boolean) => {
+    setMap((m) => {
+      const next: RepairAreaMap = { ...(m ?? {}) };
+      next[rid] = { enabled, areas: next[rid]?.areas ?? {} };
+      return next;
+    });
+  };
+  const setArea = (rid: string, aid: string, enabled: boolean) => {
+    setMap((m) => {
+      const next: RepairAreaMap = { ...(m ?? {}) };
+      const cur = next[rid] ?? { enabled: true, areas: {} };
+      next[rid] = { enabled: cur.enabled, areas: { ...cur.areas, [aid]: enabled } };
+      return next;
+    });
+  };
+
+  const save = async () => {
+    if (!map) return;
+    setSaving(true);
+    try {
+      await saveRepairAreaMap(map);
+      Alert.alert(isRTL ? 'تم الحفظ ✓' : 'Saved ✓', isRTL ? 'تم تحديث مناطق الخدمة.' : 'Service areas updated.');
+    } catch (e: any) {
+      Alert.alert(isRTL ? 'فشل الحفظ' : 'Save failed', getFriendlyError(e, language));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const styles = createStyles(COLORS, isRTL);
+
+  return (
+    <CollapsibleSection
+      icon="map-check"
+      iconColor="#06b6d4"
+      title={isRTL ? 'مناطق خدمة الإصلاح' : 'Repair service areas'}
+      subtitle={isRTL ? 'تفعيل المدن والأحياء لطلبات الإصلاح' : 'Enable cities & areas for repair requests'}
+      COLORS={COLORS}
+      isRTL={isRTL}
+    >
+      <Text style={[styles.hint, { marginBottom: 4 }]}>
+        {isRTL
+          ? 'تُطبَّق هذه الإعدادات على طلبات الإصلاح فقط — لا تؤثر على السوق.'
+          : 'These settings apply to repair requests only — they do not affect the market.'}
+      </Text>
+
+      {!map ? (
+        <ActivityIndicator color={COLORS.primary} style={{ marginVertical: 16 }} />
+      ) : (
+        DELIVERY_REGIONS.map((region) => {
+          const rOn = regionOn(region.id);
+          return (
+            <View
+              key={region.id}
+              style={{
+                borderWidth: 1,
+                borderColor: COLORS.border,
+                borderRadius: BORDER_RADIUS.md,
+                padding: 12,
+                marginTop: 10,
+                backgroundColor: COLORS.background,
+              }}
+            >
+              <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 10 }}>
+                <MaterialCommunityIcons name="city-variant-outline" size={18} color={COLORS.primary} />
+                <Text style={{ flex: 1, color: COLORS.text, fontWeight: '800', fontSize: 15, textAlign: isRTL ? 'right' : 'left' }}>
+                  {isRTL ? region.nameAr : region.nameEn}
+                </Text>
+                <Switch
+                  value={rOn}
+                  onValueChange={(v) => setRegion(region.id, v)}
+                  trackColor={{ false: COLORS.border, true: COLORS.primary }}
+                  thumbColor="#fff"
+                />
+              </View>
+              {rOn && (
+                <View style={{ marginTop: 8, gap: 2 }}>
+                  {region.areas.map((area) => (
+                    <View
+                      key={area.id}
+                      style={{
+                        flexDirection: isRTL ? 'row-reverse' : 'row',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        paddingVertical: 7,
+                        gap: 10,
+                      }}
+                    >
+                      <Text style={{ color: COLORS.text, fontSize: 13, flex: 1, textAlign: isRTL ? 'right' : 'left' }}>
+                        {isRTL ? area.nameAr : area.nameEn}
+                      </Text>
+                      <Switch
+                        value={areaOn(region.id, area.id)}
+                        onValueChange={(v) => setArea(region.id, area.id, v)}
+                        trackColor={{ false: COLORS.border, true: COLORS.primary }}
+                        thumbColor="#fff"
+                      />
+                    </View>
+                  ))}
+                </View>
+              )}
+            </View>
+          );
+        })
+      )}
+
+      <TouchableOpacity
+        onPress={save}
+        disabled={saving || !map}
+        style={{
+          flexDirection: isRTL ? 'row-reverse' : 'row',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 8,
+          backgroundColor: COLORS.primary,
+          borderRadius: BORDER_RADIUS.md,
+          paddingVertical: 12,
+          marginTop: 14,
+          opacity: saving || !map ? 0.6 : 1,
+        }}
+        accessibilityRole="button"
+      >
+        {saving ? (
+          <ActivityIndicator color="#fff" />
+        ) : (
+          <>
+            <MaterialCommunityIcons name="content-save-outline" size={18} color="#fff" />
+            <Text style={{ color: '#fff', fontWeight: '800' }}>
+              {isRTL ? 'حفظ مناطق الخدمة' : 'Save service areas'}
+            </Text>
+          </>
+        )}
+      </TouchableOpacity>
+    </CollapsibleSection>
+  );
+}
+
+// ── Reusable pieces ────────────────────────────────────────────────────────
+function CollapsibleSection({
+  icon,
+  iconColor,
+  title,
+  subtitle,
+  defaultOpen,
+  children,
+  COLORS,
+  isRTL,
+}: {
+  icon: any;
+  iconColor: string;
+  title: string;
+  subtitle: string;
+  defaultOpen?: boolean;
+  children: React.ReactNode;
+  COLORS: any;
+  isRTL: boolean;
+}) {
+  const [open, setOpen] = useState(!!defaultOpen);
+  const styles = createStyles(COLORS, isRTL);
+  return (
+    <View style={styles.sectionCard}>
+      <TouchableOpacity
+        onPress={() => setOpen((o) => !o)}
+        activeOpacity={0.7}
+        style={styles.sectionHeader}
+        accessibilityRole="button"
+      >
+        <View style={[styles.sectionIcon, { backgroundColor: iconColor + '20' }]}>
+          <MaterialCommunityIcons name={icon} size={20} color={iconColor} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.sectionTitle}>{title}</Text>
+          <Text style={styles.sectionSubtitle}>{subtitle}</Text>
+        </View>
+        <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={20} color={COLORS.textSecondary} />
+      </TouchableOpacity>
+      {open && <View style={styles.sectionBody}>{children}</View>}
+    </View>
+  );
+}
+
+function SwitchRow({
+  label,
+  hint,
+  value,
+  onChange,
+  COLORS,
+  isRTL,
+}: {
+  label: string;
+  hint?: string;
+  value: boolean;
+  onChange: (v: boolean) => void;
+  COLORS: any;
+  isRTL: boolean;
+}) {
+  const styles = createStyles(COLORS, isRTL);
+  return (
+    <View style={styles.switchRow}>
+      <View style={{ flex: 1 }}>
+        <Text style={styles.label}>{label}</Text>
+        {hint ? <Text style={styles.hint}>{hint}</Text> : null}
+      </View>
+      <Switch
+        value={value}
+        onValueChange={onChange}
+        trackColor={{ false: COLORS.border, true: COLORS.primary }}
+        thumbColor="#fff"
+      />
+    </View>
   );
 }
 
@@ -693,58 +817,23 @@ function Header({
         borderBottomColor: COLORS.border,
       }}
     >
-      <TouchableOpacity
-        onPress={onBack}
-        accessibilityRole="button"
-        accessibilityLabel={isRTL ? 'رجوع' : 'Back'}
-        style={{ padding: 4 }}
-      >
+      <TouchableOpacity onPress={onBack} style={{ padding: 4 }} accessibilityRole="button">
         <RTLIonicon name="chevron-back" size={24} color={COLORS.text} />
       </TouchableOpacity>
-      <Text style={{ fontSize: 17, fontWeight: '700', color: COLORS.text }}>{title}</Text>
-      <View style={{ width: 32 }}>{right}</View>
+      <Text style={{ fontSize: 17, fontWeight: '800', color: COLORS.text }}>{title}</Text>
+      <View style={{ width: 32, alignItems: 'flex-end' }}>{right}</View>
     </View>
   );
 }
 
-function SectionTitle({ children, isRTL, COLORS }: any) {
-  return (
-    <Text
-      style={{
-        color: COLORS.text,
-        fontSize: 16,
-        fontWeight: '800',
-        marginTop: 18,
-        marginBottom: 10,
-        textAlign: isRTL ? 'right' : 'left',
-      }}
-    >
-      {children}
-    </Text>
-  );
-}
-
 function FieldNumber({
-  label,
-  hint,
-  value,
-  onChangeText,
-  error,
-  COLORS,
-  isRTL,
-  step,
+  label, hint, value, onChangeText, error, COLORS, isRTL,
 }: {
-  label: string;
-  hint?: string;
-  value: string;
-  onChangeText: (v: string) => void;
-  error?: string;
-  COLORS: any;
-  isRTL: boolean;
-  step?: string;
+  label: string; hint?: string; value: string; onChangeText: (v: string) => void;
+  error?: string; COLORS: any; isRTL: boolean;
 }) {
   return (
-    <View style={{ marginBottom: 14 }}>
+    <View style={{ marginTop: 12 }}>
       <Text style={{ color: COLORS.text, fontWeight: '700', marginBottom: 6, textAlign: isRTL ? 'right' : 'left' }}>
         {label}
       </Text>
@@ -757,7 +846,6 @@ function FieldNumber({
         value={value}
         onChangeText={(v) => onChangeText(v.replace(/[^0-9.\-]/g, ''))}
         keyboardType="decimal-pad"
-        inputMode={step ? 'decimal' : 'numeric'}
         style={{
           borderWidth: 1,
           borderColor: error ? '#EF4444' : COLORS.border,
@@ -765,38 +853,25 @@ function FieldNumber({
           paddingHorizontal: 14,
           paddingVertical: 12,
           color: COLORS.text,
-          backgroundColor: COLORS.card,
+          backgroundColor: COLORS.background,
           textAlign: isRTL ? 'right' : 'left',
         }}
       />
       {error ? (
-        <Text style={{ color: '#EF4444', fontSize: 12, marginTop: 4, textAlign: isRTL ? 'right' : 'left' }}>
-          {error}
-        </Text>
+        <Text style={{ color: '#EF4444', fontSize: 12, marginTop: 4, textAlign: isRTL ? 'right' : 'left' }}>{error}</Text>
       ) : null}
     </View>
   );
 }
 
 function FieldMultiline({
-  label,
-  value,
-  onChangeText,
-  error,
-  COLORS,
-  isRTL,
-  forceRTL,
+  label, value, onChangeText, error, COLORS, isRTL, forceRTL,
 }: {
-  label: string;
-  value: string;
-  onChangeText: (v: string) => void;
-  error?: string;
-  COLORS: any;
-  isRTL: boolean;
-  forceRTL?: boolean;
+  label: string; value: string; onChangeText: (v: string) => void;
+  error?: string; COLORS: any; isRTL: boolean; forceRTL?: boolean;
 }) {
   return (
-    <View style={{ marginBottom: 14 }}>
+    <View style={{ marginTop: 12 }}>
       <Text style={{ color: COLORS.text, fontWeight: '700', marginBottom: 6, textAlign: isRTL ? 'right' : 'left' }}>
         {label}
       </Text>
@@ -813,16 +888,14 @@ function FieldMultiline({
           paddingHorizontal: 14,
           paddingVertical: 12,
           color: COLORS.text,
-          backgroundColor: COLORS.card,
+          backgroundColor: COLORS.background,
           minHeight: 92,
-          textAlign: forceRTL ? 'right' : isRTL ? 'right' : 'left',
+          textAlign: forceRTL || isRTL ? 'right' : 'left',
           writingDirection: forceRTL ? 'rtl' : undefined,
         }}
       />
       {error ? (
-        <Text style={{ color: '#EF4444', fontSize: 12, marginTop: 4, textAlign: isRTL ? 'right' : 'left' }}>
-          {error}
-        </Text>
+        <Text style={{ color: '#EF4444', fontSize: 12, marginTop: 4, textAlign: isRTL ? 'right' : 'left' }}>{error}</Text>
       ) : null}
     </View>
   );
@@ -835,23 +908,37 @@ const createStyles = (COLORS: any, isRTL: boolean) =>
     loadingText: { color: COLORS.textSecondary, marginTop: 8 },
     deniedTitle: { color: COLORS.text, fontWeight: '800', fontSize: 18, marginTop: 12 },
     deniedBody: { color: COLORS.textSecondary, fontSize: 13, textAlign: 'center', marginTop: 4 },
-    emptyTitle: { color: COLORS.text, fontWeight: '800', fontSize: 16, marginTop: 12 },
-    emptyBody: { color: COLORS.textSecondary, fontSize: 13, textAlign: 'center', marginTop: 4 },
-    primaryBtn: {
-      marginTop: 16,
-      backgroundColor: COLORS.primary,
-      paddingHorizontal: 24,
-      paddingVertical: 12,
-      borderRadius: BORDER_RADIUS.md,
-    },
-    primaryBtnText: { color: '#fff', fontWeight: '700' },
-    refreshBtn: { padding: 4 },
     intro: {
       color: COLORS.textSecondary,
       fontSize: 13,
       lineHeight: 19,
-      marginBottom: 6,
       textAlign: isRTL ? 'right' : 'left',
+    },
+    sectionCard: {
+      backgroundColor: COLORS.card,
+      borderRadius: BORDER_RADIUS.lg,
+      borderWidth: 1,
+      borderColor: COLORS.border,
+      overflow: 'hidden',
+    },
+    sectionHeader: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
+      gap: 12,
+      padding: 14,
+    },
+    sectionIcon: {
+      width: 40, height: 40, borderRadius: 12,
+      alignItems: 'center', justifyContent: 'center',
+    },
+    sectionTitle: { color: COLORS.text, fontSize: 15, fontWeight: '800', textAlign: isRTL ? 'right' : 'left' },
+    sectionSubtitle: { color: COLORS.textSecondary, fontSize: 12, marginTop: 2, textAlign: isRTL ? 'right' : 'left' },
+    sectionBody: {
+      paddingHorizontal: 14,
+      paddingBottom: 16,
+      paddingTop: 2,
+      borderTopWidth: 1,
+      borderTopColor: COLORS.border,
     },
     label: { color: COLORS.text, fontWeight: '700', textAlign: isRTL ? 'right' : 'left' },
     hint: { color: COLORS.textSecondary, fontSize: 12, marginTop: 2, textAlign: isRTL ? 'right' : 'left' },
@@ -860,18 +947,11 @@ const createStyles = (COLORS: any, isRTL: boolean) =>
       alignItems: 'center',
       justifyContent: 'space-between',
       gap: 12,
-      backgroundColor: COLORS.card,
-      borderWidth: 1,
-      borderColor: COLORS.border,
-      borderRadius: BORDER_RADIUS.md,
-      padding: 14,
-      marginBottom: 14,
+      paddingVertical: 12,
     },
     footer: {
       position: 'absolute',
-      bottom: 0,
-      left: 0,
-      right: 0,
+      bottom: 0, left: 0, right: 0,
       padding: SPACING.lg,
       backgroundColor: COLORS.background,
       borderTopWidth: 1,

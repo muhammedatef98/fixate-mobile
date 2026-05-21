@@ -16,6 +16,9 @@ export interface DeliveryArea {
   nameAr: string;
   nameEn: string;
   fee: number; // SAR
+  /** Admin can switch a single area off for repair requests. Undefined =
+   *  enabled (back-compat with the bundled config). */
+  enabled?: boolean;
 }
 
 export interface DeliveryRegion {
