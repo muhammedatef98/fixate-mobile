@@ -3,6 +3,7 @@ import {
   View,
   Text,
   StyleSheet,
+  TextInput,
   TouchableOpacity,
   SafeAreaView,
   StatusBar,
@@ -21,6 +22,7 @@ import { supabase } from '../services/supabaseClient';
 
 interface AdminOrder {
   id: string;
+  order_number?: string | null;
   device_brand: string;
   device_model: string;
   status: string;
@@ -64,6 +66,7 @@ export default function AdminOrdersScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [filter, setFilter] = useState<FilterKey>('all');
+  const [search, setSearch] = useState('');
 
   const profileLoaded = userProfile !== null;
   const isAdmin = (userProfile as any)?.is_admin === true;
@@ -72,7 +75,7 @@ export default function AdminOrdersScreen() {
     try {
       const { data, error } = await supabase
         .from('orders')
-        .select('id, device_brand, device_model, status, estimated_price, final_price, customer_phone, created_at')
+        .select('id, order_number, device_brand, device_model, status, estimated_price, final_price, customer_phone, created_at')
         .is('deleted_at', null)
         .order('created_at', { ascending: false })
         .limit(150);
@@ -92,12 +95,21 @@ export default function AdminOrdersScreen() {
 
   const styles = createStyles(COLORS, isRTL);
 
+  const q = search.trim().toLowerCase();
   const visible = orders.filter((o) => {
-    if (filter === 'all') return true;
-    if (filter === 'pending') return o.status === 'pending';
-    if (filter === 'completed') return o.status === 'completed';
-    if (filter === 'cancelled') return o.status === 'cancelled';
-    return !TERMINAL.includes(o.status) && o.status !== 'pending';
+    const statusOk =
+      filter === 'all' ? true
+      : filter === 'pending' ? o.status === 'pending'
+      : filter === 'completed' ? o.status === 'completed'
+      : filter === 'cancelled' ? o.status === 'cancelled'
+      : !TERMINAL.includes(o.status) && o.status !== 'pending';
+    if (!statusOk) return false;
+    if (!q) return true;
+    return (
+      (o.order_number ?? '').toLowerCase().includes(q) ||
+      [o.device_brand, o.device_model].filter(Boolean).join(' ').toLowerCase().includes(q) ||
+      (o.customer_phone ?? '').toLowerCase().includes(q)
+    );
   });
 
   if (!profileLoaded) {
@@ -145,6 +157,22 @@ export default function AdminOrdersScreen() {
         </TouchableOpacity>
         <Text style={styles.title}>{isRTL ? 'إدارة الطلبات' : 'Orders Management'}</Text>
         <View style={{ width: 26 }} />
+      </View>
+
+      <View style={styles.searchWrap}>
+        <MaterialCommunityIcons name="magnify" size={18} color={COLORS.textSecondary} />
+        <TextInput
+          value={search}
+          onChangeText={setSearch}
+          placeholder={isRTL ? 'ابحث برقم الطلب أو الجهاز أو الهاتف' : 'Search by request no., device or phone'}
+          placeholderTextColor={COLORS.textSecondary}
+          style={styles.searchInput}
+        />
+        {search.length > 0 && (
+          <TouchableOpacity onPress={() => setSearch('')}>
+            <MaterialCommunityIcons name="close-circle" size={18} color={COLORS.textSecondary} />
+          </TouchableOpacity>
+        )}
       </View>
 
       <ScrollView
@@ -199,6 +227,17 @@ export default function AdminOrdersScreen() {
                 activeOpacity={0.8}
                 onPress={() => router.push({ pathname: '/admin-order-detail', params: { id: o.id } })}
               >
+                <View style={styles.cardNumRow}>
+                  <View style={styles.numBadge}>
+                    <MaterialCommunityIcons name="pound" size={12} color={COLORS.primary} />
+                    <Text style={styles.numBadgeText}>{o.order_number ?? '—'}</Text>
+                  </View>
+                  {o.created_at && (
+                    <Text style={styles.date}>
+                      {new Date(o.created_at).toLocaleDateString(isRTL ? 'ar-SA' : 'en-GB')}
+                    </Text>
+                  )}
+                </View>
                 <View style={styles.cardTop}>
                   <Text style={styles.device} numberOfLines={1}>
                     {[o.device_brand, o.device_model].filter(Boolean).join(' ') || (isRTL ? 'طلب' : 'Order')}
@@ -215,11 +254,6 @@ export default function AdminOrdersScreen() {
                     {Number(price).toLocaleString(isRTL ? 'ar-SA' : 'en-US')} {isRTL ? 'ر.س' : 'SAR'}
                   </Text>
                 </View>
-                {o.created_at && (
-                  <Text style={styles.date}>
-                    {new Date(o.created_at).toLocaleDateString(isRTL ? 'ar-SA' : 'en-GB')}
-                  </Text>
-                )}
               </TouchableOpacity>
             );
           })
@@ -240,6 +274,41 @@ const createStyles = (C: any, isRTL: boolean) =>
       paddingVertical: SPACING.m,
     },
     title: { fontSize: 20, fontWeight: '800', color: C.text },
+    searchWrap: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
+      gap: 8,
+      marginHorizontal: SPACING.lg,
+      marginBottom: SPACING.sm,
+      paddingHorizontal: 12,
+      height: 44,
+      borderRadius: BORDER_RADIUS.md,
+      borderWidth: 1,
+      borderColor: C.border,
+      backgroundColor: C.card,
+    },
+    searchInput: {
+      flex: 1,
+      color: C.text,
+      fontSize: 13,
+      textAlign: isRTL ? 'right' : 'left',
+    },
+    cardNumRow: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: 8,
+    },
+    numBadge: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
+      gap: 2,
+      backgroundColor: C.primary + '15',
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+      borderRadius: 999,
+    },
+    numBadgeText: { color: C.primary, fontWeight: '800', fontSize: 11 },
     filterRow: { paddingHorizontal: SPACING.lg, gap: 8, alignItems: 'center' },
     filterChip: {
       paddingHorizontal: 14,
