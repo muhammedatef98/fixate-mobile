@@ -84,33 +84,43 @@ export default function OrderDetailsScreen() {
     try {
       await requests.respondToQuote(order.id as string, accept);
       if (!accept) {
-        // Persist the cancellation fee on a best-effort basis (column added
-        // by the phase2 migration; older DBs ignore the unknown field).
-        const settings = await getPlatformSettings();
-        const fulfillment = ((order as any).fulfillment_type ?? order.service_type) as any;
-        const fee = computeCancellationFee({
-          inspectionFee: settings.inspectionFee,
-          returnFee: settings.returnFee,
-          fulfillmentType: fulfillment,
-        });
-        try {
-          await supabase
-            .from('orders')
-            .update({
-              inspection_fee: fee.inspection,
-              return_fee: fee.return,
-              cancellation_fee_total: fee.total,
-            })
-            .eq('id', order.id as string);
-        } catch (e) {
-          logger.warn('cancellation fee columns unavailable (pending migration)', e);
+        // Quote rejected. Inspection is free — but for pickup & delivery
+        // and mobile / on-site visits the delivery (visit) fee is still
+        // owed, so the customer is sent to pay just that.
+        const fulfillment = ((order as any).fulfillment_type ?? order.service_type) as string;
+        const deliveryFee = Number((order as any).delivery_fee ?? 0);
+        const needsDeliveryPayment =
+          ['mobile', 'on_site', 'pickup', 'pickup_delivery'].includes(fulfillment) &&
+          deliveryFee > 0;
+        if (needsDeliveryPayment) {
+          Alert.alert(
+            isRTL ? 'تم رفض عرض السعر' : 'Quote rejected',
+            isRTL
+              ? `الفحص مجاني، لكن تتبقّى رسوم التوصيل (${deliveryFee} ر.س). تابع لإتمام الدفع.`
+              : `Inspection is free, but the delivery fee (${deliveryFee} SAR) is still due. Continue to pay it.`,
+            [
+              {
+                text: isRTL ? 'متابعة الدفع' : 'Continue to payment',
+                onPress: () =>
+                  router.push({
+                    pathname: '/payment',
+                    params: {
+                      orderId: String(order.id),
+                      amount: String(deliveryFee),
+                      purpose: 'delivery_fee',
+                    },
+                  }),
+              },
+            ]
+          );
+        } else {
+          Alert.alert(
+            isRTL ? 'تم رفض عرض السعر' : 'Quote rejected',
+            isRTL
+              ? 'تم إلغاء الطلب ولا توجد رسوم مستحقة. الفحص مجاني.'
+              : 'The request was cancelled and no fees are due — inspection is free.'
+          );
         }
-        Alert.alert(
-          isRTL ? 'تم رفض السعر' : 'Quote rejected',
-          isRTL
-            ? `تم إلغاء الطلب. الرسوم المستحقة: ${fee.total} ر.س (فحص ${fee.inspection}${fee.return ? ' + إرجاع ' + fee.return : ''} ر.س). سيتم تحصيلها وفق سياسة المنصة.`
-            : `Request cancelled. Outstanding fee: ${fee.total} SAR (inspection ${fee.inspection}${fee.return ? ' + return ' + fee.return : ''} SAR). It will be collected per platform policy.`
-        );
       } else {
         // Quote accepted → the order is payment-ready. Send the customer
         // straight to the real payment page.
