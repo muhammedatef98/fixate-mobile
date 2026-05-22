@@ -30,6 +30,7 @@ export default function ContactScreen() {
   const SHADOWS = getShadows(isDark);
   const t = translations[language];
   const isRTL = language === 'ar';
+  const styles = makeStyles(isRTL);
 
   const handleCall = () => {
     Linking.openURL(`tel:${CONTACT_INFO.phone}`);
@@ -254,12 +255,12 @@ export default function ContactScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (isRTL: boolean) => StyleSheet.create({
   container: {
     flex: 1,
   },
   header: {
-    flexDirection: 'row',
+    flexDirection: isRTL ? 'row-reverse' : 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingTop: 10,
@@ -285,7 +286,7 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   contactCard: {
-    flexDirection: 'row',
+    flexDirection: isRTL ? 'row-reverse' : 'row',
     alignItems: 'center',
     padding: 16,
     borderRadius: 16,
@@ -297,7 +298,8 @@ const styles = StyleSheet.create({
     borderRadius: 28,
     alignItems: 'center',
     justifyContent: 'center',
-    marginLeft: 12,
+    marginLeft: isRTL ? 0 : 12,
+    marginRight: isRTL ? 12 : 0,
   },
   contactInfo: {
     flex: 1,
@@ -312,7 +314,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   chatbotCard: {
-    flexDirection: 'row',
+    flexDirection: isRTL ? 'row-reverse' : 'row',
     alignItems: 'center',
     padding: 20,
     borderRadius: 16,
@@ -338,27 +340,30 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   infoRow: {
-    flexDirection: 'row',
+    flexDirection: isRTL ? 'row-reverse' : 'row',
     alignItems: 'center',
     marginBottom: 8,
   },
   infoLabel: {
     fontSize: 14,
-    marginRight: 8,
+    marginRight: isRTL ? 0 : 8,
+    marginLeft: isRTL ? 8 : 0,
   },
   infoValue: {
     fontSize: 16,
     fontWeight: '600',
-    marginRight: 28,
+    marginRight: isRTL ? 0 : 28,
+    marginLeft: isRTL ? 28 : 0,
   },
   sectionTitle: {
     fontSize: 16,
     fontWeight: 'bold',
     marginBottom: 12,
-    marginLeft: 4,
+    marginLeft: isRTL ? 0 : 4,
+    marginRight: isRTL ? 4 : 0,
   },
   settingCard: {
-    flexDirection: 'row',
+    flexDirection: isRTL ? 'row-reverse' : 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: 16,
@@ -366,17 +371,18 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   settingLeft: {
-    flexDirection: 'row',
+    flexDirection: isRTL ? 'row-reverse' : 'row',
     alignItems: 'center',
     flex: 1,
   },
   settingText: {
     fontSize: 16,
     fontWeight: '600',
-    marginLeft: 12,
+    marginLeft: isRTL ? 0 : 12,
+    marginRight: isRTL ? 12 : 0,
   },
   languageButtons: {
-    flexDirection: 'row',
+    flexDirection: isRTL ? 'row-reverse' : 'row',
     gap: 8,
   },
   langButton: {

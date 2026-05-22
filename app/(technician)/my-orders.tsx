@@ -18,7 +18,9 @@ export default function MyOrdersScreen() {
   const { language, isDark } = useApp();
   const COLORS = getColors(isDark);
   const SHADOWS = getShadows(isDark);
-  
+  const isRTL = language === 'ar';
+  const styles = makeStyles(isRTL);
+
   const [selectedTab, setSelectedTab] = useState('accepted');
   const [orders, setOrders] = useState<any[]>([]);
   const [refreshing, setRefreshing] = useState(false);
@@ -199,12 +201,12 @@ export default function MyOrdersScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (isRTL: boolean) => StyleSheet.create({
   container: {
     flex: 1,
   },
   header: {
-    flexDirection: 'row',
+    flexDirection: isRTL ? 'row-reverse' : 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: SPACING.lg,
@@ -215,7 +217,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   tabs: {
-    flexDirection: 'row',
+    flexDirection: isRTL ? 'row-reverse' : 'row',
     paddingHorizontal: SPACING.lg,
     gap: SPACING.sm,
     marginBottom: SPACING.md,
@@ -241,13 +243,14 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.md,
   },
   orderHeader: {
-    flexDirection: 'row',
+    flexDirection: isRTL ? 'row-reverse' : 'row',
     justifyContent: 'space-between',
     marginBottom: SPACING.md,
   },
   orderInfo: {
     flex: 1,
-    marginRight: SPACING.md,
+    marginRight: isRTL ? 0 : SPACING.md,
+    marginLeft: isRTL ? SPACING.md : 0,
   },
   orderTitle: {
     fontSize: 16,
@@ -272,7 +275,7 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.md,
   },
   orderDetailItem: {
-    flexDirection: 'row',
+    flexDirection: isRTL ? 'row-reverse' : 'row',
     alignItems: 'center',
     gap: SPACING.xs,
   },
@@ -285,7 +288,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   actionButton: {
-    flexDirection: 'row',
+    flexDirection: isRTL ? 'row-reverse' : 'row',
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: 48,

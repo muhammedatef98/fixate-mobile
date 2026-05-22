@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { COLORS, SPACING } from '../constants/theme';
 import { MaterialIcons } from '@expo/vector-icons';
 import { RTLMaterialIcon } from '../components/RTLIcon';
+import { useApp } from '../contexts/AppContext';
 
 const { width, height } = Dimensions.get('window');
 
@@ -36,6 +37,9 @@ const SLIDES = [
 
 export default function OnboardingScreen() {
   const router = useRouter();
+  const { language } = useApp();
+  const isRTL = language === 'ar';
+  const styles = makeStyles(isRTL);
   const [currentIndex, setCurrentIndex] = useState(0);
   const flatListRef = useRef<FlatList>(null);
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -144,7 +148,7 @@ export default function OnboardingScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (isRTL: boolean) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
@@ -200,7 +204,7 @@ const styles = StyleSheet.create({
     paddingBottom: SPACING.xxl,
   },
   pagination: {
-    flexDirection: 'row',
+    flexDirection: isRTL ? 'row-reverse' : 'row',
     justifyContent: 'center',
     marginBottom: SPACING.xl,
   },
@@ -219,7 +223,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primary,
     paddingVertical: 16,
     borderRadius: 16,
-    flexDirection: 'row',
+    flexDirection: isRTL ? 'row-reverse' : 'row',
     justifyContent: 'center',
     alignItems: 'center',
     gap: 8,
