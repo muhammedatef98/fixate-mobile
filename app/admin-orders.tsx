@@ -197,7 +197,7 @@ export default function AdminOrdersScreen() {
                 key={o.id}
                 style={styles.card}
                 activeOpacity={0.8}
-                onPress={() => router.push({ pathname: '/order-details', params: { id: o.id } })}
+                onPress={() => router.push({ pathname: '/admin-order-detail', params: { id: o.id } })}
               >
                 <View style={styles.cardTop}>
                   <Text style={styles.device} numberOfLines={1}>

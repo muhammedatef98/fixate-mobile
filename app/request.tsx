@@ -103,12 +103,12 @@ export default function RequestScreen() {
   const [selectedCityId, setSelectedCityId] = useState<string | null>(null);
   const [expandedRegions, setExpandedRegions] = useState<string[]>([]);
   useEffect(() => {
-    // Load every region/city. Unavailable ones are shown but disabled so
-    // the customer can see upcoming coverage.
-    getRegionTree(false)
+    // Only currently-available regions/cities are offered. Coverage is
+    // admin-controlled — disabled areas simply do not appear.
+    getRegionTree(true)
       .then((tree) => {
         setRegionTree(tree);
-        setExpandedRegions(tree.filter((r) => r.enabled).map((r) => r.id));
+        setExpandedRegions(tree.map((r) => r.id));
       })
       .catch(() => undefined);
   }, []);
@@ -204,8 +204,17 @@ export default function RequestScreen() {
   // Admin-managed methods shown in the illustrative payment step. The real
   // payment happens later, on the payment page after quote approval.
   const [requestPayMethods, setRequestPayMethods] = useState<AdminPaymentMethod[]>([]);
+  // Informational preference only — the real payment happens after quote
+  // acceptance. Selecting here just records the customer's awareness/choice.
+  const [prefMethod, setPrefMethod] = useState<string | null>(null);
   useEffect(() => {
-    getRequestStepMethods().then(setRequestPayMethods).catch(() => undefined);
+    getRequestStepMethods()
+      .then((list) => {
+        setRequestPayMethods(list);
+        const first = list.find((m) => !m.is_coming_soon);
+        if (first) setPrefMethod(first.code);
+      })
+      .catch(() => undefined);
   }, []);
 
   // Admin-controlled fees. The real repair price is never known up front —
@@ -565,27 +574,28 @@ export default function RequestScreen() {
         <View style={{ width: 40 }} />
       </View>
 
+      {/* Progress bar — segments fill in the reading direction (RTL ⇒ from
+          the right) and always reflect the real current step. */}
       <View style={styles.stepperContainer}>
-        <ScrollView 
-          ref={stepperScrollRef}
-          horizontal 
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.stepperContent}
-        >
-          {STEPS.map((step, index) => (
-            <View key={index} style={styles.stepItem}>
-              <View style={[styles.stepCircle, currentStep >= index && styles.activeStepCircle]}>
-                {currentStep > index ? (
-                  <Ionicons name="checkmark" size={16} color="#fff" />
-                ) : (
-                  <Text style={[styles.stepNumber, currentStep >= index && styles.activeStepNumber]}>{index + 1}</Text>
-                )}
-              </View>
-              <Text style={[styles.stepLabel, currentStep >= index && styles.activeStepLabel]}>{step}</Text>
-              {index < STEPS.length - 1 && <View style={[styles.stepLine, currentStep > index && styles.activeStepLine]} />}
-            </View>
+        <View style={styles.progressLabelRow}>
+          <Text style={styles.progressStepName} numberOfLines={1}>
+            {STEPS[currentStep] ?? ''}
+          </Text>
+          <Text style={styles.progressCount}>
+            {currentStep + 1} / {STEPS.length}
+          </Text>
+        </View>
+        <View style={styles.progressTrack}>
+          {STEPS.map((_, index) => (
+            <View
+              key={index}
+              style={[
+                styles.progressSegment,
+                index <= currentStep && styles.progressSegmentActive,
+              ]}
+            />
           ))}
-        </ScrollView>
+        </View>
       </View>
 
       <Animated.View style={[styles.content, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
@@ -1079,6 +1089,14 @@ export default function RequestScreen() {
                     {isRTL ? 'منطقة التوصيل' : 'Delivery area'}
                   </Text>
                 </View>
+                <View style={styles.payNotice}>
+                  <MaterialCommunityIcons name="map-marker-radius-outline" size={18} color={COLORS.primary} />
+                  <Text style={styles.payNoticeText}>
+                    {isRTL
+                      ? 'الخدمة متاحة حالياً في القطيف فقط. إذا كان موقعك خارج القطيف فلن تتمكن من إكمال الطلب — نعمل على تغطية مناطق أكثر قريباً.'
+                      : 'Service is currently available in Al Qatif only. If your location is outside Al Qatif you cannot continue yet — more areas are coming soon.'}
+                  </Text>
+                </View>
                 {regionTree.map((region) => {
                   const regionAvailable = region.enabled !== false;
                   const expanded = expandedRegions.includes(region.id);
@@ -1283,43 +1301,52 @@ export default function RequestScreen() {
               </Text>
             </View>
             <View style={{ gap: 8, marginTop: 4 }}>
-              {requestPayMethods.map((pm) => (
-                <View
-                  key={pm.id}
-                  style={{
-                    flexDirection: isRTL ? 'row-reverse' : 'row',
-                    alignItems: 'center',
-                    gap: 12,
-                    borderWidth: 1,
-                    borderColor: COLORS.border,
-                    backgroundColor: COLORS.card,
-                    borderRadius: 12,
-                    padding: 14,
-                  }}
-                >
-                  <MaterialCommunityIcons
-                    name={(pm.icon as any) || 'credit-card-outline'}
-                    size={24}
-                    color={
-                      pm.code === 'tabby'
-                        ? '#3EB6A0'
-                        : pm.code === 'tamara'
-                        ? '#E0218A'
-                        : COLORS.primary
-                    }
-                  />
-                  <Text style={{ flex: 1, fontWeight: '700', color: COLORS.text, textAlign: isRTL ? 'right' : 'left' }}>
-                    {isRTL ? pm.name_ar : pm.name_en}
-                  </Text>
-                  {pm.is_coming_soon && (
-                    <View style={{ backgroundColor: COLORS.border, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999 }}>
-                      <Text style={{ fontSize: 10, color: COLORS.gray, fontWeight: '700' }}>
-                        {isRTL ? 'قريبًا' : 'Coming Soon'}
-                      </Text>
-                    </View>
-                  )}
-                </View>
-              ))}
+              {requestPayMethods.map((pm) => {
+                const selected = prefMethod === pm.code;
+                return (
+                  <TouchableOpacity
+                    key={pm.id}
+                    activeOpacity={0.8}
+                    disabled={pm.is_coming_soon}
+                    onPress={() => setPrefMethod(pm.code)}
+                    style={{
+                      flexDirection: isRTL ? 'row-reverse' : 'row',
+                      alignItems: 'center',
+                      gap: 12,
+                      borderWidth: selected ? 2 : 1,
+                      borderColor: selected ? COLORS.primary : COLORS.border,
+                      backgroundColor: selected ? COLORS.lightGreen : COLORS.card,
+                      borderRadius: 12,
+                      padding: 14,
+                      opacity: pm.is_coming_soon ? 0.6 : 1,
+                    }}
+                  >
+                    <MaterialCommunityIcons
+                      name={(pm.icon as any) || 'credit-card-outline'}
+                      size={24}
+                      color={
+                        pm.code === 'tabby'
+                          ? '#3EB6A0'
+                          : pm.code === 'tamara'
+                          ? '#E0218A'
+                          : COLORS.primary
+                      }
+                    />
+                    <Text style={{ flex: 1, fontWeight: '700', color: COLORS.text, textAlign: isRTL ? 'right' : 'left' }}>
+                      {isRTL ? pm.name_ar : pm.name_en}
+                    </Text>
+                    {pm.is_coming_soon ? (
+                      <View style={{ backgroundColor: COLORS.border, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999 }}>
+                        <Text style={{ fontSize: 10, color: COLORS.gray, fontWeight: '700' }}>
+                          {isRTL ? 'قريبًا' : 'Coming Soon'}
+                        </Text>
+                      </View>
+                    ) : selected ? (
+                      <Ionicons name="checkmark-circle" size={20} color={COLORS.primary} />
+                    ) : null}
+                  </TouchableOpacity>
+                );
+              })}
             </View>
           </ScrollView>
         )}
@@ -1360,17 +1387,38 @@ const createStyles = (COLORS: any, isRTL: boolean, SHADOWS: any) => StyleSheet.c
   header: { flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, backgroundColor: COLORS.card },
   headerTitle: { fontSize: 22, fontWeight: '800', color: COLORS.text },
   backButton: { padding: 8 },
-  stepperContainer: { backgroundColor: COLORS.card, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: COLORS.border },
-  stepperContent: { paddingHorizontal: 16, flexDirection: isRTL ? 'row-reverse' : 'row' },
-  stepItem: { flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', marginHorizontal: 8 },
-  stepCircle: { width: 28, height: 28, borderRadius: 14, backgroundColor: COLORS.border, justifyContent: 'center', alignItems: 'center', marginHorizontal: 4 },
-  activeStepCircle: { backgroundColor: COLORS.primary },
-  stepNumber: { fontSize: 12, color: COLORS.gray, fontWeight: 'bold' },
-  activeStepNumber: { color: '#fff' },
-  stepLabel: { fontSize: 12, color: COLORS.gray, marginHorizontal: 4 },
-  activeStepLabel: { color: COLORS.primary, fontWeight: 'bold' },
-  stepLine: { width: 20, height: 2, backgroundColor: COLORS.border, marginHorizontal: 4 },
-  activeStepLine: { backgroundColor: COLORS.primary },
+  stepperContainer: {
+    backgroundColor: COLORS.card,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+  },
+  progressLabelRow: {
+    flexDirection: isRTL ? 'row-reverse' : 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  progressStepName: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: COLORS.text,
+    flex: 1,
+    textAlign: isRTL ? 'right' : 'left',
+  },
+  progressCount: { fontSize: 13, fontWeight: '600', color: COLORS.gray },
+  progressTrack: {
+    flexDirection: isRTL ? 'row-reverse' : 'row',
+    gap: 4,
+  },
+  progressSegment: {
+    flex: 1,
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: COLORS.border,
+  },
+  progressSegmentActive: { backgroundColor: COLORS.primary },
   content: { flex: 1, padding: 16 },
   sectionTitle: { fontSize: 20, fontWeight: 'bold', color: COLORS.text, marginBottom: 16, textAlign: isRTL ? 'right' : 'left' },
   serviceCard: { flexDirection: isRTL ? 'row-reverse' : 'row', backgroundColor: COLORS.card, padding: 16, borderRadius: 12, marginBottom: 12, borderWidth: 1, borderColor: COLORS.border, alignItems: 'center', ...SHADOWS.small },

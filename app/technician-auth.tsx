@@ -148,11 +148,13 @@ export default function TechnicianAuthScreen() {
         <ScrollView contentContainerStyle={styles.scrollContent}>
           {/* Logo Section */}
           <View style={styles.logoSection}>
-            <Image
-              source={require('../assets/fixate-logo-main.png')}
-              style={styles.logoImage}
-              resizeMode="contain"
-            />
+            <View style={styles.logoCircle}>
+              <Image
+                source={require('../assets/fixate-logo-main.png')}
+                style={styles.logoImage}
+                resizeMode="contain"
+              />
+            </View>
             <Text style={styles.brandName}>Fixate</Text>
             <Text style={styles.brandSlogan}>{isRTL ? 'انضم لفريق الفنيين المعتمدين' : 'Join our certified technicians team'}</Text>
           </View>
@@ -356,10 +358,23 @@ const createStyles = (COLORS: any, isRTL: boolean) => StyleSheet.create({
     alignItems: 'center',
     marginBottom: 30,
   },
+  logoCircle: {
+    width: 110,
+    height: 110,
+    borderRadius: 55,
+    backgroundColor: '#fff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 14,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 10,
+    elevation: 5,
+  },
   logoImage: {
-    width: 132,
-    height: 132,
-    marginBottom: 8,
+    width: 84,
+    height: 84,
   },
   brandName: {
     fontSize: 28,

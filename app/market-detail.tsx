@@ -383,7 +383,18 @@ export default function MarketDetailScreen() {
                 </View>
               </View>
 
+              {/* Description — placed high so buyers read it before contact actions */}
+              {listing.description ? (
+                <>
+                  <Text style={styles.blockLabel}>{isRTL ? 'الوصف' : 'Description'}</Text>
+                  <View style={styles.infoCard}>
+                    <Text style={styles.desc}>{listing.description}</Text>
+                  </View>
+                </>
+              ) : null}
+
               {/* Seller card */}
+              <Text style={styles.blockLabel}>{isRTL ? 'البائع' : 'Seller'}</Text>
               <View style={styles.sellerCard}>
                 <View style={styles.sellerRow}>
                   <Avatar name={sellerName} uri={seller?.avatar_url} size={46} />
@@ -457,14 +468,6 @@ export default function MarketDetailScreen() {
                   </View>
                 )}
               </View>
-
-              {/* Description */}
-              {listing.description ? (
-                <View style={styles.section}>
-                  <Text style={styles.sectionTitle}>{isRTL ? 'الوصف' : 'Description'}</Text>
-                  <Text style={styles.desc}>{listing.description}</Text>
-                </View>
-              ) : null}
 
               {/* Comments / Q&A */}
               <View style={[styles.section, styles.commentsSection]}>
@@ -662,8 +665,24 @@ const createStyles = (C: any, isRTL: boolean) =>
     },
     pillText: { fontSize: 12, fontWeight: '700' },
 
+    blockLabel: {
+      color: C.textSecondary,
+      fontSize: 12,
+      fontWeight: '800',
+      letterSpacing: 0.8,
+      textTransform: 'uppercase',
+      marginTop: 20,
+      marginBottom: 8,
+      textAlign: isRTL ? 'right' : 'left',
+    },
+    infoCard: {
+      padding: 14,
+      borderRadius: BORDER_RADIUS.lg,
+      backgroundColor: C.card,
+      borderWidth: 1,
+      borderColor: C.border,
+    },
     sellerCard: {
-      marginTop: 18,
       padding: 14,
       borderRadius: BORDER_RADIUS.lg,
       backgroundColor: C.card,

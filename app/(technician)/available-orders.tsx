@@ -29,6 +29,25 @@ import { SkeletonOrderCard } from '../../components/SkeletonLoader';
 import { getFriendlyError } from '../../utils/errorMessages';
 import { logger } from '../../utils/logger';
 
+// Human-readable label for how the customer wants the device serviced.
+function fulfillmentLabel(type: string | null | undefined, language: string): string {
+  const ar = language === 'ar';
+  switch (type) {
+    case 'mobile':
+    case 'on_site':
+      return ar ? 'خدمة في موقعك' : 'On-site service';
+    case 'pickup':
+    case 'pickup_delivery':
+      return ar ? 'استلام وتسليم' : 'Pickup & delivery';
+    case 'personal_handoff':
+    case 'handoff':
+    case 'drop_off':
+      return ar ? 'تسليم باليد' : 'Drop-off / handoff';
+    default:
+      return ar ? 'طريقة الخدمة غير محددة' : 'Service method not specified';
+  }
+}
+
 // Calculate distance between two coordinates (Haversine formula)
 function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const R = 6371; // Earth's radius in km
@@ -282,9 +301,22 @@ export default function AvailableOrdersScreen() {
           </View>
         </View>
 
-        <Text style={styles.orderDescription} numberOfLines={2}>
+        <Text style={styles.orderDescription} numberOfLines={3}>
           {order.issue_description}
         </Text>
+
+        <View style={styles.detailLine}>
+          <MaterialIcons name="place" size={15} color={COLORS.textSecondary} />
+          <Text style={styles.detailLineText} numberOfLines={1}>
+            {order.location || (language === 'ar' ? 'الموقع غير محدد' : 'Location not specified')}
+          </Text>
+        </View>
+        <View style={styles.detailLine}>
+          <MaterialCommunityIcons name="truck-fast-outline" size={15} color={COLORS.textSecondary} />
+          <Text style={styles.detailLineText}>
+            {fulfillmentLabel(order.fulfillment_type ?? order.service_type, language)}
+          </Text>
+        </View>
 
         {order.media_urls && order.media_urls.length > 0 && (
           <ScrollView horizontal style={styles.mediaPreview} showsHorizontalScrollIndicator={false}>
@@ -322,13 +354,6 @@ export default function AvailableOrdersScreen() {
               {language === 'ar' ? 'عرض التفاصيل' : 'View Details'}
             </Text>
           </TouchableOpacity>
-        </View>
-
-        <View style={styles.orderLocation}>
-          <MaterialIcons name="place" size={14} color={COLORS.textSecondary} />
-          <Text style={styles.locationText} numberOfLines={1}>
-            {order.location}
-          </Text>
         </View>
       </NeuCard>
     );
@@ -529,14 +554,26 @@ const makeStyles = (COLORS: any, isRTL: boolean, SHADOWS: any) => StyleSheet.cre
   orderDescription: {
     fontSize: 14,
     color: COLORS.textSecondary,
-    marginBottom: SPACING.md,
+    marginBottom: SPACING.sm,
     lineHeight: 20,
+  },
+  detailLine: {
+    flexDirection: isRTL ? 'row-reverse' : 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 5,
+  },
+  detailLineText: {
+    color: COLORS.textSecondary,
+    fontSize: 12,
+    flex: 1,
+    textAlign: isRTL ? 'right' : 'left',
   },
   orderFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: SPACING.sm,
+    marginTop: SPACING.md,
   },
   priceContainer: {
     flex: 1,
@@ -566,20 +603,6 @@ const makeStyles = (COLORS: any, isRTL: boolean, SHADOWS: any) => StyleSheet.cre
     fontWeight: '700',
     color: '#FFF',
     marginLeft: SPACING.xs,
-  },
-  orderLocation: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: SPACING.sm,
-    paddingTop: SPACING.sm,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.border,
-  },
-  locationText: {
-    fontSize: 12,
-    color: COLORS.textSecondary,
-    marginLeft: SPACING.xs,
-    flex: 1,
   },
   mediaPreview: {
     marginVertical: SPACING.sm,
