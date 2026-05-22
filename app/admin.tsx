@@ -274,6 +274,13 @@ export default function AdminDashboardScreen() {
           onPress={() => router.push('/admin-discount-codes')}
           COLORS={COLORS} isRTL={isRTL}
         />
+        <ActionCard
+          icon="credit-card-cog-outline" iconColor="#0ea5a4"
+          title={isRTL ? 'بوابة الدفع' : 'Payment gateway'}
+          subtitle={isRTL ? 'تهيئة وتفعيل مزود الدفع ومفاتيحه' : 'Configure & activate the payment provider'}
+          onPress={() => router.push('/admin-payment-gateway' as any)}
+          COLORS={COLORS} isRTL={isRTL}
+        />
       </ScrollView>
     </SafeAreaView>
   );
