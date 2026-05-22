@@ -30,6 +30,14 @@ import {
  * mark the order paid (a real gateway can be wired in later); Tabby/Tamara
  * are shown as coming-soon.
  */
+// Brand accent colours for BNPL methods. The official Tabby/Tamara logo
+// assets can be dropped into assets/ and wired via payment_methods.icon later.
+const methodAccent = (code: string, COLORS: any): string => {
+  if (code === 'tabby') return '#3EB6A0';
+  if (code === 'tamara') return '#E0218A';
+  return COLORS.primary;
+};
+
 export default function PaymentScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ orderId?: string; amount?: string }>();
@@ -158,11 +166,11 @@ export default function PaymentScreen() {
                   SHADOWS.small,
                 ]}
               >
-                <View style={[styles.methodIcon, { backgroundColor: COLORS.primary + '15' }]}>
+                <View style={[styles.methodIcon, { backgroundColor: methodAccent(m.code, COLORS) + '1A' }]}>
                   <MaterialCommunityIcons
                     name={(m.icon as any) || 'credit-card-outline'}
                     size={22}
-                    color={COLORS.primary}
+                    color={methodAccent(m.code, COLORS)}
                   />
                 </View>
                 <View style={{ flex: 1 }}>

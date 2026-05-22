@@ -114,10 +114,11 @@ export default function OrderDetailsScreen() {
       } else {
         // Quote accepted → the order is payment-ready. Send the customer
         // straight to the real payment page.
-        const amount = (order as any).final_price ?? order.estimated_price ?? 0;
+        const gross = Number((order as any).final_price ?? order.estimated_price ?? 0);
+        const due = Math.max(0, gross - Number((order as any).discount_amount ?? 0));
         router.push({
           pathname: '/payment',
-          params: { orderId: String(order.id), amount: String(amount) },
+          params: { orderId: String(order.id), amount: String(due) },
         });
       }
     } catch (e) {
@@ -249,7 +250,12 @@ export default function OrderDetailsScreen() {
   const hasFinalPrice = !!(order as any).final_price && order.status !== 'quoted';
   const orderFulfillment = (order as any).fulfillment_type ?? order.service_type;
   const usesServiceCenter =
-    orderFulfillment === 'pickup' || orderFulfillment === 'personal_handoff';
+    orderFulfillment === 'personal_handoff';
+  // The discount the customer applied during request creation carries
+  // forward and reduces the final quote/payment amount after acceptance.
+  const discountAmount = Number((order as any).discount_amount ?? 0);
+  const grossAmount = Number((order as any).final_price ?? order.estimated_price ?? 0);
+  const amountDue = Math.max(0, grossAmount - discountAmount);
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: COLORS.background }]}>
@@ -496,7 +502,7 @@ export default function OrderDetailsScreen() {
                   pathname: '/payment',
                   params: {
                     orderId: String(order.id),
-                    amount: String((order as any).final_price ?? order.estimated_price ?? 0),
+                    amount: String(amountDue),
                   },
                 })
               }
@@ -522,14 +528,35 @@ export default function OrderDetailsScreen() {
 
           <View style={styles.priceContainer}>
             {hasFinalPrice ? (
-              <View style={styles.priceRow}>
-                <Text style={[styles.priceLabel, { color: COLORS.textSecondary }]}>
-                  {isRTL ? 'التكلفة النهائية' : 'Final Cost'}
-                </Text>
-                <Text style={[styles.priceAmount, { color: COLORS.primary }]}>
-                  {(order as any).final_price} {isRTL ? 'ر.س' : 'SAR'}
-                </Text>
-              </View>
+              <>
+                <View style={styles.priceRow}>
+                  <Text style={[styles.priceLabel, { color: COLORS.textSecondary }]}>
+                    {isRTL ? 'سعر الإصلاح' : 'Repair price'}
+                  </Text>
+                  <Text style={[styles.priceAmount, { color: COLORS.text, fontSize: 16 }]}>
+                    {(order as any).final_price} {isRTL ? 'ر.س' : 'SAR'}
+                  </Text>
+                </View>
+                {discountAmount > 0 && (
+                  <View style={styles.priceRow}>
+                    <Text style={[styles.priceLabel, { color: COLORS.primary }]}>
+                      {isRTL ? 'الخصم' : 'Discount'}
+                      {(order as any).discount_code ? ` (${(order as any).discount_code})` : ''}
+                    </Text>
+                    <Text style={[styles.priceAmount, { color: COLORS.primary, fontSize: 16 }]}>
+                      -{discountAmount} {isRTL ? 'ر.س' : 'SAR'}
+                    </Text>
+                  </View>
+                )}
+                <View style={styles.priceRow}>
+                  <Text style={[styles.priceLabel, { color: COLORS.textSecondary }]}>
+                    {isRTL ? 'المبلغ المستحق' : 'Amount due'}
+                  </Text>
+                  <Text style={[styles.priceAmount, { color: COLORS.primary }]}>
+                    {amountDue} {isRTL ? 'ر.س' : 'SAR'}
+                  </Text>
+                </View>
+              </>
             ) : (
               <View
                 style={{

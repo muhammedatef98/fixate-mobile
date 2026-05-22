@@ -13,6 +13,7 @@ import { getColors, SPACING, BORDER_RADIUS } from '../constants/theme';
 import { useApp } from '../contexts/AppContext';
 import { RTLMaterialIcon } from '../components/RTLIcon';
 import { safeBack } from '../utils/navigation';
+import PolicyDocument from '../components/PolicyDocument';
 
 export default function TermsScreen() {
   const router = useRouter();
@@ -272,9 +273,7 @@ If you have any questions about these terms, please contact us:
 
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         <View style={styles.content}>
-          <Text style={[styles.text, { color: COLORS.text }]}>
-            {isRTL ? termsAr : termsEn}
-          </Text>
+          <PolicyDocument content={isRTL ? termsAr : termsEn} isRTL={isRTL} COLORS={COLORS} />
         </View>
       </ScrollView>
     </SafeAreaView>

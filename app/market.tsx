@@ -29,6 +29,7 @@ import {
   type ListingCondition,
   type DeviceType,
   type SortKey,
+  MARKET_DEVICE_TYPES,
 } from '../services/marketService';
 import SaudiCityPicker from '../components/SaudiCityPicker';
 
@@ -37,13 +38,8 @@ const GRID_GUTTER = 12;
 const CARD_W = (SCREEN_W - GRID_GUTTER * 3) / 2;
 
 const DEVICE_CHIPS: { id: DeviceType | 'all'; ar: string; en: string; icon: string }[] = [
-  { id: 'all',       ar: 'الكل',     en: 'All',     icon: 'view-grid' },
-  { id: 'phone',     ar: 'جوّالات',  en: 'Phones',  icon: 'cellphone' },
-  { id: 'laptop',    ar: 'لابتوب',   en: 'Laptops', icon: 'laptop' },
-  { id: 'tablet',    ar: 'تابلت',    en: 'Tablets', icon: 'tablet' },
-  { id: 'watch',     ar: 'ساعات',    en: 'Watches', icon: 'watch' },
-  { id: 'accessory', ar: 'إكسسوار',  en: 'Accessories', icon: 'headphones' },
-  { id: 'other',     ar: 'أخرى',     en: 'Other',   icon: 'dots-horizontal' },
+  { id: 'all', ar: 'الكل', en: 'All', icon: 'view-grid' },
+  ...MARKET_DEVICE_TYPES,
 ];
 
 const CONDITION_OPTS: { id: ListingCondition; ar: string; en: string }[] = [

@@ -13,6 +13,7 @@ import { getColors, SPACING } from '../constants/theme';
 import { useApp } from '../contexts/AppContext';
 import { RTLMaterialIcon } from '../components/RTLIcon';
 import { safeBack } from '../utils/navigation';
+import PolicyDocument from '../components/PolicyDocument';
 
 export default function PrivacyScreen() {
   const router = useRouter();
@@ -288,9 +289,7 @@ For any privacy inquiries:
 
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         <View style={styles.content}>
-          <Text style={[styles.text, { color: COLORS.text }]}>
-            {isRTL ? privacyAr : privacyEn}
-          </Text>
+          <PolicyDocument content={isRTL ? privacyAr : privacyEn} isRTL={isRTL} COLORS={COLORS} />
         </View>
       </ScrollView>
     </SafeAreaView>

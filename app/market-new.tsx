@@ -20,7 +20,13 @@ import { useApp } from '../contexts/AppContext';
 import { useAuth } from '../contexts/AuthContext';
 import { getColors, SPACING, BORDER_RADIUS } from '../constants/theme';
 import { RTLIonicon } from '../components/RTLIcon';
-import { createListing, type ListingCategory, type ContactPreference } from '../services/marketService';
+import {
+  createListing,
+  MARKET_DEVICE_TYPES,
+  type ListingCategory,
+  type ContactPreference,
+  type DeviceType,
+} from '../services/marketService';
 import { uploadOrderMedia } from '../services/storageService';
 import SaudiCityPicker from '../components/SaudiCityPicker';
 import ImagePickerSheet from '../components/ImagePickerSheet';
@@ -50,6 +56,7 @@ export default function MarketNewScreen() {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState<ListingCategory>('used_device');
+  const [deviceType, setDeviceType] = useState<DeviceType>('phone');
   const [price, setPrice] = useState('');
   const [city, setCity] = useState('');
   const [contactPhone, setContactPhone] = useState((userProfile as any)?.phone ?? '');
@@ -139,6 +146,7 @@ export default function MarketNewScreen() {
         title: title.trim(),
         description: fullDescription || undefined,
         category,
+        device_type: deviceType,
         price: Number(price),
         city: city.trim() || undefined,
         contact_phone: contactPhone.trim() || undefined,
@@ -174,7 +182,7 @@ export default function MarketNewScreen() {
 
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView contentContainerStyle={{ padding: SPACING.lg, gap: 12 }}>
-          <Field label={isRTL ? 'العنوان' : 'Title'} COLORS={COLORS}>
+          <Field label={isRTL ? 'العنوان' : 'Title'} COLORS={COLORS} isRTL={isRTL}>
             <TextInput
               value={title}
               onChangeText={setTitle}
@@ -184,7 +192,7 @@ export default function MarketNewScreen() {
             />
           </Field>
 
-          <Field label={isRTL ? 'الصور' : 'Photos'} COLORS={COLORS}>
+          <Field label={isRTL ? 'الصور' : 'Photos'} COLORS={COLORS} isRTL={isRTL}>
             <View style={styles.chipsWrap}>
               <TouchableOpacity onPress={() => setImageSheetOpen(true)} style={styles.addImg}>
                 <Ionicons name="camera" size={22} color={COLORS.textSecondary} />
@@ -209,7 +217,7 @@ export default function MarketNewScreen() {
             </Text>
           </Field>
 
-          <Field label={isRTL ? 'الحالة' : 'Condition'} COLORS={COLORS}>
+          <Field label={isRTL ? 'الحالة' : 'Condition'} COLORS={COLORS} isRTL={isRTL}>
             <SelectField
               value={condition}
               options={CONDITIONS.map((c) => ({ id: c.id, label: isRTL ? c.ar : c.en }))}
@@ -219,7 +227,17 @@ export default function MarketNewScreen() {
             />
           </Field>
 
-          <Field label={isRTL ? 'التصنيف' : 'Category'} COLORS={COLORS}>
+          <Field label={isRTL ? 'نوع الجهاز' : 'Device category'} COLORS={COLORS} isRTL={isRTL}>
+            <SelectField
+              value={deviceType}
+              options={MARKET_DEVICE_TYPES.map((d) => ({ id: d.id, label: isRTL ? d.ar : d.en }))}
+              onSelect={(id) => setDeviceType(id as DeviceType)}
+              isRTL={isRTL}
+              placeholder={isRTL ? 'اختر نوع الجهاز' : 'Select device category'}
+            />
+          </Field>
+
+          <Field label={isRTL ? 'التصنيف' : 'Category'} COLORS={COLORS} isRTL={isRTL}>
             <SelectField
               value={category}
               options={CATEGORY_OPTIONS.map((c) => ({ id: c.id, label: isRTL ? c.ar : c.en }))}
@@ -229,7 +247,7 @@ export default function MarketNewScreen() {
             />
           </Field>
 
-          <Field label={isRTL ? 'السعر (SAR)' : 'Price (SAR)'} COLORS={COLORS}>
+          <Field label={isRTL ? 'السعر (SAR)' : 'Price (SAR)'} COLORS={COLORS} isRTL={isRTL}>
             <TextInput
               value={price}
               onChangeText={setPrice}
@@ -238,7 +256,7 @@ export default function MarketNewScreen() {
             />
           </Field>
 
-          <Field label={isRTL ? 'الوصف' : 'Description'} COLORS={COLORS}>
+          <Field label={isRTL ? 'الوصف' : 'Description'} COLORS={COLORS} isRTL={isRTL}>
             <TextInput
               value={description}
               onChangeText={setDescription}
@@ -252,7 +270,7 @@ export default function MarketNewScreen() {
             />
           </Field>
 
-          <Field label={isRTL ? 'المدينة' : 'City'} COLORS={COLORS}>
+          <Field label={isRTL ? 'المدينة' : 'City'} COLORS={COLORS} isRTL={isRTL}>
             <SaudiCityPicker
               value={city}
               onSelect={setCity}
@@ -261,7 +279,7 @@ export default function MarketNewScreen() {
             />
           </Field>
 
-          <Field label={isRTL ? 'كيف تفضل أن يتواصل المشتري؟' : 'How should buyers contact you?'} COLORS={COLORS}>
+          <Field label={isRTL ? 'كيف تفضل أن يتواصل المشتري؟' : 'How should buyers contact you?'} COLORS={COLORS} isRTL={isRTL}>
             <View style={styles.chipsWrap}>
               {([
                 { id: 'both' as const,  ar: 'مكالمة + رسالة', en: 'Phone + DM' },
@@ -285,7 +303,7 @@ export default function MarketNewScreen() {
           </Field>
 
           {(contactPreference === 'phone' || contactPreference === 'both') && (
-            <Field label={isRTL ? 'رقم التواصل' : 'Contact phone'} COLORS={COLORS}>
+            <Field label={isRTL ? 'رقم التواصل' : 'Contact phone'} COLORS={COLORS} isRTL={isRTL}>
               <TextInput
                 value={contactPhone}
                 onChangeText={setContactPhone}
@@ -332,10 +350,19 @@ export default function MarketNewScreen() {
   );
 }
 
-function Field({ label, children, COLORS }: any) {
+function Field({ label, children, COLORS, isRTL }: any) {
   return (
     <View style={{ gap: 6 }}>
-      <Text style={{ color: COLORS.textSecondary, fontWeight: '600', fontSize: 13 }}>{label}</Text>
+      <Text
+        style={{
+          color: COLORS.textSecondary,
+          fontWeight: '600',
+          fontSize: 13,
+          textAlign: isRTL ? 'right' : 'left',
+        }}
+      >
+        {label}
+      </Text>
       {children}
     </View>
   );
@@ -359,6 +386,7 @@ const createStyles = (C: any, isRTL: boolean) => StyleSheet.create({
     padding: 12,
     fontSize: 15,
     backgroundColor: C.card,
+    textAlign: isRTL ? 'right' : 'left',
   },
   chipsWrap: { flexDirection: isRTL ? 'row-reverse' : 'row', flexWrap: 'wrap', gap: 8, alignItems: 'center' },
   addImg: {
