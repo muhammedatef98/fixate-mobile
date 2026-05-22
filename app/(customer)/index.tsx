@@ -35,16 +35,32 @@ const DEVICE_CATEGORIES = [
 ];
 
 const QUICK_ACTIONS = [
-  { id: 'market', titleAr: 'السوق', titleEn: 'Market', icon: 'storefront-outline', route: '/market' },
-  { id: 'services', titleAr: 'الخدمات', titleEn: 'Services', icon: 'tools', route: '/(customer)/services' },
-  { id: 'orders', titleAr: 'طلباتي', titleEn: 'My orders', icon: 'receipt-outline', route: '/(customer)/orders' },
-  { id: 'addresses', titleAr: 'عناويني', titleEn: 'Addresses', icon: 'location-outline', route: '/addresses' },
+  {
+    id: 'market', titleAr: 'السوق', titleEn: 'Marketplace',
+    subAr: 'بيع واشترِ الأجهزة', subEn: 'Buy & sell devices',
+    icon: 'storefront-outline', accent: '#F59E0B', route: '/market',
+  },
+  {
+    id: 'services', titleAr: 'الخدمات', titleEn: 'Services',
+    subAr: 'تصفّح كل خدمات الإصلاح', subEn: 'Browse all repairs',
+    icon: 'tools', accent: '#3B82F6', route: '/(customer)/services',
+  },
+  {
+    id: 'orders', titleAr: 'طلباتي', titleEn: 'My Requests',
+    subAr: 'تابع حالة طلباتك', subEn: 'Track your repairs',
+    icon: 'receipt-outline', accent: '#10B981', route: '/(customer)/orders',
+  },
+  {
+    id: 'addresses', titleAr: 'عناويني', titleEn: 'Addresses',
+    subAr: 'إدارة مواقع الخدمة', subEn: 'Manage saved places',
+    icon: 'map-marker-outline', accent: '#8B5CF6', route: '/addresses',
+  },
 ];
 
 const TRUST_POINTS = [
-  { ar: 'ضمان 6 أشهر', en: '6-month warranty', icon: 'shield-check', color: '#10b981' },
-  { ar: 'استلام مجاني', en: 'Free pickup', icon: 'truck-fast-outline', color: '#3b82f6' },
-  { ar: 'فنيون معتمدون', en: 'Verified pros', icon: 'check-decagram', color: '#8b5cf6' },
+  { ar: 'ضمان 6 أشهر', en: '6-month warranty', sub_ar: 'على كل إصلاح', sub_en: 'On every repair', icon: 'shield-check', color: '#10b981' },
+  { ar: 'استلام وتوصيل', en: 'Pickup & delivery', sub_ar: 'من بابك', sub_en: 'From your door', icon: 'truck-fast-outline', color: '#3b82f6' },
+  { ar: 'فنيون معتمدون', en: 'Verified technicians', sub_ar: 'مهارة موثوقة', sub_en: 'Trusted experts', icon: 'check-decagram', color: '#8b5cf6' },
 ];
 
 export default function CustomerHomeScreen() {
@@ -185,7 +201,7 @@ export default function CustomerHomeScreen() {
                 {isRTL ? 'صيانة سريعة وسهلة' : 'Quick & easy repair'}
               </Text>
               <Text style={styles.ctaTitle}>
-                {isRTL ? 'اطلب صيانة الآن' : 'Request a repair'}
+                {isRTL ? 'اطلب صيانة جديدة' : 'Request a New Repair'}
               </Text>
               <View style={styles.ctaPill}>
                 <Text style={styles.ctaPillText}>
@@ -317,32 +333,50 @@ export default function CustomerHomeScreen() {
             ))}
           </View>
 
-          {/* Quick actions row */}
-          <View style={styles.quickRow}>
+          {/* Section: Explore — Marketplace / Services / My Requests / Addresses */}
+          <Text style={[styles.sectionTitle, { color: COLORS.text, marginBottom: 14 }]}>
+            {isRTL ? 'استكشف' : 'Explore'}
+          </Text>
+          <View style={styles.exploreGrid}>
             {QUICK_ACTIONS.map((q) => (
               <PressableScale
                 key={q.id}
                 onPress={() => router.push(q.route as any)}
-                style={[styles.quickPill, { backgroundColor: COLORS.card }]}
+                style={[styles.exploreCard, { backgroundColor: COLORS.card, borderColor: COLORS.border }]}
                 accessibilityRole="button"
+                accessibilityLabel={isRTL ? q.titleAr : q.titleEn}
               >
-                <MaterialCommunityIcons name={q.icon as any} size={20} color={COLORS.primary} />
-                <Text style={[styles.quickText, { color: COLORS.text }]} numberOfLines={1}>
+                <View style={[styles.exploreIcon, { backgroundColor: q.accent + '18' }]}>
+                  <MaterialCommunityIcons name={q.icon as any} size={24} color={q.accent} />
+                </View>
+                <Text style={[styles.exploreTitle, { color: COLORS.text }]} numberOfLines={1}>
                   {isRTL ? q.titleAr : q.titleEn}
+                </Text>
+                <Text style={[styles.exploreSub, { color: COLORS.textSecondary }]} numberOfLines={1}>
+                  {isRTL ? q.subAr : q.subEn}
                 </Text>
               </PressableScale>
             ))}
           </View>
 
-          {/* Trust strip */}
-          <View style={[styles.trustCard, { backgroundColor: COLORS.card, borderColor: COLORS.border }]}>
+          {/* Section: Why Fixate — warranty / pickup / verified technicians */}
+          <Text style={[styles.sectionTitle, { color: COLORS.text, marginBottom: 14 }]}>
+            {isRTL ? 'لماذا Fixate؟' : 'Why Fixate'}
+          </Text>
+          <View style={styles.trustGrid}>
             {TRUST_POINTS.map((t, i) => (
-              <View key={i} style={[styles.trustItem, i > 0 && { borderLeftWidth: StyleSheet.hairlineWidth, borderLeftColor: COLORS.border, paddingLeft: 12 }]}>
-                <View style={[styles.trustIcon, { backgroundColor: t.color + '15' }]}>
-                  <MaterialCommunityIcons name={t.icon as any} size={16} color={t.color} />
+              <View
+                key={i}
+                style={[styles.trustTile, { backgroundColor: COLORS.card, borderColor: COLORS.border }]}
+              >
+                <View style={[styles.trustIcon, { backgroundColor: t.color + '18' }]}>
+                  <MaterialCommunityIcons name={t.icon as any} size={22} color={t.color} />
                 </View>
-                <Text style={[styles.trustText, { color: COLORS.text }]} numberOfLines={2}>
+                <Text style={[styles.trustTitle, { color: COLORS.text }]} numberOfLines={2}>
                   {isRTL ? t.ar : t.en}
+                </Text>
+                <Text style={[styles.trustSub, { color: COLORS.textSecondary }]} numberOfLines={1}>
+                  {isRTL ? t.sub_ar : t.sub_en}
                 </Text>
               </View>
             ))}
@@ -516,42 +550,50 @@ const makeStyles = (C: any, isRTL: boolean, SHADOWS: any) =>
       marginTop: 12,
     },
 
-    quickRow: {
+    // Explore grid — 2-column action cards
+    exploreGrid: {
       flexDirection: isRTL ? 'row-reverse' : 'row',
       flexWrap: 'wrap',
-      gap: 8,
-      marginBottom: 22,
+      gap: 12,
+      marginBottom: 24,
     },
-    quickPill: {
-      flexDirection: isRTL ? 'row-reverse' : 'row',
-      alignItems: 'center',
-      gap: 8,
-      paddingHorizontal: 14,
-      paddingVertical: 12,
-      borderRadius: 999,
-      ...SHADOWS.small,
-    },
-    quickText: { fontSize: 14, fontWeight: '600' },
-
-    trustCard: {
-      flexDirection: isRTL ? 'row-reverse' : 'row',
+    exploreCard: {
+      width: (width - SPACING.m * 2 - 12) / 2,
       borderRadius: BORDER_RADIUS.md,
+      borderWidth: 1,
       padding: 16,
-      marginBottom: 18,
-      gap: 4,
+      gap: 8,
       ...SHADOWS.small,
     },
-    trustItem: {
-      flex: 1,
-      flexDirection: isRTL ? 'row-reverse' : 'row',
-      alignItems: 'center',
-      gap: 8,
-    },
-    trustIcon: {
-      width: 30, height: 30, borderRadius: 9,
+    exploreIcon: {
+      width: 46, height: 46, borderRadius: 13,
       alignItems: 'center', justifyContent: 'center',
     },
-    trustText: { fontSize: 11, fontWeight: '600', flex: 1 },
+    exploreTitle: { fontSize: 15, fontWeight: '800', textAlign: isRTL ? 'right' : 'left' },
+    exploreSub: { fontSize: 11, fontWeight: '500', textAlign: isRTL ? 'right' : 'left' },
+
+    // Why Fixate — 3-column trust tiles
+    trustGrid: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      gap: 10,
+      marginBottom: 20,
+    },
+    trustTile: {
+      flex: 1,
+      borderRadius: BORDER_RADIUS.md,
+      borderWidth: 1,
+      paddingVertical: 16,
+      paddingHorizontal: 10,
+      alignItems: 'center',
+      gap: 7,
+      ...SHADOWS.small,
+    },
+    trustIcon: {
+      width: 44, height: 44, borderRadius: 13,
+      alignItems: 'center', justifyContent: 'center',
+    },
+    trustTitle: { fontSize: 12, fontWeight: '800', textAlign: 'center' },
+    trustSub: { fontSize: 10, fontWeight: '500', textAlign: 'center' },
 
     supportCard: {
       flexDirection: isRTL ? 'row-reverse' : 'row',
