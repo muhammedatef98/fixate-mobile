@@ -571,8 +571,9 @@ const createStyles = (C: any, isRTL: boolean) =>
     imageCountPill: {
       position: 'absolute',
       top: 8,
-      right: 8,
-      flexDirection: 'row',
+      left: isRTL ? 8 : undefined,
+      right: isRTL ? undefined : 8,
+      flexDirection: isRTL ? 'row-reverse' : 'row',
       alignItems: 'center',
       gap: 3,
       backgroundColor: 'rgba(0,0,0,0.6)',
@@ -599,7 +600,7 @@ const createStyles = (C: any, isRTL: boolean) =>
       justifyContent: 'center',
     },
     soldBadge: {
-      flexDirection: 'row',
+      flexDirection: isRTL ? 'row-reverse' : 'row',
       alignItems: 'center',
       gap: 5,
       backgroundColor: '#DC2626',

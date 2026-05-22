@@ -177,7 +177,7 @@ function createStyles(COLORS: any, SHADOWS: any, isRTL: boolean) {
       backgroundColor: COLORS.background,
     },
     header: {
-      flexDirection: 'row',
+      flexDirection: isRTL ? 'row-reverse' : 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
       paddingHorizontal: SPACING.lg,
@@ -230,12 +230,12 @@ function createStyles(COLORS: any, SHADOWS: any, isRTL: boolean) {
       padding: SPACING.lg,
     },
     techHeader: {
-      flexDirection: 'row',
+      flexDirection: isRTL ? 'row-reverse' : 'row',
       marginBottom: SPACING.md,
+      gap: SPACING.md,
     },
     avatarContainer: {
       position: 'relative',
-      marginRight: SPACING.md,
     },
     avatar: {
       width: 60,
@@ -262,31 +262,31 @@ function createStyles(COLORS: any, SHADOWS: any, isRTL: boolean) {
       fontWeight: '700',
       color: COLORS.text,
       marginBottom: 4,
+      textAlign: isRTL ? 'right' : 'left',
     },
     ratingContainer: {
-      flexDirection: 'row',
+      flexDirection: isRTL ? 'row-reverse' : 'row',
       alignItems: 'center',
       marginBottom: 4,
+      gap: 4,
     },
     rating: {
       fontSize: 14,
       fontWeight: '600',
       color: COLORS.text,
-      marginLeft: 4,
     },
     jobsCount: {
       fontSize: 12,
       color: COLORS.textSecondary,
-      marginLeft: 4,
     },
     locationRow: {
-      flexDirection: 'row',
+      flexDirection: isRTL ? 'row-reverse' : 'row',
       alignItems: 'center',
+      gap: 3,
     },
     location: {
       fontSize: 12,
       color: COLORS.textSecondary,
-      marginLeft: 2,
     },
     specializationContainer: {
       marginBottom: SPACING.md,
@@ -296,9 +296,10 @@ function createStyles(COLORS: any, SHADOWS: any, isRTL: boolean) {
       fontWeight: '600',
       color: COLORS.textSecondary,
       marginBottom: SPACING.sm,
+      textAlign: isRTL ? 'right' : 'left',
     },
     specializationTags: {
-      flexDirection: 'row',
+      flexDirection: isRTL ? 'row-reverse' : 'row',
       flexWrap: 'wrap',
       gap: SPACING.sm,
     },
@@ -314,7 +315,7 @@ function createStyles(COLORS: any, SHADOWS: any, isRTL: boolean) {
       color: COLORS.primary,
     },
     contactButton: {
-      flexDirection: 'row',
+      flexDirection: isRTL ? 'row-reverse' : 'row',
       alignItems: 'center',
       justifyContent: 'center',
       paddingVertical: SPACING.md,
