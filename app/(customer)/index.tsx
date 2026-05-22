@@ -189,29 +189,36 @@ export default function CustomerHomeScreen() {
             {isRTL ? 'إصلاح احترافي لأجهزتك، أينما كنت' : 'Expert device repair, wherever you are'}
           </Text>
 
-          {/* Primary CTA */}
+          {/* Primary CTA — the green action box under the welcome section */}
           <TouchableOpacity
             onPress={() => router.push('/request')}
             style={[styles.cta, { backgroundColor: COLORS.primary }]}
             activeOpacity={0.92}
             accessibilityRole="button"
+            accessibilityLabel={isRTL ? 'اطلب صيانة جديدة' : 'Request a new repair'}
           >
+            {/* Soft decorative circles for depth */}
+            <View pointerEvents="none" style={styles.ctaBlob1} />
+            <View pointerEvents="none" style={styles.ctaBlob2} />
             <View style={{ flex: 1 }}>
-              <Text style={styles.ctaEyebrow}>
-                {isRTL ? 'صيانة سريعة وسهلة' : 'Quick & easy repair'}
-              </Text>
+              <View style={styles.ctaEyebrowRow}>
+                <MaterialCommunityIcons name="lightning-bolt" size={13} color="#fff" />
+                <Text style={styles.ctaEyebrow}>
+                  {isRTL ? 'صيانة سريعة وسهلة' : 'Quick & easy repair'}
+                </Text>
+              </View>
               <Text style={styles.ctaTitle}>
                 {isRTL ? 'اطلب صيانة جديدة' : 'Request a New Repair'}
               </Text>
               <View style={styles.ctaPill}>
+                <MaterialCommunityIcons name="clock-fast" size={14} color={COLORS.primary} />
                 <Text style={styles.ctaPillText}>
                   {isRTL ? 'يصلك الفني خلال 30 دقيقة' : 'Tech arrives in 30 min'}
                 </Text>
-                <RTLIonicon name="arrow-forward" size={14} color={COLORS.primary} />
               </View>
             </View>
-            <View style={styles.ctaIconWrap}>
-              <MaterialCommunityIcons name="tools" size={68} color="#ffffff15" />
+            <View style={styles.ctaArrowWrap}>
+              <RTLIonicon name="arrow-forward" size={24} color={COLORS.primary} />
             </View>
           </TouchableOpacity>
 
@@ -230,19 +237,29 @@ export default function CustomerHomeScreen() {
           {activeOrder && (
             <TouchableOpacity
               onPress={() => router.push(`/order-details?id=${activeOrder.id}`)}
-              style={[styles.activeOrder, { backgroundColor: COLORS.card, borderColor: COLORS.border }]}
+              style={[styles.activeOrder, { backgroundColor: COLORS.card, borderColor: COLORS.primary + '30' }]}
               activeOpacity={0.85}
             >
-              <View style={[styles.dot, { backgroundColor: '#f59e0b' }]} />
-              <View style={{ flex: 1, marginHorizontal: 12 }}>
-                <Text style={[styles.activeOrderTitle, { color: COLORS.text }]}>
-                  {isRTL ? 'لديك طلب جارٍ' : 'You have an active order'}
-                </Text>
+              <View style={[styles.activeOrderIcon, { backgroundColor: COLORS.primary + '15' }]}>
+                <MaterialCommunityIcons name="progress-wrench" size={22} color={COLORS.primary} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <View style={styles.activeOrderTopRow}>
+                  <View style={styles.activePulseDot} />
+                  <Text style={[styles.activeOrderTitle, { color: COLORS.text }]}>
+                    {isRTL ? 'طلب قيد التنفيذ' : 'Active request'}
+                  </Text>
+                </View>
                 <Text style={[styles.activeOrderSub, { color: COLORS.textSecondary }]} numberOfLines={1}>
-                  {activeOrder.device_brand} {activeOrder.device_model} · #{activeOrder.id.slice(0, 6)}
+                  {activeOrder.device_brand} {activeOrder.device_model}
                 </Text>
               </View>
-              <RTLIonicon name="chevron-forward" size={18} color={COLORS.primary} />
+              <View style={[styles.activeTrackChip, { backgroundColor: COLORS.primary + '15' }]}>
+                <Text style={[styles.activeTrackText, { color: COLORS.primary }]}>
+                  {isRTL ? 'تتبّع' : 'Track'}
+                </Text>
+                <RTLIonicon name="chevron-forward" size={13} color={COLORS.primary} />
+              </View>
             </TouchableOpacity>
           )}
 
@@ -469,33 +486,75 @@ const makeStyles = (C: any, isRTL: boolean, SHADOWS: any) =>
       elevation: 8,
       minHeight: 158,
     },
-    ctaEyebrow: { color: '#ffffffcc', fontSize: 11, fontWeight: '700', letterSpacing: 1 },
-    ctaTitle: { color: '#fff', fontSize: 24, fontWeight: '800', marginTop: 4 },
+    ctaEyebrowRow: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
+      gap: 5,
+    },
+    ctaEyebrow: { color: '#ffffffdd', fontSize: 11, fontWeight: '800', letterSpacing: 0.8 },
+    ctaTitle: { color: '#fff', fontSize: 25, fontWeight: '900', marginTop: 6, textAlign: isRTL ? 'right' : 'left' },
     ctaPill: {
       flexDirection: isRTL ? 'row-reverse' : 'row',
       alignItems: 'center',
-      gap: 8,
+      gap: 6,
       backgroundColor: '#fff',
       paddingHorizontal: 12,
-      paddingVertical: 7,
+      paddingVertical: 8,
       borderRadius: 999,
       alignSelf: isRTL ? 'flex-end' : 'flex-start',
-      marginTop: 14,
+      marginTop: 16,
     },
-    ctaPillText: { color: C.primary, fontSize: 12, fontWeight: '700' },
-    ctaIconWrap: { justifyContent: 'center', alignItems: 'center' },
+    ctaPillText: { color: C.primary, fontSize: 12, fontWeight: '800' },
+    ctaArrowWrap: {
+      width: 52, height: 52, borderRadius: 26,
+      backgroundColor: '#fff',
+      alignItems: 'center', justifyContent: 'center',
+      marginStart: 12,
+    },
+    ctaBlob1: {
+      position: 'absolute',
+      width: 150, height: 150, borderRadius: 75,
+      backgroundColor: '#ffffff14',
+      top: -55, [isRTL ? 'left' : 'right']: -35,
+    },
+    ctaBlob2: {
+      position: 'absolute',
+      width: 90, height: 90, borderRadius: 45,
+      backgroundColor: '#ffffff10',
+      bottom: -30, [isRTL ? 'left' : 'right']: 60,
+    },
 
     activeOrder: {
       flexDirection: isRTL ? 'row-reverse' : 'row',
       alignItems: 'center',
+      gap: 12,
       borderRadius: BORDER_RADIUS.md,
-      padding: 16,
+      borderWidth: 1,
+      padding: 14,
       marginBottom: 24,
       ...SHADOWS.small,
     },
-    dot: { width: 10, height: 10, borderRadius: 5 },
-    activeOrderTitle: { fontSize: 13, fontWeight: '800' },
-    activeOrderSub: { fontSize: 11, marginTop: 2 },
+    activeOrderIcon: {
+      width: 44, height: 44, borderRadius: 13,
+      alignItems: 'center', justifyContent: 'center',
+    },
+    activeOrderTopRow: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
+      gap: 6,
+    },
+    activePulseDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#f59e0b' },
+    activeOrderTitle: { fontSize: 14, fontWeight: '800', textAlign: isRTL ? 'right' : 'left' },
+    activeOrderSub: { fontSize: 12, marginTop: 3, textAlign: isRTL ? 'right' : 'left' },
+    activeTrackChip: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
+      gap: 2,
+      paddingHorizontal: 12,
+      paddingVertical: 7,
+      borderRadius: 999,
+    },
+    activeTrackText: { fontSize: 12, fontWeight: '800' },
 
     sectionHead: {
       flexDirection: isRTL ? 'row-reverse' : 'row',
