@@ -53,6 +53,7 @@ export default function ManageOrderScreen() {
   const COLORS = getColors(isDark);
   const SHADOWS = getShadows(isDark);
   const isRTL = language === 'ar';
+  const styles = makeStyles(isRTL);
 
   const [order, setOrder] = useState<Order | null>(null);
   const [customer, setCustomer] = useState<any>(null);
@@ -917,19 +918,19 @@ export default function ManageOrderScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (isRTL: boolean) => StyleSheet.create({
   container: {
     flex: 1,
   },
   chatButton: {
-    flexDirection: 'row',
+    flexDirection: isRTL ? 'row-reverse' : 'row',
     alignItems: 'center',
     justifyContent: 'center',
     padding: SPACING.m,
     borderRadius: BORDER_RADIUS.m,
   },
   actionButtonRow: {
-    flexDirection: 'row',
+    flexDirection: isRTL ? 'row-reverse' : 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: SPACING.l,
@@ -957,7 +958,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   header: {
-    flexDirection: 'row',
+    flexDirection: isRTL ? 'row-reverse' : 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: SPACING.l,
@@ -992,7 +993,7 @@ const styles = StyleSheet.create({
     gap: SPACING.m,
   },
   workflowButton: {
-    flexDirection: 'row',
+    flexDirection: isRTL ? 'row-reverse' : 'row',
     alignItems: 'center',
     padding: SPACING.m,
     borderRadius: BORDER_RADIUS.m,
@@ -1019,7 +1020,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   infoRow: {
-    flexDirection: 'row',
+    flexDirection: isRTL ? 'row-reverse' : 'row',
     alignItems: 'center',
     marginBottom: SPACING.m,
   },
@@ -1038,12 +1039,12 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.m,
   },
   locationButtons: {
-    flexDirection: 'row',
+    flexDirection: isRTL ? 'row-reverse' : 'row',
     gap: SPACING.m,
   },
   locationButton: {
     flex: 1,
-    flexDirection: 'row',
+    flexDirection: isRTL ? 'row-reverse' : 'row',
     alignItems: 'center',
     justifyContent: 'center',
     padding: SPACING.m,
@@ -1061,7 +1062,7 @@ const styles = StyleSheet.create({
     marginRight: SPACING.m,
   },
   actionButton: {
-    flexDirection: 'row',
+    flexDirection: isRTL ? 'row-reverse' : 'row',
     alignItems: 'center',
     justifyContent: 'center',
     padding: SPACING.m,
