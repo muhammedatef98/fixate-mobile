@@ -304,7 +304,9 @@ export default function OrderDetailsScreen() {
               ? ORDER_TIMELINE.find(t => t.status === order.status)?.arLabel
               : ORDER_TIMELINE.find(t => t.status === order.status)?.enLabel}
           </Text>
-          <Text style={styles.heroStatusOrderId}>#{order.id?.slice(0, 8)}</Text>
+          <Text style={styles.heroStatusOrderId}>
+            {(order as any).order_number ?? `#${order.id?.slice(0, 8)}`}
+          </Text>
         </View>
 
         {/* Live Tracking Map */}

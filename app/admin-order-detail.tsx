@@ -182,7 +182,9 @@ export default function AdminOrderDetailScreen() {
               </View>
             )}
           </View>
-          <Text style={styles.orderId}>#{String(order.id).slice(0, 8).toUpperCase()}</Text>
+          <Text style={styles.orderId}>
+            {order.order_number ?? `#${String(order.id).slice(0, 8).toUpperCase()}`}
+          </Text>
 
           {/* Customer */}
           <Section title={isRTL ? 'العميل' : 'Customer'} icon="account-outline" COLORS={COLORS} isRTL={isRTL}>
