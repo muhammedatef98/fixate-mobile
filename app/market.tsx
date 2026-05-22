@@ -287,7 +287,7 @@ export default function MarketScreen() {
           contentContainerStyle={styles.deviceStrip}
           style={{ maxHeight: 56 }}
         >
-          {(isRTL ? [...DEVICE_CHIPS].reverse() : DEVICE_CHIPS).map((c) => {
+          {DEVICE_CHIPS.map((c) => {
             const active = device === c.id;
             return (
               <TouchableOpacity
@@ -538,7 +538,12 @@ const createStyles = (C: any, isRTL: boolean) =>
       borderRadius: BORDER_RADIUS.md - 2,
     },
     tabText: { color: C.textSecondary, fontWeight: '700', fontSize: 13 },
-    deviceStrip: { paddingHorizontal: SPACING.lg, gap: 8, paddingVertical: 4 },
+    deviceStrip: {
+      paddingHorizontal: SPACING.lg,
+      gap: 8,
+      paddingVertical: 4,
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+    },
     deviceChip: {
       flexDirection: isRTL ? 'row-reverse' : 'row',
       alignItems: 'center',

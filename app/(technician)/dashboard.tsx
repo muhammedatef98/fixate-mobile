@@ -211,6 +211,29 @@ export default function TechnicianDashboard() {
           />
         </View>
 
+        {/* Support & help */}
+        <Text style={styles.sectionTitle}>{isRTL ? 'الدعم والمساعدة' : 'Support & help'}</Text>
+        <TouchableOpacity
+          style={[styles.supportCard, SHADOWS.small]}
+          activeOpacity={0.85}
+          onPress={() => router.push('/support-chat')}
+        >
+          <View style={styles.supportIcon}>
+            <MaterialCommunityIcons name="headset" size={22} color="#10B981" />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.supportTitle}>
+              {isRTL ? 'تواصل مع فريق الدعم' : 'Contact the support team'}
+            </Text>
+            <Text style={styles.supportSub}>
+              {isRTL
+                ? 'واجهت مشكلة في طلب أو تحتاج مساعدة؟ راسلنا مباشرة.'
+                : 'Hit a problem with a job or need help? Message us directly.'}
+            </Text>
+          </View>
+          <RTLMaterialIcon name="chevron-right" size={20} color={COLORS.textSecondary} />
+        </TouchableOpacity>
+
         {/* Recent jobs */}
         <Text style={styles.sectionTitle}>{isRTL ? 'آخر المهام' : 'Recent jobs'}</Text>
         {recentJobs.length === 0 ? (
@@ -396,6 +419,35 @@ const makeStyles = (C: any, isRTL: boolean) =>
       flexDirection: isRTL ? 'row-reverse' : 'row',
       gap: 12,
       paddingHorizontal: SPACING.m,
+    },
+    supportCard: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
+      gap: 12,
+      marginHorizontal: SPACING.m,
+      backgroundColor: C.card,
+      borderRadius: BORDER_RADIUS.md,
+      padding: 14,
+    },
+    supportIcon: {
+      width: 44,
+      height: 44,
+      borderRadius: 12,
+      backgroundColor: '#10B98118',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    supportTitle: {
+      color: C.text,
+      fontSize: 14,
+      fontWeight: '800',
+      textAlign: isRTL ? 'right' : 'left',
+    },
+    supportSub: {
+      color: C.textSecondary,
+      fontSize: 12,
+      marginTop: 2,
+      textAlign: isRTL ? 'right' : 'left',
     },
     recentList: {
       marginHorizontal: SPACING.m,

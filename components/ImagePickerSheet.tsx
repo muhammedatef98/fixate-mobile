@@ -34,8 +34,11 @@ export default function ImagePickerSheet({
   const styles = createStyles(COLORS, isRTL);
 
   const choose = (source: 'camera' | 'gallery') => {
+    // Close the sheet first, then launch the native picker AFTER the modal
+    // dismiss animation finishes. Presenting the picker while this modal is
+    // still animating closed causes it to silently fail to appear (iOS).
     onClose();
-    onPick(source);
+    setTimeout(() => onPick(source), 350);
   };
 
   return (
