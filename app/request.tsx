@@ -292,9 +292,15 @@ export default function RequestScreen() {
     }
   }, [issueSearch, selectedDeviceType]);
 
-  // Auto-fetch location when the user lands on the location step (saves a tap)
+  // Auto-fetch location when the user lands on the location step (saves a
+  // tap). Skipped for drop-off / handoff — no customer location is needed.
   useEffect(() => {
-    if (currentStep === STEPS.length - 1 && !location && !isLocating) {
+    if (
+      currentStep === STEPS.length - 1 &&
+      selectedServiceType !== 'personal_handoff' &&
+      !location &&
+      !isLocating
+    ) {
       handleLocationRequest();
     }
   }, [currentStep]);
@@ -414,7 +420,10 @@ export default function RequestScreen() {
       Alert.alert(isRTL ? 'تنبيه' : 'Alert', isRTL ? 'الرجاء استكمال جميع الخطوات' : 'Please complete all steps');
       return;
     }
-    if (!location) {
+    // Drop-off / handoff: the customer brings the device to our service
+    // center, so no customer location is collected or required.
+    const isHandoff = selectedServiceType === 'personal_handoff';
+    if (!isHandoff && !location) {
       Alert.alert(isRTL ? 'تنبيه' : 'Alert', isRTL ? 'الرجاء تحديد الموقع' : 'Please select location');
       return;
     }
@@ -449,9 +458,11 @@ export default function RequestScreen() {
         // service_type semantics. See migration `2026_05_20_phase2_*`.
         fulfillment_type: selectedServiceType as 'mobile' | 'pickup' | 'personal_handoff',
         service_id: selectedIssue.id,
-        address: address || `${location.latitude.toFixed(5)}, ${location.longitude.toFixed(5)}`,
-        latitude: location.latitude,
-        longitude: location.longitude,
+        address: isHandoff
+          ? (isRTL ? 'تسليم باليد في مركز الخدمة' : 'Drop-off at the service center')
+          : (address || `${location.latitude.toFixed(5)}, ${location.longitude.toFixed(5)}`),
+        latitude: isHandoff ? null : location.latitude,
+        longitude: isHandoff ? null : location.longitude,
         notes: issueDescription || undefined,
         media_urls: mediaUrls,
         estimated_price: finalEstimate,
@@ -559,7 +570,11 @@ export default function RequestScreen() {
     if (currentStep === 3) return isOtherDevice ? !!otherDeviceModel.trim() : !!selectedModel;
     if (currentStep === 4) return !!selectedIssue;
     if (currentStep === 5) return true; // Details are optional
-    if (currentStep === 6) return !!location && selectedCityAvailable;
+    if (currentStep === 6) {
+      // Drop-off / handoff needs no location or delivery city.
+      if (selectedServiceType === 'personal_handoff') return true;
+      return !!location && selectedCityAvailable;
+    }
     if (currentStep === 7) return true; // payment step is illustrative only
     return false;
   };
@@ -996,7 +1011,24 @@ export default function RequestScreen() {
           </KeyboardAvoidingView>
         )}
 
-        {currentStep === 6 && (
+        {currentStep === 6 && selectedServiceType === 'personal_handoff' && (
+          <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 24 }} showsVerticalScrollIndicator={false}>
+            <Text style={styles.sectionTitle}>{isRTL ? 'تسليم الجهاز' : 'Drop off your device'}</Text>
+            <View style={styles.payNotice}>
+              <MaterialCommunityIcons name="information-outline" size={18} color={COLORS.primary} />
+              <Text style={styles.payNoticeText}>
+                {isRTL
+                  ? 'اخترت التسليم باليد، لذلك ستُحضر جهازك إلى مركز الخدمة. لا حاجة لتحديد موقعك على الخريطة.'
+                  : "You chose hand-delivery, so you'll bring your device to our service center — no map location is needed."}
+              </Text>
+            </View>
+            <View style={{ marginTop: 12 }}>
+              <ServiceCenterCard isRTL={isRTL} COLORS={COLORS} />
+            </View>
+          </ScrollView>
+        )}
+
+        {currentStep === 6 && selectedServiceType !== 'personal_handoff' && (
           <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 24 }} showsVerticalScrollIndicator={false}>
             <Text style={styles.sectionTitle}>{isRTL ? 'حدد موقعك' : 'Set Your Location'}</Text>
             <View style={[styles.mapContainer, { height: 280 }]}>
