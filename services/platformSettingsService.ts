@@ -59,6 +59,10 @@ export interface PlatformSettings {
   announcementAr: string;
   announcementEn: string;
   minAppVersion: string;
+  // External / push notifications master switch. Off by default — the app
+  // only sends in-app notifications until this is turned on (for a future
+  // App Store / Google Play launch).
+  pushNotificationsEnabled: boolean;
 }
 
 export const PLATFORM_SETTINGS_KEYS = {
@@ -82,6 +86,7 @@ export const PLATFORM_SETTINGS_KEYS = {
   announcementAr: 'announcement_ar',
   announcementEn: 'announcement_en',
   minAppVersion: 'min_app_version',
+  pushNotificationsEnabled: 'push_notifications_enabled',
 } as const;
 
 const boolFromValue = (raw: any, fallback: boolean): boolean => {
@@ -151,6 +156,7 @@ const DEFAULTS: PlatformSettings = {
   announcementAr: '',
   announcementEn: '',
   minAppVersion: '',
+  pushNotificationsEnabled: false,
 };
 
 const loadRaw = async (): Promise<Record<string, any>> => {
@@ -200,6 +206,7 @@ export const getPlatformSettings = async (): Promise<PlatformSettings> => {
     announcementAr: strFromValue(raw[PLATFORM_SETTINGS_KEYS.announcementAr], DEFAULTS.announcementAr),
     announcementEn: strFromValue(raw[PLATFORM_SETTINGS_KEYS.announcementEn], DEFAULTS.announcementEn),
     minAppVersion: strFromValue(raw[PLATFORM_SETTINGS_KEYS.minAppVersion], DEFAULTS.minAppVersion),
+    pushNotificationsEnabled: boolFromValue(raw[PLATFORM_SETTINGS_KEYS.pushNotificationsEnabled], DEFAULTS.pushNotificationsEnabled),
   };
 };
 

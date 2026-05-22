@@ -66,6 +66,7 @@ interface FormState {
   announcementAr: string;
   announcementEn: string;
   minAppVersion: string;
+  pushNotificationsEnabled: boolean;
 }
 
 const toForm = (s: PlatformSettings): FormState => ({
@@ -89,6 +90,7 @@ const toForm = (s: PlatformSettings): FormState => ({
   announcementAr: s.announcementAr,
   announcementEn: s.announcementEn,
   minAppVersion: s.minAppVersion,
+  pushNotificationsEnabled: s.pushNotificationsEnabled,
 });
 
 interface FieldErrors {
@@ -226,6 +228,7 @@ export default function AdminPlatformSettingsScreen() {
         { key: PLATFORM_SETTINGS_KEYS.announcementAr, value: form.announcementAr.trim() },
         { key: PLATFORM_SETTINGS_KEYS.announcementEn, value: form.announcementEn.trim() },
         { key: PLATFORM_SETTINGS_KEYS.minAppVersion, value: form.minAppVersion.trim() },
+        { key: PLATFORM_SETTINGS_KEYS.pushNotificationsEnabled, value: form.pushNotificationsEnabled },
       ]);
       Alert.alert(
         isRTL ? 'تم الحفظ ✓' : 'Saved ✓',
@@ -464,6 +467,15 @@ export default function AdminPlatformSettingsScreen() {
                 hint={isRTL ? 'يعرض شريطاً في أعلى التطبيق بالرسالة أدناه.' : 'Shows a banner at the top of the app.'}
                 value={form.announcementEnabled}
                 onChange={(v) => set({ announcementEnabled: v })}
+                COLORS={COLORS} isRTL={isRTL}
+              />
+              <SwitchRow
+                label={isRTL ? 'الإشعارات الخارجية (Push)' : 'External push notifications'}
+                hint={isRTL
+                  ? 'فعّلها عند الإطلاق على المتاجر. الإشعارات داخل التطبيق تعمل دائماً.'
+                  : 'Turn on for the App Store / Google Play launch. In-app notifications always work.'}
+                value={form.pushNotificationsEnabled}
+                onChange={(v) => set({ pushNotificationsEnabled: v })}
                 COLORS={COLORS} isRTL={isRTL}
               />
               <FieldMultiline
