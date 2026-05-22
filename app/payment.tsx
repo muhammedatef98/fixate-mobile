@@ -40,7 +40,7 @@ const methodAccent = (code: string, COLORS: any): string => {
 
 export default function PaymentScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ orderId?: string; amount?: string }>();
+  const params = useLocalSearchParams<{ orderId?: string; amount?: string; purpose?: string }>();
   const { language, isDark } = useApp();
   const COLORS = getColors(isDark);
   const SHADOWS = getShadows(isDark);
@@ -48,6 +48,9 @@ export default function PaymentScreen() {
 
   const orderId = params.orderId ?? '';
   const amount = params.amount ? Number(params.amount) : null;
+  // 'delivery_fee' — the customer rejected the repair quote and only owes
+  // the delivery/visit fee (inspection is free). Default 'repair'.
+  const isDeliveryFee = params.purpose === 'delivery_fee';
 
   const [methods, setMethods] = useState<PaymentMethod[] | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
@@ -74,15 +77,16 @@ export default function PaymentScreen() {
     setSubmitting(true);
     try {
       // COD settles on completion → payment_status stays 'unpaid'. Card /
-      // Apple Pay are recorded as 'paid' (no live gateway). Either way the
-      // order leaves the payment-ready state and continues as 'accepted'.
+      // Apple Pay are recorded as 'paid' (no live gateway). For a repair
+      // payment the order continues as 'accepted'; for a delivery-fee
+      // payment the order was already cancelled (quote rejected) and stays so.
       const isCod = method.code === 'cod';
       const { error } = await supabase
         .from('orders')
         .update({
           payment_method: method.code,
           payment_status: isCod ? 'unpaid' : 'paid',
-          status: 'accepted',
+          status: isDeliveryFee ? 'cancelled' : 'accepted',
           updated_at: new Date().toISOString(),
         })
         .eq('id', orderId);
@@ -90,13 +94,21 @@ export default function PaymentScreen() {
 
       Alert.alert(
         isRTL ? 'تم بنجاح ✓' : 'Done ✓',
-        isCod
-          ? isRTL
-            ? 'تم تأكيد طلبك. سيتم تحصيل المبلغ نقداً عند إتمام الإصلاح.'
-            : 'Your order is confirmed. The amount will be collected in cash on completion.'
-          : isRTL
-            ? 'تم تأكيد الدفع. سيتابع الفني الإصلاح الآن.'
-            : 'Payment confirmed. The technician will now proceed with the repair.',
+        isDeliveryFee
+          ? isCod
+            ? isRTL
+              ? 'تم تأكيد رسوم التوصيل وستُحصّل نقداً. تم إغلاق الطلب.'
+              : 'Delivery fee confirmed — it will be collected in cash. The request is closed.'
+            : isRTL
+              ? 'تم دفع رسوم التوصيل بنجاح. تم إغلاق الطلب.'
+              : 'Delivery fee paid successfully. The request is now closed.'
+          : isCod
+            ? isRTL
+              ? 'تم تأكيد طلبك. سيتم تحصيل المبلغ نقداً عند إتمام الإصلاح.'
+              : 'Your order is confirmed. The amount will be collected in cash on completion.'
+            : isRTL
+              ? 'تم تأكيد الدفع. سيتابع الفني الإصلاح الآن.'
+              : 'Payment confirmed. The technician will now proceed with the repair.',
         [{ text: 'OK', onPress: () => safeBack(`/order-details?id=${orderId}` as any) }]
       );
     } catch (e: any) {
@@ -127,10 +139,23 @@ export default function PaymentScreen() {
         {amount != null && amount > 0 && (
           <View style={[styles.amountCard, { backgroundColor: COLORS.primary + '12', borderColor: COLORS.primary + '30' }]}>
             <Text style={[styles.amountLabel, { color: COLORS.textSecondary }]}>
-              {isRTL ? 'المبلغ المطلوب' : 'Amount due'}
+              {isDeliveryFee
+                ? (isRTL ? 'رسوم التوصيل المستحقة' : 'Delivery fee due')
+                : (isRTL ? 'المبلغ المطلوب' : 'Amount due')}
             </Text>
             <Text style={[styles.amountValue, { color: COLORS.primary }]}>
               {amount.toLocaleString(isRTL ? 'ar-SA' : 'en-US')} {isRTL ? 'ر.س' : 'SAR'}
+            </Text>
+          </View>
+        )}
+
+        {isDeliveryFee && (
+          <View style={[styles.trustNote, { backgroundColor: COLORS.warning + '12', marginTop: 0, marginBottom: 18 }]}>
+            <Ionicons name="information-circle" size={18} color={COLORS.warning} />
+            <Text style={[styles.trustText, { color: COLORS.text }]}>
+              {isRTL
+                ? 'لقد رفضت عرض السعر. الفحص مجاني، وهذه رسوم التوصيل فقط.'
+                : 'You rejected the repair quote. Inspection is free — this is the delivery fee only.'}
             </Text>
           </View>
         )}
