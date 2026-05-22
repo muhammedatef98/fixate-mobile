@@ -8,51 +8,141 @@ import {
   TextInput,
   KeyboardAvoidingView,
   Platform,
-  I18nManager,
+  SafeAreaView,
+  StatusBar,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
-import { useTheme } from '../contexts/ThemeContext';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useApp } from '../contexts/AppContext';
+import { getColors, SPACING, BORDER_RADIUS } from '../constants/theme';
+import { RTLIonicon } from '../components/RTLIcon';
+import { safeBack } from '../utils/navigation';
 
 interface Message {
   id: string;
   text: string;
   isBot: boolean;
+  /** When set, the bubble shows a "talk to support" action. */
+  offerHandoff?: boolean;
   timestamp: Date;
 }
 
-const BOT_RESPONSES: Record<string, string> = {
-  hello: 'مرحباً! كيف يمكنني مساعدتك اليوم؟',
-  hi: 'أهلاً! أنا هنا للمساعدة.',
-  price: 'يمكنك استخدام حاسبة الأسعار للحصول على تقدير فوري. أسعارنا تبدأ من 100 ريال حسب نوع الصيانة.',
-  السعر: 'يمكنك استخدام حاسبة الأسعار للحصول على تقدير فوري. أسعارنا تبدأ من 100 ريال حسب نوع الصيانة.',
-  time: 'عادة ما تستغرق الصيانة من ساعة إلى 3 ساعات حسب نوع المشكلة.',
-  الوقت: 'عادة ما تستغرق الصيانة من ساعة إلى 3 ساعات حسب نوع المشكلة.',
-  location: 'نقدم خدماتنا في جميع أنحاء المملكة العربية السعودية.',
-  الموقع: 'نقدم خدماتنا في جميع أنحاء المملكة العربية السعودية.',
-  warranty: 'نقدم ضمان 3 أشهر على جميع أعمال الصيانة.',
-  الضمان: 'نقدم ضمان 3 أشهر على جميع أعمال الصيانة.',
-  payment: 'نقبل الدفع نقداً أو عن طريق البطاقات الائتمانية.',
-  الدفع: 'نقبل الدفع نقداً أو عن طريق البطاقات الائتمانية.',
-};
+/**
+ * Built-in knowledge base. Each entry is matched by keyword against free
+ * text, and also surfaced as a tappable quick question. Answers are kept
+ * short, plain and accurate to how the app actually works.
+ */
+interface Faq {
+  id: string;
+  q_ar: string;
+  q_en: string;
+  a_ar: string;
+  a_en: string;
+  keywords: string[];
+}
 
-const QUICK_REPLIES = [
-  { id: '1', text: 'كم السعر؟', key: 'السعر' },
-  { id: '2', text: 'كم يستغرق الوقت؟', key: 'الوقت' },
-  { id: '3', text: 'أين موقعكم؟', key: 'الموقع' },
-  { id: '4', text: 'ما هو الضمان؟', key: 'الضمان' },
+const FAQS: Faq[] = [
+  {
+    id: 'request',
+    q_ar: 'كيف أطلب صيانة؟',
+    q_en: 'How do I request a repair?',
+    a_ar: 'من الصفحة الرئيسية اضغط «اطلب صيانة جديدة»، اختر جهازك ونوع العطل وطريقة الخدمة، ثم أكمل الطلب. سيصلك فني معتمد لفحص الجهاز.',
+    a_en: 'On the home screen tap "Request a New Repair", choose your device, the issue and a service method, then submit. A verified technician will be assigned to inspect your device.',
+    keywords: ['request', 'repair', 'book', 'order', 'طلب', 'صيانة', 'احجز', 'اطلب'],
+  },
+  {
+    id: 'price',
+    q_ar: 'كيف يتم تحديد السعر؟',
+    q_en: 'How is the price decided?',
+    a_ar: 'الفحص مجاني. بعد فحص الفني لجهازك يرسل لك عرض سعر دقيق، وأنت تقرر قبوله أو رفضه قبل بدء أي إصلاح.',
+    a_en: 'Inspection is free. After the technician inspects your device they send an accurate quote — you accept or reject it before any repair starts.',
+    keywords: ['price', 'cost', 'quote', 'how much', 'سعر', 'تكلفة', 'كم', 'عرض'],
+  },
+  {
+    id: 'time',
+    q_ar: 'كم يستغرق الإصلاح؟',
+    q_en: 'How long does a repair take?',
+    a_ar: 'يعتمد على نوع العطل، لكن معظم الإصلاحات تكتمل خلال ساعة إلى ٣ ساعات بعد موافقتك على عرض السعر.',
+    a_en: 'It depends on the issue, but most repairs are completed within 1 to 3 hours after you approve the quote.',
+    keywords: ['time', 'long', 'duration', 'وقت', 'مدة', 'يستغرق', 'كم ساعة'],
+  },
+  {
+    id: 'warranty',
+    q_ar: 'ما هو الضمان؟',
+    q_en: 'What warranty do I get?',
+    a_ar: 'كل إصلاح يشمل ضمان ٦ أشهر على العمل والقطع المستبدلة.',
+    a_en: 'Every repair includes a 6-month warranty covering the work and any replaced parts.',
+    keywords: ['warranty', 'guarantee', 'ضمان', 'كفالة'],
+  },
+  {
+    id: 'payment',
+    q_ar: 'ما طرق الدفع المتاحة؟',
+    q_en: 'What payment methods are available?',
+    a_ar: 'يمكنك الدفع نقداً عند الإتمام أو بالبطاقة. يتم الدفع فقط بعد موافقتك على عرض السعر — لا تدفع شيئاً مقابل الفحص.',
+    a_en: 'You can pay cash on completion or by card. Payment happens only after you approve the quote — you pay nothing for the inspection.',
+    keywords: ['payment', 'pay', 'cash', 'card', 'دفع', 'نقد', 'بطاقة'],
+  },
+  {
+    id: 'area',
+    q_ar: 'ما المناطق المغطاة؟',
+    q_en: 'Which areas do you cover?',
+    a_ar: 'الخدمة متاحة حالياً في القطيف بالمنطقة الشرقية، ونعمل على توسيع التغطية قريباً.',
+    a_en: 'Service is currently available in Al Qatif, Eastern Province. We are expanding coverage soon.',
+    keywords: ['area', 'location', 'city', 'cover', 'qatif', 'منطقة', 'مدينة', 'موقع', 'القطيف', 'تغطية'],
+  },
+  {
+    id: 'pickup',
+    q_ar: 'هل يوجد استلام وتوصيل؟',
+    q_en: 'Do you offer pickup & delivery?',
+    a_ar: 'نعم. يمكنك اختيار استلام وتوصيل الجهاز، أو زيارة فني متنقل، أو تسليم الجهاز بنفسك في مركز الخدمة.',
+    a_en: 'Yes. You can choose pickup & delivery, an on-site technician visit, or drop the device off yourself at our service center.',
+    keywords: ['pickup', 'delivery', 'collect', 'استلام', 'توصيل', 'تسليم'],
+  },
+  {
+    id: 'track',
+    q_ar: 'كيف أتابع حالة طلبي؟',
+    q_en: 'How do I track my order?',
+    a_ar: 'افتح «طلباتي» من الصفحة الرئيسية لرؤية حالة كل طلب وتفاصيله لحظة بلحظة.',
+    a_en: 'Open "My Requests" from the home screen to see the live status and details of every order.',
+    keywords: ['track', 'status', 'my order', 'تتبع', 'حالة', 'طلباتي', 'متابعة'],
+  },
+  {
+    id: 'market',
+    q_ar: 'كيف أبيع جهازاً في السوق؟',
+    q_en: 'How do I sell a device in the marketplace?',
+    a_ar: 'افتح «السوق» ثم «إعلان جديد»، أضف الصور والتفاصيل والسعر. يظهر الإعلان بعد مراجعته من الفريق.',
+    a_en: 'Open "Marketplace", tap "New listing", add photos, details and a price. Your listing goes live after the team reviews it.',
+    keywords: ['sell', 'marketplace', 'listing', 'market', 'سوق', 'بيع', 'إعلان'],
+  },
+  {
+    id: 'technician',
+    q_ar: 'كيف أصبح فنياً معكم؟',
+    q_en: 'How do I become a technician?',
+    a_ar: 'سجّل كفني من شاشة اختيار الدور، أكمل بياناتك ووثائقك، وبعد اعتماد الفريق ستبدأ باستقبال الطلبات.',
+    a_en: 'Sign up as a technician from the role-selection screen, complete your details and documents, and once the team approves you, you can start receiving jobs.',
+    keywords: ['technician', 'join', 'work', 'apply', 'فني', 'انضمام', 'توظيف', 'اعمل'],
+  },
+];
+
+const HANDOFF_KEYWORDS = [
+  'human', 'agent', 'support', 'representative', 'person', 'help me',
+  'موظف', 'دعم', 'خدمة العملاء', 'شخص', 'مساعدة',
 ];
 
 export default function ChatbotScreen() {
   const router = useRouter();
-  const { colors } = useTheme();
-  const { language } = useApp();
+  const { language, isDark } = useApp();
+  const COLORS = getColors(isDark);
+  const isRTL = language === 'ar';
+  const styles = makeStyles(COLORS, isRTL);
   const scrollViewRef = useRef<ScrollView>(null);
+
   const [messages, setMessages] = useState<Message[]>([
     {
-      id: '1',
-      text: 'مرحباً! أنا مساعد Fixate الذكي. كيف يمكنني مساعدتك اليوم؟',
+      id: 'welcome',
+      text: isRTL
+        ? 'مرحباً! أنا مساعد Fixate الذكي. اسألني عن الأسعار، الضمان، التوصيل أو أي شيء آخر — أو اطلب التحدث مع فريق الدعم.'
+        : "Hi! I'm the Fixate assistant. Ask me about pricing, warranty, delivery or anything else — or ask to talk to our support team.",
       isBot: true,
       timestamp: new Date(),
     },
@@ -60,275 +150,288 @@ export default function ChatbotScreen() {
   const [inputText, setInputText] = useState('');
 
   useEffect(() => {
-    scrollToBottom();
+    const t = setTimeout(() => scrollViewRef.current?.scrollToEnd({ animated: true }), 120);
+    return () => clearTimeout(t);
   }, [messages]);
 
-  const scrollToBottom = () => {
-    setTimeout(() => {
-      scrollViewRef.current?.scrollToEnd({ animated: true });
-    }, 100);
+  const findAnswer = (raw: string): { text: string; offerHandoff: boolean } => {
+    const msg = raw.toLowerCase().trim();
+    if (HANDOFF_KEYWORDS.some((k) => msg.includes(k))) {
+      return {
+        text: isRTL
+          ? 'بالتأكيد — يمكنني تحويلك إلى فريق الدعم للرد عليك مباشرة.'
+          : 'Of course — I can connect you with our support team for direct help.',
+        offerHandoff: true,
+      };
+    }
+    const hit = FAQS.find((f) => f.keywords.some((k) => msg.includes(k.toLowerCase())));
+    if (hit) {
+      return { text: isRTL ? hit.a_ar : hit.a_en, offerHandoff: false };
+    }
+    return {
+      text: isRTL
+        ? 'لم أتمكن من فهم سؤالك تماماً. يمكنك إعادة صياغته، أو التحدث مباشرة مع فريق الدعم.'
+        : "I couldn't quite answer that. Try rephrasing, or talk directly with our support team.",
+      offerHandoff: true,
+    };
   };
 
-  const getBotResponse = (userMessage: string): string => {
-    const lowerMessage = userMessage.toLowerCase().trim();
-    
-    // Check for exact matches
-    for (const [key, response] of Object.entries(BOT_RESPONSES)) {
-      if (lowerMessage.includes(key)) {
-        return response;
-      }
-    }
-
-    // Default response
-    return 'شكراً على رسالتك. للمساعدة الفورية، يمكنك التواصل معنا على 0548940042 أو fixate01@gmail.com';
+  const pushBot = (text: string, offerHandoff: boolean) => {
+    setMessages((prev) => [
+      ...prev,
+      { id: `${Date.now()}-bot`, text, isBot: true, offerHandoff, timestamp: new Date() },
+    ]);
   };
 
   const sendMessage = (text: string) => {
-    if (!text.trim()) return;
-
-    // Add user message
-    const userMessage: Message = {
-      id: Date.now().toString(),
-      text: text.trim(),
-      isBot: false,
-      timestamp: new Date(),
-    };
-
-    setMessages(prev => [...prev, userMessage]);
+    const trimmed = text.trim();
+    if (!trimmed) return;
+    setMessages((prev) => [
+      ...prev,
+      { id: `${Date.now()}-user`, text: trimmed, isBot: false, timestamp: new Date() },
+    ]);
     setInputText('');
-
-    // Simulate bot typing and response
     setTimeout(() => {
-      const botResponse: Message = {
-        id: (Date.now() + 1).toString(),
-        text: getBotResponse(text),
-        isBot: true,
-        timestamp: new Date(),
-      };
-      setMessages(prev => [...prev, botResponse]);
-    }, 1000);
+      const { text: answer, offerHandoff } = findAnswer(trimmed);
+      pushBot(answer, offerHandoff);
+    }, 600);
   };
 
-  const handleQuickReply = (reply: typeof QUICK_REPLIES[0]) => {
-    sendMessage(reply.text);
-  };
+  const goToSupport = () => router.push('/support-chat');
+
+  const showQuickQuestions = messages.length <= 2;
 
   return (
-    <KeyboardAvoidingView
-      style={[styles.container, { backgroundColor: colors.background }]}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={0}
-    >
-      {/* Header */}
-      <View style={[styles.header, { backgroundColor: colors.primary }]}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="arrow-forward" size={24} color="#fff" />
-        </TouchableOpacity>
-        <View style={styles.headerInfo}>
-          <Text style={styles.headerTitle}>مساعد Fixate</Text>
-          <View style={styles.onlineIndicator}>
-            <View style={styles.onlineDot} />
-            <Text style={styles.onlineText}>متصل</Text>
-          </View>
-        </View>
-        <View style={{ width: 40 }} />
-      </View>
-
-      {/* Messages */}
-      <ScrollView
-        ref={scrollViewRef}
-        style={styles.messagesContainer}
-        contentContainerStyle={styles.messagesContent}
-        keyboardShouldPersistTaps="handled"
-        onContentSizeChange={() => scrollViewRef.current?.scrollToEnd({ animated: true })}
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="light-content" />
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        {messages.map((message) => (
-          <View
-            key={message.id}
-            style={[
-              styles.messageBubble,
-              message.isBot ? styles.botBubble : styles.userBubble,
-              { backgroundColor: message.isBot ? colors.surface : colors.primary },
-            ]}
-          >
-            <Text
-              style={[
-                styles.messageText,
-                { color: message.isBot ? colors.text : '#fff', textAlign: language === 'ar' ? 'right' : 'left', writingDirection: language === 'ar' ? 'rtl' : 'ltr' },
-              ]}
-            >
-              {message.text}
+        {/* Header */}
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => safeBack('/contact')} style={styles.headerBtn}>
+            <RTLIonicon name="arrow-back" size={24} color="#fff" />
+          </TouchableOpacity>
+          <View style={styles.headerInfo}>
+            <Text style={styles.headerTitle}>
+              {isRTL ? 'مساعد Fixate' : 'Fixate Assistant'}
             </Text>
-            <Text
-              style={[
-                styles.messageTime,
-                { color: message.isBot ? colors.textSecondary : '#fff', opacity: 0.7 },
-              ]}
-            >
-              {message.timestamp.toLocaleTimeString('ar', {
-                hour: '2-digit',
-                minute: '2-digit',
-              })}
-            </Text>
+            <View style={styles.onlineRow}>
+              <View style={styles.onlineDot} />
+              <Text style={styles.onlineText}>{isRTL ? 'متصل الآن' : 'Online now'}</Text>
+            </View>
           </View>
-        ))}
-      </ScrollView>
+          <TouchableOpacity onPress={goToSupport} style={styles.headerBtn} accessibilityLabel={isRTL ? 'الدعم' : 'Support'}>
+            <Ionicons name="headset" size={22} color="#fff" />
+          </TouchableOpacity>
+        </View>
 
-      {/* Quick Replies */}
-      {messages.length === 1 && (
+        {/* Messages */}
         <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.quickRepliesContainer}
-          contentContainerStyle={styles.quickRepliesContent}
+          ref={scrollViewRef}
+          style={styles.messages}
+          contentContainerStyle={{ padding: SPACING.md }}
+          keyboardShouldPersistTaps="handled"
         >
-          {QUICK_REPLIES.map((reply) => (
-            <TouchableOpacity
-              key={reply.id}
-              style={[styles.quickReply, { backgroundColor: colors.surface, borderColor: colors.border }]}
-              onPress={() => handleQuickReply(reply)}
-            >
-              <Text style={[styles.quickReplyText, { color: colors.text }]}>
-                {reply.text}
-              </Text>
-            </TouchableOpacity>
+          {messages.map((m) => (
+            <View key={m.id} style={{ width: '100%' }}>
+              <View
+                style={[
+                  styles.bubble,
+                  m.isBot ? styles.botBubble : styles.userBubble,
+                ]}
+              >
+                <Text style={[styles.bubbleText, { color: m.isBot ? COLORS.text : '#fff' }]}>
+                  {m.text}
+                </Text>
+              </View>
+              {m.offerHandoff && (
+                <TouchableOpacity style={styles.handoffBtn} onPress={goToSupport} activeOpacity={0.85}>
+                  <Ionicons name="headset" size={16} color="#fff" />
+                  <Text style={styles.handoffBtnText}>
+                    {isRTL ? 'التحدث مع فريق الدعم' : 'Talk to the support team'}
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
           ))}
-        </ScrollView>
-      )}
 
-      {/* Input */}
-      <View style={[styles.inputContainer, { backgroundColor: colors.surface, borderTopColor: colors.border }]}>
-        <TextInput
-          style={[styles.input, { color: colors.text, textAlign: language === 'ar' ? 'right' : 'left' }]}
-          placeholder="اكتب رسالتك..."
-          placeholderTextColor={colors.textSecondary}
-          value={inputText}
-          onChangeText={setInputText}
-          multiline
-          maxLength={500}
-        />
-        <TouchableOpacity
-          style={[styles.sendButton, { backgroundColor: colors.primary }]}
-          onPress={() => sendMessage(inputText)}
-          disabled={!inputText.trim()}
-        >
-          <Ionicons name="send" size={20} color="#fff" />
+          {/* Quick questions */}
+          {showQuickQuestions && (
+            <View style={styles.quickWrap}>
+              <Text style={styles.quickHint}>
+                {isRTL ? 'أسئلة شائعة:' : 'Common questions:'}
+              </Text>
+              {FAQS.map((f) => (
+                <TouchableOpacity
+                  key={f.id}
+                  style={styles.quickChip}
+                  onPress={() => sendMessage(isRTL ? f.q_ar : f.q_en)}
+                  activeOpacity={0.8}
+                >
+                  <MaterialCommunityIcons name="message-question-outline" size={16} color={COLORS.primary} />
+                  <Text style={styles.quickChipText}>{isRTL ? f.q_ar : f.q_en}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+        </ScrollView>
+
+        {/* Persistent transfer-to-support strip */}
+        <TouchableOpacity style={styles.supportStrip} onPress={goToSupport} activeOpacity={0.85}>
+          <Ionicons name="headset" size={16} color={COLORS.primary} />
+          <Text style={styles.supportStripText}>
+            {isRTL ? 'تحتاج مساعدة بشرية؟ تواصل مع الدعم' : 'Need a human? Contact support'}
+          </Text>
+          <RTLIonicon name="chevron-forward" size={16} color={COLORS.primary} />
         </TouchableOpacity>
-      </View>
-    </KeyboardAvoidingView>
+
+        {/* Input */}
+        <View style={styles.inputBar}>
+          <TextInput
+            style={styles.input}
+            placeholder={isRTL ? 'اكتب سؤالك…' : 'Type your question…'}
+            placeholderTextColor={COLORS.textSecondary}
+            value={inputText}
+            onChangeText={setInputText}
+            multiline
+            maxLength={500}
+          />
+          <TouchableOpacity
+            style={[styles.sendBtn, { opacity: inputText.trim() ? 1 : 0.5 }]}
+            onPress={() => sendMessage(inputText)}
+            disabled={!inputText.trim()}
+          >
+            <RTLIonicon name="send" size={18} color="#fff" />
+          </TouchableOpacity>
+        </View>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingTop: 50,
-    paddingBottom: 16,
-    paddingHorizontal: 20,
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerInfo: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#fff',
-    marginBottom: 4,
-  },
-  onlineIndicator: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  onlineDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#4ade80',
-    marginLeft: 6,
-  },
-  onlineText: {
-    fontSize: 12,
-    color: '#fff',
-    opacity: 0.9,
-  },
-  messagesContainer: {
-    flex: 1,
-  },
-  messagesContent: {
-    padding: 16,
-  },
-  messageBubble: {
-    maxWidth: '80%',
-    padding: 12,
-    borderRadius: 16,
-    marginBottom: 12,
-  },
-  botBubble: {
-    alignSelf: 'flex-start',
-    borderBottomLeftRadius: 4,
-  },
-  userBubble: {
-    alignSelf: 'flex-end',
-    borderBottomRightRadius: 4,
-  },
-  messageText: {
-    fontSize: 15,
-    lineHeight: 20,
-    marginBottom: 4,
-  },
-  messageTime: {
-    fontSize: 11,
-  },
-  quickRepliesContainer: {
-    maxHeight: 60,
-    marginBottom: 8,
-  },
-  quickRepliesContent: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-  },
-  quickReply: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 20,
-    borderWidth: 1,
-    marginLeft: 8,
-  },
-  quickReplyText: {
-    fontSize: 14,
-  },
-  inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    padding: 12,
-    paddingBottom: 34,
-    borderTopWidth: 1,
-  },
-  input: {
-    flex: 1,
-    maxHeight: 100,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    fontSize: 15,
-  },
-  sendButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 8,
-  },
-});
+const makeStyles = (C: any, isRTL: boolean) =>
+  StyleSheet.create({
+    container: { flex: 1, backgroundColor: C.background },
+    header: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
+      gap: 10,
+      backgroundColor: C.primary,
+      paddingHorizontal: SPACING.md,
+      paddingVertical: 14,
+    },
+    headerBtn: { width: 38, height: 38, alignItems: 'center', justifyContent: 'center' },
+    headerInfo: { flex: 1, alignItems: isRTL ? 'flex-end' : 'flex-start' },
+    headerTitle: { fontSize: 17, fontWeight: '800', color: '#fff' },
+    onlineRow: { flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 5, marginTop: 2 },
+    onlineDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: '#4ade80' },
+    onlineText: { fontSize: 11, color: '#ffffffcc' },
+    messages: { flex: 1 },
+    bubble: {
+      maxWidth: '82%',
+      padding: 12,
+      borderRadius: 16,
+      marginBottom: 8,
+    },
+    botBubble: {
+      alignSelf: isRTL ? 'flex-end' : 'flex-start',
+      backgroundColor: C.card,
+      borderBottomLeftRadius: isRTL ? 16 : 4,
+      borderBottomRightRadius: isRTL ? 4 : 16,
+    },
+    userBubble: {
+      alignSelf: isRTL ? 'flex-start' : 'flex-end',
+      backgroundColor: C.primary,
+      borderBottomRightRadius: isRTL ? 16 : 4,
+      borderBottomLeftRadius: isRTL ? 4 : 16,
+    },
+    bubbleText: { fontSize: 14, lineHeight: 21, textAlign: isRTL ? 'right' : 'left' },
+    handoffBtn: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignSelf: isRTL ? 'flex-end' : 'flex-start',
+      alignItems: 'center',
+      gap: 6,
+      backgroundColor: C.primary,
+      paddingHorizontal: 14,
+      paddingVertical: 9,
+      borderRadius: 999,
+      marginBottom: 12,
+    },
+    handoffBtnText: { color: '#fff', fontWeight: '800', fontSize: 12 },
+    quickWrap: { marginTop: 8, gap: 8 },
+    quickHint: {
+      fontSize: 12,
+      fontWeight: '700',
+      color: C.textSecondary,
+      textAlign: isRTL ? 'right' : 'left',
+      marginBottom: 2,
+    },
+    quickChip: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
+      gap: 8,
+      backgroundColor: C.card,
+      borderWidth: 1,
+      borderColor: C.border,
+      borderRadius: 12,
+      paddingHorizontal: 12,
+      paddingVertical: 11,
+    },
+    quickChipText: {
+      flex: 1,
+      fontSize: 13,
+      fontWeight: '600',
+      color: C.text,
+      textAlign: isRTL ? 'right' : 'left',
+    },
+    supportStrip: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
+      gap: 8,
+      backgroundColor: C.primary + '12',
+      paddingHorizontal: SPACING.md,
+      paddingVertical: 10,
+    },
+    supportStripText: {
+      flex: 1,
+      fontSize: 12,
+      fontWeight: '700',
+      color: C.primary,
+      textAlign: isRTL ? 'right' : 'left',
+    },
+    inputBar: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'flex-end',
+      gap: 8,
+      padding: 10,
+      paddingBottom: Platform.OS === 'ios' ? 24 : 12,
+      backgroundColor: C.card,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: C.border,
+    },
+    input: {
+      flex: 1,
+      maxHeight: 110,
+      minHeight: 44,
+      backgroundColor: C.background,
+      borderRadius: BORDER_RADIUS.md,
+      borderWidth: 1,
+      borderColor: C.border,
+      paddingHorizontal: 14,
+      paddingTop: 11,
+      paddingBottom: 11,
+      fontSize: 14,
+      color: C.text,
+      textAlign: isRTL ? 'right' : 'left',
+    },
+    sendBtn: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      backgroundColor: C.primary,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+  });

@@ -382,6 +382,28 @@ export default function CustomerHomeScreen() {
             ))}
           </View>
 
+          {/* AI assistant card — instant answers, can hand off to support */}
+          <TouchableOpacity
+            onPress={() => router.push('/chatbot')}
+            style={[styles.supportCard, { backgroundColor: COLORS.card, borderColor: COLORS.border, marginBottom: 12 }]}
+            activeOpacity={0.85}
+            accessibilityRole="button"
+            accessibilityLabel={isRTL ? 'مساعد Fixate الذكي' : 'Fixate AI assistant'}
+          >
+            <View style={[styles.supportIcon, { backgroundColor: COLORS.primary + '18' }]}>
+              <MaterialCommunityIcons name="robot-happy-outline" size={22} color={COLORS.primary} />
+            </View>
+            <View style={{ flex: 1, marginHorizontal: 12 }}>
+              <Text style={[styles.supportTitle, { color: COLORS.text }]}>
+                {isRTL ? 'مساعد Fixate الذكي' : 'Fixate AI Assistant'}
+              </Text>
+              <Text style={[styles.supportSub, { color: COLORS.textSecondary }]}>
+                {isRTL ? 'إجابات فورية لأسئلتك الشائعة' : 'Instant answers to common questions'}
+              </Text>
+            </View>
+            <RTLMaterialIcon name="chevron-right" size={20} color={COLORS.primary} />
+          </TouchableOpacity>
+
           {/* Support card */}
           <TouchableOpacity
             onPress={() => router.push('/support-chat')}
