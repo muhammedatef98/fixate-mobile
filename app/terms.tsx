@@ -20,6 +20,7 @@ export default function TermsScreen() {
   const { language, isDark } = useApp();
   const COLORS = getColors(isDark);
   const isRTL = language === 'ar';
+  const styles = makeStyles(isRTL);
 
   const termsAr = `
 # الشروط والأحكام
@@ -280,12 +281,12 @@ If you have any questions about these terms, please contact us:
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (isRTL: boolean) => StyleSheet.create({
   container: {
     flex: 1,
   },
   header: {
-    flexDirection: 'row',
+    flexDirection: isRTL ? 'row-reverse' : 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: SPACING.lg,

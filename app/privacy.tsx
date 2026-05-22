@@ -20,6 +20,7 @@ export default function PrivacyScreen() {
   const { language, isDark } = useApp();
   const COLORS = getColors(isDark);
   const isRTL = language === 'ar';
+  const styles = makeStyles(isRTL);
 
   const privacyAr = `
 # سياسة الخصوصية
@@ -296,12 +297,12 @@ For any privacy inquiries:
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (isRTL: boolean) => StyleSheet.create({
   container: {
     flex: 1,
   },
   header: {
-    flexDirection: 'row',
+    flexDirection: isRTL ? 'row-reverse' : 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: SPACING.lg,

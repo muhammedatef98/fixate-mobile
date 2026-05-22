@@ -31,6 +31,7 @@ export default function TechnicianDeleteAccountScreen() {
   const { language } = useApp();
   const { deleteAccount } = useAuth();
   const isRTL = language === 'ar';
+  const styles = makeStyles(isRTL);
 
   const [confirmText, setConfirmText] = useState('');
   const [loading, setLoading] = useState(false);
@@ -220,7 +221,7 @@ export default function TechnicianDeleteAccountScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (isRTL: boolean) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
@@ -320,7 +321,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.danger,
     borderRadius: 12,
     padding: 16,
-    flexDirection: 'row',
+    flexDirection: isRTL ? 'row-reverse' : 'row',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 12,
