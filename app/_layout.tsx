@@ -219,6 +219,7 @@ function RootLayoutContent() {
         <Stack.Screen name="admin-reports" options={{ headerShown: false }} />
         <Stack.Screen name="admin-order-detail" options={{ headerShown: false }} />
         <Stack.Screen name="admin-payment-gateway" options={{ headerShown: false }} />
+        <Stack.Screen name="admin-otp-provider" options={{ headerShown: false }} />
         <Stack.Screen name="payment" options={{ headerShown: false }} />
       </Stack>
     </View>

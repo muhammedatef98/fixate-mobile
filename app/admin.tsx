@@ -281,6 +281,13 @@ export default function AdminDashboardScreen() {
           onPress={() => router.push('/admin-payment-gateway' as any)}
           COLORS={COLORS} isRTL={isRTL}
         />
+        <ActionCard
+          icon="message-cog-outline" iconColor="#8b5cf6"
+          title={isRTL ? 'مزود رسائل OTP' : 'OTP / SMS provider'}
+          subtitle={isRTL ? 'تهيئة مزود رسائل التحقق ومفاتيحه' : 'Configure the verification SMS provider'}
+          onPress={() => router.push('/admin-otp-provider' as any)}
+          COLORS={COLORS} isRTL={isRTL}
+        />
       </ScrollView>
     </SafeAreaView>
   );
