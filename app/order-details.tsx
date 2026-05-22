@@ -267,7 +267,17 @@ export default function OrderDetailsScreen() {
   // forward and reduces the final quote/payment amount after acceptance.
   const discountAmount = Number((order as any).discount_amount ?? 0);
   const grossAmount = Number((order as any).final_price ?? order.estimated_price ?? 0);
-  const amountDue = Math.max(0, grossAmount - discountAmount);
+  // Accessories + protection add-ons the customer picked at request time —
+  // their value carries into the quotation and the final payable amount.
+  const orderAddons = [
+    ...(Array.isArray((order as any).accessories) ? (order as any).accessories : []),
+    ...(Array.isArray((order as any).protection_addons) ? (order as any).protection_addons : []),
+  ];
+  const addonsTotal = orderAddons.reduce(
+    (sum: number, a: any) => sum + Number(a?.price ?? 0),
+    0
+  );
+  const amountDue = Math.max(0, grossAmount - discountAmount + addonsTotal);
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: COLORS.background }]}>
@@ -433,14 +443,49 @@ export default function OrderDetailsScreen() {
                 ? 'قام الفني بفحص جهازك وحدد السعر النهائي التالي. وافق للمتابعة أو ارفض لإلغاء الطلب.'
                 : 'The technician inspected your device and set the final price below. Accept to continue or reject to cancel the request.'}
             </Text>
-            <View style={[styles.priceRow, { marginBottom: 8 }]}>
+            <View style={styles.priceRow}>
               <Text style={[styles.priceLabel, { color: COLORS.textSecondary }]}>
-                {isRTL ? 'السعر النهائي' : 'Final price'}
+                {isRTL ? 'سعر الإصلاح' : 'Repair price'}
               </Text>
-              <Text style={[styles.priceAmount, { color: '#F59E0B' }]}>
+              <Text style={[styles.priceAmount, { color: COLORS.text, fontSize: 16 }]}>
                 {(order as any).final_price} {isRTL ? 'ر.س' : 'SAR'}
               </Text>
             </View>
+            {discountAmount > 0 && (
+              <View style={styles.priceRow}>
+                <Text style={[styles.priceLabel, { color: COLORS.primary }]}>
+                  {isRTL ? 'الخصم' : 'Discount'}
+                </Text>
+                <Text style={[styles.priceAmount, { color: COLORS.primary, fontSize: 16 }]}>
+                  -{discountAmount} {isRTL ? 'ر.س' : 'SAR'}
+                </Text>
+              </View>
+            )}
+            {addonsTotal > 0 && (
+              <View style={styles.priceRow}>
+                <Text style={[styles.priceLabel, { color: COLORS.textSecondary }]}>
+                  {isRTL ? 'إكسسوارات وإضافات' : 'Accessories & add-ons'}
+                </Text>
+                <Text style={[styles.priceAmount, { color: COLORS.text, fontSize: 16 }]}>
+                  +{addonsTotal} {isRTL ? 'ر.س' : 'SAR'}
+                </Text>
+              </View>
+            )}
+            <View style={[styles.priceRow, { marginBottom: 8, marginTop: 4 }]}>
+              <Text style={[styles.priceLabel, { color: COLORS.text, fontWeight: '800' }]}>
+                {isRTL ? 'الإجمالي' : 'Total'}
+              </Text>
+              <Text style={[styles.priceAmount, { color: '#F59E0B' }]}>
+                {amountDue} {isRTL ? 'ر.س' : 'SAR'}
+              </Text>
+            </View>
+            {addonsTotal > 0 && (
+              <Text style={{ color: COLORS.textSecondary, fontSize: 12, marginBottom: 10, textAlign: isRTL ? 'right' : 'left' }}>
+                {isRTL
+                  ? 'يمكنك إزالة الإكسسوارات والإضافات في خطوة الدفع إذا رغبت.'
+                  : 'You can remove accessories & add-ons at the payment step if you wish.'}
+              </Text>
+            )}
             {!!(order as any).quote_notes && (
               <Text style={{ color: COLORS.textSecondary, fontSize: 13, marginBottom: 12, textAlign: isRTL ? 'right' : 'left', writingDirection: isRTL ? 'rtl' : 'ltr' }}>
                 {(order as any).quote_notes}
@@ -559,6 +604,16 @@ export default function OrderDetailsScreen() {
                     </Text>
                     <Text style={[styles.priceAmount, { color: COLORS.primary, fontSize: 16 }]}>
                       -{discountAmount} {isRTL ? 'ر.س' : 'SAR'}
+                    </Text>
+                  </View>
+                )}
+                {addonsTotal > 0 && (
+                  <View style={styles.priceRow}>
+                    <Text style={[styles.priceLabel, { color: COLORS.textSecondary }]}>
+                      {isRTL ? 'إكسسوارات وإضافات' : 'Accessories & add-ons'}
+                    </Text>
+                    <Text style={[styles.priceAmount, { color: COLORS.text, fontSize: 16 }]}>
+                      +{addonsTotal} {isRTL ? 'ر.س' : 'SAR'}
                     </Text>
                   </View>
                 )}
