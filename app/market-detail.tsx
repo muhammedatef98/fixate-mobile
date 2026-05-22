@@ -43,6 +43,21 @@ import {
 const { width: SCREEN_W } = Dimensions.get('window');
 const HERO_H = Math.round(SCREEN_W * 0.78);
 
+/**
+ * Compact, username-style display for a commenter. Avoids showing a long
+ * raw full name — uses the first name plus a last-name initial,
+ * e.g. "Mohamed Atef Hassan" -> "Mohamed A.".
+ */
+function shortUserName(raw: string | null | undefined, isRTL: boolean): string {
+  const name = (raw ?? '').trim();
+  if (!name) return isRTL ? 'مستخدم' : 'User';
+  const parts = name.split(/\s+/).filter(Boolean);
+  const first = parts[0];
+  if (parts.length === 1) return first;
+  const lastInitial = parts[parts.length - 1].charAt(0).toUpperCase();
+  return lastInitial ? `${first} ${lastInitial}.` : first;
+}
+
 function timeAgo(iso: string | undefined, isRTL: boolean): string {
   if (!iso) return '';
   const diff = Math.max(0, Date.now() - new Date(iso).getTime());
@@ -491,7 +506,7 @@ export default function MarketDetailScreen() {
                             <View style={{ flex: 1 }}>
                               <View style={styles.commentTopRow}>
                                 <Text style={styles.commentAuthor}>
-                                  {c.author_name || (isRTL ? 'مستخدم' : 'User')}
+                                  {shortUserName(c.author_name, isRTL)}
                                 </Text>
                                 <Text style={styles.commentAgo}>{timeAgo(c.created_at, isRTL)}</Text>
                               </View>
@@ -518,7 +533,7 @@ export default function MarketDetailScreen() {
                               <View style={{ flex: 1 }}>
                                 <View style={styles.commentTopRow}>
                                   <Text style={styles.commentAuthor}>
-                                    {r.author_name || (isRTL ? 'مستخدم' : 'User')}
+                                    {shortUserName(r.author_name, isRTL)}
                                   </Text>
                                   <Text style={styles.commentAgo}>{timeAgo(r.created_at, isRTL)}</Text>
                                 </View>
@@ -539,7 +554,7 @@ export default function MarketDetailScreen() {
             {replyTo && (
               <View style={styles.replyBanner}>
                 <Text style={[styles.replyBannerText, { color: COLORS.textSecondary }]} numberOfLines={1}>
-                  {isRTL ? 'رد على' : 'Replying to'} {replyTo.author_name ?? ''}
+                  {isRTL ? 'رد على' : 'Replying to'} {shortUserName(replyTo.author_name, isRTL)}
                 </Text>
                 <TouchableOpacity onPress={() => setReplyTo(null)}>
                   <Ionicons name="close" size={16} color={COLORS.textSecondary} />

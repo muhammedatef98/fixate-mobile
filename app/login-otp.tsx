@@ -26,6 +26,7 @@ import {
   OTP_TTL_SECONDS,
   RESEND_COOLDOWN_SECONDS,
 } from '../services/phoneOtpService';
+import { supabase } from '../services/supabaseClient';
 
 // Phone-only OTP login/registration. The same screen handles both cases —
 // the verify edge function will create the auth user on first sign-in. We
@@ -39,7 +40,10 @@ export default function LoginOtpScreen() {
 
   const [phone, setPhone] = useState('');
   const [code, setCode] = useState('');
-  const [step, setStep] = useState<'phone' | 'otp'>('phone');
+  // 'name' — shown only to first-time customers who have no name yet, so
+  // onboarding stays: phone -> OTP -> name -> into the app.
+  const [step, setStep] = useState<'phone' | 'otp' | 'name'>('phone');
+  const [name, setName] = useState('');
   const [loading, setLoading] = useState(false);
   // Resend cooldown (server-enforced ~30s) AND code expiry (5 min) tracked
   // as two separate countdowns so the UI can show both: when resend unlocks
@@ -114,6 +118,50 @@ export default function LoginOtpScreen() {
     try {
       await verifyPhoneOtp(phone, code, language);
       success();
+      // First-time customers have no name yet — collect just the name
+      // before entering the app. Returning users skip straight through.
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const { data: profile } = await supabase
+            .from('users')
+            .select('name')
+            .eq('id', user.id)
+            .maybeSingle();
+          const existingName = ((profile as any)?.name ?? '').trim();
+          if (!existingName) {
+            setStep('name');
+            setLoading(false);
+            return;
+          }
+        }
+      } catch {
+        // If the profile check fails, fall through and let the user in.
+      }
+      router.replace('/(customer)');
+    } catch (e: any) {
+      Alert.alert(isRTL ? 'خطأ' : 'Error', e?.message ?? String(e));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const saveName = async () => {
+    const trimmed = name.trim();
+    if (trimmed.length < 2) {
+      Alert.alert(
+        isRTL ? 'خطأ' : 'Error',
+        isRTL ? 'الرجاء إدخال اسمك' : 'Please enter your name'
+      );
+      return;
+    }
+    setLoading(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        await supabase.from('users').update({ name: trimmed }).eq('id', user.id);
+      }
+      success();
       router.replace('/(customer)');
     } catch (e: any) {
       Alert.alert(isRTL ? 'خطأ' : 'Error', e?.message ?? String(e));
@@ -135,24 +183,33 @@ export default function LoginOtpScreen() {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
       <View style={styles.header}>
-        <TouchableOpacity
-          onPress={() => {
-            if (step === 'otp') {
-              setStep('phone');
-            } else if (router.canGoBack()) {
-              router.back();
-            } else {
-              // login-otp is often reached via router.replace (role-selection,
-              // legacy /login redirect), so there is no history to pop.
-              router.replace('/role-selection');
-            }
-          }}
-          accessibilityRole="button"
-          accessibilityLabel={isRTL ? 'رجوع' : 'Back'}
-        >
-          <RTLIonicon name="chevron-back" size={26} color={COLORS.text} />
-        </TouchableOpacity>
-        <Text style={styles.title}>{isRTL ? 'دخول بكود' : 'Sign in with code'}</Text>
+        {step === 'name' ? (
+          // Account already verified — no backing out of the name step.
+          <View style={{ width: 26 }} />
+        ) : (
+          <TouchableOpacity
+            onPress={() => {
+              if (step === 'otp') {
+                setStep('phone');
+              } else if (router.canGoBack()) {
+                router.back();
+              } else {
+                // login-otp is often reached via router.replace (role-selection,
+                // legacy /login redirect), so there is no history to pop.
+                router.replace('/role-selection');
+              }
+            }}
+            accessibilityRole="button"
+            accessibilityLabel={isRTL ? 'رجوع' : 'Back'}
+          >
+            <RTLIonicon name="chevron-back" size={26} color={COLORS.text} />
+          </TouchableOpacity>
+        )}
+        <Text style={styles.title}>
+          {step === 'name'
+            ? (isRTL ? 'إكمال الحساب' : 'Complete your account')
+            : (isRTL ? 'دخول بكود' : 'Sign in with code')}
+        </Text>
         <View style={{ width: 26 }} />
       </View>
 
@@ -208,7 +265,7 @@ export default function LoginOtpScreen() {
                   : 'By continuing you agree to the Terms and Privacy Policy.'}
               </Text>
             </>
-          ) : (
+          ) : step === 'otp' ? (
             <>
               <Text style={styles.bigTitle}>{isRTL ? 'أدخل كود التحقّق' : 'Enter verification code'}</Text>
               <Text style={styles.sub}>
@@ -253,6 +310,46 @@ export default function LoginOtpScreen() {
                   </Text>
                 </TouchableOpacity>
               )}
+            </>
+          ) : (
+            <>
+              <View style={{ alignItems: 'center', marginBottom: 16 }}>
+                <View style={styles.iconBubble}>
+                  <Ionicons name="person-outline" size={32} color={COLORS.primary} />
+                </View>
+              </View>
+              <Text style={styles.bigTitle}>
+                {isRTL ? 'ما اسمك؟' : "What's your name?"}
+              </Text>
+              <Text style={styles.sub}>
+                {isRTL
+                  ? 'خطوة أخيرة لإكمال حسابك'
+                  : 'One last step to set up your account'}
+              </Text>
+              <View style={[styles.phoneRow, { borderColor: COLORS.border }]}>
+                <TextInput
+                  value={name}
+                  onChangeText={setName}
+                  placeholder={isRTL ? 'الاسم الكامل' : 'Full name'}
+                  placeholderTextColor={COLORS.textSecondary}
+                  autoCapitalize="words"
+                  style={[styles.phoneInput, { color: COLORS.text, paddingHorizontal: 14 }]}
+                  textAlign={isRTL ? 'right' : 'left'}
+                  autoFocus
+                  maxLength={60}
+                />
+              </View>
+              <TouchableOpacity
+                onPress={saveName}
+                disabled={name.trim().length < 2 || loading}
+                style={[styles.btn, { backgroundColor: COLORS.primary, opacity: name.trim().length < 2 || loading ? 0.5 : 1 }]}
+                accessibilityRole="button"
+                accessibilityLabel={isRTL ? 'متابعة' : 'Continue'}
+              >
+                {loading ? <ActivityIndicator color="#fff" /> : (
+                  <Text style={styles.btnText}>{isRTL ? 'متابعة' : 'Continue'}</Text>
+                )}
+              </TouchableOpacity>
             </>
           )}
         </View>
