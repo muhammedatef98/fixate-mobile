@@ -33,6 +33,8 @@ export default function EarningsScreen() {
   const [orders, setOrders] = useState<any[]>([]);
   const { user } = useAuth();
   const isRTL = language === 'ar';
+  const styles = makeStyles(isRTL);
+  const localStyles = makeLocalStyles(isRTL);
   // Wallet state — balance from DB view, recent ledger entries, and
   // whether the backend layer is still pending (UI degrades gracefully).
   const [wallet, setWallet] = useState<{ balance: number; pendingBackend: boolean }>({ balance: 0, pendingBackend: true });
@@ -320,7 +322,7 @@ export default function EarningsScreen() {
   );
 }
 
-const localStyles = StyleSheet.create({
+const makeLocalStyles = (isRTL: boolean) => StyleSheet.create({
   walletCard: {
     margin: SPACING.lg,
     marginBottom: 0,
@@ -332,7 +334,7 @@ const localStyles = StyleSheet.create({
   walletLabel: { fontSize: 13, fontWeight: '600' },
   walletAmount: { fontSize: 28, fontWeight: '800', marginTop: 4 },
   walletBtn: {
-    flexDirection: 'row',
+    flexDirection: isRTL ? 'row-reverse' : 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
@@ -343,12 +345,12 @@ const localStyles = StyleSheet.create({
   walletNote: { fontSize: 11, lineHeight: 16, marginTop: 2, textAlign: 'center' },
 });
 
-const styles = StyleSheet.create({
+const makeStyles = (isRTL: boolean) => StyleSheet.create({
   container: {
     flex: 1,
   },
   header: {
-    flexDirection: 'row',
+    flexDirection: isRTL ? 'row-reverse' : 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: SPACING.lg,
@@ -378,7 +380,7 @@ const styles = StyleSheet.create({
     marginTop: SPACING.xs,
   },
   totalStats: {
-    flexDirection: 'row',
+    flexDirection: isRTL ? 'row-reverse' : 'row',
     marginTop: SPACING.xl,
     gap: SPACING.xl,
   },
@@ -402,7 +404,7 @@ const styles = StyleSheet.create({
     opacity: 0.3,
   },
   tabs: {
-    flexDirection: 'row',
+    flexDirection: isRTL ? 'row-reverse' : 'row',
     paddingHorizontal: SPACING.lg,
     gap: SPACING.sm,
     marginBottom: SPACING.xl,
@@ -420,7 +422,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   statsGrid: {
-    flexDirection: 'row',
+    flexDirection: isRTL ? 'row-reverse' : 'row',
     paddingHorizontal: SPACING.lg,
     gap: SPACING.md,
     marginBottom: SPACING.xl,
@@ -455,7 +457,7 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.md,
   },
   earningHeader: {
-    flexDirection: 'row',
+    flexDirection: isRTL ? 'row-reverse' : 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },

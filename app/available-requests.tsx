@@ -11,6 +11,7 @@ import {
 import { requests as requestsApi, auth } from '../lib/supabase-api';
 import { router } from 'expo-router';
 import { logger } from '../utils/logger';
+import { useApp } from '../contexts/AppContext';
 
 interface Request {
   id: string;
@@ -30,6 +31,9 @@ interface Request {
 }
 
 export default function AvailableRequestsScreen() {
+  const { language } = useApp();
+  const isRTL = language === 'ar';
+  const styles = makeStyles(isRTL);
   const [requests, setRequests] = useState<Request[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -151,7 +155,7 @@ export default function AvailableRequestsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (isRTL: boolean) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f5f5f5',
@@ -188,7 +192,7 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   requestHeader: {
-    flexDirection: 'row',
+    flexDirection: isRTL ? 'row-reverse' : 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 10,

@@ -30,6 +30,7 @@ export default function ChatScreen() {
   const { language, isDark } = useApp();
   const COLORS = getColors(isDark);
   const isRTL = language === 'ar';
+  const styles = makeStyles(isRTL);
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
@@ -208,7 +209,7 @@ export default function ChatScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (isRTL: boolean) => StyleSheet.create({
   container: {
     flex: 1,
   },
@@ -218,7 +219,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   header: {
-    flexDirection: 'row',
+    flexDirection: isRTL ? 'row-reverse' : 'row',
     alignItems: 'center',
     padding: SPACING.m,
     borderBottomWidth: 1,
@@ -227,14 +228,15 @@ const styles = StyleSheet.create({
     padding: SPACING.s,
   },
   headerInfo: {
-    marginLeft: SPACING.m,
+    marginLeft: isRTL ? 0 : SPACING.m,
+    marginRight: isRTL ? SPACING.m : 0,
   },
   headerTitle: {
     fontSize: 18,
     fontWeight: 'bold',
   },
   onlineStatus: {
-    flexDirection: 'row',
+    flexDirection: isRTL ? 'row-reverse' : 'row',
     alignItems: 'center',
     marginTop: 2,
   },
@@ -243,7 +245,8 @@ const styles = StyleSheet.create({
     height: 8,
     borderRadius: 4,
     backgroundColor: '#10B981',
-    marginRight: 4,
+    marginRight: isRTL ? 0 : 4,
+    marginLeft: isRTL ? 4 : 0,
   },
   onlineText: {
     fontSize: 12,
@@ -277,10 +280,11 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-end',
   },
   inputContainer: {
-    flexDirection: 'row',
+    flexDirection: isRTL ? 'row-reverse' : 'row',
     alignItems: 'center',
     padding: SPACING.m,
     borderTopWidth: 1,
+    gap: SPACING.m,
   },
   input: {
     flex: 1,
@@ -288,7 +292,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.l,
     paddingVertical: SPACING.s,
     maxHeight: 100,
-    marginRight: SPACING.m,
   },
   sendButton: {
     width: 44,

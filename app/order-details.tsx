@@ -63,6 +63,8 @@ export default function OrderDetailsScreen() {
   const [respondingQuote, setRespondingQuote] = useState(false);
   const [feePreview, setFeePreview] = useState<{ total: number; inspection: number; return: number } | null>(null);
 
+  const styles = makeStyles(isRTL);
+
   useEffect(() => {
     if (!order) return;
     (async () => {
@@ -640,7 +642,7 @@ export default function OrderDetailsScreen() {
           {order.technician_id && order.status !== 'pending' && order.status !== 'completed' && order.status !== 'cancelled' && (
             <View style={styles.buttonRow}>
               <TouchableOpacity
-                style={[styles.actionButton, { backgroundColor: COLORS.primary, flex: 1, marginRight: 8 }, SHADOWS.small]}
+                style={[styles.actionButton, { backgroundColor: COLORS.primary, flex: 1 }, SHADOWS.small]}
                 onPress={() => router.push({
                   pathname: `/chat/${order.id}`,
                   params: { otherUserName: isRTL ? 'الفني' : 'Technician' }
@@ -772,14 +774,14 @@ export default function OrderDetailsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (isRTL: boolean) => StyleSheet.create({
   container: { flex: 1 },
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   errorContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   errorText: { fontSize: 16, marginTop: 16 },
 
   header: {
-    flexDirection: 'row',
+    flexDirection: isRTL ? 'row-reverse' : 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
     height: 56,
@@ -811,7 +813,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   orderIdRow: {
-    flexDirection: 'row',
+    flexDirection: isRTL ? 'row-reverse' : 'row',
     alignItems: 'center',
     gap: 8,
   },
@@ -819,12 +821,12 @@ const styles = StyleSheet.create({
   orderId: { fontSize: 16, fontWeight: 'bold' },
 
   statusBadge: {
-    flexDirection: 'row',
+    flexDirection: isRTL ? 'row-reverse' : 'row',
     alignItems: 'center',
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 12,
-    alignSelf: 'flex-start',
+    alignSelf: isRTL ? 'flex-end' : 'flex-start',
     gap: 8,
   },
   statusDot: { width: 8, height: 8, borderRadius: 4 },
@@ -837,7 +839,7 @@ const styles = StyleSheet.create({
     borderRadius: BORDER_RADIUS.md,
   },
   timelineContainer: {
-    flexDirection: 'row',
+    flexDirection: isRTL ? 'row-reverse' : 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
@@ -866,31 +868,31 @@ const styles = StyleSheet.create({
   },
 
   cardHeader: {
-    flexDirection: 'row',
+    flexDirection: isRTL ? 'row-reverse' : 'row',
     alignItems: 'center',
     gap: 12,
     marginBottom: 16,
   },
-  cardTitle: { fontSize: 18, fontWeight: '700', flex: 1 },
+  cardTitle: { fontSize: 18, fontWeight: '700', flex: 1, textAlign: isRTL ? 'right' : 'left' },
 
   deviceInfo: { gap: 12 },
   infoRow: {
-    flexDirection: 'row',
+    flexDirection: isRTL ? 'row-reverse' : 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  infoLabel: { fontSize: 13, fontWeight: '500' },
-  infoValue: { fontSize: 14, fontWeight: '600', textAlign: 'right' },
+  infoLabel: { fontSize: 13, fontWeight: '500', textAlign: isRTL ? 'right' : 'left' },
+  infoValue: { fontSize: 14, fontWeight: '600', textAlign: isRTL ? 'left' : 'right' },
 
   divider: { height: 1 },
 
   priceContainer: { gap: 8 },
   priceRow: {
-    flexDirection: 'row',
+    flexDirection: isRTL ? 'row-reverse' : 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  priceLabel: { fontSize: 14, fontWeight: '500' },
+  priceLabel: { fontSize: 14, fontWeight: '500', textAlign: isRTL ? 'right' : 'left' },
   priceAmount: { fontSize: 20, fontWeight: 'bold' },
 
   actionContainer: {
@@ -899,13 +901,14 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   buttonRow: {
-    flexDirection: 'row',
+    flexDirection: isRTL ? 'row-reverse' : 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    gap: 8,
   },
   actionButton: {
     flex: 1,
-    flexDirection: 'row',
+    flexDirection: isRTL ? 'row-reverse' : 'row',
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: 48,

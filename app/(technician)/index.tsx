@@ -41,9 +41,6 @@ export default function TechnicianHomeScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState<'available' | 'my-orders'>('available');
-  const [selectedOrder, setSelectedOrder] = useState<orderService.Order | null>(null);
-  const [showOrderModal, setShowOrderModal] = useState(false);
-  const [accepting, setAccepting] = useState(false);
   // Overall technician availability for repair work — separate from
   // per-service availability. Backed by technicians.is_available; degrades
   // gracefully (local-only) if the column/row isn't ready yet.
@@ -122,43 +119,6 @@ export default function TechnicianHomeScreen() {
     setRefreshing(false);
   };
 
-  const handleAcceptOrder = async (orderId: string) => {
-    if (!user) {
-      Alert.alert(
-        isRTL ? 'خطأ' : 'Error',
-        isRTL ? 'يجب تسجيل الدخول أولاً' : 'Please login first'
-      );
-      return;
-    }
-
-    try {
-      setAccepting(true);
-      await orderService.assignOrderToTechnician(orderId, user.id);
-      await orderService.updateOrderStatus(orderId, 'accepted');
-      
-      setShowOrderModal(false);
-      setSelectedOrder(null);
-      
-      Alert.alert(
-        isRTL ? 'نجح!' : 'Success!',
-        isRTL ? 'تم قبول الطلب بنجاح' : 'Order accepted successfully'
-      );
-      
-      await loadOrders();
-      
-      // Navigate to order details
-      router.push(`/(technician)/manage-order?id=${orderId}`);
-    } catch (error) {
-      logger.error('Error accepting order:', error);
-      Alert.alert(
-        isRTL ? 'خطأ' : 'Error',
-        isRTL ? 'فشل قبول الطلب' : 'Failed to accept order'
-      );
-    } finally {
-      setAccepting(false);
-    }
-  };
-
   const getStatusColor = (status: string) => {
     const colors: { [key: string]: string } = {
       pending: '#F59E0B',
@@ -193,15 +153,9 @@ export default function TechnicianHomeScreen() {
     <TouchableOpacity
       key={order.id}
       style={[styles.orderCard, SHADOWS.neuFlat]}
-      onPress={() => {
-        if (isAvailable) {
-          // Show order details modal before accepting
-          setSelectedOrder(order);
-          setShowOrderModal(true);
-        } else {
-          router.push(`/(technician)/manage-order?id=${order.id}`);
-        }
-      }}
+      // Always open the full details screen — the technician reviews every
+      // request detail there and accepts from inside it.
+      onPress={() => router.push(`/(technician)/manage-order?id=${order.id}`)}
       activeOpacity={0.7}
     >
       <View style={styles.orderHeader}>
@@ -270,13 +224,13 @@ export default function TechnicianHomeScreen() {
       {isAvailable && (
         <TouchableOpacity
           style={[styles.acceptButton, { backgroundColor: COLORS.primary }]}
-          onPress={() => handleAcceptOrder(order.id)}
+          onPress={() => router.push(`/(technician)/manage-order?id=${order.id}`)}
           activeOpacity={0.8}
         >
+          <Ionicons name="document-text-outline" size={20} color="#fff" />
           <Text style={styles.acceptButtonText}>
-            {isRTL ? 'قبول الطلب' : 'Accept Order'}
+            {isRTL ? 'عرض التفاصيل والقبول' : 'View Details & Accept'}
           </Text>
-          <Ionicons name="checkmark-circle" size={20} color="#fff" />
         </TouchableOpacity>
       )}
     </TouchableOpacity>
@@ -538,197 +492,6 @@ export default function TechnicianHomeScreen() {
           </ScrollView>
         )}
       </Animated.View>
-
-      {/* Order Details Modal */}
-      <Modal
-        visible={showOrderModal}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={() => {
-          setShowOrderModal(false);
-          setSelectedOrder(null);
-        }}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor: COLORS.card }]}>
-            {/* Modal Header */}
-            <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: COLORS.text }]}>
-                {isRTL ? 'تفاصيل الطلب' : 'Order Details'}
-              </Text>
-              <TouchableOpacity
-                onPress={() => {
-                  setShowOrderModal(false);
-                  setSelectedOrder(null);
-                }}
-                style={styles.closeButton}
-              >
-                <MaterialCommunityIcons name="close" size={24} color={COLORS.text} />
-              </TouchableOpacity>
-            </View>
-
-            {/* Modal Body */}
-            <ScrollView 
-              style={styles.modalBody}
-              showsVerticalScrollIndicator={false}
-            >
-              {selectedOrder && (
-                <>
-                  {/* Device Info */}
-                  <View style={[styles.modalSection, { backgroundColor: COLORS.background }]}>
-                    <View style={styles.deviceHeader}>
-                      <View style={[styles.deviceIconLarge, { backgroundColor: COLORS.primary + '15' }]}>
-                        <MaterialCommunityIcons 
-                          name={selectedOrder.device_brand?.toLowerCase().includes('ipad') || selectedOrder.device_brand?.toLowerCase().includes('tablet') ? 'tablet' : 
-                                selectedOrder.device_brand?.toLowerCase().includes('watch') ? 'watch' : 'cellphone'} 
-                          size={40} 
-                          color={COLORS.primary} 
-                        />
-                      </View>
-                      <View style={styles.deviceHeaderInfo}>
-                        <Text style={[styles.deviceBrand, { color: COLORS.text }]}>
-                          {selectedOrder.device_brand}
-                        </Text>
-                        <Text style={[styles.deviceModel, { color: COLORS.textSecondary }]}>
-                          {selectedOrder.device_model}
-                        </Text>
-                      </View>
-                    </View>
-                  </View>
-
-                  {/* Issue Description */}
-                  <View style={styles.modalSection}>
-                    <View style={styles.sectionHeader}>
-                      <MaterialCommunityIcons name="alert-circle-outline" size={20} color={COLORS.primary} />
-                      <Text style={[styles.sectionTitle, { color: COLORS.text }]}>
-                        {isRTL ? 'وصف المشكلة' : 'Issue Description'}
-                      </Text>
-                    </View>
-                    <Text style={[styles.issueDescription, { color: COLORS.textSecondary }]}>
-                      {selectedOrder.issue_description || (isRTL ? 'لا يوجد وصف' : 'No description')}
-                    </Text>
-                  </View>
-
-                  {/* Service Type */}
-                  {selectedOrder.service_type && (
-                    <View style={styles.modalSection}>
-                      <View style={styles.infoRowModal}>
-                        <MaterialCommunityIcons name="wrench" size={20} color={COLORS.textSecondary} />
-                        <Text style={[styles.infoLabelModal, { color: COLORS.textSecondary }]}>
-                          {isRTL ? 'نوع الخدمة:' : 'Service Type:'}
-                        </Text>
-                        <Text style={[styles.infoValueModal, { color: COLORS.text }]}>
-                          {selectedOrder.service_type === 'mobile' 
-                            ? (isRTL ? 'فني متنقل' : 'Mobile Service')
-                            : (isRTL ? 'استلام وتوصيل' : 'Pickup & Delivery')}
-                        </Text>
-                      </View>
-                    </View>
-                  )}
-
-                  {/* Address & Location */}
-                  {selectedOrder.address && (
-                    <View style={styles.modalSection}>
-                      <View style={styles.sectionHeader}>
-                        <Ionicons name="location" size={20} color={COLORS.primary} />
-                        <Text style={[styles.sectionTitle, { color: COLORS.text }]}>
-                          {isRTL ? 'موقع العميل' : 'Customer Location'}
-                        </Text>
-                      </View>
-                      <Text style={[styles.addressText, { color: COLORS.textSecondary }]}>
-                        {selectedOrder.address}
-                      </Text>
-                      {selectedOrder.latitude && selectedOrder.longitude && (
-                        <TouchableOpacity
-                          style={[styles.mapButton, { backgroundColor: COLORS.primary }]}
-                          onPress={() => {
-                            const url = `https://www.google.com/maps/search/?api=1&query=${selectedOrder.latitude},${selectedOrder.longitude}`;
-                            Linking.openURL(url).catch(err => {
-                              Alert.alert(
-                                isRTL ? 'خطأ' : 'Error',
-                                isRTL ? 'فشل فتح الخريطة' : 'Failed to open map'
-                              );
-                            });
-                          }}
-                        >
-                          <Ionicons name="map" size={18} color="#fff" />
-                          <Text style={styles.mapButtonText}>
-                            {isRTL ? 'فتح في خرائط جوجل' : 'Open in Google Maps'}
-                          </Text>
-                          <MaterialCommunityIcons name="open-in-new" size={16} color="#fff" />
-                        </TouchableOpacity>
-                      )}
-                    </View>
-                  )}
-
-                  {/* Date & Time */}
-                  <View style={styles.modalSection}>
-                    <View style={styles.infoRowModal}>
-                      <Ionicons name="time" size={20} color={COLORS.textSecondary} />
-                      <Text style={[styles.infoLabelModal, { color: COLORS.textSecondary }]}>
-                        {isRTL ? 'التاريخ:' : 'Date:'}
-                      </Text>
-                      <Text style={[styles.infoValueModal, { color: COLORS.text }]}>
-                        {new Date(selectedOrder.created_at || '').toLocaleDateString('en-US', {
-                          year: 'numeric',
-                          month: 'long',
-                          day: 'numeric',
-                          hour: '2-digit',
-                          minute: '2-digit'
-                        })}
-                      </Text>
-                    </View>
-                  </View>
-
-                  {/* Estimated Price */}
-                  <View style={[styles.modalSection, { backgroundColor: COLORS.primary + '10' }]}>
-                    <View style={styles.priceRow}>
-                      <Text style={[styles.priceLabel, { color: COLORS.text }]}>
-                        {isRTL ? 'السعر التقديري' : 'Estimated Price'}
-                      </Text>
-                      <Text style={[styles.priceAmount, { color: COLORS.primary }]}>
-                        {selectedOrder.estimated_price ? `${selectedOrder.estimated_price} ${isRTL ? 'ر.س' : 'SAR'}` : (isRTL ? 'غير محدد' : 'TBD')}
-                      </Text>
-                    </View>
-                  </View>
-                </>
-              )}
-            </ScrollView>
-
-            {/* Modal Footer */}
-            <View style={styles.modalFooter}>
-              <TouchableOpacity
-                style={[styles.cancelButton, { borderColor: COLORS.border }]}
-                onPress={() => {
-                  setShowOrderModal(false);
-                  setSelectedOrder(null);
-                }}
-                disabled={accepting}
-              >
-                <Text style={[styles.cancelButtonText, { color: COLORS.text }]}>
-                  {isRTL ? 'إلغاء' : 'Cancel'}
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.acceptButtonModal, { backgroundColor: COLORS.primary }]}
-                onPress={() => selectedOrder && handleAcceptOrder(selectedOrder.id)}
-                disabled={accepting}
-              >
-                {accepting ? (
-                  <ActivityIndicator size="small" color="#FFFFFF" />
-                ) : (
-                  <>
-                    <Text style={styles.acceptButtonTextModal}>
-                      {isRTL ? 'قبول الطلب' : 'Accept Order'}
-                    </Text>
-                    <Ionicons name="checkmark-circle" size={20} color="#fff" />
-                  </>
-                )}
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
 
     </SafeAreaView>
   );

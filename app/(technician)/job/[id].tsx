@@ -21,7 +21,8 @@ export default function ActiveJobScreen() {
   const router = useRouter();
   const { language } = useApp();
   const isRTL = language === 'ar';
-  
+  const styles = makeStyles(isRTL);
+
   const [status, setStatus] = useState('en_route'); // en_route, working, completed
   const [completedSteps, setCompletedSteps] = useState<string[]>([]);
   const [timer, setTimer] = useState(0);
@@ -277,7 +278,7 @@ export default function ActiveJobScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (isRTL: boolean) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
@@ -286,7 +287,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primary,
     padding: SPACING.l,
     paddingTop: 50,
-    flexDirection: 'row',
+    flexDirection: isRTL ? 'row-reverse' : 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },

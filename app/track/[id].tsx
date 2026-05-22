@@ -7,9 +7,13 @@ import {
 } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useApp } from '../../contexts/AppContext';
 
 export default function TrackOrderScreen() {
   const { id } = useLocalSearchParams();
+  const { language } = useApp();
+  const isRTL = language === 'ar';
+  const styles = makeStyles(isRTL);
 
   const orderStatus = [
     { status: 'تم استلام الطلب', completed: true, time: '10:30 صباحاً' },
@@ -69,16 +73,16 @@ export default function TrackOrderScreen() {
 
       <View style={styles.details}>
         <Text style={styles.detailsTitle}>تفاصيل الطلب</Text>
-        <DetailRow icon="phone-portrait" label="الجهاز" value="iPhone 13 Pro" />
-        <DetailRow icon="construct" label="المشكلة" value="تغيير الشاشة" />
-        <DetailRow icon="location" label="العنوان" value="الرياض، حي النخيل" />
-        <DetailRow icon="cash" label="السعر" value="300 ريال" />
+        <DetailRow styles={styles} icon="phone-portrait" label="الجهاز" value="iPhone 13 Pro" />
+        <DetailRow styles={styles} icon="construct" label="المشكلة" value="تغيير الشاشة" />
+        <DetailRow styles={styles} icon="location" label="العنوان" value="الرياض، حي النخيل" />
+        <DetailRow styles={styles} icon="cash" label="السعر" value="300 ريال" />
       </View>
     </ScrollView>
   );
 }
 
-function DetailRow({ icon, label, value }: any) {
+function DetailRow({ styles, icon, label, value }: any) {
   return (
     <View style={styles.detailRow}>
       <View style={styles.detailLeft}>
@@ -90,7 +94,7 @@ function DetailRow({ icon, label, value }: any) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (isRTL: boolean) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f9fafb',
@@ -123,12 +127,13 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
   timelineItem: {
-    flexDirection: 'row',
+    flexDirection: isRTL ? 'row-reverse' : 'row',
     minHeight: 80,
   },
   timelineLeft: {
     alignItems: 'center',
-    marginRight: 16,
+    marginRight: isRTL ? 0 : 16,
+    marginLeft: isRTL ? 16 : 0,
   },
   timelineDot: {
     width: 32,
@@ -178,7 +183,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   detailRow: {
-    flexDirection: 'row',
+    flexDirection: isRTL ? 'row-reverse' : 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingVertical: 12,
@@ -186,7 +191,7 @@ const styles = StyleSheet.create({
     borderBottomColor: '#f3f4f6',
   },
   detailLeft: {
-    flexDirection: 'row',
+    flexDirection: isRTL ? 'row-reverse' : 'row',
     alignItems: 'center',
     gap: 12,
   },
