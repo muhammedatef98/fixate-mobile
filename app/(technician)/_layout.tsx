@@ -17,7 +17,6 @@ const PERSISTENT_NAV_ROUTES = [
   '/(technician)/available-orders',
   '/(technician)/earnings',
   '/(technician)/my-orders',
-  '/(technician)/dashboard',
   '/(technician)/profile',
 ];
 
@@ -168,7 +167,6 @@ export default function TechnicianLayout() {
         }}
       >
         <Stack.Screen name="index" />
-        <Stack.Screen name="dashboard" />
         <Stack.Screen name="my-orders" />
         <Stack.Screen name="earnings" />
         <Stack.Screen name="available-orders" />

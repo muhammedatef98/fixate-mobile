@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import {
   Modal,
   View,
@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   Pressable,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../contexts/AppContext';
@@ -33,12 +34,28 @@ export default function ImagePickerSheet({
   const COLORS = getColors(isDark);
   const styles = createStyles(COLORS, isRTL);
 
+  // Holds the chosen source until the sheet has FULLY dismissed. Presenting
+  // the native picker while this modal is still on screen makes it silently
+  // fail on iOS, so we wait for a real dismissal signal instead of guessing
+  // with a fixed timeout.
+  const pendingRef = useRef<'camera' | 'gallery' | null>(null);
+
+  const runPending = () => {
+    const source = pendingRef.current;
+    pendingRef.current = null;
+    if (source) onPick(source);
+  };
+
   const choose = (source: 'camera' | 'gallery') => {
-    // Close the sheet first, then launch the native picker AFTER the modal
-    // dismiss animation finishes. Presenting the picker while this modal is
-    // still animating closed causes it to silently fail to appear (iOS).
+    pendingRef.current = source;
     onClose();
-    setTimeout(() => onPick(source), 350);
+    if (Platform.OS === 'android') {
+      // Android has no `onDismiss` for Modal and no single-presentation
+      // restriction — a short delay after closing is reliable here.
+      setTimeout(runPending, 220);
+    }
+    // iOS: handled by the Modal `onDismiss` callback below, which fires
+    // only once the sheet is genuinely off screen.
   };
 
   return (
@@ -47,6 +64,7 @@ export default function ImagePickerSheet({
       transparent
       animationType="slide"
       onRequestClose={onClose}
+      onDismiss={Platform.OS === 'ios' ? runPending : undefined}
       statusBarTranslucent
     >
       <View style={styles.backdrop}>

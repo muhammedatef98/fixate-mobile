@@ -134,6 +134,45 @@ export default function OrdersScreen() {
     }
   };
 
+  // Statuses the order moves into once the customer ACCEPTS the quotation.
+  const POST_QUOTE_ACCEPTED = ['awaiting_payment', 'waiting_parts', 'repairing', 'testing', 'delivering', 'completed'];
+
+  // Reflects the real quotation decision rather than a generic estimate.
+  const getQuoteInfo = (order: any): { label: string; amount: string; color: string } => {
+    const sar = isRTL ? 'ر.س' : 'SAR';
+    const quote = order.final_price;
+    if (quote != null && order.status === 'quoted') {
+      return {
+        label: isRTL ? 'عرض سعر بانتظار قرارك' : 'Quote — awaiting your decision',
+        amount: `${quote} ${sar}`,
+        color: COLORS.warning,
+      };
+    }
+    if (quote != null && POST_QUOTE_ACCEPTED.includes(order.status)) {
+      return {
+        label: isRTL ? 'عرض السعر المقبول' : 'Accepted quote',
+        amount: `${quote} ${sar}`,
+        color: COLORS.success,
+      };
+    }
+    if (quote != null && order.status === 'cancelled') {
+      return {
+        label: isRTL ? 'عرض السعر المرفوض' : 'Rejected quote',
+        amount: `${quote} ${sar}`,
+        color: COLORS.error,
+      };
+    }
+    // No quotation issued yet — show the indicative starting price.
+    if (order.estimated_price != null) {
+      return {
+        label: isRTL ? 'السعر المبدئي' : 'Starting price',
+        amount: `${order.estimated_price} ${sar}`,
+        color: COLORS.textSecondary,
+      };
+    }
+    return { label: isRTL ? 'السعر' : 'Price', amount: '—', color: COLORS.textSecondary };
+  };
+
   const styles = createStyles(COLORS, isRTL, SHADOWS);
 
   return (
@@ -227,16 +266,21 @@ export default function OrdersScreen() {
                     {order.issue_description || (isRTL ? 'فحص عام' : 'General check')}
                   </Text>
 
-                  {/* Price + CTA row */}
+                  {/* Price + CTA row — reflects the real quotation decision */}
                   <View style={styles.cardBottomRow}>
-                    <View>
-                      <Text style={styles.priceLabel}>
-                        {isRTL ? 'السعر التقديري' : 'Est. price'}
-                      </Text>
-                      <Text style={styles.priceValue}>
-                        {order.estimated_price ? `${order.estimated_price} ${isRTL ? 'ر.س' : 'SAR'}` : '—'}
-                      </Text>
-                    </View>
+                    {(() => {
+                      const q = getQuoteInfo(order);
+                      return (
+                        <View style={{ flex: 1 }}>
+                          <Text style={[styles.priceLabel, { color: q.color }]} numberOfLines={1}>
+                            {q.label}
+                          </Text>
+                          <Text style={[styles.priceValue, { color: q.color }]}>
+                            {q.amount}
+                          </Text>
+                        </View>
+                      );
+                    })()}
                     <View style={styles.detailsBtn}>
                       <Text style={styles.detailsBtnText}>{isRTL ? 'عرض التفاصيل' : 'View details'}</Text>
                       <RTLIonicon name="chevron-forward" size={14} color={COLORS.primary} />

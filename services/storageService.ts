@@ -106,8 +106,24 @@ export const uploadOrderMedia = async (
 ): Promise<string[]> => {
   if (!localUris.length) return [];
   const folder = folderHint || `${userId}/${Date.now()}`;
-  const results = await Promise.all(localUris.map((uri, i) => uploadOne(folder, uri, i)));
-  return results.filter((u): u is string => !!u);
+  // allSettled — one bad photo (corrupt file, transient network) must not
+  // discard the photos that uploaded fine. Only a total failure throws.
+  const settled = await Promise.allSettled(
+    localUris.map((uri, i) => uploadOne(folder, uri, i))
+  );
+  const urls = settled
+    .filter((r): r is PromiseFulfilledResult<string | null> => r.status === 'fulfilled')
+    .map((r) => r.value)
+    .filter((u): u is string => !!u);
+  if (urls.length === 0) {
+    const firstError = settled.find((r) => r.status === 'rejected') as
+      | PromiseRejectedResult
+      | undefined;
+    throw firstError?.reason instanceof Error
+      ? firstError.reason
+      : new Error('Image upload failed');
+  }
+  return urls;
 };
 
 /**

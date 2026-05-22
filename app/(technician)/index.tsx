@@ -24,6 +24,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import * as orderService from '../../services/orderService';
 import { supabase } from '../../services/supabaseClient';
 import { logger } from '../../utils/logger';
+import NotificationBell from '../../components/NotificationBell';
 
 const { width } = Dimensions.get('window');
 
@@ -321,6 +322,11 @@ export default function TechnicianHomeScreen() {
           </View>
         </View>
         <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', gap: SPACING.sm }}>
+          <NotificationBell
+            style={[styles.refreshButton, SHADOWS.neuSmall]}
+            color={COLORS.text}
+            size={22}
+          />
           <TouchableOpacity
             style={[styles.refreshButton, SHADOWS.neuSmall]}
             onPress={loadOrders}
@@ -437,6 +443,28 @@ export default function TechnicianHomeScreen() {
           <Ionicons name={isRTL ? 'chevron-back' : 'chevron-forward'} size={16} color={COLORS.primary} />
         </TouchableOpacity>
       </View>
+
+      {/* Support bar — quick line to customer service */}
+      <TouchableOpacity
+        style={[styles.supportBar, SHADOWS.neuSmall]}
+        activeOpacity={0.85}
+        onPress={() => router.push('/support-chat')}
+        accessibilityRole="button"
+        accessibilityLabel={isRTL ? 'الدعم' : 'Support'}
+      >
+        <View style={styles.supportBarIcon}>
+          <MaterialCommunityIcons name="headset" size={20} color="#10B981" />
+        </View>
+        <View style={{ flex: 1, alignItems: isRTL ? 'flex-end' : 'flex-start' }}>
+          <Text style={[styles.supportBarTitle, { color: COLORS.text }]}>
+            {isRTL ? 'تواصل مع فريق الدعم' : 'Contact the support team'}
+          </Text>
+          <Text style={[styles.supportBarSub, { color: COLORS.textSecondary }]} numberOfLines={1}>
+            {isRTL ? 'مساعدة في الطلبات أو حسابك' : 'Help with jobs or your account'}
+          </Text>
+        </View>
+        <Ionicons name={isRTL ? 'chevron-back' : 'chevron-forward'} size={18} color={COLORS.textSecondary} />
+      </TouchableOpacity>
 
       {/* Tabs */}
       <View style={[styles.tabsContainer, SHADOWS.neuFlat]}>
@@ -804,6 +832,26 @@ const createStyles = (COLORS: any, SHADOWS: any, isRTL: boolean) => StyleSheet.c
     marginTop: 4,
   },
   manageServicesText: { fontSize: 14, fontWeight: '700' },
+  supportBar: {
+    flexDirection: isRTL ? 'row-reverse' : 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+    backgroundColor: COLORS.card,
+    marginHorizontal: SPACING.lg,
+    marginBottom: SPACING.md,
+    borderRadius: BORDER_RADIUS.md,
+    padding: SPACING.sm + 2,
+  },
+  supportBarIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 11,
+    backgroundColor: '#10B98118',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  supportBarTitle: { fontSize: 13, fontWeight: '800' },
+  supportBarSub: { fontSize: 11, marginTop: 1 },
   tabsContainer: {
     flexDirection: isRTL ? 'row-reverse' : 'row',
     marginHorizontal: SPACING.lg,
