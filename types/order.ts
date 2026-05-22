@@ -87,6 +87,17 @@ export const ACCESSORY_SUGGESTIONS: Record<string, AddonItem[]> = {
     { id: 'charging_dock', name_ar: 'قاعدة شحن', name_en: 'Charging dock', price: 90 },
     { id: 'headset', name_ar: 'سماعة', name_en: 'Gaming headset', price: 150 },
   ],
+  tv: [
+    { id: 'remote', name_ar: 'ريموت تحكم', name_en: 'Remote control', price: 60 },
+    { id: 'wall_mount', name_ar: 'حامل جداري', name_en: 'Wall mount', price: 90 },
+    { id: 'hdmi', name_ar: 'كيبل HDMI', name_en: 'HDMI cable', price: 35 },
+    { id: 'cleaning_kit', name_ar: 'طقم تنظيف الشاشة', name_en: 'Screen cleaning kit', price: 30 },
+  ],
+  headphones: [
+    { id: 'ear_tips', name_ar: 'سدادات أذن', name_en: 'Ear tips', price: 25 },
+    { id: 'case', name_ar: 'علبة حماية', name_en: 'Protective case', price: 35 },
+    { id: 'cable', name_ar: 'كيبل شحن', name_en: 'Charging cable', price: 25 },
+  ],
   generic: [
     { id: 'charger', name_ar: 'شاحن', name_en: 'Charger', price: 50 },
     { id: 'cable', name_ar: 'كيبل', name_en: 'Cable', price: 25 },

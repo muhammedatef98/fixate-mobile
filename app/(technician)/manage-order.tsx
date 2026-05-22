@@ -57,6 +57,7 @@ export default function ManageOrderScreen() {
   const [mapReady, setMapReady] = useState(false);
   const [viewerOpen, setViewerOpen] = useState(false);
   const [viewerIndex, setViewerIndex] = useState(0);
+  const [viewerImages, setViewerImages] = useState<string[]>([]);
   const [quotePrice, setQuotePrice] = useState('');
   const [quoteNotes, setQuoteNotes] = useState('');
   const [submittingQuote, setSubmittingQuote] = useState(false);
@@ -216,6 +217,32 @@ export default function ManageOrderScreen() {
     } finally {
       setUploadingPhotos(false);
     }
+  };
+
+  const removePhoto = async (kind: 'before' | 'after', url: string) => {
+    const column = kind === 'before' ? 'before_photos' : 'after_photos';
+    const current = kind === 'before' ? beforePhotos : afterPhotos;
+    const next = current.filter((u) => u !== url);
+    // Optimistic — revert on failure.
+    if (kind === 'before') setBeforePhotos(next);
+    else setAfterPhotos(next);
+    try {
+      const { error } = await supabase
+        .from('orders')
+        .update({ [column]: next })
+        .eq('id', id as string);
+      if (error) throw error;
+    } catch (e: any) {
+      if (kind === 'before') setBeforePhotos(current);
+      else setAfterPhotos(current);
+      Alert.alert(isRTL ? 'خطأ' : 'Error', e?.message ?? String(e));
+    }
+  };
+
+  const openPhotoViewer = (images: string[], index: number) => {
+    setViewerImages(images);
+    setViewerIndex(index);
+    setViewerOpen(true);
   };
 
   // A quote the customer has accepted: the order carries a final_price and is
@@ -708,7 +735,7 @@ export default function ManageOrderScreen() {
               {order.media_urls.map((url, index) => (
                 <TouchableOpacity
                   key={index}
-                  onPress={() => { setViewerIndex(index); setViewerOpen(true); }}
+                  onPress={() => openPhotoViewer(order.media_urls ?? [], index)}
                   activeOpacity={0.85}
                   style={{ marginRight: 8 }}
                   accessibilityRole="button"
@@ -807,12 +834,37 @@ export default function ManageOrderScreen() {
                   )}
                 </TouchableOpacity>
                 {group.photos.map((url, i) => (
-                  <Image
-                    key={i}
-                    source={{ uri: url }}
-                    style={{ width: 72, height: 72, borderRadius: BORDER_RADIUS.md, marginRight: 8 }}
-                  />
+                  <View key={i} style={{ marginRight: 8, position: 'relative' }}>
+                    <TouchableOpacity
+                      activeOpacity={0.85}
+                      onPress={() => openPhotoViewer(group.photos, i)}
+                    >
+                      <Image
+                        source={{ uri: url }}
+                        style={{ width: 72, height: 72, borderRadius: BORDER_RADIUS.md }}
+                      />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={() => removePhoto(group.key, url)}
+                      style={{
+                        position: 'absolute',
+                        top: -7,
+                        [isRTL ? 'left' : 'right']: -7,
+                        backgroundColor: COLORS.card,
+                        borderRadius: 11,
+                      }}
+                      accessibilityRole="button"
+                      accessibilityLabel={isRTL ? 'حذف الصورة' : 'Remove photo'}
+                    >
+                      <Ionicons name="close-circle" size={22} color="#EF4444" />
+                    </TouchableOpacity>
+                  </View>
                 ))}
+                {group.photos.length === 0 && (
+                  <Text style={{ color: COLORS.textSecondary, fontSize: 12, alignSelf: 'center' }}>
+                    {isRTL ? 'لا توجد صور بعد' : 'No photos yet'}
+                  </Text>
+                )}
               </ScrollView>
             </View>
           ))}
@@ -821,7 +873,7 @@ export default function ManageOrderScreen() {
 
       <ImageViewer
         visible={viewerOpen}
-        images={order?.media_urls ?? []}
+        images={viewerImages}
         initialIndex={viewerIndex}
         onClose={() => setViewerOpen(false)}
       />

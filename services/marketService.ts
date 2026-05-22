@@ -5,8 +5,32 @@ export type ListingCategory = 'used_device' | 'accessory' | 'spare_part' | 'othe
 export type ListingStatus = 'pending' | 'active' | 'sold' | 'rejected' | 'archived';
 export type ContactPreference = 'dm' | 'phone' | 'both';
 export type ContactMethod = 'whatsapp' | 'phone' | 'in_app';
-export type DeviceType = 'phone' | 'laptop' | 'tablet' | 'watch' | 'accessory' | 'other';
+export type DeviceType =
+  | 'phone'
+  | 'laptop'
+  | 'tablet'
+  | 'watch'
+  | 'gaming'
+  | 'headphones'
+  | 'tv'
+  | 'appliance'
+  | 'accessory'
+  | 'other';
 export type ListingCondition = 'new' | 'like_new' | 'used' | 'refurbished' | 'for_parts';
+
+/** Device/item categories for marketplace listings and filters. */
+export const MARKET_DEVICE_TYPES: { id: DeviceType; ar: string; en: string; icon: string }[] = [
+  { id: 'phone',      ar: 'جوال',           en: 'Mobile phone',     icon: 'cellphone' },
+  { id: 'laptop',     ar: 'لابتوب',         en: 'Laptop',           icon: 'laptop' },
+  { id: 'tablet',     ar: 'تابلت',          en: 'Tablet',           icon: 'tablet' },
+  { id: 'watch',      ar: 'ساعة ذكية',      en: 'Smart watch',      icon: 'watch' },
+  { id: 'gaming',     ar: 'أجهزة ألعاب',    en: 'Gaming console',   icon: 'gamepad-variant' },
+  { id: 'headphones', ar: 'سماعات',         en: 'Headphones',       icon: 'headphones' },
+  { id: 'tv',         ar: 'شاشات وتلفاز',   en: 'TV / Display',     icon: 'television' },
+  { id: 'appliance',  ar: 'أجهزة منزلية',   en: 'Home appliance',   icon: 'home-outline' },
+  { id: 'accessory',  ar: 'إكسسوار',        en: 'Accessory',        icon: 'cable-data' },
+  { id: 'other',      ar: 'أخرى',           en: 'Other',            icon: 'dots-horizontal' },
+];
 
 export interface MarketListing {
   id: string;

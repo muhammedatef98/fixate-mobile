@@ -170,7 +170,7 @@ export default function CustomerHomeScreen() {
             {displayName}
           </Text>
           <Text style={[styles.greetingSub, { color: COLORS.textSecondary }]}>
-            {isRTL ? 'كيف نقدر نصلّح لك؟' : 'How can we fix things today?'}
+            {isRTL ? 'إصلاح احترافي لأجهزتك، أينما كنت' : 'Expert device repair, wherever you are'}
           </Text>
 
           {/* Primary CTA */}

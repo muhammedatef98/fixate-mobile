@@ -101,8 +101,16 @@ export default function RequestScreen() {
   // tables). Only enabled regions and cities are offered to the customer.
   const [regionTree, setRegionTree] = useState<RegionWithCities[]>([]);
   const [selectedCityId, setSelectedCityId] = useState<string | null>(null);
+  const [expandedRegions, setExpandedRegions] = useState<string[]>([]);
   useEffect(() => {
-    getRegionTree(true).then(setRegionTree).catch(() => undefined);
+    // Load every region/city. Unavailable ones are shown but disabled so
+    // the customer can see upcoming coverage.
+    getRegionTree(false)
+      .then((tree) => {
+        setRegionTree(tree);
+        setExpandedRegions(tree.filter((r) => r.enabled).map((r) => r.id));
+      })
+      .catch(() => undefined);
   }, []);
   const [address, setAddress] = useState('');
   
@@ -131,6 +139,12 @@ export default function RequestScreen() {
     regionTree.flatMap((r) => r.cities).find((c) => c.id === selectedCityId) ?? null;
   const selectedCityRegion =
     regionTree.find((r) => r.cities.some((c) => c.id === selectedCityId)) ?? null;
+  // A city is bookable only when both its region and the city itself are on.
+  const selectedCityAvailable =
+    !!selectedCity &&
+    !!selectedCityRegion &&
+    selectedCityRegion.enabled !== false &&
+    selectedCity.enabled !== false;
   const deliveryFee =
     selectedServiceType === 'personal_handoff'
       ? 0
@@ -536,7 +550,7 @@ export default function RequestScreen() {
     if (currentStep === 3) return isOtherDevice ? !!otherDeviceModel.trim() : !!selectedModel;
     if (currentStep === 4) return !!selectedIssue;
     if (currentStep === 5) return true; // Details are optional
-    if (currentStep === 6) return !!location;
+    if (currentStep === 6) return !!location && selectedCityAvailable;
     if (currentStep === 7) return true; // payment step is illustrative only
     return false;
   };
@@ -1065,30 +1079,74 @@ export default function RequestScreen() {
                     {isRTL ? 'منطقة التوصيل' : 'Delivery area'}
                   </Text>
                 </View>
-                {regionTree.map((region) => (
-                  <View key={region.id} style={{ marginTop: 8 }}>
-                    <Text style={styles.deliveryRegionName}>
-                      {isRTL ? region.name_ar : region.name_en}
-                    </Text>
-                    <View style={styles.areaChips}>
-                      {region.cities.map((city) => {
-                        const active = selectedCityId === city.id;
-                        return (
-                          <TouchableOpacity
-                            key={city.id}
-                            style={[styles.areaChip, active && styles.areaChipActive]}
-                            onPress={() => setSelectedCityId(active ? null : city.id)}
-                          >
-                            <Text style={[styles.areaChipText, active && styles.areaChipTextActive]}>
-                              {isRTL ? city.name_ar : city.name_en}
+                {regionTree.map((region) => {
+                  const regionAvailable = region.enabled !== false;
+                  const expanded = expandedRegions.includes(region.id);
+                  return (
+                    <View key={region.id} style={{ marginTop: 8 }}>
+                      <TouchableOpacity
+                        onPress={() =>
+                          setExpandedRegions((prev) =>
+                            prev.includes(region.id)
+                              ? prev.filter((x) => x !== region.id)
+                              : [...prev, region.id]
+                          )
+                        }
+                        style={{
+                          flexDirection: isRTL ? 'row-reverse' : 'row',
+                          alignItems: 'center',
+                          gap: 8,
+                          paddingVertical: 6,
+                        }}
+                      >
+                        <Text style={[styles.deliveryRegionName, !regionAvailable && { color: COLORS.gray }]}>
+                          {isRTL ? region.name_ar : region.name_en}
+                        </Text>
+                        {!regionAvailable && (
+                          <View style={{ backgroundColor: COLORS.border, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999 }}>
+                            <Text style={{ fontSize: 10, color: COLORS.gray, fontWeight: '700' }}>
+                              {isRTL ? 'قريباً' : 'Coming soon'}
                             </Text>
-                          </TouchableOpacity>
-                        );
-                      })}
+                          </View>
+                        )}
+                        <View style={{ flex: 1 }} />
+                        <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={16} color={COLORS.gray} />
+                      </TouchableOpacity>
+                      {expanded && (
+                        <View style={styles.areaChips}>
+                          {region.cities.map((city) => {
+                            const cityAvailable = regionAvailable && city.enabled !== false;
+                            const active = selectedCityId === city.id;
+                            return (
+                              <TouchableOpacity
+                                key={city.id}
+                                disabled={!cityAvailable}
+                                style={[
+                                  styles.areaChip,
+                                  active && styles.areaChipActive,
+                                  !cityAvailable && { opacity: 0.4 },
+                                ]}
+                                onPress={() => setSelectedCityId(active ? null : city.id)}
+                              >
+                                <Text style={[styles.areaChipText, active && styles.areaChipTextActive]}>
+                                  {isRTL ? city.name_ar : city.name_en}
+                                </Text>
+                              </TouchableOpacity>
+                            );
+                          })}
+                        </View>
+                      )}
                     </View>
-                  </View>
-                ))}
-                {selectedServiceType !== 'personal_handoff' && (
+                  );
+                })}
+                {!selectedCityAvailable && (
+                  <Text style={{ color: COLORS.error, fontSize: 12, marginTop: 10, textAlign: isRTL ? 'right' : 'left' }}>
+                    {isRTL
+                      ? 'اختر مدينة متاحة للمتابعة. المدن غير المتاحة ستُفعّل قريباً.'
+                      : 'Select an available city to continue. Unavailable cities will be enabled soon.'}
+                  </Text>
+                )}
+                {selectedServiceType !== 'personal_handoff' && selectedCityAvailable && (
                   <View style={styles.deliveryFeeRow}>
                     <Text style={styles.summaryLabel}>{isRTL ? 'رسوم التوصيل' : 'Delivery fee'}</Text>
                     <Text style={[styles.summaryValue, { color: COLORS.primary, fontWeight: '700' }]}>
@@ -1204,7 +1262,7 @@ export default function RequestScreen() {
             </View>
 
             {/* Service center — shown for drop-off / personal handoff only. */}
-            {(selectedServiceType === 'pickup' || selectedServiceType === 'personal_handoff') && (
+            {selectedServiceType === 'personal_handoff' && (
               <View style={{ marginTop: 12 }}>
                 <ServiceCenterCard isRTL={isRTL} COLORS={COLORS} />
               </View>
@@ -1242,7 +1300,13 @@ export default function RequestScreen() {
                   <MaterialCommunityIcons
                     name={(pm.icon as any) || 'credit-card-outline'}
                     size={24}
-                    color={COLORS.primary}
+                    color={
+                      pm.code === 'tabby'
+                        ? '#3EB6A0'
+                        : pm.code === 'tamara'
+                        ? '#E0218A'
+                        : COLORS.primary
+                    }
                   />
                   <Text style={{ flex: 1, fontWeight: '700', color: COLORS.text, textAlign: isRTL ? 'right' : 'left' }}>
                     {isRTL ? pm.name_ar : pm.name_en}
@@ -1297,7 +1361,7 @@ const createStyles = (COLORS: any, isRTL: boolean, SHADOWS: any) => StyleSheet.c
   headerTitle: { fontSize: 22, fontWeight: '800', color: COLORS.text },
   backButton: { padding: 8 },
   stepperContainer: { backgroundColor: COLORS.card, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: COLORS.border },
-  stepperContent: { paddingHorizontal: 16 },
+  stepperContent: { paddingHorizontal: 16, flexDirection: isRTL ? 'row-reverse' : 'row' },
   stepItem: { flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', marginHorizontal: 8 },
   stepCircle: { width: 28, height: 28, borderRadius: 14, backgroundColor: COLORS.border, justifyContent: 'center', alignItems: 'center', marginHorizontal: 4 },
   activeStepCircle: { backgroundColor: COLORS.primary },
