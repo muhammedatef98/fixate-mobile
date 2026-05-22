@@ -9,14 +9,35 @@ import {
   ScrollView,
   ActivityIndicator,
   RefreshControl,
+  Alert,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import * as FileSystem from 'expo-file-system/legacy';
+import * as Sharing from 'expo-sharing';
 import { useApp } from '../contexts/AppContext';
 import { useAuth } from '../contexts/AuthContext';
 import { getColors, SPACING, BORDER_RADIUS } from '../constants/theme';
 import { RTLIonicon } from '../components/RTLIcon';
 import { safeBack } from '../utils/navigation';
 import { supabase } from '../services/supabaseClient';
+
+// Selectable reporting windows. Time-bound metrics (orders, revenue,
+// discounts) respect this; cumulative snapshots (users, technicians) do not.
+type RangeKey = '7d' | '30d' | 'month' | 'all';
+const RANGES: { key: RangeKey; ar: string; en: string }[] = [
+  { key: '7d', ar: 'آخر ٧ أيام', en: 'Last 7 days' },
+  { key: '30d', ar: 'آخر ٣٠ يوم', en: 'Last 30 days' },
+  { key: 'month', ar: 'هذا الشهر', en: 'This month' },
+  { key: 'all', ar: 'كل الوقت', en: 'All time' },
+];
+
+const rangeSince = (key: RangeKey): string | null => {
+  const now = new Date();
+  if (key === '7d') return new Date(now.getTime() - 7 * 86400000).toISOString();
+  if (key === '30d') return new Date(now.getTime() - 30 * 86400000).toISOString();
+  if (key === 'month') return new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+  return null;
+};
 
 interface ReportData {
   ordersByStatus: Record<string, number>;
@@ -70,12 +91,20 @@ export default function AdminReportsScreen() {
   const [data, setData] = useState<ReportData | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [range, setRange] = useState<RangeKey>('30d');
+  const [exporting, setExporting] = useState(false);
 
   const profileLoaded = userProfile !== null;
   const isAdmin = (userProfile as any)?.is_admin === true;
 
   const load = useCallback(async () => {
     try {
+      const since = rangeSince(range);
+      let ordersQuery = supabase
+        .from('orders')
+        .select('status, final_price, estimated_price, discount_amount')
+        .is('deleted_at', null);
+      if (since) ordersQuery = ordersQuery.gte('created_at', since);
       const [
         ordersRes,
         techRes,
@@ -83,9 +112,7 @@ export default function AdminReportsScreen() {
         listingsRes,
         codesRes,
       ] = await Promise.all([
-        supabase.from('orders')
-          .select('status, final_price, estimated_price, discount_amount')
-          .is('deleted_at', null),
+        ordersQuery,
         supabase.from('technicians')
           .select('verification_status, technician_status')
           .is('deleted_at', null),
@@ -158,7 +185,72 @@ export default function AdminReportsScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [range]);
+
+  // Build a CSV of the current report and hand it to the OS share sheet.
+  // CSV opens directly in Excel / Numbers / Google Sheets.
+  const exportCsv = async () => {
+    if (!data || exporting) return;
+    setExporting(true);
+    try {
+      const rangeLabel = RANGES.find((r) => r.key === range)?.en ?? range;
+      const rows: string[][] = [
+        ['Fixate — Operations Report'],
+        ['Range', rangeLabel],
+        ['Generated', new Date().toISOString()],
+        [],
+        ['Metric', 'Value'],
+        ['Revenue (completed)', String(data.revenueCompleted)],
+        ['Total orders', String(data.ordersTotal)],
+        ['Discount given', String(data.discountGiven)],
+        [],
+        ['Orders by status', 'Count'],
+        ...STATUS_ORDER
+          .filter((s) => (data.ordersByStatus[s] ?? 0) > 0)
+          .map((s) => [s, String(data.ordersByStatus[s] ?? 0)]),
+        [],
+        ['Technicians', 'Count'],
+        ['Approved', String(data.techApproved)],
+        ['Pending', String(data.techPending)],
+        ['Suspended', String(data.techSuspended)],
+        [],
+        ['Users', 'Count'],
+        ['Total', String(data.usersTotal)],
+        ['Customers', String(data.usersCustomers)],
+        ['Technicians', String(data.usersTechnicians)],
+        [],
+        ['Marketplace listings', 'Count'],
+        ['Total', String(data.listingsTotal)],
+        ...Object.entries(data.listingsByStatus).map(([k, v]) => [k, String(v)]),
+        [],
+        ['Discount code', 'Used'],
+        ...data.discountCodes.map((c) => [c.code, String(c.used)]),
+      ];
+      const csv = rows
+        .map((r) => r.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+        .join('\n');
+      const fileUri = `${FileSystem.documentDirectory}fixate-report-${range}-${Date.now()}.csv`;
+      await FileSystem.writeAsStringAsync(fileUri, csv, {
+        encoding: FileSystem.EncodingType.UTF8,
+      });
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(fileUri, {
+          mimeType: 'text/csv',
+          dialogTitle: isRTL ? 'تصدير التقرير' : 'Export report',
+          UTI: 'public.comma-separated-values-text',
+        });
+      } else {
+        Alert.alert(
+          isRTL ? 'غير متاح' : 'Unavailable',
+          isRTL ? 'المشاركة غير متاحة على هذا الجهاز.' : 'Sharing is not available on this device.'
+        );
+      }
+    } catch (e: any) {
+      Alert.alert(isRTL ? 'خطأ' : 'Error', e?.message ?? String(e));
+    } finally {
+      setExporting(false);
+    }
+  };
 
   useEffect(() => {
     if (profileLoaded && isAdmin) load();
@@ -201,8 +293,42 @@ export default function AdminReportsScreen() {
           <RTLIonicon name="chevron-back" size={26} color={COLORS.text} />
         </TouchableOpacity>
         <Text style={styles.title}>{isRTL ? 'التقارير' : 'Reports'}</Text>
-        <View style={{ width: 26 }} />
+        <TouchableOpacity
+          onPress={exportCsv}
+          disabled={!data || exporting}
+          style={{ opacity: !data || exporting ? 0.4 : 1, padding: 4 }}
+          accessibilityRole="button"
+          accessibilityLabel={isRTL ? 'تصدير Excel' : 'Export Excel'}
+        >
+          {exporting ? (
+            <ActivityIndicator size="small" color={COLORS.primary} />
+          ) : (
+            <MaterialCommunityIcons name="file-export-outline" size={24} color={COLORS.primary} />
+          )}
+        </TouchableOpacity>
       </View>
+
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.rangeRow}
+        style={{ maxHeight: 52 }}
+      >
+        {RANGES.map((r) => {
+          const active = range === r.key;
+          return (
+            <TouchableOpacity
+              key={r.key}
+              onPress={() => setRange(r.key)}
+              style={[styles.rangeChip, active && { backgroundColor: COLORS.primary, borderColor: COLORS.primary }]}
+            >
+              <Text style={[styles.rangeChipText, active && { color: '#fff' }]}>
+                {isRTL ? r.ar : r.en}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </ScrollView>
 
       {loading ? (
         <ActivityIndicator size="large" color={COLORS.primary} style={{ marginTop: 50 }} />
@@ -384,6 +510,16 @@ const createStyles = (C: any, isRTL: boolean) =>
       paddingVertical: SPACING.m,
     },
     title: { fontSize: 20, fontWeight: '800', color: C.text },
+    rangeRow: { paddingHorizontal: SPACING.lg, gap: 8, alignItems: 'center', paddingBottom: 4 },
+    rangeChip: {
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+      borderRadius: 999,
+      borderWidth: 1,
+      borderColor: C.border,
+      backgroundColor: C.card,
+    },
+    rangeChipText: { color: C.text, fontWeight: '700', fontSize: 13 },
     empty: { alignItems: 'center', paddingVertical: 60 },
     emptyText: { color: C.text, fontWeight: '700', marginTop: 12 },
     kpiRow: { flexDirection: isRTL ? 'row-reverse' : 'row', gap: 12 },
