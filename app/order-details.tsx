@@ -319,11 +319,19 @@ export default function OrderDetailsScreen() {
           </Text>
         </View>
 
-        {/* Live Tracking Map */}
+        {/* Live technician tracking — pickup & delivery and mobile visits.
+            Drop-off / handoff has no technician travel, so it is skipped. */}
         {!isCancelled &&
           order.technician_id &&
+          orderFulfillment !== 'personal_handoff' &&
           ['accepted', 'picking_up', 'diagnosing', 'repairing', 'delivering'].includes(order.status) && (
             <View style={{ paddingHorizontal: SPACING.lg, marginBottom: SPACING.md }}>
+              <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                <MaterialCommunityIcons name="map-marker-account" size={18} color={COLORS.primary} />
+                <Text style={{ color: COLORS.text, fontWeight: '800', fontSize: 15 }}>
+                  {isRTL ? 'تتبّع الفني' : 'Track your technician'}
+                </Text>
+              </View>
               <LiveTrackingMap
                 orderId={order.id as string}
                 customerLat={order.latitude as any}

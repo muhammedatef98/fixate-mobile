@@ -30,6 +30,10 @@ import ImageViewer from '../../components/ImageViewer';
 import ImagePickerSheet from '../../components/ImagePickerSheet';
 import { supabase } from '../../services/supabaseClient';
 import { uploadOrderMedia } from '../../services/storageService';
+import {
+  startBroadcastingLocation,
+  stopBroadcastingLocation,
+} from '../../services/locationTrackingService';
 
 const STATUS_ACTIONS = [
   { status: 'accepted', arLabel: 'قبول الطلب', enLabel: 'Accept Order', icon: 'check-circle', color: '#10B981', description: 'تأكيد استلام الطلب والبدء في المعالجة' },
@@ -88,6 +92,32 @@ export default function ManageOrderScreen() {
       }
     };
   }, [id]);
+
+  // Live location broadcast — while the technician is en route on a
+  // pickup&delivery or mobile job, the customer can see where they are.
+  // Foreground-only (no background permission) — practical and battery-safe.
+  useEffect(() => {
+    if (!order || !id) return;
+    const enRoute = ['accepted', 'picking_up', 'diagnosing', 'repairing', 'delivering']
+      .includes(order.status);
+    const fulfillment = (order as any).fulfillment_type ?? order.service_type;
+    const travels = fulfillment !== 'personal_handoff';
+    let cancelled = false;
+    if (enRoute && travels && order.technician_id) {
+      (async () => {
+        const user = await auth.getCurrentUser();
+        if (!cancelled && user && order.technician_id === user.id) {
+          startBroadcastingLocation(user.id, String(id));
+        }
+      })();
+    } else {
+      stopBroadcastingLocation();
+    }
+    return () => {
+      cancelled = true;
+      stopBroadcastingLocation();
+    };
+  }, [order?.status, order?.technician_id, id]);
 
   const loadOrderDetails = async () => {
     try {
