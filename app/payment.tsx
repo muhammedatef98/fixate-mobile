@@ -47,7 +47,7 @@ export default function PaymentScreen() {
   const isRTL = language === 'ar';
 
   const orderId = params.orderId ?? '';
-  const amount = params.amount ? Number(params.amount) : null;
+  const amountParam = params.amount ? Number(params.amount) : null;
   // 'delivery_fee' — the customer rejected the repair quote and only owes
   // the delivery/visit fee (inspection is free). Default 'repair'.
   const isDeliveryFee = params.purpose === 'delivery_fee';
@@ -55,6 +55,14 @@ export default function PaymentScreen() {
   const [methods, setMethods] = useState<PaymentMethod[] | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  // Order pricing — loaded so accessories/add-ons can be shown and removed
+  // before the customer pays. Delivery-fee payments skip this entirely.
+  const [repairPrice, setRepairPrice] = useState(0);
+  const [discount, setDiscount] = useState(0);
+  const [accessories, setAccessories] = useState<any[]>([]);
+  const [protection, setProtection] = useState<any[]>([]);
+  const [removingId, setRemovingId] = useState<string | null>(null);
 
   useEffect(() => {
     getPaymentPageMethods()
@@ -65,6 +73,56 @@ export default function PaymentScreen() {
       })
       .catch(() => setMethods([]));
   }, []);
+
+  useEffect(() => {
+    if (!orderId || isDeliveryFee) return;
+    (async () => {
+      const { data } = await supabase
+        .from('orders')
+        .select('final_price, estimated_price, discount_amount, accessories, protection_addons')
+        .eq('id', orderId)
+        .maybeSingle();
+      if (!data) return;
+      setRepairPrice(Number((data as any).final_price ?? (data as any).estimated_price ?? 0));
+      setDiscount(Number((data as any).discount_amount ?? 0));
+      setAccessories(Array.isArray((data as any).accessories) ? (data as any).accessories : []);
+      setProtection(Array.isArray((data as any).protection_addons) ? (data as any).protection_addons : []);
+    })();
+  }, [orderId, isDeliveryFee]);
+
+  const addonRows = [
+    ...accessories.map((a) => ({ ...a, kind: 'accessories' as const })),
+    ...protection.map((p) => ({ ...p, kind: 'protection_addons' as const })),
+  ];
+  const addonsTotal = addonRows.reduce((s, a) => s + Number(a?.price ?? 0), 0);
+  // The real amount the customer pays. For a delivery-fee payment we trust
+  // the param; otherwise we compute it live so add-on removals are reflected.
+  const amount = isDeliveryFee
+    ? amountParam
+    : Math.max(0, repairPrice - discount + addonsTotal);
+
+  const removeAddon = async (row: { id: string; kind: 'accessories' | 'protection_addons' }) => {
+    setRemovingId(row.id);
+    try {
+      const nextAcc = row.kind === 'accessories'
+        ? accessories.filter((a) => a.id !== row.id)
+        : accessories;
+      const nextProt = row.kind === 'protection_addons'
+        ? protection.filter((p) => p.id !== row.id)
+        : protection;
+      const { error } = await supabase
+        .from('orders')
+        .update({ accessories: nextAcc, protection_addons: nextProt })
+        .eq('id', orderId);
+      if (error) throw error;
+      setAccessories(nextAcc);
+      setProtection(nextProt);
+    } catch (e: any) {
+      Alert.alert(isRTL ? 'خطأ' : 'Error', getFriendlyError(e, language));
+    } finally {
+      setRemovingId(null);
+    }
+  };
 
   const handleConfirm = async () => {
     if (!orderId || !selected) {
@@ -157,6 +215,72 @@ export default function PaymentScreen() {
                 ? 'لقد رفضت عرض السعر. الفحص مجاني، وهذه رسوم التوصيل فقط.'
                 : 'You rejected the repair quote. Inspection is free — this is the delivery fee only.'}
             </Text>
+          </View>
+        )}
+
+        {/* Price breakdown — add-ons are removable before paying */}
+        {!isDeliveryFee && (repairPrice > 0 || addonRows.length > 0) && (
+          <View style={[styles.breakdownCard, { backgroundColor: COLORS.card, borderColor: COLORS.border }]}>
+            <Text style={[styles.breakdownTitle, { color: COLORS.text }]}>
+              {isRTL ? 'تفاصيل المبلغ' : 'Price breakdown'}
+            </Text>
+            <View style={styles.bdRow}>
+              <Text style={[styles.bdLabel, { color: COLORS.textSecondary }]}>
+                {isRTL ? 'سعر الإصلاح' : 'Repair price'}
+              </Text>
+              <Text style={[styles.bdValue, { color: COLORS.text }]}>
+                {repairPrice.toLocaleString(isRTL ? 'ar-SA' : 'en-US')} {isRTL ? 'ر.س' : 'SAR'}
+              </Text>
+            </View>
+            {discount > 0 && (
+              <View style={styles.bdRow}>
+                <Text style={[styles.bdLabel, { color: COLORS.primary }]}>
+                  {isRTL ? 'الخصم' : 'Discount'}
+                </Text>
+                <Text style={[styles.bdValue, { color: COLORS.primary }]}>
+                  -{discount.toLocaleString(isRTL ? 'ar-SA' : 'en-US')} {isRTL ? 'ر.س' : 'SAR'}
+                </Text>
+              </View>
+            )}
+            {addonRows.length > 0 && (
+              <>
+                <View style={[styles.bdDivider, { backgroundColor: COLORS.border }]} />
+                <Text style={[styles.bdSubhead, { color: COLORS.textSecondary }]}>
+                  {isRTL ? 'إكسسوارات وإضافات (يمكن إزالتها)' : 'Accessories & add-ons (removable)'}
+                </Text>
+                {addonRows.map((a) => (
+                  <View key={`${a.kind}-${a.id}`} style={styles.bdAddonRow}>
+                    <Text style={[styles.bdLabel, { color: COLORS.text, flex: 1 }]} numberOfLines={1}>
+                      {isRTL ? a.name_ar : a.name_en}
+                    </Text>
+                    <Text style={[styles.bdValue, { color: COLORS.text, marginHorizontal: 8 }]}>
+                      +{Number(a.price ?? 0).toLocaleString(isRTL ? 'ar-SA' : 'en-US')} {isRTL ? 'ر.س' : 'SAR'}
+                    </Text>
+                    <TouchableOpacity
+                      onPress={() => removeAddon(a)}
+                      disabled={removingId === a.id}
+                      style={styles.bdRemoveBtn}
+                      accessibilityLabel={isRTL ? 'إزالة' : 'Remove'}
+                    >
+                      {removingId === a.id ? (
+                        <ActivityIndicator size="small" color={COLORS.error} />
+                      ) : (
+                        <Ionicons name="close-circle" size={20} color={COLORS.error} />
+                      )}
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </>
+            )}
+            <View style={[styles.bdDivider, { backgroundColor: COLORS.border }]} />
+            <View style={styles.bdRow}>
+              <Text style={[styles.bdLabel, { color: COLORS.text, fontWeight: '800' }]}>
+                {isRTL ? 'الإجمالي' : 'Total'}
+              </Text>
+              <Text style={[styles.bdValue, { color: COLORS.primary, fontSize: 16, fontWeight: '900' }]}>
+                {(amount ?? 0).toLocaleString(isRTL ? 'ar-SA' : 'en-US')} {isRTL ? 'ر.س' : 'SAR'}
+              </Text>
+            </View>
           </View>
         )}
 
@@ -294,6 +418,39 @@ const makeStyles = (C: any, isRTL: boolean, SHADOWS: any) =>
     },
     amountLabel: { fontSize: 12, fontWeight: '500' },
     amountValue: { fontSize: 30, fontWeight: '800', marginTop: 4 },
+    breakdownCard: {
+      borderRadius: BORDER_RADIUS.md,
+      borderWidth: 1,
+      padding: 16,
+      marginBottom: 18,
+    },
+    breakdownTitle: {
+      fontSize: 15,
+      fontWeight: '800',
+      marginBottom: 10,
+      textAlign: isRTL ? 'right' : 'left',
+    },
+    bdRow: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingVertical: 5,
+    },
+    bdLabel: { fontSize: 13, textAlign: isRTL ? 'right' : 'left' },
+    bdValue: { fontSize: 13, fontWeight: '700' },
+    bdDivider: { height: StyleSheet.hairlineWidth, marginVertical: 8 },
+    bdSubhead: {
+      fontSize: 11,
+      fontWeight: '700',
+      marginBottom: 4,
+      textAlign: isRTL ? 'right' : 'left',
+    },
+    bdAddonRow: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
+      paddingVertical: 5,
+    },
+    bdRemoveBtn: { padding: 2 },
     sectionLabel: {
       fontSize: 18,
       fontWeight: '800',
