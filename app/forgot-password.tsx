@@ -83,8 +83,14 @@ export default function ForgotPasswordScreen() {
   };
 
   const verifyCode = async () => {
-    if (code.length !== 6) {
-      Alert.alert(isRTL ? 'خطأ' : 'Error', isRTL ? 'الكود يجب أن يكون 6 أرقام' : 'Code must be 6 digits');
+    // Supabase Auth's OTP length is configurable in the dashboard (default 6,
+    // can be raised up to 10). We accept any length in that range here so the
+    // app stays in sync with whatever the project is configured to send.
+    if (code.length < 4 || code.length > 10) {
+      Alert.alert(
+        isRTL ? 'خطأ' : 'Error',
+        isRTL ? 'الكود غير صحيح' : 'Code length is invalid'
+      );
       return;
     }
     setLoading(true);
@@ -188,19 +194,19 @@ export default function ForgotPasswordScreen() {
               <Text style={styles.sub}>{isRTL ? `أُرسل إلى ${email}` : `Sent to ${email}`}</Text>
               <TextInput
                 value={code}
-                onChangeText={(v) => setCode(v.replace(/\D/g, '').slice(0, 6))}
+                onChangeText={(v) => setCode(v.replace(/\D/g, '').slice(0, 10))}
                 placeholder="------"
                 placeholderTextColor={COLORS.textSecondary}
                 keyboardType="number-pad"
                 style={[styles.otpInput, { color: COLORS.text, borderColor: COLORS.border }]}
                 textAlign="center"
                 autoFocus
-                maxLength={6}
+                maxLength={10}
               />
               <TouchableOpacity
                 onPress={verifyCode}
-                disabled={code.length !== 6 || loading}
-                style={[styles.btn, { backgroundColor: COLORS.primary, opacity: code.length !== 6 || loading ? 0.5 : 1 }]}
+                disabled={code.length < 4 || loading}
+                style={[styles.btn, { backgroundColor: COLORS.primary, opacity: code.length < 4 || loading ? 0.5 : 1 }]}
                 accessibilityRole="button"
                 accessibilityLabel={isRTL ? 'تأكيد' : 'Verify'}
               >
