@@ -81,7 +81,7 @@
     "useCurrentLocation": "Use Current Location",
     "enterManually": "Enter Address Manually",
     "addressPlaceholder": "Enter your address...",
-    "estimatedPrice": "Estimated Price",
+    "estimatedPrice": "Quotation",
     "submitSuccess": "Request Received Successfully ✓",
     "submitMessage": "A specialized technician will contact you as soon as possible.",
     "uploadPhoto": "Add Device Photo",
@@ -89,13 +89,13 @@
   },
   "calculator": {
     "title": "Price Calculator",
-    "subtitle": "Get instant repair cost estimate",
+    "subtitle": "Get an instant repair quotation",
     "selectDevice": "Select Your Device",
     "selectIssue": "Select Issue",
     "calculate": "Calculate Price",
-    "estimatedCost": "Estimated Cost",
+    "estimatedCost": "Quotation",
     "sar": "SAR",
-    "disclaimer": "* Prices are estimates and may vary based on device condition"
+    "disclaimer": "* This quotation is indicative and may change based on the device condition on inspection"
   },
   "dashboard": {
     "title": "Dashboard",

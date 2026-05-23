@@ -35,6 +35,7 @@ import {
   resolveContactMethods,
   getUserCard,
   updateListingStatus,
+  removeListingByOwner,
   type MarketListing,
   type ListingComment,
   type UserCard,
@@ -131,6 +132,7 @@ export default function MarketDetailScreen() {
 
   const isOwner = !!listing && listing.seller_id === user?.id;
   const isSold = listing?.status === 'sold';
+  const isRemoved = listing?.status === 'archived';
 
   const submitComment = async () => {
     if (!user) {
@@ -242,6 +244,39 @@ export default function MarketDetailScreen() {
             try {
               const updated = await updateListingStatus(listing.id, 'sold');
               setListing(updated);
+            } catch (e: any) {
+              Alert.alert(isRTL ? 'خطأ' : 'Error', e?.message ?? String(e));
+            } finally {
+              setMarking(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleRemove = () => {
+    if (!listing) return;
+    Alert.alert(
+      isRTL ? 'إزالة الإعلان' : 'Remove listing',
+      isRTL
+        ? 'سيتم إخفاء الإعلان من السوق فوراً. يمكنك إعادة نشره لاحقاً عبر الدعم إذا تغيّر رأيك.'
+        : 'This listing will be hidden from the marketplace immediately. You can contact support to restore it later if you change your mind.',
+      [
+        { text: isRTL ? 'إلغاء' : 'Cancel', style: 'cancel' },
+        {
+          text: isRTL ? 'إزالة' : 'Remove',
+          style: 'destructive',
+          onPress: async () => {
+            setMarking(true);
+            try {
+              const updated = await removeListingByOwner(listing.id);
+              setListing(updated);
+              Alert.alert(
+                isRTL ? 'تمت الإزالة' : 'Removed',
+                isRTL ? 'تم إخفاء إعلانك من السوق.' : 'Your listing has been hidden from the marketplace.'
+              );
+              router.back();
             } catch (e: any) {
               Alert.alert(isRTL ? 'خطأ' : 'Error', e?.message ?? String(e));
             } finally {
@@ -427,7 +462,14 @@ export default function MarketDetailScreen() {
                 </View>
 
                 {isOwner ? (
-                  isSold ? (
+                  isRemoved ? (
+                    <View style={styles.soldInline}>
+                      <Ionicons name="eye-off" size={16} color="#EF4444" />
+                      <Text style={styles.soldInlineText}>
+                        {isRTL ? 'تمت إزالة هذا الإعلان' : 'This listing was removed'}
+                      </Text>
+                    </View>
+                  ) : isSold ? (
                     <View style={styles.soldInline}>
                       <Ionicons name="checkmark-circle" size={16} color="#EF4444" />
                       <Text style={styles.soldInlineText}>
@@ -435,22 +477,35 @@ export default function MarketDetailScreen() {
                       </Text>
                     </View>
                   ) : (
-                    <TouchableOpacity
-                      style={[styles.markSoldBtn, { opacity: marking ? 0.6 : 1 }]}
-                      onPress={handleMarkSold}
-                      disabled={marking}
-                    >
-                      {marking ? (
-                        <ActivityIndicator color="#fff" size="small" />
-                      ) : (
-                        <>
-                          <Ionicons name="checkmark-done" size={18} color="#fff" />
-                          <Text style={styles.markSoldText}>
-                            {isRTL ? 'تعليم كمباع' : 'Mark as Sold'}
-                          </Text>
-                        </>
-                      )}
-                    </TouchableOpacity>
+                    <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', gap: 8 }}>
+                      <TouchableOpacity
+                        style={[styles.markSoldBtn, { flex: 1, opacity: marking ? 0.6 : 1 }]}
+                        onPress={handleMarkSold}
+                        disabled={marking}
+                      >
+                        {marking ? (
+                          <ActivityIndicator color="#fff" size="small" />
+                        ) : (
+                          <>
+                            <Ionicons name="checkmark-done" size={18} color="#fff" />
+                            <Text style={styles.markSoldText}>
+                              {isRTL ? 'تعليم كمباع' : 'Mark as Sold'}
+                            </Text>
+                          </>
+                        )}
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.removeBtn, { opacity: marking ? 0.6 : 1 }]}
+                        onPress={handleRemove}
+                        disabled={marking}
+                        accessibilityLabel={isRTL ? 'إزالة الإعلان' : 'Remove listing'}
+                      >
+                        <Ionicons name="trash-outline" size={18} color="#EF4444" />
+                        <Text style={styles.removeBtnText}>
+                          {isRTL ? 'إزالة' : 'Remove'}
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
                   )
                 ) : (
                   <View style={styles.contactRow}>
@@ -747,6 +802,19 @@ const createStyles = (C: any, isRTL: boolean) =>
       backgroundColor: '#EF4444',
     },
     markSoldText: { color: '#fff', fontWeight: '800', fontSize: 14 },
+    removeBtn: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 6,
+      paddingVertical: 13,
+      paddingHorizontal: 14,
+      borderRadius: BORDER_RADIUS.md,
+      backgroundColor: 'transparent',
+      borderWidth: 1.5,
+      borderColor: '#EF4444',
+    },
+    removeBtnText: { color: '#EF4444', fontWeight: '800', fontSize: 13 },
     soldInline: {
       flexDirection: isRTL ? 'row-reverse' : 'row',
       alignItems: 'center',

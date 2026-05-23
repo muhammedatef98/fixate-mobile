@@ -54,7 +54,7 @@ export default function TermsScreen() {
 
 ## 5. الخدمات والأسعار
 
-5.1. الأسعار المعروضة هي أسعار تقديرية وقد تتغير بناءً على الفحص الفعلي
+5.1. الأسعار المعروضة هي عرض سعر مبدئي وقد تتغير بناءً على الفحص الفعلي
 5.2. يتم الاتفاق على السعر النهائي بين العميل والفني قبل بدء العمل
 5.3. جميع الأسعار بالريال السعودي وتشمل ضريبة القيمة المضافة
 
@@ -171,7 +171,7 @@ Welcome to Fixate ("the App"). By using this App, you agree to comply with these
 
 ## 5. Services and Pricing
 
-5.1. Displayed prices are estimates and may change based on actual inspection
+5.1. Displayed prices are an initial quotation and may change based on actual inspection
 5.2. Final price is agreed upon between customer and technician before work begins
 5.3. All prices are in Saudi Riyals and include VAT
 

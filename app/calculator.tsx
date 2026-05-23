@@ -78,7 +78,7 @@ export default function PriceCalculatorScreen() {
           <RTLMaterialIcon name="arrow-back" size={24} color={COLORS.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>
-          {isRTL ? 'حاسبة الأسعار التقديرية' : 'Price Calculator'}
+          {isRTL ? 'حاسبة الأسعار' : 'Price Calculator'}
         </Text>
         <View style={{ width: 40 }} />
       </View>
@@ -164,7 +164,7 @@ export default function PriceCalculatorScreen() {
       <View style={[styles.footer, SHADOWS.neuLarge]}>
         <View style={styles.priceContainer}>
           <Text style={styles.priceLabel}>
-            {isRTL ? 'السعر التقديري:' : 'Estimated Price:'}
+            {isRTL ? 'عرض السعر:' : 'Quotation:'}
           </Text>
           <Text style={styles.priceValue}>
             {totalPrice.min > 0 ? (isRTL ? `${totalPrice.min}-${totalPrice.max} ر.س` : `SAR ${totalPrice.min}-${totalPrice.max}`) : '--'}

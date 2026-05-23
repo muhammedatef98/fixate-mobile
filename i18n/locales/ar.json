@@ -81,7 +81,7 @@
     "useCurrentLocation": "استخدام موقعي الحالي",
     "enterManually": "إدخال العنوان يدوياً",
     "addressPlaceholder": "أدخل عنوانك...",
-    "estimatedPrice": "السعر التقديري",
+    "estimatedPrice": "عرض السعر",
     "submitSuccess": "تم استلام طلبك بنجاح ✓",
     "submitMessage": "سيتواصل معك أحد الفنيين المتخصصين في أقرب وقت ممكن.",
     "uploadPhoto": "إضافة صورة للجهاز",
@@ -89,13 +89,13 @@
   },
   "calculator": {
     "title": "حاسبة الأسعار",
-    "subtitle": "احصل على تقدير فوري لتكلفة الصيانة",
+    "subtitle": "احصل على عرض سعر فوري للصيانة",
     "selectDevice": "اختر جهازك",
     "selectIssue": "اختر المشكلة",
     "calculate": "احسب السعر",
-    "estimatedCost": "التكلفة التقديرية",
+    "estimatedCost": "عرض السعر",
     "sar": "ريال",
-    "disclaimer": "* الأسعار تقديرية وقد تختلف حسب حالة الجهاز"
+    "disclaimer": "* عرض السعر إرشادي وقد يتغير حسب حالة الجهاز عند الفحص"
   },
   "dashboard": {
     "title": "لوحة التحكم",

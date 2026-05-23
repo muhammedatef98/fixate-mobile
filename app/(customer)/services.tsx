@@ -459,16 +459,36 @@ const makeStyles = (C: any, isRTL: boolean, SHADOWS: any) =>
       overflow: 'hidden',
       minHeight: 160,
     },
-    heroLeft: { flex: 1, justifyContent: 'space-between' },
+    heroLeft: {
+      flex: 1,
+      justifyContent: 'space-between',
+      alignItems: isRTL ? 'flex-end' : 'flex-start',
+    },
     heroEyebrow: {
       color: '#ffffffcc',
       fontSize: 11,
       fontWeight: '700',
       letterSpacing: 1.2,
       marginBottom: 4,
+      textAlign: isRTL ? 'right' : 'left',
+      writingDirection: isRTL ? 'rtl' : 'ltr',
     },
-    heroTitle: { color: '#fff', fontSize: 22, fontWeight: '800', lineHeight: 30 },
-    heroSubtitle: { color: '#ffffffcc', fontSize: 12, marginTop: 4, lineHeight: 18 },
+    heroTitle: {
+      color: '#fff',
+      fontSize: 22,
+      fontWeight: '800',
+      lineHeight: 30,
+      textAlign: isRTL ? 'right' : 'left',
+      writingDirection: isRTL ? 'rtl' : 'ltr',
+    },
+    heroSubtitle: {
+      color: '#ffffffcc',
+      fontSize: 12,
+      marginTop: 4,
+      lineHeight: 18,
+      textAlign: isRTL ? 'right' : 'left',
+      writingDirection: isRTL ? 'rtl' : 'ltr',
+    },
     heroCta: {
       flexDirection: isRTL ? 'row-reverse' : 'row',
       alignItems: 'center',
@@ -480,7 +500,12 @@ const makeStyles = (C: any, isRTL: boolean, SHADOWS: any) =>
       marginTop: 14,
       gap: 6,
     },
-    heroCtaText: { color: C.primary, fontWeight: '800', fontSize: 13 },
+    heroCtaText: {
+      color: C.primary,
+      fontWeight: '800',
+      fontSize: 13,
+      writingDirection: isRTL ? 'rtl' : 'ltr',
+    },
     heroIconWrap: { justifyContent: 'center', alignItems: 'center' },
 
     // Feature strip
