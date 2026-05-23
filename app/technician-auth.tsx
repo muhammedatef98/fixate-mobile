@@ -145,11 +145,15 @@ export default function TechnicianAuthScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
         <ScrollView contentContainerStyle={styles.scrollContent}>
-          {/* Logo Section */}
+          {/* Logo Section — dark asset on dark theme, colour asset on light */}
           <View style={styles.logoSection}>
             <View style={styles.logoCircle}>
               <Image
-                source={require('../assets/fixate-logo-main.png')}
+                source={
+                  isDark
+                    ? require('../assets/fixate-logo-dark.png')
+                    : require('../assets/fixate-logo-main.png')
+                }
                 style={styles.logoImage}
                 resizeMode="contain"
               />

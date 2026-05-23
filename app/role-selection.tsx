@@ -91,18 +91,18 @@ export default function RoleSelectionScreen() {
             </Text>
           </TouchableOpacity>
 
-          {/* Logo */}
+          {/* Logo — swap to the dark-mode asset when isDark so the brand
+              mark reads correctly on both themes. */}
           <View style={styles.logoContainer}>
-            {/* Soft tinted plate behind the logo so the brand mark stays
-                legible on both light and dark themes without needing a
-                separate dark-mode logo asset. */}
-            <View style={styles.logoPlate}>
-              <Image
-                source={require('../assets/fixate-logo-main.png')}
-                style={styles.logoImage}
-                resizeMode="contain"
-              />
-            </View>
+            <Image
+              source={
+                isDark
+                  ? require('../assets/fixate-logo-dark.png')
+                  : require('../assets/fixate-logo-main.png')
+              }
+              style={styles.logoImage}
+              resizeMode="contain"
+            />
           </View>
 
           {/* Title */}
@@ -229,17 +229,9 @@ const createStyles = (COLORS: any, SHADOWS: any, isRTL: boolean) => StyleSheet.c
   logoContainer: {
     marginBottom: SPACING.lg,
   },
-  logoPlate: {
+  logoImage: {
     width: 120,
     height: 120,
-    borderRadius: 60,
-    backgroundColor: COLORS.primarySoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  logoImage: {
-    width: 90,
-    height: 90,
   },
   title: {
     fontSize: 40,
