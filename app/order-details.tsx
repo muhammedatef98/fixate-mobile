@@ -11,6 +11,7 @@ import {
   Linking,
   StatusBar,
   Alert,
+  TextInput,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { MaterialIcons, MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
@@ -56,6 +57,7 @@ export default function OrderDetailsScreen() {
   const [loading, setLoading] = useState(true);
   const [userType, setUserType] = useState<'customer' | 'technician'>('customer');
   const [myRating, setMyRating] = useState<number>(0);
+  const [myComment, setMyComment] = useState<string>('');
   const [submittingRating, setSubmittingRating] = useState(false);
   const [hasReviewed, setHasReviewed] = useState(false);
   const [viewerOpen, setViewerOpen] = useState(false);
@@ -151,26 +153,31 @@ export default function OrderDetailsScreen() {
       const review = await reviewService.getReviewByOrder(order.id, user.id);
       if (review) {
         setMyRating(review.rating);
+        setMyComment(review.comment ?? '');
         setHasReviewed(true);
       }
     })();
   }, [order?.id]);
 
-  const submitRating = async (rating: number) => {
-    if (!order || hasReviewed || submittingRating) return;
+  const submitRating = async () => {
+    if (!order || hasReviewed || submittingRating || myRating < 1) return;
     setSubmittingRating(true);
-    setMyRating(rating);
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
-      await reviewService.submitReview(order.id, user.id, order.technician_id ?? null, rating);
+      await reviewService.submitReview(
+        order.id,
+        user.id,
+        order.technician_id ?? null,
+        myRating,
+        myComment.trim() || undefined,
+      );
       setHasReviewed(true);
       Alert.alert(
         isRTL ? 'شكراً لك ✓' : 'Thanks ✓',
         isRTL ? 'تم استلام تقييمك بنجاح' : 'Your rating has been recorded'
       );
     } catch (e: any) {
-      setMyRating(0);
       Alert.alert(
         isRTL ? 'خطأ' : 'Error',
         isRTL ? 'تعذّر إرسال التقييم. حاول مرة أخرى.' : 'Could not submit rating'
@@ -805,7 +812,7 @@ export default function OrderDetailsScreen() {
                   <TouchableOpacity
                     key={star}
                     style={styles.starButton}
-                    onPress={() => submitRating(star)}
+                    onPress={() => !hasReviewed && setMyRating(star)}
                     disabled={hasReviewed || submittingRating}
                     accessibilityRole="button"
                     accessibilityLabel={`${star} ${isRTL ? 'نجمة' : 'star'}`}
@@ -819,10 +826,65 @@ export default function OrderDetailsScreen() {
                 );
               })}
             </View>
-            {submittingRating && (
-              <Text style={{ color: COLORS.textSecondary, fontSize: 12, marginTop: 10, textAlign: 'center' }}>
-                {isRTL ? 'جارٍ الإرسال...' : 'Submitting...'}
-              </Text>
+            {hasReviewed ? (
+              myComment ? (
+                <Text style={{
+                  color: COLORS.text,
+                  fontSize: 13,
+                  lineHeight: 19,
+                  marginTop: 12,
+                  textAlign: isRTL ? 'right' : 'left',
+                  writingDirection: isRTL ? 'rtl' : 'ltr',
+                }}>
+                  {`“${myComment}”`}
+                </Text>
+              ) : null
+            ) : (
+              <>
+                <TextInput
+                  value={myComment}
+                  onChangeText={setMyComment}
+                  placeholder={isRTL
+                    ? 'اكتب ملاحظاتك عن خدمة الفني (اختياري)'
+                    : 'Leave a comment for the technician (optional)'}
+                  placeholderTextColor={COLORS.textSecondary}
+                  multiline
+                  maxLength={500}
+                  editable={!submittingRating}
+                  style={{
+                    marginTop: 12,
+                    minHeight: 70,
+                    borderRadius: 12,
+                    borderWidth: 1,
+                    borderColor: COLORS.border,
+                    backgroundColor: COLORS.background,
+                    color: COLORS.text,
+                    padding: 12,
+                    textAlign: isRTL ? 'right' : 'left',
+                    writingDirection: isRTL ? 'rtl' : 'ltr',
+                    textAlignVertical: 'top',
+                  }}
+                />
+                <TouchableOpacity
+                  onPress={submitRating}
+                  disabled={myRating < 1 || submittingRating}
+                  style={{
+                    marginTop: 12,
+                    backgroundColor: myRating < 1 ? COLORS.border : COLORS.primary,
+                    borderRadius: 12,
+                    paddingVertical: 12,
+                    alignItems: 'center',
+                    opacity: submittingRating ? 0.6 : 1,
+                  }}
+                  accessibilityRole="button"
+                >
+                  <Text style={{ color: '#fff', fontWeight: '800', fontSize: 14 }}>
+                    {submittingRating
+                      ? (isRTL ? 'جارٍ الإرسال...' : 'Submitting...')
+                      : (isRTL ? 'إرسال التقييم' : 'Submit rating')}
+                  </Text>
+                </TouchableOpacity>
+              </>
             )}
           </View>
         )}

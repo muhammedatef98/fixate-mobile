@@ -8,6 +8,7 @@ import { RTLIonicon } from '../../components/RTLIcon';
 import { getColors, getShadows, BORDER_RADIUS } from '../../constants/theme';
 import { PressableScale } from '../../components/ui/PressableScale';
 import { supabase } from '../../services/supabaseClient';
+import { getTechnicianRating } from '../../services/reviewService';
 import Avatar from '../../components/Avatar';
 
 export default function TechnicianProfile() {
@@ -31,8 +32,8 @@ export default function TechnicianProfile() {
   };
 
   const { user: authUser, userProfile, signOut } = useAuth();
-  const [stats, setStats] = useState<{ total: number; completed: number; rating: number; years: number }>({
-    total: 0, completed: 0, rating: 0, years: 0,
+  const [stats, setStats] = useState<{ total: number; completed: number; rating: number; ratingCount: number; years: number }>({
+    total: 0, completed: 0, rating: 0, ratingCount: 0, years: 0,
   });
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(20)).current;
@@ -47,15 +48,17 @@ export default function TechnicianProfile() {
 
   const loadStats = async () => {
     if (!authUser?.id) return;
-    const [{ count: total }, { count: completed }, { data: tech }] = await Promise.all([
+    const [{ count: total }, { count: completed }, { data: tech }, ratingSummary] = await Promise.all([
       supabase.from('orders').select('*', { count: 'exact', head: true }).eq('technician_id', authUser.id),
       supabase.from('orders').select('*', { count: 'exact', head: true }).eq('technician_id', authUser.id).eq('status', 'completed'),
-      supabase.from('technicians').select('rating, years_of_experience').eq('user_id', authUser.id).maybeSingle(),
+      supabase.from('technicians').select('years_of_experience').eq('user_id', authUser.id).maybeSingle(),
+      getTechnicianRating(authUser.id),
     ]);
     setStats({
       total: total ?? 0,
       completed: completed ?? 0,
-      rating: Number(tech?.rating ?? 0),
+      rating: Number(ratingSummary?.average_rating ?? 0),
+      ratingCount: Number(ratingSummary?.rating_count ?? 0),
       years: Number(tech?.years_of_experience ?? 0),
     });
   };
@@ -120,8 +123,14 @@ export default function TechnicianProfile() {
               </View>
               <View style={styles.statDivider} />
               <View style={styles.statItem}>
-                <Text style={styles.statValue}>{stats.rating > 0 ? stats.rating.toFixed(1) : '—'}</Text>
-                <Text style={styles.statLabel}>{isRTL ? 'تقييم' : 'Rating'}</Text>
+                <Text style={styles.statValue}>
+                  {stats.rating > 0 ? `${stats.rating.toFixed(1)}★` : '—'}
+                </Text>
+                <Text style={styles.statLabel}>
+                  {stats.ratingCount > 0
+                    ? `${stats.ratingCount} ${isRTL ? 'تقييم' : 'reviews'}`
+                    : (isRTL ? 'تقييم' : 'Rating')}
+                </Text>
               </View>
               <View style={styles.statDivider} />
               <View style={styles.statItem}>
