@@ -37,9 +37,16 @@ function RootLayoutContent() {
     // is intentionally NOT in this set — a logged-in user landing there can
     // pick which side of the app they want to enter, which is critical for
     // testing both flows from one account.
+    //
+    // forgot-password is also intentionally NOT in this set. The recovery
+    // flow calls supabase.auth.verifyOtp({ type: 'recovery' }), which
+    // establishes a *real* session before the user has set a new password.
+    // If we redirected away on that session, the new-password step would
+    // flash for a moment then disappear and the technician would land on
+    // /(technician) without ever updating their password.
     const REDIRECT_AWAY_IF_LOGGED_IN = new Set([
       'login', 'signup', 'auth', 'technician-auth',
-      'login-otp', 'forgot-password', 'onboarding',
+      'login-otp', 'onboarding',
     ]);
     const PROTECTED_GROUPS = new Set(['(customer)', '(technician)', 'request']);
 
