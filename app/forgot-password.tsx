@@ -15,6 +15,7 @@ import {
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../contexts/AppContext';
+import { useAuth } from '../contexts/AuthContext';
 import { getColors, SPACING, BORDER_RADIUS } from '../constants/theme';
 import { RTLIonicon } from '../components/RTLIcon';
 import { supabase } from '../services/supabaseClient';
@@ -27,6 +28,7 @@ type Step = 'email' | 'otp' | 'newPassword';
 export default function ForgotPasswordScreen() {
   const router = useRouter();
   const { language, isDark } = useApp();
+  const { userProfile } = useAuth();
   const COLORS = getColors(isDark);
   const isRTL = language === 'ar';
 
@@ -127,10 +129,21 @@ export default function ForgotPasswordScreen() {
       const { error } = await supabase.auth.updateUser({ password: newPassword });
       if (error) throw error;
       success();
+      // Route by role: a technician resetting their password must NOT land
+      // in the customer portal. Admins go to /admin, technicians to
+      // /(technician), everyone else to /(customer). We only redirect
+      // AFTER the password is successfully updated — never before.
+      const isAdmin = (userProfile as any)?.is_admin === true;
+      const isTechnician = (userProfile as any)?.role === 'technician';
+      const target = isAdmin
+        ? '/admin'
+        : isTechnician
+        ? '/(technician)'
+        : '/(customer)';
       Alert.alert(
         isRTL ? 'تم' : 'Done',
         isRTL ? 'تم تحديث كلمة المرور. يمكنك الدخول الآن.' : 'Password updated. You can now log in.',
-        [{ text: 'OK', onPress: () => router.replace('/(customer)') }]
+        [{ text: 'OK', onPress: () => router.replace(target as any) }]
       );
     } catch (e: any) {
       Alert.alert(isRTL ? 'خطأ' : 'Error', getFriendlyError(e, language));
