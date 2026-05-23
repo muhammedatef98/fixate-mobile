@@ -21,7 +21,6 @@ import { supabase } from '../services/supabaseClient';
 import { validateEmail, validatePassword } from '../utils/validation';
 import { getFriendlyError } from '../utils/errorMessages';
 import { tapMedium, success } from '../utils/haptics';
-import { sendOtp as sendCustomOtp, verifyOtp as verifyCustomOtp } from '../services/customOtpService';
 
 type Step = 'email' | 'otp' | 'newPassword';
 
@@ -63,7 +62,16 @@ export default function ForgotPasswordScreen() {
     }
     setLoading(true);
     try {
-      await sendCustomOtp(email.trim().toLowerCase(), 'reset_password', language);
+      // Use Supabase Auth's built-in email OTP. Delivered via Supabase SMTP,
+      // so this no longer depends on the Resend sandbox-restricted sender
+      // that was returning 502 from the send-otp edge function.
+      // `shouldCreateUser: false` keeps "reset" semantics — never creates a
+      // new account from a forgot-password attempt.
+      const { error } = await supabase.auth.signInWithOtp({
+        email: email.trim().toLowerCase(),
+        options: { shouldCreateUser: false },
+      });
+      if (error) throw error;
       tapMedium();
       setStep('otp');
       startTimer();
@@ -81,7 +89,14 @@ export default function ForgotPasswordScreen() {
     }
     setLoading(true);
     try {
-      await verifyCustomOtp(email.trim().toLowerCase(), code, 'reset_password');
+      // Verifying the email OTP establishes a real Supabase session, which
+      // is required for the subsequent supabase.auth.updateUser() call.
+      const { error } = await supabase.auth.verifyOtp({
+        email: email.trim().toLowerCase(),
+        token: code,
+        type: 'email',
+      });
+      if (error) throw error;
       tapMedium();
       setStep('newPassword');
     } catch (e: any) {

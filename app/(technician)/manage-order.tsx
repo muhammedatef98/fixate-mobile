@@ -294,11 +294,21 @@ export default function ManageOrderScreen() {
     try {
       setSubmittingQuote(true);
       await requests.setQuote(id as string, price, quoteNotes.trim() || undefined);
+      // Optimistically reflect the quoted state on this screen immediately,
+      // even before the realtime subscription fires, so the "awaiting
+      // customer approval" card shows up right away.
+      setOrder((prev) =>
+        prev
+          ? ({ ...prev, status: 'quoted', final_price: price } as any)
+          : prev
+      );
+      setQuotePrice('');
+      setQuoteNotes('');
       Alert.alert(
-        isRTL ? 'تم إرسال السعر' : 'Quote sent',
+        isRTL ? 'تم إرسال السعر ✓' : 'Quote sent ✓',
         isRTL
-          ? 'سيراجع العميل السعر ويوافق أو يرفض قبل بدء الإصلاح'
-          : 'The customer will review the price and accept or reject before repair starts'
+          ? `تم إرسال عرض السعر بمبلغ ${price} ر.س للعميل. سيظهر بانتظار موافقته أو رفضه.`
+          : `Quotation for ${price} SAR has been sent to the customer. It is now awaiting their approval or rejection.`
       );
     } catch (error: any) {
       logger.error('Error submitting quote:', error);
@@ -494,12 +504,18 @@ export default function ManageOrderScreen() {
         {/* Awaiting customer's decision on the quote */}
         {order.status === 'quoted' && (
           <View style={[styles.card, { backgroundColor: '#F59E0B15', borderWidth: 1, borderColor: '#F59E0B' }]}>
+            <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+              <MaterialCommunityIcons name="check-circle" size={22} color="#16A34A" />
+              <Text style={{ flex: 1, color: '#16A34A', fontWeight: '800', fontSize: 15, textAlign: isRTL ? 'right' : 'left' }}>
+                {isRTL ? 'تم إرسال عرض السعر' : 'Quotation sent'}
+              </Text>
+            </View>
             <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 10 }}>
-              <MaterialCommunityIcons name="clock-alert-outline" size={24} color="#F59E0B" />
-              <Text style={{ flex: 1, color: COLORS.text, fontWeight: '700', textAlign: isRTL ? 'right' : 'left' }}>
+              <MaterialCommunityIcons name="clock-alert-outline" size={22} color="#F59E0B" />
+              <Text style={{ flex: 1, color: COLORS.text, fontWeight: '700', fontSize: 13, lineHeight: 19, textAlign: isRTL ? 'right' : 'left' }}>
                 {isRTL
                   ? `بانتظار موافقة العميل على السعر (${(order as any).final_price} ر.س)`
-                  : `Awaiting customer approval of the price (${(order as any).final_price} SAR)`}
+                  : `Awaiting customer approval — price ${(order as any).final_price} SAR`}
               </Text>
             </View>
           </View>
@@ -584,7 +600,7 @@ export default function ManageOrderScreen() {
         {order.status !== 'pending' && order.status !== 'cancelled' && (
           <View style={styles.actionButtonRow}>
             <TouchableOpacity
-              style={[styles.chatButton, { backgroundColor: COLORS.primary, flex: 1, marginRight: 8 }, SHADOWS.small]}
+              style={[styles.chatButton, { backgroundColor: COLORS.primary, flex: 1 }, SHADOWS.small]}
               onPress={() => router.push({
                 pathname: `/chat/${order.id}`,
                 params: { otherUserName: isRTL ? 'العميل' : 'Customer' }
@@ -745,11 +761,11 @@ export default function ManageOrderScreen() {
 
           <View style={[styles.locationButtons, { padding: SPACING.l }]}>
             <TouchableOpacity
-              style={[styles.locationButton, { backgroundColor: COLORS.primary, height: 50 }]}
+              style={[styles.locationButton, { backgroundColor: COLORS.primary, minHeight: 56, paddingVertical: SPACING.m }]}
               onPress={openNavigation}
             >
               <Ionicons name="navigate-circle" size={24} color="#FFFFFF" />
-              <Text style={[styles.locationButtonText, { fontSize: 16 }]}>
+              <Text style={[styles.locationButtonText, { fontSize: 15, lineHeight: 22 }]}>
                 {isRTL ? 'بدء التوجه للموقع' : 'Start Navigation'}
               </Text>
             </TouchableOpacity>
@@ -933,6 +949,7 @@ const makeStyles = (isRTL: boolean) => StyleSheet.create({
     flexDirection: isRTL ? 'row-reverse' : 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    gap: SPACING.m,
     marginBottom: SPACING.l,
   },
   chatButtonText: {
@@ -1047,13 +1064,14 @@ const makeStyles = (isRTL: boolean) => StyleSheet.create({
     flexDirection: isRTL ? 'row-reverse' : 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: SPACING.m,
+    paddingHorizontal: SPACING.m,
+    paddingVertical: SPACING.s,
     borderRadius: BORDER_RADIUS.m,
+    gap: SPACING.s,
   },
   locationButtonText: {
     color: '#FFFFFF',
     fontWeight: 'bold',
-    marginLeft: SPACING.s,
   },
   mediaImage: {
     width: 120,

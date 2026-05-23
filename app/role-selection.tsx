@@ -93,11 +93,16 @@ export default function RoleSelectionScreen() {
 
           {/* Logo */}
           <View style={styles.logoContainer}>
-            <Image 
-              source={require('../assets/fixate-logo-main.png')} 
-              style={styles.logoImage}
-              resizeMode="contain"
-            />
+            {/* Soft tinted plate behind the logo so the brand mark stays
+                legible on both light and dark themes without needing a
+                separate dark-mode logo asset. */}
+            <View style={styles.logoPlate}>
+              <Image
+                source={require('../assets/fixate-logo-main.png')}
+                style={styles.logoImage}
+                resizeMode="contain"
+              />
+            </View>
           </View>
 
           {/* Title */}
@@ -190,7 +195,7 @@ export default function RoleSelectionScreen() {
 const createStyles = (COLORS: any, SHADOWS: any, isRTL: boolean) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: COLORS.background,
   },
   languageButton: {
     position: 'absolute',
@@ -224,9 +229,17 @@ const createStyles = (COLORS: any, SHADOWS: any, isRTL: boolean) => StyleSheet.c
   logoContainer: {
     marginBottom: SPACING.lg,
   },
+  logoPlate: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: COLORS.primarySoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   logoImage: {
-    width: 100,
-    height: 100,
+    width: 90,
+    height: 90,
   },
   title: {
     fontSize: 40,

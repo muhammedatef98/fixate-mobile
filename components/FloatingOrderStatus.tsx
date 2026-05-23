@@ -11,7 +11,7 @@ import {
 import { useRouter, usePathname } from 'expo-router';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { COLORS, SPACING, BORDER_RADIUS, SHADOWS } from '../constants/theme';
+import { getColors, SPACING, BORDER_RADIUS } from '../constants/theme';
 import { useApp } from '../contexts/AppContext';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../services/supabaseClient';
@@ -34,9 +34,10 @@ const dismissKey = (userId: string) => `floating-order-dismissed:${userId}`;
 export default function FloatingOrderStatus() {
   const router = useRouter();
   const pathname = usePathname();
-  const { language } = useApp();
+  const { language, isDark } = useApp();
   const { user } = useAuth();
   const isRTL = language === 'ar';
+  const COLORS = getColors(isDark);
   const [activeOrder, setActiveOrder] = useState<any>(null);
   const [visible, setVisible] = useState(false);
   const [dismissedId, setDismissedId] = useState<string | null>(null);
@@ -170,73 +171,142 @@ export default function FloatingOrderStatus() {
     }
   };
 
+  const sColor = statusColor(activeOrder.status);
+
   return (
-    <Animated.View style={[styles.container, { transform: [{ translateY: slideAnim }] }, SHADOWS.medium]}>
-      <View style={styles.content}>
-        <TouchableOpacity
-          onPress={() => router.push('/(customer)/orders')}
-          style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }}
-          accessibilityRole="button"
-        >
-          <View style={[styles.iconContainer, { backgroundColor: statusColor(activeOrder.status) + '20' }]}>
-            <MaterialIcons name="delivery-dining" size={24} color={statusColor(activeOrder.status)} />
-          </View>
-          <View style={styles.textContainer}>
-            <Text style={styles.title}>
-              {isRTL ? 'طلب جاري' : 'Active order'} #{activeOrder.id.slice(0, 4)}
-            </Text>
-            <Text style={styles.subtitle}>{statusText(activeOrder.status)}</Text>
-          </View>
-          <RTLMaterialIcon name="chevron-right" size={20} color={COLORS.textSecondary} />
-        </TouchableOpacity>
-        <TouchableOpacity
-          onPress={dismiss}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          style={styles.closeBtn}
-          accessibilityRole="button"
-          accessibilityLabel={isRTL ? 'إخفاء' : 'Hide'}
-        >
-          <Ionicons name="close" size={18} color={COLORS.textSecondary} />
-        </TouchableOpacity>
+    <Animated.View
+      style={[
+        styles.wrapper,
+        { transform: [{ translateY: slideAnim }] },
+      ]}
+      pointerEvents="box-none"
+    >
+      <View
+        style={[
+          styles.card,
+          {
+            backgroundColor: COLORS.card,
+            borderColor: COLORS.border,
+            shadowColor: isDark ? '#000' : '#0F172A',
+          },
+        ]}
+      >
+        {/* Left brand stripe in the status colour for instant recognition */}
+        <View style={[styles.stripe, { backgroundColor: sColor }]} />
+        <View style={[styles.content, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+          <TouchableOpacity
+            onPress={() => router.push('/(customer)/orders')}
+            style={[styles.tapArea, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}
+            accessibilityRole="button"
+            accessibilityLabel={isRTL ? 'فتح الطلبات' : 'Open orders'}
+          >
+            <View style={[styles.iconContainer, { backgroundColor: sColor + '22' }]}>
+              <MaterialIcons name="delivery-dining" size={22} color={sColor} />
+            </View>
+            <View style={[styles.textContainer, { alignItems: isRTL ? 'flex-end' : 'flex-start' }]}>
+              <View style={[styles.titleRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                <Text style={[styles.title, { color: COLORS.text }]} numberOfLines={1}>
+                  {isRTL ? 'طلب جاري' : 'Active order'}
+                </Text>
+                <View style={[styles.idChip, { backgroundColor: sColor + '18' }]}>
+                  <Text style={[styles.idChipText, { color: sColor }]}>
+                    #{activeOrder.id.slice(0, 4)}
+                  </Text>
+                </View>
+              </View>
+              <Text
+                style={[
+                  styles.subtitle,
+                  {
+                    color: COLORS.textSecondary,
+                    textAlign: isRTL ? 'right' : 'left',
+                    writingDirection: isRTL ? 'rtl' : 'ltr',
+                  },
+                ]}
+                numberOfLines={1}
+              >
+                {statusText(activeOrder.status)}
+              </Text>
+            </View>
+            <RTLMaterialIcon name="chevron-right" size={20} color={COLORS.textSecondary} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={dismiss}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            style={[styles.closeBtn, { backgroundColor: COLORS.cardAlt }]}
+            accessibilityRole="button"
+            accessibilityLabel={isRTL ? 'إخفاء' : 'Hide'}
+          >
+            <Ionicons name="close" size={16} color={COLORS.textSecondary} />
+          </TouchableOpacity>
+        </View>
       </View>
     </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  wrapper: {
     position: 'absolute',
     bottom: Platform.OS === 'ios' ? 108 : 98,
-    left: SPACING.lg,
-    right: SPACING.lg,
-    backgroundColor: '#FFFFFF',
-    borderRadius: BORDER_RADIUS.lg,
+    left: SPACING.md,
+    right: SPACING.md,
     zIndex: 1000,
-    elevation: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.12,
-    shadowRadius: 12,
+  },
+  card: {
+    borderRadius: BORDER_RADIUS.lg,
+    overflow: 'hidden',
+    borderWidth: 1,
+    elevation: 10,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.18,
+    shadowRadius: 16,
+  },
+  stripe: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    left: 0,
+    width: 4,
   },
   content: {
-    flexDirection: 'row',
     alignItems: 'center',
-    padding: SPACING.md,
+    paddingVertical: 10,
+    paddingHorizontal: SPACING.md,
+    paddingLeft: SPACING.md + 4, // leave room for the stripe
+  },
+  tapArea: {
+    flex: 1,
+    alignItems: 'center',
+    gap: SPACING.s,
   },
   iconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: SPACING.md,
   },
   textContainer: { flex: 1 },
-  title: { fontSize: 14, fontWeight: 'bold', color: COLORS.text },
-  subtitle: { fontSize: 12, color: COLORS.textSecondary, marginTop: 2 },
+  titleRow: {
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 1,
+  },
+  title: { fontSize: 14, fontWeight: '800' },
+  idChip: {
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: 6,
+  },
+  idChipText: { fontSize: 10, fontWeight: '800' },
+  subtitle: { fontSize: 12, marginTop: 1 },
   closeBtn: {
-    width: 28, height: 28, borderRadius: 14,
-    alignItems: 'center', justifyContent: 'center',
-    marginLeft: 6,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginStart: 6,
   },
 });
