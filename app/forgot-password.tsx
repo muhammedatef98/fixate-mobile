@@ -41,7 +41,27 @@ export default function ForgotPasswordScreen() {
   const [resendIn, setResendIn] = useState(0);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // verifyOtp({ type: 'recovery' }) creates a real Supabase session BEFORE
+  // the user has chosen a new password. If they leave the screen without
+  // completing updateUser({ password }), that recovery session would still
+  // be active and the root layout's auth guards would auto-route them into
+  // their account (technician dashboard, etc.). Track both flags so the
+  // unmount cleanup can sign out locally if-and-only-if the user bailed
+  // out of the recovery flow halfway.
+  const hasRecoverySessionRef = useRef(false);
+  const completedRef = useRef(false);
+
   useEffect(() => () => { if (intervalRef.current) clearInterval(intervalRef.current); }, []);
+
+  // On unmount: if a recovery session was established but the password
+  // wasn't actually updated, sign out locally so the half-finished
+  // recovery session can't be re-used. Local scope keeps other devices
+  // signed in — only this device's session is dropped.
+  useEffect(() => () => {
+    if (hasRecoverySessionRef.current && !completedRef.current) {
+      supabase.auth.signOut({ scope: 'local' }).catch(() => {});
+    }
+  }, []);
 
   const startTimer = () => {
     setResendIn(60);
@@ -109,6 +129,11 @@ export default function ForgotPasswordScreen() {
         type: 'recovery',
       });
       if (error) throw error;
+      // A real Supabase session now exists (required so the subsequent
+      // updateUser({ password }) call is authenticated). Flag it so the
+      // unmount cleanup can revoke it locally if the user bails out
+      // before saving a new password.
+      hasRecoverySessionRef.current = true;
       tapMedium();
       setStep('newPassword');
     } catch (e: any) {
@@ -128,6 +153,9 @@ export default function ForgotPasswordScreen() {
     try {
       const { error } = await supabase.auth.updateUser({ password: newPassword });
       if (error) throw error;
+      // Mark as fully completed BEFORE we navigate, so the unmount cleanup
+      // does NOT sign the user out — they've earned this session.
+      completedRef.current = true;
       success();
       // Route by role: a technician resetting their password must NOT land
       // in the customer portal. Admins go to /admin, technicians to
