@@ -93,6 +93,16 @@ export default function MarketScreen() {
   const [listings, setListings] = useState<MarketListing[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [marketplaceEnabled, setMarketplaceEnabled] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    import('../services/platformSettingsService')
+      .then(({ getPlatformSettings }) => getPlatformSettings())
+      .then((s) => { if (!cancelled) setMarketplaceEnabled(s.marketplaceEnabled); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
 
   const applySearchDebounced = useMemo(
     () => debounce((v: string) => setAppliedSearch(v), 350),
@@ -195,6 +205,32 @@ export default function MarketScreen() {
       </View>
     </TouchableOpacity>
   );
+
+  if (!marketplaceEnabled) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => router.back()} accessibilityRole="button">
+            <RTLIonicon name="chevron-back" size={26} color={COLORS.text} />
+          </TouchableOpacity>
+          <Text style={styles.title}>{isRTL ? 'سوق Fixate' : 'Fixate Market'}</Text>
+          <View style={{ width: 28 }} />
+        </View>
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 }}>
+          <Ionicons name="storefront-outline" size={56} color={COLORS.textSecondary} />
+          <Text style={{ color: COLORS.text, fontSize: 18, fontWeight: '800', marginTop: 12, textAlign: 'center' }}>
+            {isRTL ? 'السوق متوقّف مؤقتاً' : 'Marketplace is temporarily off'}
+          </Text>
+          <Text style={{ color: COLORS.textSecondary, fontSize: 13, marginTop: 6, textAlign: 'center', lineHeight: 19 }}>
+            {isRTL
+              ? 'سيعود السوق قريباً. شكراً لتفهمكم.'
+              : 'The marketplace is taking a quick break. Please check back later.'}
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>

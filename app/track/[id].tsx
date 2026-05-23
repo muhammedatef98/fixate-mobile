@@ -8,26 +8,32 @@ import {
 import { useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../../contexts/AppContext';
+import { getColors } from '../../constants/theme';
 
 export default function TrackOrderScreen() {
   const { id } = useLocalSearchParams();
-  const { language } = useApp();
+  const { language, isDark } = useApp();
   const isRTL = language === 'ar';
-  const styles = makeStyles(isRTL);
+  const COLORS = getColors(isDark);
+  const styles = makeStyles(isRTL, COLORS);
 
   const orderStatus = [
-    { status: 'تم استلام الطلب', completed: true, time: '10:30 صباحاً' },
-    { status: 'جاري التجهيز', completed: true, time: '11:00 صباحاً' },
-    { status: 'في الطريق', completed: false, time: '' },
-    { status: 'تم التسليم', completed: false, time: '' },
+    { status: isRTL ? 'تم استلام الطلب' : 'Order received', completed: true, time: isRTL ? '10:30 صباحاً' : '10:30 AM' },
+    { status: isRTL ? 'جاري التجهيز' : 'Preparing', completed: true, time: isRTL ? '11:00 صباحاً' : '11:00 AM' },
+    { status: isRTL ? 'في الطريق' : 'On the way', completed: false, time: '' },
+    { status: isRTL ? 'تم التسليم' : 'Delivered', completed: false, time: '' },
   ];
 
   return (
     <ScrollView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.orderId}>طلب رقم: #{id}</Text>
+        <Text style={styles.orderId}>
+          {isRTL ? `طلب رقم: #${id}` : `Order #${id}`}
+        </Text>
         <View style={styles.statusBadge}>
-          <Text style={styles.statusText}>جاري التجهيز</Text>
+          <Text style={styles.statusText}>
+            {isRTL ? 'جاري التجهيز' : 'Preparing'}
+          </Text>
         </View>
       </View>
 
@@ -72,21 +78,23 @@ export default function TrackOrderScreen() {
       </View>
 
       <View style={styles.details}>
-        <Text style={styles.detailsTitle}>تفاصيل الطلب</Text>
-        <DetailRow styles={styles} icon="phone-portrait" label="الجهاز" value="iPhone 13 Pro" />
-        <DetailRow styles={styles} icon="construct" label="المشكلة" value="تغيير الشاشة" />
-        <DetailRow styles={styles} icon="location" label="العنوان" value="الرياض، حي النخيل" />
-        <DetailRow styles={styles} icon="cash" label="السعر" value="300 ريال" />
+        <Text style={styles.detailsTitle}>
+          {isRTL ? 'تفاصيل الطلب' : 'Order details'}
+        </Text>
+        <DetailRow styles={styles} COLORS={COLORS} icon="phone-portrait" label={isRTL ? 'الجهاز' : 'Device'} value="iPhone 13 Pro" />
+        <DetailRow styles={styles} COLORS={COLORS} icon="construct" label={isRTL ? 'المشكلة' : 'Issue'} value={isRTL ? 'تغيير الشاشة' : 'Screen replacement'} />
+        <DetailRow styles={styles} COLORS={COLORS} icon="location" label={isRTL ? 'العنوان' : 'Address'} value={isRTL ? 'الرياض، حي النخيل' : 'Riyadh, Al Nakheel'} />
+        <DetailRow styles={styles} COLORS={COLORS} icon="cash" label={isRTL ? 'السعر' : 'Price'} value={isRTL ? '300 ريال' : '300 SAR'} />
       </View>
     </ScrollView>
   );
 }
 
-function DetailRow({ styles, icon, label, value }: any) {
+function DetailRow({ styles, COLORS, icon, label, value }: any) {
   return (
     <View style={styles.detailRow}>
       <View style={styles.detailLeft}>
-        <Ionicons name={icon} size={20} color="#10b981" />
+        <Ionicons name={icon} size={20} color={COLORS.primary} />
         <Text style={styles.detailLabel}>{label}</Text>
       </View>
       <Text style={styles.detailValue}>{value}</Text>
@@ -94,35 +102,38 @@ function DetailRow({ styles, icon, label, value }: any) {
   );
 }
 
-const makeStyles = (isRTL: boolean) => StyleSheet.create({
+const makeStyles = (isRTL: boolean, C: any) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f9fafb',
+    backgroundColor: C.background,
   },
   header: {
-    backgroundColor: '#fff',
+    backgroundColor: C.card,
     padding: 24,
     borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
+    borderBottomColor: C.border,
   },
   orderId: {
     fontSize: 24,
     fontWeight: 'bold',
+    color: C.text,
     marginBottom: 12,
+    textAlign: isRTL ? 'right' : 'left',
+    writingDirection: isRTL ? 'rtl' : 'ltr',
   },
   statusBadge: {
-    backgroundColor: '#fef3c7',
+    backgroundColor: C.warningSoft,
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
-    alignSelf: 'flex-start',
+    alignSelf: isRTL ? 'flex-end' : 'flex-start',
   },
   statusText: {
-    color: '#92400e',
+    color: C.warning,
     fontWeight: '600',
   },
   timeline: {
-    backgroundColor: '#fff',
+    backgroundColor: C.card,
     padding: 24,
     marginTop: 16,
   },
@@ -139,21 +150,21 @@ const makeStyles = (isRTL: boolean) => StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#e5e7eb',
+    backgroundColor: C.border,
     alignItems: 'center',
     justifyContent: 'center',
   },
   timelineDotCompleted: {
-    backgroundColor: '#10b981',
+    backgroundColor: C.primary,
   },
   timelineLine: {
     width: 2,
     flex: 1,
-    backgroundColor: '#e5e7eb',
+    backgroundColor: C.border,
     marginTop: 4,
   },
   timelineLineCompleted: {
-    backgroundColor: '#10b981',
+    backgroundColor: C.primary,
   },
   timelineContent: {
     flex: 1,
@@ -161,26 +172,32 @@ const makeStyles = (isRTL: boolean) => StyleSheet.create({
   },
   timelineStatus: {
     fontSize: 16,
-    color: '#6b7280',
+    color: C.textSecondary,
     marginBottom: 4,
+    textAlign: isRTL ? 'right' : 'left',
+    writingDirection: isRTL ? 'rtl' : 'ltr',
   },
   timelineStatusCompleted: {
-    color: '#111827',
+    color: C.text,
     fontWeight: '600',
   },
   timelineTime: {
     fontSize: 14,
-    color: '#9ca3af',
+    color: C.textLight,
+    textAlign: isRTL ? 'right' : 'left',
   },
   details: {
-    backgroundColor: '#fff',
+    backgroundColor: C.card,
     padding: 24,
     marginTop: 16,
   },
   detailsTitle: {
     fontSize: 20,
     fontWeight: 'bold',
+    color: C.text,
     marginBottom: 16,
+    textAlign: isRTL ? 'right' : 'left',
+    writingDirection: isRTL ? 'rtl' : 'ltr',
   },
   detailRow: {
     flexDirection: isRTL ? 'row-reverse' : 'row',
@@ -188,19 +205,20 @@ const makeStyles = (isRTL: boolean) => StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6',
+    borderBottomColor: C.border,
   },
   detailLeft: {
     flexDirection: isRTL ? 'row-reverse' : 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 8,
   },
   detailLabel: {
-    fontSize: 16,
-    color: '#6b7280',
+    fontSize: 14,
+    color: C.textSecondary,
   },
   detailValue: {
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 14,
+    color: C.text,
+    fontWeight: '500',
   },
 });

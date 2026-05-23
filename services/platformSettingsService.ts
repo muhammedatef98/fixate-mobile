@@ -63,6 +63,12 @@ export interface PlatformSettings {
   // only sends in-app notifications until this is turned on (for a future
   // App Store / Google Play launch).
   pushNotificationsEnabled: boolean;
+  // Customer rating + comment capture on completed orders. On by default;
+  // ops can flip off to hide the rating UI without a code change.
+  ratingsEnabled: boolean;
+  // Marketplace master switch. On by default; ops can flip off to hide
+  // browse/create flows during incidents or App Review.
+  marketplaceEnabled: boolean;
 }
 
 export const PLATFORM_SETTINGS_KEYS = {
@@ -87,6 +93,8 @@ export const PLATFORM_SETTINGS_KEYS = {
   announcementEn: 'announcement_en',
   minAppVersion: 'min_app_version',
   pushNotificationsEnabled: 'push_notifications_enabled',
+  ratingsEnabled: 'ratings_enabled',
+  marketplaceEnabled: 'marketplace_enabled',
 } as const;
 
 const boolFromValue = (raw: any, fallback: boolean): boolean => {
@@ -157,6 +165,8 @@ const DEFAULTS: PlatformSettings = {
   announcementEn: '',
   minAppVersion: '',
   pushNotificationsEnabled: false,
+  ratingsEnabled: true,
+  marketplaceEnabled: true,
 };
 
 const loadRaw = async (): Promise<Record<string, any>> => {
@@ -207,6 +217,8 @@ export const getPlatformSettings = async (): Promise<PlatformSettings> => {
     announcementEn: strFromValue(raw[PLATFORM_SETTINGS_KEYS.announcementEn], DEFAULTS.announcementEn),
     minAppVersion: strFromValue(raw[PLATFORM_SETTINGS_KEYS.minAppVersion], DEFAULTS.minAppVersion),
     pushNotificationsEnabled: boolFromValue(raw[PLATFORM_SETTINGS_KEYS.pushNotificationsEnabled], DEFAULTS.pushNotificationsEnabled),
+    ratingsEnabled: boolFromValue(raw[PLATFORM_SETTINGS_KEYS.ratingsEnabled], DEFAULTS.ratingsEnabled),
+    marketplaceEnabled: boolFromValue(raw[PLATFORM_SETTINGS_KEYS.marketplaceEnabled], DEFAULTS.marketplaceEnabled),
   };
 };
 

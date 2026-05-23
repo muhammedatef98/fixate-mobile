@@ -60,6 +60,7 @@ export default function OrderDetailsScreen() {
   const [myComment, setMyComment] = useState<string>('');
   const [submittingRating, setSubmittingRating] = useState(false);
   const [hasReviewed, setHasReviewed] = useState(false);
+  const [ratingsEnabled, setRatingsEnabled] = useState(true);
   const [viewerOpen, setViewerOpen] = useState(false);
   const [viewerIndex, setViewerIndex] = useState(0);
   const [respondingQuote, setRespondingQuote] = useState(false);
@@ -71,6 +72,7 @@ export default function OrderDetailsScreen() {
     if (!order) return;
     (async () => {
       const settings = await getPlatformSettings();
+      setRatingsEnabled(settings.ratingsEnabled);
       const fulfillment = ((order as any).fulfillment_type ?? order.service_type) as any;
       setFeePreview(
         computeCancellationFee({
@@ -793,7 +795,7 @@ export default function OrderDetailsScreen() {
         </View>
 
         {/* Completed Order Rating */}
-        {userType === 'customer' && order.status === 'completed' && (
+        {userType === 'customer' && order.status === 'completed' && ratingsEnabled && (
           <View style={[styles.card, { backgroundColor: COLORS.card }, SHADOWS.small]}>
             <Text style={[styles.cardTitle, { color: COLORS.text, marginBottom: 6 }]}>
               {hasReviewed
