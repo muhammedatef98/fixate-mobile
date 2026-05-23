@@ -1,11 +1,10 @@
-import React, { useRef, useEffect } from 'react';
-import { View, TouchableOpacity, Text, StyleSheet, Animated, Dimensions, Platform } from 'react-native';
+import React from 'react';
+import { View, TouchableOpacity, Text, StyleSheet, Platform } from 'react-native';
 import { useRouter, usePathname } from 'expo-router';
-import { MaterialIcons, MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../contexts/AppContext';
+import { getColors } from '../constants/theme';
 import { selection } from '../utils/haptics';
-
-const { width } = Dimensions.get('window');
 
 const NAV_ITEMS = [
   { path: '/(customer)', icon: 'home-outline', activeIcon: 'home', labelAr: 'الرئيسية', labelEn: 'Home' },
@@ -17,25 +16,19 @@ const NAV_ITEMS = [
 export default function BottomNav(_props: { currentRoute?: string } = {}) {
   const router = useRouter();
   const pathname = usePathname();
-  const { language } = useApp();
+  const { language, isDark } = useApp();
   const isRTL = language === 'ar';
-  
-  const COLORS = {
-    primary: '#10b981',
-    white: '#ffffff',
-    text: '#1f2937',
-    gray: '#9ca3af',
-    background: '#f9fafb',
-  };
+  const COLORS = getColors(isDark);
 
   const navItems = isRTL ? [...NAV_ITEMS].reverse() : NAV_ITEMS;
+  const styles = makeStyles(COLORS, isDark);
 
   return (
     <View style={styles.container}>
       <View style={styles.floatingBar}>
         {navItems.map((item) => {
           const isActive = pathname === item.path || (item.path === '/(customer)' && pathname === '/');
-          
+
           return (
             <TouchableOpacity
               key={item.path}
@@ -48,10 +41,10 @@ export default function BottomNav(_props: { currentRoute?: string } = {}) {
               accessibilityHint={isRTL ? 'انتقال إلى ' + item.labelAr : 'Navigate to ' + item.labelEn}
             >
               <View style={[styles.iconWrapper, isActive && styles.activeIconWrapper]}>
-                <Ionicons 
-                  name={(isActive ? item.activeIcon : item.icon) as any} 
-                  size={24} 
-                  color={isActive ? COLORS.primary : COLORS.gray} 
+                <Ionicons
+                  name={(isActive ? item.activeIcon : item.icon) as any}
+                  size={24}
+                  color={isActive ? COLORS.primary : COLORS.textSecondary}
                 />
                 {isActive && <View style={styles.activeDot} />}
               </View>
@@ -66,7 +59,7 @@ export default function BottomNav(_props: { currentRoute?: string } = {}) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (C: any, isDark: boolean) => StyleSheet.create({
   container: {
     position: 'absolute',
     bottom: Platform.OS === 'ios' ? 30 : 20,
@@ -78,19 +71,19 @@ const styles = StyleSheet.create({
   },
   floatingBar: {
     flexDirection: 'row',
-    backgroundColor: '#ffffff',
+    backgroundColor: C.card,
     width: '100%',
     height: 70,
     borderRadius: 35,
     alignItems: 'center',
     justifyContent: 'space-around',
     paddingHorizontal: 10,
-    // Shadow for iOS
+    borderWidth: isDark ? 1 : 0,
+    borderColor: C.border,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.1,
+    shadowOpacity: isDark ? 0.4 : 0.1,
     shadowRadius: 20,
-    // Shadow for Android
     elevation: 10,
   },
   navItem: {
@@ -106,7 +99,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
   },
   activeIconWrapper: {
-    backgroundColor: '#ecfdf5',
+    backgroundColor: C.primarySoft,
   },
   activeDot: {
     position: 'absolute',
@@ -114,16 +107,16 @@ const styles = StyleSheet.create({
     width: 4,
     height: 4,
     borderRadius: 2,
-    backgroundColor: '#10b981',
+    backgroundColor: C.primary,
   },
   label: {
     fontSize: 10,
-    color: '#9ca3af',
+    color: C.textSecondary,
     marginTop: 2,
     fontWeight: '500',
   },
   activeLabel: {
-    color: '#10b981',
+    color: C.primary,
     fontWeight: 'bold',
   },
 });

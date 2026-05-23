@@ -15,13 +15,12 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { MaterialIcons, FontAwesome5, FontAwesome6 } from '@expo/vector-icons';
+import { MaterialIcons } from '@expo/vector-icons';
 import { getColors, getShadows, SPACING, BORDER_RADIUS } from '../constants/theme';
 import { useApp } from '../contexts/AppContext';
 import { translations } from '../constants/translations';
 import { auth } from '../lib/supabase';
 import { RTLMaterialIcon } from '../components/RTLIcon';
-import { signInWithSocial } from '../services/socialAuthService';
 import { getFriendlyError } from '../utils/errorMessages';
 
 export default function AuthScreen() {
@@ -89,33 +88,6 @@ export default function AuthScreen() {
   };
 
   // Guest mode removed — every user must sign in or create an account.
-
-  const handleGoogleLogin = async () => {
-    try {
-      await signInWithSocial('google');
-      router.replace('/(customer)');
-    } catch (e: any) {
-      Alert.alert(language === 'ar' ? 'خطأ' : 'Error', getFriendlyError(e, language));
-    }
-  };
-
-  const handleAppleLogin = async () => {
-    try {
-      await signInWithSocial('apple');
-      router.replace('/(customer)');
-    } catch (e: any) {
-      Alert.alert(language === 'ar' ? 'خطأ' : 'Error', getFriendlyError(e, language));
-    }
-  };
-
-  const handleXLogin = async () => {
-    try {
-      await signInWithSocial('twitter');
-      router.replace('/(customer)');
-    } catch (e: any) {
-      Alert.alert(language === 'ar' ? 'خطأ' : 'Error', getFriendlyError(e, language));
-    }
-  };
 
   const styles = createStyles(COLORS, SHADOWS, isRTL);
 
@@ -293,38 +265,7 @@ export default function AuthScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* Social Login (available for all roles) */}
-          <View style={styles.socialContainer}>
-            <Text style={styles.socialText}>{language === 'ar' ? 'أو سجل الدخول عبر' : 'Or login with'}</Text>
-            <View style={styles.socialButtons}>
-              <TouchableOpacity
-                style={[styles.socialButton, SHADOWS.neuFlat]}
-                onPress={handleGoogleLogin}
-                accessibilityRole="button"
-                accessibilityLabel="Google"
-              >
-                <FontAwesome5 name="google" size={20} color="#DB4437" />
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.socialButton, SHADOWS.neuFlat]}
-                onPress={handleAppleLogin}
-                accessibilityRole="button"
-                accessibilityLabel="Apple"
-              >
-                <FontAwesome5 name="apple" size={20} color={isDark ? '#FFF' : '#000'} />
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.socialButton, SHADOWS.neuFlat]}
-                onPress={handleXLogin}
-                accessibilityRole="button"
-                accessibilityLabel="X"
-              >
-                <FontAwesome6 name="x-twitter" size={20} color={isDark ? '#FFF' : '#000'} />
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          {/* Guest mode is intentionally absent. Sign in or sign up is required. */}
+          {/* Social sign-in removed. Email/password and phone OTP are the only paths. */}
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -431,33 +372,5 @@ const createStyles = (COLORS: any, SHADOWS: any, isRTL: boolean) => StyleSheet.c
     alignItems: 'center',
     marginTop: SPACING.md,
     padding: SPACING.sm,
-  },
-  socialContainer: {
-    alignItems: 'center',
-    marginBottom: SPACING.lg,
-  },
-  socialText: {
-    color: COLORS.textSecondary,
-    marginBottom: SPACING.md,
-  },
-  socialButtons: {
-    flexDirection: isRTL ? 'row-reverse' : 'row',
-    gap: SPACING.lg,
-  },
-  socialButton: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: COLORS.background,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  guestButton: {
-    alignItems: 'center',
-  },
-  guestText: {
-    color: COLORS.textSecondary,
-    fontSize: 14,
-    textDecorationLine: 'underline',
   },
 });

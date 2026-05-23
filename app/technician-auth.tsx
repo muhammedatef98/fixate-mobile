@@ -16,11 +16,10 @@ import {
   Image,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Ionicons, MaterialCommunityIcons, FontAwesome6 } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useApp } from '../contexts/AppContext';
 import { supabase } from '../lib/supabase';
 import { RTLIonicon } from '../components/RTLIcon';
-import { signInWithSocial, SocialProvider } from '../services/socialAuthService';
 import { signUpWithPhoneOrEmail } from '../services/authService';
 import { getFriendlyError } from '../utils/errorMessages';
 import { getColors } from '../constants/theme';
@@ -275,36 +274,6 @@ export default function TechnicianAuthScreen() {
               </View>
             )}
 
-            <View style={styles.divider}>
-              <Text style={styles.dividerText}>{isRTL ? 'أو' : 'OR'}</Text>
-            </View>
-
-            <View style={styles.socialButtons}>
-              {([
-                { p: 'google' as SocialProvider, lib: 'ion', icon: 'logo-google', color: '#DB4437' },
-                { p: 'apple' as SocialProvider, lib: 'ion', icon: 'logo-apple', color: '#000' },
-                { p: 'twitter' as SocialProvider, lib: 'fa6', icon: 'x-twitter', color: '#000' },
-              ]).map(({ p, lib, icon, color }) => (
-                <TouchableOpacity
-                  key={p}
-                  style={styles.socialCircle}
-                  onPress={async () => {
-                    try {
-                      await signInWithSocial(p);
-                      router.replace('/(technician)');
-                    } catch (e: any) {
-                      Alert.alert(isRTL ? 'خطأ' : 'Error', getFriendlyError(e, language));
-                    }
-                  }}
-                  accessibilityRole="button"
-                  accessibilityLabel={p}
-                >
-                  {lib === 'fa6'
-                    ? <FontAwesome6 name={icon as any} size={22} color={color} />
-                    : <Ionicons name={icon as any} size={24} color={color} />}
-                </TouchableOpacity>
-              ))}
-            </View>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -362,7 +331,7 @@ const createStyles = (COLORS: any, isRTL: boolean) => StyleSheet.create({
     width: 110,
     height: 110,
     borderRadius: 55,
-    backgroundColor: '#fff',
+    backgroundColor: COLORS.white,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 14,
@@ -371,6 +340,8 @@ const createStyles = (COLORS: any, isRTL: boolean) => StyleSheet.create({
     shadowOpacity: 0.12,
     shadowRadius: 10,
     elevation: 5,
+    borderWidth: 1,
+    borderColor: COLORS.border,
   },
   logoImage: {
     width: 84,
@@ -379,7 +350,7 @@ const createStyles = (COLORS: any, isRTL: boolean) => StyleSheet.create({
   brandName: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#1f2937',
+    color: COLORS.text,
   },
   brandSlogan: {
     fontSize: 14,
@@ -388,10 +359,12 @@ const createStyles = (COLORS: any, isRTL: boolean) => StyleSheet.create({
   },
   toggleContainer: {
     flexDirection: isRTL ? 'row-reverse' : 'row',
-    backgroundColor: '#fff',
+    backgroundColor: COLORS.white,
     borderRadius: 12,
     padding: 4,
     marginBottom: 24,
+    borderWidth: 1,
+    borderColor: COLORS.border,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
@@ -421,7 +394,7 @@ const createStyles = (COLORS: any, isRTL: boolean) => StyleSheet.create({
   inputContainer: {
     flexDirection: isRTL ? 'row-reverse' : 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: COLORS.white,
     borderRadius: 12,
     paddingHorizontal: 16,
     height: 56,
@@ -431,12 +404,12 @@ const createStyles = (COLORS: any, isRTL: boolean) => StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
     borderWidth: 1,
-    borderColor: '#f3f4f6',
+    borderColor: COLORS.border,
   },
   input: {
     flex: 1,
     fontSize: 16,
-    color: '#1f2937',
+    color: COLORS.text,
     marginHorizontal: 12,
   },
   mainButton: {
@@ -467,33 +440,5 @@ const createStyles = (COLORS: any, isRTL: boolean) => StyleSheet.create({
     color: COLORS.primary,
     fontSize: 13,
     fontWeight: '600',
-  },
-  divider: {
-    alignItems: 'center',
-    marginVertical: 10,
-  },
-  dividerText: {
-    fontSize: 14,
-    color: COLORS.gray,
-    fontWeight: '600',
-  },
-  socialButtons: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 20,
-    marginTop: 10,
-  },
-  socialCircle: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: '#fff',
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
   },
 });
