@@ -239,6 +239,13 @@ export default function AdminDashboardScreen() {
           onPress={() => router.push('/admin-reports' as any)}
           COLORS={COLORS} isRTL={isRTL}
         />
+        <ActionCard
+          icon="star-outline" iconColor="#f59e0b"
+          title={isRTL ? 'التقييمات والتعليقات' : 'Ratings & Reviews'}
+          subtitle={isRTL ? 'متابعة تقييمات العملاء للفنيين' : 'Review customer ratings of technicians'}
+          onPress={() => router.push('/admin-ratings' as any)}
+          COLORS={COLORS} isRTL={isRTL}
+        />
 
         {/* ── Communication ───────────────────────────────── */}
         <SectionLabel icon="message-text-outline" text={isRTL ? 'التواصل' : 'Communication'} COLORS={COLORS} isRTL={isRTL} />
