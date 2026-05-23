@@ -333,7 +333,7 @@ export default function AvailableOrdersScreen() {
         <View style={styles.orderFooter}>
           <View style={styles.priceContainer}>
             <Text style={styles.priceLabel}>
-              {language === 'ar' ? 'السعر التقديري' : 'Estimated Price'}
+              {language === 'ar' ? 'عرض السعر' : 'Quotation'}
             </Text>
             <Text style={styles.priceValue}>
               {order.estimated_price} {language === 'ar' ? 'ر.س' : 'SAR'}

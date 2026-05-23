@@ -223,7 +223,7 @@ export default function AdminOrderDetailScreen() {
 
           {/* Pricing */}
           <Section title={isRTL ? 'التسعير' : 'Pricing'} icon="cash-multiple" COLORS={COLORS} isRTL={isRTL}>
-            <Row k={isRTL ? 'السعر التقديري' : 'Estimated price'} v={`${fmt(order.estimated_price)} ${sar}`} styles={styles} />
+            <Row k={isRTL ? 'عرض السعر' : 'Quotation'} v={`${fmt(order.estimated_price)} ${sar}`} styles={styles} />
             {order.final_price != null && (
               <Row k={isRTL ? 'السعر النهائي' : 'Final price'} v={`${fmt(order.final_price)} ${sar}`} styles={styles} strong />
             )}

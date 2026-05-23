@@ -55,11 +55,11 @@ export const translations = {
     
     // Calculator Screen
     priceCalculator: 'حاسبة الأسعار',
-    estimatePrice: 'احصل على سعر تقديري لخدمة الإصلاح',
+    estimatePrice: 'احصل على عرض سعر لخدمة الإصلاح',
     selectBrand: 'اختر الماركة',
     selectDevice: 'اختر الجهاز',
     selectIssue: 'اختر المشكلة',
-    estimatedPrice: 'السعر التقديري',
+    estimatedPrice: 'عرض السعر',
     sar: 'ر.س',
     bookNow: 'احجز الآن',
     
@@ -159,11 +159,11 @@ export const translations = {
     
     // Calculator Screen
     priceCalculator: 'Price Calculator',
-    estimatePrice: 'Get an estimated price for your repair',
+    estimatePrice: 'Get a quotation for your repair',
     selectBrand: 'Select Brand',
     selectDevice: 'Select Device',
     selectIssue: 'Select Issue',
-    estimatedPrice: 'Estimated Price',
+    estimatedPrice: 'Quotation',
     sar: 'SAR',
     bookNow: 'Book Now',
     

@@ -52,7 +52,33 @@ export interface MarketListing {
   status: ListingStatus;
   created_at?: string;
   updated_at?: string;
+  removed_at?: string | null;
+  removed_reason?: string | null;
 }
+
+/**
+ * Soft-delete a listing by the owner: sets status to 'archived' and stamps
+ * `removed_at` so admins can review owner-removed listings later. We keep
+ * the row (rather than hard-deleting) so any conversation history,
+ * receipts, or future disputes remain intact.
+ */
+export const removeListingByOwner = async (
+  id: string,
+  reason?: string
+): Promise<MarketListing> => {
+  const { data, error } = await supabase
+    .from('market_listings')
+    .update({
+      status: 'archived',
+      removed_at: new Date().toISOString(),
+      removed_reason: reason ?? null,
+    })
+    .eq('id', id)
+    .select()
+    .single();
+  if (error) throw error;
+  return data as MarketListing;
+};
 
 /** Resolve the set of contact methods a listing supports, honouring both
  *  the new `contact_methods` array and the legacy `contact_preference`. */

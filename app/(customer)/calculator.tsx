@@ -132,8 +132,8 @@ export default function PriceCalculatorScreen() {
               </Text>
               <Text style={styles.brandHeroSub}>
                 {isRTL
-                  ? 'تقدير سريع — السعر النهائي يحدده الفني بعد الفحص'
-                  : 'A quick estimate — the technician sets the final price after inspection'}
+                  ? 'عرض سعر سريع — يحدد الفني السعر النهائي بعد الفحص'
+                  : 'A quick quotation — the technician sets the final price after inspection'}
               </Text>
             </View>
           </View>
@@ -228,7 +228,7 @@ export default function PriceCalculatorScreen() {
 
       <View style={styles.priceFooter}>
         <View style={styles.priceRow}>
-          <Text style={styles.priceLabel}>{isRTL ? 'السعر التقديري' : 'Estimated price'}</Text>
+          <Text style={styles.priceLabel}>{isRTL ? 'عرض السعر' : 'Quotation'}</Text>
           <Text style={styles.priceValue}>
             {range
               ? isRTL

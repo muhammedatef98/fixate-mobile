@@ -661,7 +661,7 @@ export default function ManageOrderScreen() {
           <View style={styles.infoRow}>
             <MaterialCommunityIcons name="cash" size={20} color={COLORS.textSecondary} />
             <Text style={[styles.infoLabel, { color: COLORS.textSecondary }]}>
-              {(order as any).final_price ? (isRTL ? 'السعر النهائي' : 'Final price') : (isRTL ? 'السعر التقديري' : 'Est. price')}
+              {(order as any).final_price ? (isRTL ? 'السعر النهائي' : 'Final price') : (isRTL ? 'عرض السعر' : 'Quotation')}
             </Text>
             <Text style={[styles.infoValue, { color: COLORS.primary, fontWeight: 'bold' }]}>
               {(order as any).final_price ?? order.estimated_price} {isRTL ? 'ر.س' : 'SAR'}
