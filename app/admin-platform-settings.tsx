@@ -67,6 +67,8 @@ interface FormState {
   announcementEn: string;
   minAppVersion: string;
   pushNotificationsEnabled: boolean;
+  ratingsEnabled: boolean;
+  marketplaceEnabled: boolean;
 }
 
 const toForm = (s: PlatformSettings): FormState => ({
@@ -91,6 +93,8 @@ const toForm = (s: PlatformSettings): FormState => ({
   announcementEn: s.announcementEn,
   minAppVersion: s.minAppVersion,
   pushNotificationsEnabled: s.pushNotificationsEnabled,
+  ratingsEnabled: s.ratingsEnabled,
+  marketplaceEnabled: s.marketplaceEnabled,
 });
 
 interface FieldErrors {
@@ -229,6 +233,8 @@ export default function AdminPlatformSettingsScreen() {
         { key: PLATFORM_SETTINGS_KEYS.announcementEn, value: form.announcementEn.trim() },
         { key: PLATFORM_SETTINGS_KEYS.minAppVersion, value: form.minAppVersion.trim() },
         { key: PLATFORM_SETTINGS_KEYS.pushNotificationsEnabled, value: form.pushNotificationsEnabled },
+        { key: PLATFORM_SETTINGS_KEYS.ratingsEnabled, value: form.ratingsEnabled },
+        { key: PLATFORM_SETTINGS_KEYS.marketplaceEnabled, value: form.marketplaceEnabled },
       ]);
       Alert.alert(
         isRTL ? 'تم الحفظ ✓' : 'Saved ✓',
@@ -476,6 +482,24 @@ export default function AdminPlatformSettingsScreen() {
                   : 'Turn on for the App Store / Google Play launch. In-app notifications always work.'}
                 value={form.pushNotificationsEnabled}
                 onChange={(v) => set({ pushNotificationsEnabled: v })}
+                COLORS={COLORS} isRTL={isRTL}
+              />
+              <SwitchRow
+                label={isRTL ? 'تقييمات الفنيين' : 'Technician ratings'}
+                hint={isRTL
+                  ? 'إظهار شاشة التقييم للعميل بعد اكتمال الطلب.'
+                  : 'Show the rating screen to the customer after an order is completed.'}
+                value={form.ratingsEnabled}
+                onChange={(v) => set({ ratingsEnabled: v })}
+                COLORS={COLORS} isRTL={isRTL}
+              />
+              <SwitchRow
+                label={isRTL ? 'سوق Fixate' : 'Fixate marketplace'}
+                hint={isRTL
+                  ? 'مفتاح رئيسي لتفعيل أو إيقاف سوق الإعلانات.'
+                  : 'Master switch for the marketplace browse + create flows.'}
+                value={form.marketplaceEnabled}
+                onChange={(v) => set({ marketplaceEnabled: v })}
                 COLORS={COLORS} isRTL={isRTL}
               />
               <FieldMultiline
