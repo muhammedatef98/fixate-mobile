@@ -19,7 +19,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.fixatee.app",
-      "buildNumber": "1.0.0",
+      "buildNumber": "1",
       "infoPlist": {
         "UIViewControllerBasedStatusBarAppearance": false,
         "UIStatusBarHidden": true,
@@ -27,8 +27,6 @@
         "NSPhotoLibraryUsageDescription": "يستخدم Fixatee مكتبة الصور لاختيار صور الجهاز المعطل ومستندات التحقق.",
         "NSPhotoLibraryAddUsageDescription": "يحفظ Fixatee الصور المتعلقة بالطلبات في مكتبة الصور عند الطلب.",
         "NSLocationWhenInUseUsageDescription": "يستخدم Fixatee موقعك لتحديد عنوان الخدمة وتمكين تتبع الفني المباشر.",
-        "NSLocationAlwaysAndWhenInUseUsageDescription": "يستخدم Fixatee موقعك لتحديد عنوان الخدمة وتمكين تتبع الفني المباشر.",
-        "NSMicrophoneUsageDescription": "غير مستخدم حالياً.",
         "ITSAppUsesNonExemptEncryption": false,
         "LSApplicationQueriesSchemes": ["tel", "mailto", "whatsapp"]
       }
@@ -71,7 +69,7 @@
       [
         "expo-location",
         {
-          "locationAlwaysAndWhenInUsePermission": "السماح لـ Fixatee بالوصول إلى موقعك لتحديد عنوان الخدمة."
+          "locationWhenInUsePermission": "السماح لـ Fixatee بالوصول إلى موقعك لتحديد عنوان الخدمة."
         }
       ],
       [
