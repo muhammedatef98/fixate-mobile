@@ -73,6 +73,7 @@ SELECT
   MAX(created_at)                AS last_rated_at
 FROM public.reviews
 WHERE technician_id IS NOT NULL
+  AND deleted_at IS NULL
 GROUP BY technician_id;
 
 GRANT SELECT ON public.technician_rating_summary TO authenticated, anon;
@@ -103,6 +104,7 @@ SELECT
   o.estimated_price
 FROM public.reviews r
 LEFT JOIN public.orders o ON o.id = r.order_id
+WHERE r.deleted_at IS NULL
 ORDER BY r.created_at DESC;
 
 GRANT SELECT ON public.admin_ratings_feed TO authenticated;
