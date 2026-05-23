@@ -95,12 +95,16 @@ export default function ForgotPasswordScreen() {
     }
     setLoading(true);
     try {
-      // Verifying the email OTP establishes a real Supabase session, which
-      // is required for the subsequent supabase.auth.updateUser() call.
+      // Supabase stores this OTP as token_type='recovery_token' (verified
+      // against auth.one_time_tokens in production), so the verify call must
+      // use type:'recovery' to match. Using type:'email' here returns
+      // "token has expired or is invalid" for every otherwise-valid code.
+      // Verifying the OTP establishes a real Supabase session, which is
+      // required for the subsequent supabase.auth.updateUser() call.
       const { error } = await supabase.auth.verifyOtp({
         email: email.trim().toLowerCase(),
         token: code,
-        type: 'email',
+        type: 'recovery',
       });
       if (error) throw error;
       tapMedium();
