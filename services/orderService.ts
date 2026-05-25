@@ -14,9 +14,31 @@ export const createOrder = async (userId: string, orderData: CreateOrderData): P
     const descCheck = validateDescription(orderData.issue_description, 5, 1000);
     if (!descCheck.valid) throw new Error(descCheck.message);
   }
-  if (orderData.latitude !== undefined && orderData.longitude !== undefined) {
+  if (
+    orderData.latitude !== undefined &&
+    orderData.longitude !== undefined &&
+    orderData.latitude !== null &&
+    orderData.longitude !== null
+  ) {
     const coordCheck = validateCoordinates(orderData.latitude, orderData.longitude);
-    if (!coordCheck.valid) throw new Error(coordCheck.message);
+    // Only block when the coords aren't a real point on Earth. The
+    // outside-Saudi case is now logged (so we can see it in telemetry / dev
+    // logs) but doesn't reject the order — the customer's explicit city
+    // selection upstream is the authoritative country anchor.
+    if (!coordCheck.valid) {
+      logger.warn('createOrder: invalid coordinates', {
+        latitude: orderData.latitude,
+        longitude: orderData.longitude,
+        message: coordCheck.message,
+      });
+      throw new Error(coordCheck.message);
+    }
+    if (!coordCheck.insideSaudi) {
+      logger.warn('createOrder: coordinates outside Saudi bbox (allowed; city is the anchor)', {
+        latitude: orderData.latitude,
+        longitude: orderData.longitude,
+      });
+    }
   }
 
   const cleanData: Record<string, any> = {};

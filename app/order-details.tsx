@@ -411,11 +411,25 @@ export default function OrderDetailsScreen() {
 
             <View style={[styles.divider, { backgroundColor: COLORS.border }]} />
 
-            <View style={styles.infoRow}>
-              <Text style={[styles.infoLabel, { color: COLORS.textSecondary }]}>
+            {/* Stacked layout — the issue value is often multi-line; sitting
+                it on the same row as the label visibly collides in Arabic
+                because both sides hit the centre with no gutter. Stacking
+                gives the value its own line with proper breathing room and
+                consistent RTL alignment. */}
+            <View style={styles.infoBlock}>
+              <Text style={[styles.infoLabel, { color: COLORS.textSecondary, marginBottom: 6 }]}>
                 {isRTL ? 'المشكلة' : 'Issue'}
               </Text>
-              <Text style={[styles.infoValue, { color: COLORS.text, textAlign: isRTL ? 'right' : 'left', writingDirection: isRTL ? 'rtl' : 'ltr', flex: 1 }]}>
+              <Text
+                style={{
+                  color: COLORS.text,
+                  fontSize: 15,
+                  fontWeight: '600',
+                  lineHeight: 22,
+                  textAlign: isRTL ? 'right' : 'left',
+                  writingDirection: isRTL ? 'rtl' : 'ltr',
+                }}
+              >
                 {order.issue_description}
               </Text>
             </View>
@@ -1009,9 +1023,18 @@ const makeStyles = (isRTL: boolean) => StyleSheet.create({
     flexDirection: isRTL ? 'row-reverse' : 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    gap: 12,
   },
+  // Used for long-form fields (issue description, notes, address) where the
+  // value is multi-line and shouldn't be jammed next to the label.
+  infoBlock: { width: '100%' },
   infoLabel: { fontSize: 13, fontWeight: '500', textAlign: isRTL ? 'right' : 'left' },
-  infoValue: { fontSize: 14, fontWeight: '600', textAlign: isRTL ? 'left' : 'right' },
+  infoValue: {
+    fontSize: 14,
+    fontWeight: '600',
+    textAlign: isRTL ? 'left' : 'right',
+    flexShrink: 1,
+  },
 
   divider: { height: 1 },
 

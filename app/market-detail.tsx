@@ -8,7 +8,6 @@ import {
   StatusBar,
   ScrollView,
   ActivityIndicator,
-  Image,
   TextInput,
   KeyboardAvoidingView,
   Platform,
@@ -19,6 +18,7 @@ import {
   NativeScrollEvent,
   NativeSyntheticEvent,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useApp } from '../contexts/AppContext';
@@ -358,7 +358,14 @@ export default function MarketDetailScreen() {
                       activeOpacity={0.95}
                       onPress={() => openViewer(i)}
                     >
-                      <Image source={{ uri }} style={{ width: SCREEN_W, height: HERO_H }} resizeMode="cover" />
+                      <Image
+                        source={{ uri }}
+                        style={{ width: SCREEN_W, height: HERO_H }}
+                        contentFit="cover"
+                        cachePolicy="memory-disk"
+                        transition={250}
+                        placeholder={{ blurhash: 'L6PZfSi_.AyE_3t7t7R**0o#DgR4' }}
+                      />
                     </TouchableOpacity>
                   ))}
                 </ScrollView>
