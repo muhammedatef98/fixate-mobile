@@ -372,28 +372,57 @@ export const sanitizeInput = (input: string): string => {
 };
 
 /**
- * Validate coordinates (latitude, longitude)
+ * Saudi Arabia approximate bounding box, with a small padding on every side so
+ * GPS readings near the borders (Yanbu / Jazan / Tabuk / Empty-Quarter edges)
+ * don't get falsely rejected. Source: official extent ~16.38–32.16°N,
+ * 34.49–55.67°E, padded by ~0.5° (~55km) for safety.
  */
-export const validateCoordinates = (lat: number, lng: number): { valid: boolean; message: string } => {
-  if (isNaN(lat) || isNaN(lng)) {
+export const SAUDI_BOUNDS = {
+  minLat: 15.5,
+  maxLat: 32.7,
+  minLng: 34.0,
+  maxLng: 56.5,
+} as const;
+
+/** Pure geographic check — no side-effects, no thrown errors. */
+export const isInsideSaudiArabia = (lat: number, lng: number): boolean => {
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return false;
+  // Reject the "null island" 0,0 sentinel and other clearly broken values.
+  if (lat === 0 && lng === 0) return false;
+  return (
+    lat >= SAUDI_BOUNDS.minLat &&
+    lat <= SAUDI_BOUNDS.maxLat &&
+    lng >= SAUDI_BOUNDS.minLng &&
+    lng <= SAUDI_BOUNDS.maxLng
+  );
+};
+
+/**
+ * Validate coordinates. We only hard-reject coordinates that aren't real
+ * numbers on Earth — the outside-Saudi check used to live here but was
+ * causing false rejections (sim defaults, brief GPS drift, VPN-cached
+ * positions). The country anchor is now the customer's explicit city
+ * selection upstream; this function only guards against truly bad input.
+ */
+export const validateCoordinates = (lat: number, lng: number): { valid: boolean; message: string; insideSaudi: boolean } => {
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
     return {
       valid: false,
+      insideSaudi: false,
       message: 'الإحداثيات غير صحيحة / Invalid coordinates',
     };
   }
-
-  // Saudi Arabia approximate bounds
-  // Latitude: 16°N to 32°N
-  // Longitude: 34°E to 56°E
-  if (lat < 16 || lat > 32 || lng < 34 || lng > 56) {
+  if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
     return {
       valid: false,
-      message: 'الموقع خارج المملكة العربية السعودية / Location is outside Saudi Arabia',
+      insideSaudi: false,
+      message: 'الإحداثيات خارج النطاق المسموح / Coordinates out of range',
     };
   }
 
   return {
     valid: true,
+    insideSaudi: isInsideSaudiArabia(lat, lng),
     message: '',
   };
 };

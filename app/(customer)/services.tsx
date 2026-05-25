@@ -208,11 +208,14 @@ export default function ServicesScreen() {
               <Text style={styles.heroTitle}>
                 {isRTL ? 'صيانة موثوقة\nبفنيين معتمدين' : 'Trusted repairs\nfrom verified pros'}
               </Text>
-              <Text style={styles.heroSubtitle}>
-                {isRTL
-                  ? 'يصلك الفني خلال 30 دقيقة في الرياض وجدة'
-                  : 'Tech arrives within 30 min in Riyadh & Jeddah'}
-              </Text>
+              <View style={styles.heroBadge}>
+                <MaterialCommunityIcons name="clock-fast" size={13} color="#fff" />
+                <Text style={styles.heroBadgeText}>
+                  {isRTL
+                    ? 'يصلك الفني في وقت قياسي'
+                    : 'A technician reaches you in record time'}
+                </Text>
+              </View>
               <TouchableOpacity
                 onPress={() => router.push('/request')}
                 style={styles.heroCta}
@@ -487,6 +490,28 @@ const makeStyles = (C: any, isRTL: boolean, SHADOWS: any) =>
       marginTop: 4,
       lineHeight: 18,
       textAlign: isRTL ? 'right' : 'left',
+      writingDirection: isRTL ? 'rtl' : 'ltr',
+    },
+    // Pill-shaped badge sitting under the hero title. Glass-style — soft
+    // translucent fill on the brand color, white text + icon. Generic
+    // promise (no city names) so it stays correct as coverage expands.
+    heroBadge: {
+      alignSelf: isRTL ? 'flex-end' : 'flex-start',
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
+      gap: 6,
+      marginTop: 10,
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+      borderRadius: 999,
+      backgroundColor: 'rgba(255,255,255,0.18)',
+      borderWidth: 1,
+      borderColor: 'rgba(255,255,255,0.28)',
+    },
+    heroBadgeText: {
+      color: '#fff',
+      fontWeight: '700',
+      fontSize: 12,
       writingDirection: isRTL ? 'rtl' : 'ltr',
     },
     heroCta: {

@@ -9,13 +9,13 @@ import {
   ScrollView,
   RefreshControl,
   ActivityIndicator,
-  Image,
   TextInput,
   FlatList,
   Modal,
   Dimensions,
   Platform,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useApp } from '../contexts/AppContext';
@@ -32,6 +32,13 @@ import {
   MARKET_DEVICE_TYPES,
 } from '../services/marketService';
 import SaudiCityPicker from '../components/SaudiCityPicker';
+import SkeletonLoader from '../components/SkeletonLoader';
+
+// Tiny SVG blurhash-equivalent placeholder used while the network image
+// streams in. expo-image fades the real image in over this, so cards never
+// flash a hard-edged grey square. Same string for every card so the
+// runtime caches/decodes it once.
+const IMG_BLURHASH = 'L6PZfSi_.AyE_3t7t7R**0o#DgR4';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 const GRID_GUTTER = 12;
@@ -71,6 +78,31 @@ const statusAr = (s: string) => ({
   rejected: 'مرفوض',
   archived: 'مؤرشف',
 }[s] ?? s);
+
+/**
+ * Compact "time since posted" formatter. Marketplaces live or die on
+ * freshness signals — buyers trust recent listings far more than month-old
+ * ones, so we surface this on every card.
+ */
+const timeAgo = (iso: string | undefined, isRTL: boolean): string => {
+  if (!iso) return '';
+  const then = new Date(iso).getTime();
+  if (!Number.isFinite(then)) return '';
+  const diffSec = Math.max(0, Math.floor((Date.now() - then) / 1000));
+  if (diffSec < 60) return isRTL ? 'الآن' : 'now';
+  const min = Math.floor(diffSec / 60);
+  if (min < 60) return isRTL ? `قبل ${min} د` : `${min}m ago`;
+  const hr = Math.floor(min / 60);
+  if (hr < 24) return isRTL ? `قبل ${hr} س` : `${hr}h ago`;
+  const day = Math.floor(hr / 24);
+  if (day < 7) return isRTL ? `قبل ${day} ي` : `${day}d ago`;
+  const wk = Math.floor(day / 7);
+  if (wk < 5) return isRTL ? `قبل ${wk} أ` : `${wk}w ago`;
+  const mo = Math.floor(day / 30);
+  if (mo < 12) return isRTL ? `قبل ${mo} ش` : `${mo}mo ago`;
+  const yr = Math.floor(day / 365);
+  return isRTL ? `قبل ${yr} س` : `${yr}y ago`;
+};
 
 export default function MarketScreen() {
   const router = useRouter();
@@ -148,63 +180,138 @@ export default function MarketScreen() {
 
   const styles = useMemo(() => createStyles(COLORS, isRTL), [COLORS, isRTL]);
 
-  const renderCard = ({ item }: { item: MarketListing }) => (
-    <TouchableOpacity
-      style={styles.card}
-      activeOpacity={0.85}
-      onPress={() => router.push({ pathname: '/market-detail', params: { id: item.id } } as any)}
-    >
-      <View style={styles.cardImageWrap}>
-        {item.images?.[0] ? (
-          <Image source={{ uri: item.images[0] }} style={styles.cardImage} />
-        ) : (
-          <View style={[styles.cardImage, styles.cardImagePlaceholder]}>
-            <MaterialCommunityIcons name="image-off" size={28} color={COLORS.textSecondary} />
-          </View>
-        )}
-        {item.images && item.images.length > 1 && (
-          <View style={styles.imageCountPill}>
-            <Ionicons name="images" size={10} color="#fff" />
-            <Text style={styles.imageCountText}>{item.images.length}</Text>
-          </View>
-        )}
-        {item.condition && (
-          <View style={styles.conditionPill}>
-            <Text style={styles.conditionText}>
-              {CONDITION_OPTS.find((c) => c.id === item.condition)?.[isRTL ? 'ar' : 'en']}
-            </Text>
-          </View>
-        )}
-        {item.status === 'sold' && (
-          <View style={styles.soldOverlay}>
-            <View style={styles.soldBadge}>
-              <Ionicons name="checkmark-circle" size={14} color="#fff" />
-              <Text style={styles.soldBadgeText}>تم البيع</Text>
+  const renderCard = ({ item }: { item: MarketListing }) => {
+    const posted = timeAgo(item.created_at, isRTL);
+    const isVerified = item.status === 'active'; // admin-approved listings only
+    return (
+      <TouchableOpacity
+        style={styles.card}
+        activeOpacity={0.85}
+        onPress={() => router.push({ pathname: '/market-detail', params: { id: item.id } } as any)}
+      >
+        <View style={styles.cardImageWrap}>
+          {item.images?.[0] ? (
+            <Image
+              source={{ uri: item.images[0] }}
+              style={styles.cardImage}
+              placeholder={{ blurhash: IMG_BLURHASH }}
+              transition={220}
+              contentFit="cover"
+              cachePolicy="memory-disk"
+              recyclingKey={item.id}
+            />
+          ) : (
+            <View style={[styles.cardImage, styles.cardImagePlaceholder]}>
+              <MaterialCommunityIcons name="image-off" size={28} color={COLORS.textSecondary} />
             </View>
-          </View>
-        )}
-      </View>
-      <View style={styles.cardBody}>
-        <Text style={styles.cardTitle} numberOfLines={2}>{item.title}</Text>
-        <Text style={styles.cardPrice}>
-          {item.price.toLocaleString(isRTL ? 'ar-SA' : 'en-US')} {isRTL ? 'ر.س' : 'SAR'}
-        </Text>
-        <View style={styles.cardFooter}>
-          {item.city ? (
-            <View style={styles.cardMeta}>
-              <Ionicons name="location-outline" size={11} color={COLORS.textSecondary} />
-              <Text style={styles.cardMetaText} numberOfLines={1}>{item.city}</Text>
+          )}
+          {item.images && item.images.length > 1 && (
+            <View style={styles.imageCountPill}>
+              <Ionicons name="images" size={10} color="#fff" />
+              <Text style={styles.imageCountText}>{item.images.length}</Text>
             </View>
-          ) : <View />}
-          {tab === 'mine' && (
-            <Text style={styles.cardStatus}>
-              {isRTL ? statusAr(item.status) : item.status}
-            </Text>
+          )}
+          {item.condition && (
+            <View style={styles.conditionPill}>
+              <Text style={styles.conditionText}>
+                {CONDITION_OPTS.find((c) => c.id === item.condition)?.[isRTL ? 'ar' : 'en']}
+              </Text>
+            </View>
+          )}
+          {item.status === 'sold' && (
+            <View style={styles.soldOverlay}>
+              <View style={styles.soldBadge}>
+                <Ionicons name="checkmark-circle" size={14} color="#fff" />
+                <Text style={styles.soldBadgeText}>{isRTL ? 'تم البيع' : 'Sold'}</Text>
+              </View>
+            </View>
           )}
         </View>
-      </View>
-    </TouchableOpacity>
-  );
+        <View style={styles.cardBody}>
+          <Text style={styles.cardTitle} numberOfLines={2}>{item.title}</Text>
+
+          {/* Price block — the single most important piece of info on a
+              listing card. Bold, larger, with a quiet currency suffix. */}
+          <View style={styles.priceRow}>
+            <Text style={styles.cardPrice}>
+              {item.price.toLocaleString(isRTL ? 'ar-SA' : 'en-US')}
+            </Text>
+            <Text style={styles.cardCurrency}>{isRTL ? 'ر.س' : 'SAR'}</Text>
+          </View>
+
+          {/* Meta strip — city · time-ago · verified */}
+          <View style={styles.cardMetaRow}>
+            {item.city ? (
+              <View style={styles.cardMeta}>
+                <Ionicons name="location-outline" size={11} color={COLORS.textSecondary} />
+                <Text style={styles.cardMetaText} numberOfLines={1}>{item.city}</Text>
+              </View>
+            ) : null}
+            {posted ? (
+              <>
+                {item.city ? <Text style={styles.metaDot}>·</Text> : null}
+                <Text style={styles.cardMetaText} numberOfLines={1}>{posted}</Text>
+              </>
+            ) : null}
+          </View>
+
+          {/* Trust signal — only on admin-approved listings */}
+          <View style={styles.trustRow}>
+            {isVerified && tab === 'browse' && (
+              <View style={styles.verifyChip}>
+                <Ionicons name="shield-checkmark" size={10} color={COLORS.primary} />
+                <Text style={styles.verifyChipText}>
+                  {isRTL ? 'موثّق' : 'Verified'}
+                </Text>
+              </View>
+            )}
+            {tab === 'mine' && (
+              <Text style={styles.cardStatus}>
+                {isRTL ? statusAr(item.status) : item.status}
+              </Text>
+            )}
+          </View>
+        </View>
+      </TouchableOpacity>
+    );
+  };
+
+  // Two-column skeleton grid shown on the first load (replaces the bare
+  // spinner that previously sat on an empty screen — feels much faster).
+  const renderSkeletonGrid = () => {
+    const rows = 4;
+    return (
+      <ScrollView
+        contentContainerStyle={{
+          paddingHorizontal: GRID_GUTTER,
+          paddingVertical: GRID_GUTTER,
+          gap: GRID_GUTTER,
+        }}
+        showsVerticalScrollIndicator={false}
+      >
+        {Array.from({ length: rows }).map((_, r) => (
+          <View
+            key={r}
+            style={{
+              flexDirection: isRTL ? 'row-reverse' : 'row',
+              gap: GRID_GUTTER,
+            }}
+          >
+            {[0, 1].map((c) => (
+              <View key={c} style={[styles.card, { padding: 0 }]}>
+                <SkeletonLoader width="100%" height={CARD_W} borderRadius={0} />
+                <View style={{ padding: 10, gap: 8 }}>
+                  <SkeletonLoader width="85%" height={12} borderRadius={4} />
+                  <SkeletonLoader width="55%" height={16} borderRadius={4} />
+                  <SkeletonLoader width="65%" height={10} borderRadius={4} />
+                </View>
+              </View>
+            ))}
+          </View>
+        ))}
+      </ScrollView>
+    );
+  };
 
   if (!marketplaceEnabled) {
     return (
@@ -350,9 +457,7 @@ export default function MarketScreen() {
 
       {/* Grid */}
       {loading && listings.length === 0 ? (
-        <View style={styles.center}>
-          <ActivityIndicator color={COLORS.primary} size="large" />
-        </View>
+        renderSkeletonGrid()
       ) : listings.length === 0 ? (
         <View style={styles.center}>
           <View style={[styles.emptyIconBubble, { backgroundColor: COLORS.primary + '15' }]}>
@@ -650,22 +755,54 @@ const createStyles = (C: any, isRTL: boolean) =>
       fontWeight: '800',
       letterSpacing: 0.3,
     },
-    cardBody: { padding: 10, gap: 4 },
-    cardTitle: { color: C.text, fontWeight: '700', fontSize: 13, lineHeight: 18 },
-    cardPrice: { color: C.primary, fontWeight: '800', fontSize: 15 },
-    cardFooter: {
+    cardBody: { padding: 10, gap: 6 },
+    cardTitle: {
+      color: C.text,
+      fontWeight: '700',
+      fontSize: 13.5,
+      lineHeight: 18,
+      textAlign: isRTL ? 'right' : 'left',
+      writingDirection: isRTL ? 'rtl' : 'ltr',
+      minHeight: 36,
+    },
+    priceRow: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'baseline',
+      gap: 4,
+    },
+    cardPrice: { color: C.primary, fontWeight: '900', fontSize: 17, letterSpacing: -0.2 },
+    cardCurrency: { color: C.primary, fontWeight: '700', fontSize: 11, opacity: 0.85 },
+    cardMetaRow: {
       flexDirection: isRTL ? 'row-reverse' : 'row',
       alignItems: 'center',
-      justifyContent: 'space-between',
-      marginTop: 2,
+      gap: 4,
+      flexWrap: 'wrap',
     },
     cardMeta: {
       flexDirection: isRTL ? 'row-reverse' : 'row',
       alignItems: 'center',
       gap: 3,
-      flex: 1,
     },
     cardMetaText: { color: C.textSecondary, fontSize: 11 },
+    metaDot: { color: C.textSecondary, fontSize: 11, opacity: 0.6 },
+    trustRow: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 6,
+      marginTop: 2,
+      minHeight: 18,
+    },
+    verifyChip: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
+      gap: 3,
+      backgroundColor: C.primary + '15',
+      paddingHorizontal: 6,
+      paddingVertical: 2,
+      borderRadius: 999,
+    },
+    verifyChipText: { color: C.primary, fontWeight: '700', fontSize: 10 },
     cardStatus: { color: C.textSecondary, fontSize: 10, fontStyle: 'italic' },
 
     center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32, gap: 6 },

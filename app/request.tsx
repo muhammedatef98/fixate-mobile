@@ -315,29 +315,40 @@ export default function RequestScreen() {
         return;
       }
 
-      let loc = await Location.getCurrentPositionAsync({
+      const loc = await Location.getCurrentPositionAsync({
         accuracy: Location.Accuracy.Balanced,
       });
-      
+
       if (loc && loc.coords) {
+        const { latitude, longitude } = loc.coords;
+        logger.info('Request screen: GPS reading', { latitude, longitude });
         setLocation({
-          latitude: loc.coords.latitude,
-          longitude: loc.coords.longitude,
+          latitude,
+          longitude,
           latitudeDelta: 0.005,
           longitudeDelta: 0.005,
         });
-      }
-      
-      let reverseGeocode = await Location.reverseGeocodeAsync({
-        latitude: loc.coords.latitude,
-        longitude: loc.coords.longitude
-      });
-      
-      if (reverseGeocode.length > 0) {
-        const addr = reverseGeocode[0];
-        setAddress(`${addr.street || ''} ${addr.district || ''}, ${addr.city || ''}`);
+
+        // Reverse geocode is a hint for the address field; allowed to fail
+        // silently. Country-mismatch is logged but never blocks the flow —
+        // the customer's explicit city selection is the source of truth.
+        try {
+          const reverseGeocode = await Location.reverseGeocodeAsync({ latitude, longitude });
+          if (reverseGeocode.length > 0) {
+            const addr = reverseGeocode[0];
+            const composed = [addr.street, addr.district, addr.city].filter(Boolean).join(', ');
+            if (composed) setAddress(composed);
+            const country = ((addr as any).isoCountryCode || addr.country || '').toString().toUpperCase();
+            if (country && country !== 'SA' && country !== 'SAUDI ARABIA') {
+              logger.warn('Reverse geocode country is not SA (allowed)', { country, latitude, longitude });
+            }
+          }
+        } catch (geoErr) {
+          logger.warn('Reverse geocode failed (non-blocking)', geoErr);
+        }
       }
     } catch (error) {
+      logger.error('Failed to get device location', error);
       Alert.alert(isRTL ? 'خطأ' : 'Error', isRTL ? 'فشل تحديد الموقع' : 'Failed to get location');
     } finally {
       setIsLocating(false);

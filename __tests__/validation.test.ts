@@ -187,16 +187,29 @@ describe('sanitizeInput', () => {
 
 describe('validateCoordinates', () => {
   it('accepts coordinates within Saudi Arabia bounds', () => {
-    expect(validateCoordinates(24.7, 46.7).valid).toBe(true); // Riyadh
+    const r = validateCoordinates(24.7, 46.7); // Riyadh
+    expect(r.valid).toBe(true);
+    expect(r.insideSaudi).toBe(true);
   });
 
-  it('rejects coordinates outside Saudi Arabia', () => {
-    expect(validateCoordinates(51.5, -0.12).valid).toBe(false); // London
-    expect(validateCoordinates(40.7, -74.0).valid).toBe(false); // New York
+  it('flags coordinates outside Saudi Arabia but still accepts them as valid points', () => {
+    // Outside-Saudi is no longer a hard rejection — country anchor is the
+    // customer's explicit city selection. We only assert that the geo flag
+    // distinguishes the two cases.
+    const london = validateCoordinates(51.5, -0.12);
+    expect(london.valid).toBe(true);
+    expect(london.insideSaudi).toBe(false);
+    const ny = validateCoordinates(40.7, -74.0);
+    expect(ny.valid).toBe(true);
+    expect(ny.insideSaudi).toBe(false);
   });
 
   it('rejects NaN coordinates', () => {
     expect(validateCoordinates(NaN, 46.7).valid).toBe(false);
+  });
+
+  it('rejects 0,0 null-island sentinel', () => {
+    expect(validateCoordinates(0, 0).insideSaudi).toBe(false);
   });
 });
 
