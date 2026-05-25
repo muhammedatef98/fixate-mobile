@@ -69,6 +69,12 @@ export interface PlatformSettings {
   // Marketplace master switch. On by default; ops can flip off to hide
   // browse/create flows during incidents or App Review.
   marketplaceEnabled: boolean;
+  // Per-service-type availability — admin can turn off Mobile-tech,
+  // Pickup, or Personal hand-off without a code change. Disabled options
+  // are completely hidden from the customer's service-type chooser.
+  serviceMobileEnabled: boolean;
+  servicePickupEnabled: boolean;
+  serviceHandoffEnabled: boolean;
 }
 
 export const PLATFORM_SETTINGS_KEYS = {
@@ -95,6 +101,9 @@ export const PLATFORM_SETTINGS_KEYS = {
   pushNotificationsEnabled: 'push_notifications_enabled',
   ratingsEnabled: 'ratings_enabled',
   marketplaceEnabled: 'marketplace_enabled',
+  serviceMobileEnabled: 'service_mobile_enabled',
+  servicePickupEnabled: 'service_pickup_enabled',
+  serviceHandoffEnabled: 'service_handoff_enabled',
 } as const;
 
 const boolFromValue = (raw: any, fallback: boolean): boolean => {
@@ -167,6 +176,11 @@ const DEFAULTS: PlatformSettings = {
   pushNotificationsEnabled: false,
   ratingsEnabled: true,
   marketplaceEnabled: true,
+  // All three booking modes are available by default; admin can flip
+  // individual ones off without redeploying.
+  serviceMobileEnabled: true,
+  servicePickupEnabled: true,
+  serviceHandoffEnabled: true,
 };
 
 const loadRaw = async (): Promise<Record<string, any>> => {
@@ -219,6 +233,9 @@ export const getPlatformSettings = async (): Promise<PlatformSettings> => {
     pushNotificationsEnabled: boolFromValue(raw[PLATFORM_SETTINGS_KEYS.pushNotificationsEnabled], DEFAULTS.pushNotificationsEnabled),
     ratingsEnabled: boolFromValue(raw[PLATFORM_SETTINGS_KEYS.ratingsEnabled], DEFAULTS.ratingsEnabled),
     marketplaceEnabled: boolFromValue(raw[PLATFORM_SETTINGS_KEYS.marketplaceEnabled], DEFAULTS.marketplaceEnabled),
+    serviceMobileEnabled: boolFromValue(raw[PLATFORM_SETTINGS_KEYS.serviceMobileEnabled], DEFAULTS.serviceMobileEnabled),
+    servicePickupEnabled: boolFromValue(raw[PLATFORM_SETTINGS_KEYS.servicePickupEnabled], DEFAULTS.servicePickupEnabled),
+    serviceHandoffEnabled: boolFromValue(raw[PLATFORM_SETTINGS_KEYS.serviceHandoffEnabled], DEFAULTS.serviceHandoffEnabled),
   };
 };
 

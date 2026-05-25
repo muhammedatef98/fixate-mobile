@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, Image, Dimensions, TextInput, Animated, Alert, KeyboardAvoidingView, Platform, Modal, I18nManager, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { getColors, getShadows, SPACING, BORDER_RADIUS } from '../constants/theme';
@@ -19,6 +19,11 @@ import { getFriendlyError } from '../utils/errorMessages';
 import { tapLight } from '../utils/haptics';
 import { formatPrice } from '../utils/pricing';
 import { getRegionTree, type RegionWithCities } from '../services/serviceAreasService';
+import {
+  computeDeliveryFee,
+  DELIVERY_FEE_MAX_SAR,
+  type ComputedDeliveryFee,
+} from '../utils/deliveryPricing';
 import { pointsForSpend } from '../constants/loyalty';
 import * as loyaltyService from '../services/loyaltyService';
 import { useLoyalty } from '../contexts/LoyaltyContext';
@@ -145,10 +150,6 @@ export default function RequestScreen() {
     !!selectedCityRegion &&
     selectedCityRegion.enabled !== false &&
     selectedCity.enabled !== false;
-  const deliveryFee =
-    selectedServiceType === 'personal_handoff'
-      ? 0
-      : Math.max(0, Math.round(selectedCity?.delivery_fee ?? 0));
   const [selectedDeviceType, setSelectedDeviceType] = useState<string | null>(null);
   const [selectedBrand, setSelectedBrand] = useState<Brand | null>(null);
   const [selectedModel, setSelectedModel] = useState<string | null>(null);
@@ -230,6 +231,45 @@ export default function RequestScreen() {
   const [isLocating, setIsLocating] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [mapReady, setMapReady] = useState(false);
+
+  // Filter the SERVICE_TYPES menu against the admin toggles so disabled
+  // booking modes never appear in the customer's first step. Resolved
+  // each render so a settings refresh propagates without a remount.
+  const enabledServiceTypes = useMemo(() => {
+    return SERVICE_TYPES.filter((t) => {
+      if (!platformSettings) return true; // optimistic until settings load
+      if (t.id === 'mobile') return platformSettings.serviceMobileEnabled;
+      if (t.id === 'pickup') return platformSettings.servicePickupEnabled;
+      if (t.id === 'personal_handoff') return platformSettings.serviceHandoffEnabled;
+      return true;
+    });
+  }, [platformSettings]);
+  // If the currently-selected type just got disabled by admin, snap to
+  // the first remaining one so the customer isn't stuck on an invalid
+  // step (or on a transparently-disappeared option).
+  useEffect(() => {
+    if (
+      enabledServiceTypes.length > 0 &&
+      !enabledServiceTypes.some((t) => t.id === selectedServiceType)
+    ) {
+      setSelectedServiceType(enabledServiceTypes[0].id);
+    }
+  }, [enabledServiceTypes, selectedServiceType]);
+
+  // Distance-based delivery fee with a hard 40-SAR cap. We pass the
+  // service-area city (centroid lookup) AND the customer's GPS pin —
+  // the helper picks tier-by-distance when both are present, falls back
+  // to the admin-managed flat fee, or zero on personal hand-off.
+  const deliveryQuote: ComputedDeliveryFee = computeDeliveryFee({
+    customer: location && location.latitude && location.longitude
+      ? { lat: location.latitude, lng: location.longitude }
+      : null,
+    cityNameEn: selectedCity?.name_en ?? null,
+    cityNameAr: selectedCity?.name_ar ?? null,
+    flatFee: selectedCity?.delivery_fee ?? null,
+    freeOverride: selectedServiceType === 'personal_handoff',
+  });
+  const deliveryFee = deliveryQuote.fee;
   
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
@@ -628,7 +668,17 @@ export default function RequestScreen() {
         {currentStep === 0 && (
           <ScrollView>
             <Text style={styles.sectionTitle}>{isRTL ? 'اختر نوع الخدمة' : 'Select Service Type'}</Text>
-            {SERVICE_TYPES.map((type) => (
+            {enabledServiceTypes.length === 0 && (
+              <View style={[styles.payNotice, { marginTop: 8 }]}>
+                <MaterialCommunityIcons name="information-outline" size={18} color={COLORS.primary} />
+                <Text style={styles.payNoticeText}>
+                  {isRTL
+                    ? 'لا توجد خدمات متاحة حالياً. الرجاء المحاولة لاحقاً.'
+                    : 'No services are currently available. Please try again later.'}
+                </Text>
+              </View>
+            )}
+            {enabledServiceTypes.map((type) => (
               <PressableScale
                 key={type.id}
                 to={0.985}
@@ -1132,13 +1182,20 @@ export default function RequestScreen() {
                     {isRTL ? 'منطقة التوصيل' : 'Delivery area'}
                   </Text>
                 </View>
-                <View style={styles.payNotice}>
-                  <MaterialCommunityIcons name="map-marker-radius-outline" size={18} color={COLORS.primary} />
-                  <Text style={styles.payNoticeText}>
-                    {isRTL
-                      ? 'الخدمة متاحة حالياً في القطيف فقط. إذا كان موقعك خارج القطيف فلن تتمكن من إكمال الطلب — نعمل على تغطية مناطق أكثر قريباً.'
-                      : 'Service is currently available in Al Qatif only. If your location is outside Al Qatif you cannot continue yet — more areas are coming soon.'}
-                  </Text>
+                <View style={styles.coverageNotice}>
+                  <View style={styles.coverageIconWrap}>
+                    <MaterialCommunityIcons name="map-marker-radius" size={18} color={COLORS.primary} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.coverageTitle}>
+                      {isRTL ? 'التغطية الحالية' : 'Current coverage'}
+                    </Text>
+                    <Text style={styles.coverageBody}>
+                      {isRTL
+                        ? 'الخدمة متاحة حالياً في القطيف فقط. سنوسّع التغطية لمناطق أخرى قريباً.'
+                        : 'Service is currently available in Al Qatif only. More areas are coming soon.'}
+                    </Text>
+                  </View>
                 </View>
                 {regionTree.map((region) => {
                   const regionAvailable = region.enabled !== false;
@@ -1209,8 +1266,28 @@ export default function RequestScreen() {
                 )}
                 {selectedServiceType !== 'personal_handoff' && selectedCityAvailable && (
                   <View style={styles.deliveryFeeRow}>
-                    <Text style={styles.summaryLabel}>{isRTL ? 'رسوم التوصيل' : 'Delivery fee'}</Text>
-                    <Text style={[styles.summaryValue, { color: COLORS.primary, fontWeight: '700' }]}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.summaryLabel}>
+                        {isRTL
+                          ? (selectedServiceType === 'mobile' ? 'رسوم الفني المتنقل' : 'رسوم التوصيل')
+                          : (selectedServiceType === 'mobile' ? 'Mobile-tech fee' : 'Delivery fee')}
+                      </Text>
+                      {/* Tiny basis hint — distance-based when we measured
+                          the customer's location, otherwise a generic
+                          flat-rate note. Max 40 SAR is always disclosed
+                          so the customer is never surprised by a higher
+                          number later in the flow. */}
+                      <Text style={styles.deliveryFeeHint}>
+                        {deliveryQuote.source === 'distance' && deliveryQuote.distanceKm != null
+                          ? (isRTL
+                              ? `محسوبة من موقعك (${deliveryQuote.distanceKm.toFixed(1)} كم) • الحد الأقصى ${DELIVERY_FEE_MAX_SAR} ر.س`
+                              : `Based on your distance (${deliveryQuote.distanceKm.toFixed(1)} km) • capped at ${DELIVERY_FEE_MAX_SAR} SAR`)
+                          : (isRTL
+                              ? `تُحتسب تلقائياً حسب المسافة • الحد الأقصى ${DELIVERY_FEE_MAX_SAR} ر.س`
+                              : `Auto-calculated by distance • capped at ${DELIVERY_FEE_MAX_SAR} SAR`)}
+                      </Text>
+                    </View>
+                    <Text style={[styles.summaryValue, { color: COLORS.primary, fontWeight: '800', fontSize: 16 }]}>
                       {deliveryFee} {isRTL ? 'ر.س' : 'SAR'}
                     </Text>
                   </View>
@@ -1569,6 +1646,52 @@ const createStyles = (COLORS: any, isRTL: boolean, SHADOWS: any) => StyleSheet.c
   costNote: { fontSize: 11, color: COLORS.gray, marginTop: 2, textAlign: isRTL ? 'right' : 'left' },
   payNotice: { flexDirection: isRTL ? 'row-reverse' : 'row', gap: 8, backgroundColor: COLORS.lightGreen, borderRadius: 12, padding: 12, marginBottom: 4, alignItems: 'flex-start' },
   payNoticeText: { flex: 1, fontSize: 12, color: COLORS.gray, lineHeight: 18, textAlign: isRTL ? 'right' : 'left' },
+  // Coverage banner — replaces the cramped 1-line payNotice for the
+  // delivery-area block. Two-row layout (title + body) with a soft icon
+  // bubble on one side. Enough air around the text that it doesn't read
+  // as a single wall of Arabic in a green rectangle.
+  coverageNotice: {
+    flexDirection: isRTL ? 'row-reverse' : 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+    backgroundColor: COLORS.lightGreen,
+    borderRadius: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    marginTop: 10,
+    marginBottom: 8,
+  },
+  coverageIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: COLORS.card,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  coverageTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: COLORS.text,
+    textAlign: isRTL ? 'right' : 'left',
+    writingDirection: isRTL ? 'rtl' : 'ltr',
+    marginBottom: 4,
+  },
+  coverageBody: {
+    fontSize: 12.5,
+    color: COLORS.gray,
+    lineHeight: 20,
+    textAlign: isRTL ? 'right' : 'left',
+    writingDirection: isRTL ? 'rtl' : 'ltr',
+  },
+  deliveryFeeHint: {
+    fontSize: 11,
+    color: COLORS.gray,
+    marginTop: 3,
+    lineHeight: 16,
+    textAlign: isRTL ? 'right' : 'left',
+    writingDirection: isRTL ? 'rtl' : 'ltr',
+  },
   footer: { padding: 16, backgroundColor: COLORS.card, borderTopWidth: 1, borderTopColor: COLORS.border },
   nextButton: { backgroundColor: COLORS.primary, height: 54, borderRadius: BORDER_RADIUS.sm, justifyContent: 'center', alignItems: 'center', ...SHADOWS.small },
   nextButtonText: { color: '#fff', fontSize: 18, fontWeight: 'bold' },

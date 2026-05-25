@@ -11,9 +11,11 @@ import {
   Platform,
   ActivityIndicator,
   Alert,
+  Animated,
+  Easing,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useApp } from '../contexts/AppContext';
 import { getColors, SPACING, BORDER_RADIUS } from '../constants/theme';
 import { RTLIonicon } from '../components/RTLIcon';
@@ -28,10 +30,19 @@ import {
 } from '../services/phoneOtpService';
 import { supabase } from '../services/supabaseClient';
 
-// Phone-only OTP login/registration. The same screen handles both cases —
-// the verify edge function will create the auth user on first sign-in. We
-// intentionally do NOT collect a name or password here; the goal is the
-// fastest possible path from "open app" to "signed in".
+/**
+ * Phone-only OTP login/registration. The same screen handles both cases —
+ * the verify edge function creates the auth user on first sign-in. We do
+ * NOT collect a name or password here; the goal is the fastest possible
+ * path from "open app" to "signed in".
+ *
+ * UI brief:
+ *  - one calm, premium screen with three phases (phone → otp → name)
+ *  - large breathing room around the input, no dense form noise
+ *  - per-digit OTP boxes for clear focus + better readability
+ *  - status pill replaces a chain of alerts where possible
+ *  - reassuring micro-copy on each step — Arabic-first, RTL-clean
+ */
 export default function LoginOtpScreen() {
   const router = useRouter();
   const { language, isDark } = useApp();
@@ -40,19 +51,40 @@ export default function LoginOtpScreen() {
 
   const [phone, setPhone] = useState('');
   const [code, setCode] = useState('');
-  // 'name' — shown only to first-time customers who have no name yet, so
-  // onboarding stays: phone -> OTP -> name -> into the app.
   const [step, setStep] = useState<'phone' | 'otp' | 'name'>('phone');
   const [name, setName] = useState('');
   const [loading, setLoading] = useState(false);
-  // Resend cooldown (server-enforced ~30s) AND code expiry (5 min) tracked
-  // as two separate countdowns so the UI can show both: when resend unlocks
-  // and when the existing code becomes invalid.
+  const [error, setError] = useState<string | null>(null);
   const [resendIn, setResendIn] = useState(0);
   const [expiresIn, setExpiresIn] = useState(0);
   const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  const hiddenOtpRef = useRef<TextInput>(null);
+  const shakeAnim = useRef(new Animated.Value(0)).current;
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+
   useEffect(() => () => { if (tickRef.current) clearInterval(tickRef.current); }, []);
+
+  // Cross-fade content on step change so transitions don't feel jumpy.
+  useEffect(() => {
+    fadeAnim.setValue(0);
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 260,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+  }, [step, fadeAnim]);
+
+  const runShake = () => {
+    shakeAnim.setValue(0);
+    Animated.sequence([
+      Animated.timing(shakeAnim, { toValue: 1,  duration: 60, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: -1, duration: 60, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: 1,  duration: 60, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: 0,  duration: 60, useNativeDriver: true }),
+    ]).start();
+  };
 
   const startTimers = (ttl: number) => {
     setResendIn(RESEND_COOLDOWN_SECONDS);
@@ -65,24 +97,30 @@ export default function LoginOtpScreen() {
   };
 
   const isPhoneValid = validatePhone(phone);
+  const sentTo = normalizeSaudiPhone(phone);
+
+  const formatMmSs = (s: number) => {
+    const m = Math.floor(s / 60);
+    const r = s % 60;
+    return `${m}:${String(r).padStart(2, '0')}`;
+  };
 
   const sendCode = async () => {
+    setError(null);
     if (!isPhoneValid) {
-      Alert.alert(
-        isRTL ? 'خطأ' : 'Error',
-        isRTL ? 'رقم الجوال غير صحيح' : 'Invalid phone number'
-      );
+      setError(isRTL ? 'رقم الجوال غير صحيح' : 'Invalid phone number');
+      runShake();
       return;
     }
     setLoading(true);
     try {
       const { expiresIn: ttl, devCode } = await sendPhoneOtp(phone, language);
       tapMedium();
+      setCode('');
       setStep('otp');
       startTimers(ttl);
-      // TEMPORARY (test mode): no real SMS provider yet, so the backend
-      // returns the code and we prefill + show it. Disappears automatically
-      // once a real SMS provider is configured.
+      // Test mode — backend returns the code so QA can verify without
+      // a real SMS provider. Disappears as soon as SMS goes live.
       if (devCode) {
         setCode(devCode);
         Alert.alert(
@@ -92,42 +130,63 @@ export default function LoginOtpScreen() {
             : `No SMS provider yet. Verification code: ${devCode}`
         );
       }
+      // Focus the hidden input so the keypad pops immediately.
+      setTimeout(() => hiddenOtpRef.current?.focus(), 50);
     } catch (e: any) {
-      Alert.alert(isRTL ? 'خطأ' : 'Error', e?.message ?? String(e));
+      setError(e?.message ?? String(e));
+      runShake();
     } finally {
       setLoading(false);
     }
   };
 
   const verify = async () => {
+    setError(null);
     if (code.length !== OTP_LENGTH) {
-      Alert.alert(
-        isRTL ? 'خطأ' : 'Error',
-        isRTL ? `الكود يجب أن يكون ${OTP_LENGTH} أرقام` : `Code must be ${OTP_LENGTH} digits`
-      );
+      setError(isRTL ? `الكود يجب أن يكون ${OTP_LENGTH} أرقام` : `Code must be ${OTP_LENGTH} digits`);
+      runShake();
       return;
     }
     if (expiresIn <= 0) {
-      Alert.alert(
-        isRTL ? 'انتهت الصلاحية' : 'Expired',
-        isRTL ? 'انتهت صلاحية الكود، اطلب كوداً جديداً' : 'Code expired, request a new one'
-      );
+      setError(isRTL ? 'انتهت صلاحية الكود، اطلب كوداً جديداً' : 'Code expired, request a new one');
+      runShake();
       return;
     }
     setLoading(true);
     try {
       await verifyPhoneOtp(phone, code, language);
       success();
-      // First-time customers have no name yet — collect just the name
-      // before entering the app. Returning users skip straight through.
+      // Role-gate first: a verified phone may belong to a technician
+      // account. The customer entrypoint must NOT silently route a
+      // technician into the customer app.
       try {
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
           const { data: profile } = await supabase
             .from('users')
-            .select('name')
+            .select('name, role')
             .eq('id', user.id)
             .maybeSingle();
+          const profileRole =
+            ((profile as any)?.role as string | null) ??
+            ((user.user_metadata as any)?.role as string | null) ??
+            null;
+          if (profileRole === 'technician') {
+            try { await supabase.auth.signOut({ scope: 'local' }); } catch {}
+            Alert.alert(
+              isRTL ? 'هذا الحساب فني' : 'Technician account',
+              isRTL
+                ? 'هذا الرقم مسجّل كفني. الرجاء الدخول من بوابة الفنيين.'
+                : 'This number is registered as a technician. Please sign in from the technician portal.',
+              [
+                { text: isRTL ? 'إلغاء' : 'Cancel', style: 'cancel' },
+                { text: isRTL ? 'بوابة الفنيين' : 'Technician portal', onPress: () => router.replace('/technician-auth') },
+              ]
+            );
+            setCode('');
+            setLoading(false);
+            return;
+          }
           const existingName = ((profile as any)?.name ?? '').trim();
           if (!existingName) {
             setStep('name');
@@ -136,23 +195,24 @@ export default function LoginOtpScreen() {
           }
         }
       } catch {
-        // If the profile check fails, fall through and let the user in.
+        // Profile lookup failure: fall through to customer area; the
+        // (customer) layout guard handles any role mismatch.
       }
       router.replace('/(customer)');
     } catch (e: any) {
-      Alert.alert(isRTL ? 'خطأ' : 'Error', e?.message ?? String(e));
+      setError(e?.message ?? String(e));
+      runShake();
     } finally {
       setLoading(false);
     }
   };
 
   const saveName = async () => {
+    setError(null);
     const trimmed = name.trim();
     if (trimmed.length < 2) {
-      Alert.alert(
-        isRTL ? 'خطأ' : 'Error',
-        isRTL ? 'الرجاء إدخال اسمك' : 'Please enter your name'
-      );
+      setError(isRTL ? 'الرجاء إدخال اسمك' : 'Please enter your name');
+      runShake();
       return;
     }
     setLoading(true);
@@ -164,101 +224,147 @@ export default function LoginOtpScreen() {
       success();
       router.replace('/(customer)');
     } catch (e: any) {
-      Alert.alert(isRTL ? 'خطأ' : 'Error', e?.message ?? String(e));
+      setError(e?.message ?? String(e));
+      runShake();
     } finally {
       setLoading(false);
     }
   };
 
   const styles = createStyles(COLORS, isRTL);
-  const sentTo = normalizeSaudiPhone(phone);
+  const shake = shakeAnim.interpolate({ inputRange: [-1, 1], outputRange: [-8, 8] });
 
-  const formatMmSs = (s: number) => {
-    const m = Math.floor(s / 60);
-    const r = s % 60;
-    return `${m}:${String(r).padStart(2, '0')}`;
-  };
+  // Render the OTP as individual boxes driven off the hidden input.
+  const otpDigits = code.padEnd(OTP_LENGTH, ' ').split('');
 
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
       <View style={styles.header}>
         {step === 'name' ? (
-          // Account already verified — no backing out of the name step.
-          <View style={{ width: 26 }} />
+          <View style={{ width: 32 }} />
         ) : (
           <TouchableOpacity
             onPress={() => {
+              setError(null);
               if (step === 'otp') {
                 setStep('phone');
               } else if (router.canGoBack()) {
                 router.back();
               } else {
-                // login-otp is often reached via router.replace (role-selection,
-                // legacy /login redirect), so there is no history to pop.
                 router.replace('/role-selection');
               }
             }}
             accessibilityRole="button"
             accessibilityLabel={isRTL ? 'رجوع' : 'Back'}
+            style={styles.headerBtn}
           >
-            <RTLIonicon name="chevron-back" size={26} color={COLORS.text} />
+            <RTLIonicon name="chevron-back" size={22} color={COLORS.text} />
           </TouchableOpacity>
         )}
-        <Text style={styles.title}>
+        <Text style={styles.headerTitle}>
           {step === 'name'
             ? (isRTL ? 'إكمال الحساب' : 'Complete your account')
             : (isRTL ? 'دخول بكود' : 'Sign in with code')}
         </Text>
-        <View style={{ width: 26 }} />
+        <View style={{ width: 32 }} />
+      </View>
+
+      {/* Step pill — three dots showing the user's place in the flow. */}
+      <View style={styles.stepRow}>
+        {(['phone', 'otp', 'name'] as const).map((s, i) => {
+          const active =
+            (step === 'phone' && i === 0) ||
+            (step === 'otp' && i <= 1) ||
+            (step === 'name' && i <= 2);
+          return (
+            <View
+              key={s}
+              style={[styles.stepDot, active && { backgroundColor: COLORS.primary, width: 22 }]}
+            />
+          );
+        })}
       </View>
 
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <View style={styles.content}>
+        <Animated.View style={[styles.content, { opacity: fadeAnim, transform: [{ translateX: shake }] }]}>
           {step === 'phone' ? (
             <>
-              <View style={{ alignItems: 'center', marginBottom: 16 }}>
-                <View style={styles.iconBubble}>
-                  <Ionicons name="phone-portrait-outline" size={32} color={COLORS.primary} />
-                </View>
+              <View style={styles.iconBubble}>
+                <Ionicons name="phone-portrait-outline" size={30} color={COLORS.primary} />
               </View>
               <Text style={styles.bigTitle}>
-                {isRTL ? 'تسجيل دخول سريع' : 'Quick sign-in'}
+                {isRTL ? 'مرحباً بك في Fixate' : 'Welcome to Fixate'}
               </Text>
               <Text style={styles.sub}>
                 {isRTL
-                  ? `سنرسل كوداً مكوّناً من ${OTP_LENGTH} أرقام إلى رقم جوالك`
-                  : `We'll text you a ${OTP_LENGTH}-digit code`}
+                  ? `ابدأ بتسجيل دخول سريع — سنرسل كوداً مكوّناً من ${OTP_LENGTH} أرقام إلى جوالك.`
+                  : `Quick sign-in — we'll text a ${OTP_LENGTH}-digit code to your phone.`}
               </Text>
-              <View style={[styles.phoneRow, { borderColor: COLORS.border }]}>
+
+              <Text style={styles.fieldLabel}>{isRTL ? 'رقم الجوال' : 'Mobile number'}</Text>
+              <View style={[styles.phoneRow, { borderColor: error ? COLORS.error : COLORS.border }]}>
                 <View style={styles.dial}>
-                  <Text style={[styles.dialText, { color: COLORS.text }]}>+966</Text>
+                  <Text style={styles.dialText}>+966</Text>
                 </View>
                 <TextInput
                   value={phone}
-                  onChangeText={(v) => setPhone(v.replace(/[^\d+]/g, ''))}
+                  onChangeText={(v) => { setError(null); setPhone(v.replace(/[^\d+]/g, '')); }}
                   placeholder="5XXXXXXXX"
                   placeholderTextColor={COLORS.textSecondary}
                   keyboardType="phone-pad"
                   autoCapitalize="none"
                   autoCorrect={false}
-                  style={[styles.phoneInput, { color: COLORS.text }]}
+                  style={styles.phoneInput}
                   textAlign={isRTL ? 'right' : 'left'}
                   autoFocus
                   maxLength={13}
+                  returnKeyType="send"
+                  onSubmitEditing={() => isPhoneValid && !loading && sendCode()}
                 />
               </View>
+
+              {error ? <Text style={styles.errorText}>{error}</Text> : null}
+
               <TouchableOpacity
                 onPress={sendCode}
                 disabled={!isPhoneValid || loading}
-                style={[styles.btn, { backgroundColor: COLORS.primary, opacity: !isPhoneValid || loading ? 0.5 : 1 }]}
+                style={[styles.btn, { backgroundColor: COLORS.primary, opacity: !isPhoneValid || loading ? 0.55 : 1 }]}
                 accessibilityRole="button"
                 accessibilityLabel={isRTL ? 'إرسال الكود' : 'Send code'}
               >
-                {loading ? <ActivityIndicator color="#fff" /> : (
-                  <Text style={styles.btnText}>{isRTL ? 'إرسال الكود' : 'Send code'}</Text>
+                {loading ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 8 }}>
+                    <Text style={styles.btnText}>{isRTL ? 'إرسال الكود' : 'Send code'}</Text>
+                    <RTLIonicon name="arrow-forward" size={16} color="#fff" />
+                  </View>
                 )}
               </TouchableOpacity>
+
+              {/* Reassurance chips — quiet trust signals, not noisy. */}
+              <View style={styles.trustRow}>
+                <View style={styles.trustChip}>
+                  <MaterialCommunityIcons name="shield-check-outline" size={13} color={COLORS.primary} />
+                  <Text style={styles.trustChipText}>
+                    {isRTL ? 'تشفير آمن' : 'Encrypted'}
+                  </Text>
+                </View>
+                <View style={styles.trustChip}>
+                  <MaterialCommunityIcons name="flash-outline" size={13} color={COLORS.primary} />
+                  <Text style={styles.trustChipText}>
+                    {isRTL ? 'دخول فوري' : 'Instant sign-in'}
+                  </Text>
+                </View>
+                <View style={styles.trustChip}>
+                  <MaterialCommunityIcons name="key-outline" size={13} color={COLORS.primary} />
+                  <Text style={styles.trustChipText}>
+                    {isRTL ? 'بدون كلمة سر' : 'No password'}
+                  </Text>
+                </View>
+              </View>
+
               <Text style={styles.hint}>
                 {isRTL
                   ? 'بمتابعتك توافق على شروط الاستخدام وسياسة الخصوصية.'
@@ -267,82 +373,170 @@ export default function LoginOtpScreen() {
             </>
           ) : step === 'otp' ? (
             <>
-              <Text style={styles.bigTitle}>{isRTL ? 'أدخل كود التحقّق' : 'Enter verification code'}</Text>
-              <Text style={styles.sub}>
-                {isRTL ? `أُرسل إلى ${sentTo}` : `Sent to ${sentTo}`}
+              <View style={styles.iconBubble}>
+                <MaterialCommunityIcons name="message-text-outline" size={28} color={COLORS.primary} />
+              </View>
+              <Text style={styles.bigTitle}>
+                {isRTL ? 'أدخل كود التحقق' : 'Enter verification code'}
               </Text>
+              <Text style={styles.sub}>
+                {isRTL ? `أُرسل إلى ` : `Sent to `}
+                <Text style={{ color: COLORS.text, fontWeight: '800' }}>{sentTo}</Text>
+              </Text>
+
+              {/* Hidden TextInput collects the digits; the visible row of
+                  boxes mirrors it. Tapping any box opens the keyboard. */}
+              <TouchableOpacity activeOpacity={1} onPress={() => hiddenOtpRef.current?.focus()}>
+                <View
+                  style={{
+                    flexDirection: isRTL ? 'row-reverse' : 'row',
+                    justifyContent: 'center',
+                    gap: 10,
+                    marginTop: 6,
+                  }}
+                >
+                  {otpDigits.map((d, i) => {
+                    const filled = d !== ' ';
+                    const isCursor = i === code.length;
+                    return (
+                      <View
+                        key={i}
+                        style={[
+                          styles.otpBox,
+                          {
+                            borderColor: error
+                              ? COLORS.error
+                              : isCursor
+                                ? COLORS.primary
+                                : filled
+                                  ? COLORS.primary + '55'
+                                  : COLORS.border,
+                            backgroundColor: filled ? COLORS.primary + '10' : COLORS.card,
+                          },
+                        ]}
+                      >
+                        <Text style={[styles.otpBoxText, { color: COLORS.text }]}>
+                          {filled ? d : ''}
+                        </Text>
+                      </View>
+                    );
+                  })}
+                </View>
+              </TouchableOpacity>
               <TextInput
+                ref={hiddenOtpRef}
                 value={code}
-                onChangeText={(v) => setCode(v.replace(/\D/g, '').slice(0, OTP_LENGTH))}
-                placeholder={'-'.repeat(OTP_LENGTH)}
-                placeholderTextColor={COLORS.textSecondary}
+                onChangeText={(v) => { setError(null); setCode(v.replace(/\D/g, '').slice(0, OTP_LENGTH)); }}
                 keyboardType="number-pad"
-                style={[styles.otpInput, { color: COLORS.text, borderColor: COLORS.border }]}
-                textAlign="center"
+                style={styles.hiddenInput}
                 autoFocus
                 maxLength={OTP_LENGTH}
+                textContentType="oneTimeCode"
+                autoComplete="sms-otp"
+                caretHidden
               />
-              <Text style={styles.expiry}>
-                {expiresIn > 0
-                  ? (isRTL ? `صالح لمدة ${formatMmSs(expiresIn)}` : `Valid for ${formatMmSs(expiresIn)}`)
-                  : (isRTL ? 'انتهت صلاحية الكود' : 'Code expired')}
-              </Text>
+
+              <View style={styles.expiryRow}>
+                <MaterialCommunityIcons
+                  name={expiresIn > 0 ? 'clock-outline' : 'clock-alert-outline'}
+                  size={13}
+                  color={expiresIn > 0 ? COLORS.textSecondary : COLORS.error}
+                />
+                <Text style={[styles.expiry, expiresIn === 0 && { color: COLORS.error }]}>
+                  {expiresIn > 0
+                    ? (isRTL ? `صالح لمدة ${formatMmSs(expiresIn)}` : `Valid for ${formatMmSs(expiresIn)}`)
+                    : (isRTL ? 'انتهت صلاحية الكود' : 'Code expired')}
+                </Text>
+              </View>
+
+              {error ? <Text style={styles.errorText}>{error}</Text> : null}
+
               <TouchableOpacity
                 onPress={verify}
                 disabled={code.length !== OTP_LENGTH || loading || expiresIn <= 0}
-                style={[styles.btn, { backgroundColor: COLORS.primary, opacity: code.length !== OTP_LENGTH || loading || expiresIn <= 0 ? 0.5 : 1 }]}
+                style={[
+                  styles.btn,
+                  {
+                    backgroundColor: COLORS.primary,
+                    opacity: code.length !== OTP_LENGTH || loading || expiresIn <= 0 ? 0.55 : 1,
+                  },
+                ]}
                 accessibilityRole="button"
                 accessibilityLabel={isRTL ? 'تأكيد' : 'Verify'}
               >
-                {loading ? <ActivityIndicator color="#fff" /> : (
+                {loading ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
                   <Text style={styles.btnText}>{isRTL ? 'تأكيد ودخول' : 'Verify & sign in'}</Text>
                 )}
               </TouchableOpacity>
 
               {resendIn > 0 ? (
-                <Text style={styles.resendDisabled}>
-                  {isRTL ? `إعادة الإرسال خلال ${resendIn}ث` : `Resend in ${resendIn}s`}
-                </Text>
+                <View style={styles.resendRow}>
+                  <Text style={styles.resendDisabled}>
+                    {isRTL ? `إعادة الإرسال خلال ` : `Resend in `}
+                    <Text style={{ fontWeight: '800' }}>{resendIn}s</Text>
+                  </Text>
+                </View>
               ) : (
-                <TouchableOpacity onPress={sendCode} accessibilityRole="button" disabled={loading}>
-                  <Text style={[styles.resend, { opacity: loading ? 0.5 : 1 }]}>
+                <TouchableOpacity
+                  onPress={sendCode}
+                  disabled={loading}
+                  style={styles.resendBtn}
+                  accessibilityRole="button"
+                >
+                  <Ionicons name="refresh" size={14} color={COLORS.primary} />
+                  <Text style={styles.resend}>
                     {isRTL ? 'إعادة إرسال الكود' : 'Resend code'}
                   </Text>
                 </TouchableOpacity>
               )}
+
+              <TouchableOpacity
+                onPress={() => { setError(null); setStep('phone'); }}
+                style={{ marginTop: 4, alignItems: 'center' }}
+                accessibilityRole="button"
+              >
+                <Text style={{ color: COLORS.textSecondary, fontSize: 12 }}>
+                  {isRTL ? 'تغيير الرقم' : 'Change number'}
+                </Text>
+              </TouchableOpacity>
             </>
           ) : (
             <>
-              <View style={{ alignItems: 'center', marginBottom: 16 }}>
-                <View style={styles.iconBubble}>
-                  <Ionicons name="person-outline" size={32} color={COLORS.primary} />
-                </View>
+              <View style={styles.iconBubble}>
+                <Ionicons name="person-outline" size={30} color={COLORS.primary} />
               </View>
               <Text style={styles.bigTitle}>
                 {isRTL ? 'ما اسمك؟' : "What's your name?"}
               </Text>
               <Text style={styles.sub}>
-                {isRTL
-                  ? 'خطوة أخيرة لإكمال حسابك'
-                  : 'One last step to set up your account'}
+                {isRTL ? 'خطوة أخيرة لإكمال حسابك' : 'One last step to set up your account'}
               </Text>
-              <View style={[styles.phoneRow, { borderColor: COLORS.border }]}>
+
+              <Text style={styles.fieldLabel}>{isRTL ? 'الاسم الكامل' : 'Full name'}</Text>
+              <View style={[styles.phoneRow, { borderColor: error ? COLORS.error : COLORS.border }]}>
                 <TextInput
                   value={name}
-                  onChangeText={setName}
-                  placeholder={isRTL ? 'الاسم الكامل' : 'Full name'}
+                  onChangeText={(v) => { setError(null); setName(v); }}
+                  placeholder={isRTL ? 'اكتب اسمك هنا' : 'Type your name'}
                   placeholderTextColor={COLORS.textSecondary}
                   autoCapitalize="words"
-                  style={[styles.phoneInput, { color: COLORS.text, paddingHorizontal: 14 }]}
+                  style={[styles.phoneInput, { paddingHorizontal: 14 }]}
                   textAlign={isRTL ? 'right' : 'left'}
                   autoFocus
                   maxLength={60}
+                  returnKeyType="done"
+                  onSubmitEditing={() => name.trim().length >= 2 && !loading && saveName()}
                 />
               </View>
+
+              {error ? <Text style={styles.errorText}>{error}</Text> : null}
+
               <TouchableOpacity
                 onPress={saveName}
                 disabled={name.trim().length < 2 || loading}
-                style={[styles.btn, { backgroundColor: COLORS.primary, opacity: name.trim().length < 2 || loading ? 0.5 : 1 }]}
+                style={[styles.btn, { backgroundColor: COLORS.primary, opacity: name.trim().length < 2 || loading ? 0.55 : 1 }]}
                 accessibilityRole="button"
                 accessibilityLabel={isRTL ? 'متابعة' : 'Continue'}
               >
@@ -352,7 +546,7 @@ export default function LoginOtpScreen() {
               </TouchableOpacity>
             </>
           )}
-        </View>
+        </Animated.View>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -365,47 +559,154 @@ const createStyles = (C: any, isRTL: boolean) =>
       flexDirection: isRTL ? 'row-reverse' : 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      padding: SPACING.lg,
+      paddingHorizontal: SPACING.lg,
+      paddingTop: SPACING.md,
+      paddingBottom: SPACING.sm,
     },
-    title: { fontSize: 16, fontWeight: 'bold', color: C.text },
-    content: { flex: 1, padding: SPACING.lg, gap: SPACING.lg },
-    iconBubble: {
-      width: 64, height: 64, borderRadius: 16, backgroundColor: C.primary + '15',
+    headerBtn: {
+      width: 32, height: 32, borderRadius: 16,
       alignItems: 'center', justifyContent: 'center',
+      backgroundColor: C.card,
     },
-    bigTitle: { fontSize: 24, fontWeight: 'bold', color: C.text, textAlign: isRTL ? 'right' : 'left' },
-    sub: { fontSize: 14, color: C.textSecondary, textAlign: isRTL ? 'right' : 'left' },
+    headerTitle: { fontSize: 15, fontWeight: '700', color: C.text },
+    stepRow: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignSelf: 'center',
+      gap: 6,
+      marginTop: 2,
+      marginBottom: 6,
+    },
+    stepDot: {
+      width: 8, height: 8, borderRadius: 4,
+      backgroundColor: C.border,
+    },
+    content: { flex: 1, padding: SPACING.lg, gap: 12 },
+    iconBubble: {
+      width: 64, height: 64, borderRadius: 20, backgroundColor: C.primary + '14',
+      alignItems: 'center', justifyContent: 'center',
+      alignSelf: isRTL ? 'flex-end' : 'flex-start',
+      marginBottom: 4,
+    },
+    bigTitle: {
+      fontSize: 26, fontWeight: '800', color: C.text,
+      textAlign: isRTL ? 'right' : 'left',
+      writingDirection: isRTL ? 'rtl' : 'ltr',
+      letterSpacing: -0.3,
+    },
+    sub: {
+      fontSize: 14, color: C.textSecondary,
+      lineHeight: 22,
+      textAlign: isRTL ? 'right' : 'left',
+      writingDirection: isRTL ? 'rtl' : 'ltr',
+    },
+    fieldLabel: {
+      color: C.textSecondary,
+      fontWeight: '700',
+      fontSize: 12,
+      marginTop: 8,
+      textAlign: isRTL ? 'right' : 'left',
+    },
     phoneRow: {
       flexDirection: isRTL ? 'row-reverse' : 'row',
       alignItems: 'center',
-      borderWidth: 1,
-      borderRadius: BORDER_RADIUS.md,
+      borderWidth: 1.5,
+      borderRadius: BORDER_RADIUS.lg,
       overflow: 'hidden',
+      backgroundColor: C.card,
     },
     dial: {
       paddingHorizontal: 14,
       paddingVertical: 16,
-      backgroundColor: C.card,
+      backgroundColor: C.background,
       borderRightWidth: isRTL ? 0 : 1,
       borderLeftWidth: isRTL ? 1 : 0,
       borderColor: C.border,
     },
-    dialText: { fontSize: 16, fontWeight: '700' },
-    phoneInput: { flex: 1, padding: 16, fontSize: 16 },
-    otpInput: {
-      borderWidth: 2,
+    dialText: { fontSize: 16, fontWeight: '800', color: C.text },
+    phoneInput: { flex: 1, padding: 16, fontSize: 16, color: C.text },
+
+    otpBox: {
+      width: 46,
+      height: 56,
+      borderWidth: 1.5,
       borderRadius: BORDER_RADIUS.md,
-      padding: 18,
-      fontSize: 32,
-      letterSpacing: 18,
-      fontWeight: 'bold',
+      alignItems: 'center',
+      justifyContent: 'center',
     },
-    btn: { paddingVertical: 16, borderRadius: BORDER_RADIUS.md, alignItems: 'center', justifyContent: 'center', minHeight: 56 },
-    btnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
-    expiry: { color: C.textSecondary, textAlign: 'center', fontSize: 13 },
-    resend: { color: C.primary, fontWeight: '600', textAlign: 'center', marginTop: 8 },
-    resendDisabled: { color: C.textSecondary, textAlign: 'center', marginTop: 8 },
-    hint: { color: C.textSecondary, fontSize: 12, textAlign: 'center' },
+    otpBoxText: {
+      fontSize: 24,
+      fontWeight: '800',
+      letterSpacing: 0,
+    },
+    hiddenInput: {
+      position: 'absolute',
+      width: 1, height: 1, opacity: 0,
+    },
+
+    expiryRow: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 5,
+      marginTop: 4,
+    },
+    expiry: { color: C.textSecondary, fontSize: 12, fontWeight: '600' },
+
+    btn: {
+      paddingVertical: 16,
+      borderRadius: BORDER_RADIUS.lg,
+      alignItems: 'center',
+      justifyContent: 'center',
+      minHeight: 56,
+      marginTop: 6,
+    },
+    btnText: { color: '#fff', fontSize: 16, fontWeight: '800', letterSpacing: 0.2 },
+
+    resendRow: { alignItems: 'center', marginTop: 6 },
+    resendDisabled: { color: C.textSecondary, fontSize: 13 },
+    resendBtn: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 5,
+      paddingVertical: 8,
+      marginTop: 2,
+    },
+    resend: { color: C.primary, fontWeight: '700', fontSize: 13.5 },
+
+    errorText: {
+      color: C.error,
+      fontSize: 13,
+      fontWeight: '600',
+      textAlign: isRTL ? 'right' : 'left',
+      writingDirection: isRTL ? 'rtl' : 'ltr',
+      marginTop: 2,
+    },
+
+    trustRow: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      flexWrap: 'wrap',
+      gap: 6,
+      marginTop: 10,
+    },
+    trustChip: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
+      gap: 5,
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+      borderRadius: 999,
+      backgroundColor: C.primary + '12',
+    },
+    trustChipText: { color: C.primary, fontWeight: '700', fontSize: 11.5 },
+
+    hint: {
+      color: C.textSecondary,
+      fontSize: 11.5,
+      textAlign: 'center',
+      lineHeight: 18,
+      marginTop: 6,
+    },
   });
 
 // Re-export so legacy callers that imported the constant directly still build.

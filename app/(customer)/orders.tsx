@@ -162,15 +162,16 @@ export default function OrdersScreen() {
         color: COLORS.error,
       };
     }
-    // No quotation issued yet — show the indicative starting price.
-    if (order.estimated_price != null) {
-      return {
-        label: isRTL ? 'السعر المبدئي' : 'Starting price',
-        amount: `${order.estimated_price} ${sar}`,
-        color: COLORS.textSecondary,
-      };
-    }
-    return { label: isRTL ? 'السعر' : 'Price', amount: '—', color: COLORS.textSecondary };
+    // No quotation issued yet — show a clear "not determined" placeholder.
+    // The pre-quote `estimated_price` is just an internal upper-bound used
+    // for routing/loyalty, not a price the customer should be anchored on.
+    // Surfacing it as a "starting price" was misleading: customers read it
+    // as a real charge before the technician even inspects the device.
+    return {
+      label: isRTL ? 'السعر' : 'Price',
+      amount: isRTL ? 'لم يتم التحديد بعد' : 'Not determined yet',
+      color: COLORS.textSecondary,
+    };
   };
 
   const styles = createStyles(COLORS, isRTL, SHADOWS);

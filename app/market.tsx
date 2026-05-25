@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -126,6 +126,7 @@ export default function MarketScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [marketplaceEnabled, setMarketplaceEnabled] = useState(true);
+  const deviceStripRef = useRef<ScrollView>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -422,13 +423,29 @@ export default function MarketScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Device-type chips (Browse tab only) */}
+      {/* Device-type chips (Browse tab only).
+          RTL fix: with `flexDirection: row-reverse`, the FIRST array
+          entry ("الكل") is laid out at the rightmost edge of the scroll
+          buffer, but the ScrollView opens at offset 0 (the LEFT edge),
+          which means RTL users used to see the LAST chip ("أخرى") first
+          and had to scroll right to find "الكل / جوال / لابتوب". We now
+          jump to the content-end on initial layout in RTL so the rail
+          opens on the first/main categories. */}
       {tab === 'browse' && (
         <ScrollView
+          ref={deviceStripRef}
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.deviceStrip}
           style={{ maxHeight: 56 }}
+          onContentSizeChange={(w) => {
+            if (isRTL && w > 0) {
+              // Defer one frame so layout settles before we scroll.
+              requestAnimationFrame(() => {
+                deviceStripRef.current?.scrollToEnd({ animated: false });
+              });
+            }
+          }}
         >
           {DEVICE_CHIPS.map((c) => {
             const active = device === c.id;
@@ -483,22 +500,49 @@ export default function MarketScreen() {
           )}
         </View>
       ) : (
-        <FlatList
-          data={listings}
-          keyExtractor={(l) => l.id}
-          renderItem={renderCard}
-          numColumns={2}
-          columnWrapperStyle={{ gap: GRID_GUTTER, paddingHorizontal: GRID_GUTTER }}
-          contentContainerStyle={{ gap: GRID_GUTTER, paddingVertical: GRID_GUTTER, paddingBottom: 40 }}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={() => { setRefreshing(true); load(); }}
-              tintColor={COLORS.primary}
-            />
-          }
-          showsVerticalScrollIndicator={false}
-        />
+        <>
+          {/* Result summary + active sort — a real marketplace always
+              tells the buyer what they're looking at. */}
+          {tab === 'browse' && (
+            <View style={styles.resultBar}>
+              <Text style={styles.resultCount} numberOfLines={1}>
+                {isRTL
+                  ? `${listings.length.toLocaleString('ar-SA')} نتيجة`
+                  : `${listings.length} ${listings.length === 1 ? 'result' : 'results'}`}
+              </Text>
+              <TouchableOpacity
+                onPress={() => setFiltersOpen(true)}
+                style={styles.sortChip}
+                accessibilityRole="button"
+              >
+                <Ionicons name="swap-vertical" size={13} color={COLORS.primary} />
+                <Text style={styles.sortChipText}>
+                  {(SORT_OPTS.find((s) => s.id === sort) ?? SORT_OPTS[0])[isRTL ? 'ar' : 'en']}
+                </Text>
+                <Ionicons name="chevron-down" size={12} color={COLORS.primary} />
+              </TouchableOpacity>
+            </View>
+          )}
+          <FlatList
+            data={listings}
+            keyExtractor={(l) => l.id}
+            renderItem={renderCard}
+            numColumns={2}
+            columnWrapperStyle={{ gap: GRID_GUTTER, paddingHorizontal: GRID_GUTTER }}
+            contentContainerStyle={{ gap: GRID_GUTTER, paddingVertical: GRID_GUTTER, paddingBottom: 40 }}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={() => { setRefreshing(true); load(); }}
+                tintColor={COLORS.primary}
+              />
+            }
+            showsVerticalScrollIndicator={false}
+            initialNumToRender={8}
+            windowSize={9}
+            removeClippedSubviews
+          />
+        </>
       )}
 
       {/* Filter sheet */}
@@ -697,6 +741,29 @@ const createStyles = (C: any, isRTL: boolean) =>
       backgroundColor: C.card,
     },
     deviceChipText: { color: C.text, fontSize: 13, fontWeight: '700' },
+
+    // Result bar — small but high-value: tells the buyer "we found N
+    // items, sorted by X" and gives them a one-tap shortcut to change
+    // the sort. Classic Haraj/eBay-style affordance.
+    resultBar: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: SPACING.lg,
+      paddingTop: 4,
+      paddingBottom: 6,
+    },
+    resultCount: { color: C.textSecondary, fontSize: 12, fontWeight: '700' },
+    sortChip: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
+      gap: 5,
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+      borderRadius: 999,
+      backgroundColor: C.primary + '12',
+    },
+    sortChipText: { color: C.primary, fontSize: 12, fontWeight: '700' },
 
     card: {
       width: CARD_W,
