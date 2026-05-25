@@ -69,6 +69,9 @@ interface FormState {
   pushNotificationsEnabled: boolean;
   ratingsEnabled: boolean;
   marketplaceEnabled: boolean;
+  serviceMobileEnabled: boolean;
+  servicePickupEnabled: boolean;
+  serviceHandoffEnabled: boolean;
 }
 
 const toForm = (s: PlatformSettings): FormState => ({
@@ -95,6 +98,9 @@ const toForm = (s: PlatformSettings): FormState => ({
   pushNotificationsEnabled: s.pushNotificationsEnabled,
   ratingsEnabled: s.ratingsEnabled,
   marketplaceEnabled: s.marketplaceEnabled,
+  serviceMobileEnabled: s.serviceMobileEnabled,
+  servicePickupEnabled: s.servicePickupEnabled,
+  serviceHandoffEnabled: s.serviceHandoffEnabled,
 });
 
 interface FieldErrors {
@@ -235,6 +241,9 @@ export default function AdminPlatformSettingsScreen() {
         { key: PLATFORM_SETTINGS_KEYS.pushNotificationsEnabled, value: form.pushNotificationsEnabled },
         { key: PLATFORM_SETTINGS_KEYS.ratingsEnabled, value: form.ratingsEnabled },
         { key: PLATFORM_SETTINGS_KEYS.marketplaceEnabled, value: form.marketplaceEnabled },
+        { key: PLATFORM_SETTINGS_KEYS.serviceMobileEnabled, value: form.serviceMobileEnabled },
+        { key: PLATFORM_SETTINGS_KEYS.servicePickupEnabled, value: form.servicePickupEnabled },
+        { key: PLATFORM_SETTINGS_KEYS.serviceHandoffEnabled, value: form.serviceHandoffEnabled },
       ]);
       Alert.alert(
         isRTL ? 'تم الحفظ ✓' : 'Saved ✓',
@@ -500,6 +509,36 @@ export default function AdminPlatformSettingsScreen() {
                   : 'Master switch for the marketplace browse + create flows.'}
                 value={form.marketplaceEnabled}
                 onChange={(v) => set({ marketplaceEnabled: v })}
+                COLORS={COLORS} isRTL={isRTL}
+              />
+              {/* Per-service availability — turn off a booking mode without
+                  a code release. Disabled modes are hidden from the
+                  customer's service-type chooser entirely. */}
+              <SwitchRow
+                label={isRTL ? 'خدمة الفني المتنقل' : 'Mobile-technician service'}
+                hint={isRTL
+                  ? 'فني يأتي إلى موقع العميل ويصلح الجهاز في المكان.'
+                  : 'Technician comes to the customer location and fixes on-site.'}
+                value={form.serviceMobileEnabled}
+                onChange={(v) => set({ serviceMobileEnabled: v })}
+                COLORS={COLORS} isRTL={isRTL}
+              />
+              <SwitchRow
+                label={isRTL ? 'خدمة الاستلام والتوصيل' : 'Pickup & delivery service'}
+                hint={isRTL
+                  ? 'نستلم جهاز العميل ونوصّله للمحل المتعاقد ونُرجعه بعد الإصلاح.'
+                  : 'We pick up the device, take it to the partner shop, and return it.'}
+                value={form.servicePickupEnabled}
+                onChange={(v) => set({ servicePickupEnabled: v })}
+                COLORS={COLORS} isRTL={isRTL}
+              />
+              <SwitchRow
+                label={isRTL ? 'تسليم واستلام شخصي' : 'Personal hand-off'}
+                hint={isRTL
+                  ? 'العميل يسلّم الجهاز للفني شخصياً في مركز الخدمة بدون رسوم توصيل.'
+                  : 'Customer hands the device to the technician in person — no delivery fee.'}
+                value={form.serviceHandoffEnabled}
+                onChange={(v) => set({ serviceHandoffEnabled: v })}
                 COLORS={COLORS} isRTL={isRTL}
               />
               <FieldMultiline
