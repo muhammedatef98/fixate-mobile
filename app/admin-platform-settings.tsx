@@ -44,6 +44,7 @@ import {
 } from '../services/paymentMethodsService';
 import { getFriendlyError } from '../utils/errorMessages';
 import { logger } from '../utils/logger';
+import { useIsAdmin } from '../hooks/useAdminGuard';
 
 interface FormState {
   inspectionFee: string;
@@ -72,6 +73,8 @@ interface FormState {
   serviceMobileEnabled: boolean;
   servicePickupEnabled: boolean;
   serviceHandoffEnabled: boolean;
+  freeDeliveryEnabled: boolean;
+  freeDeliveryPromoCode: string;
 }
 
 const toForm = (s: PlatformSettings): FormState => ({
@@ -101,6 +104,8 @@ const toForm = (s: PlatformSettings): FormState => ({
   serviceMobileEnabled: s.serviceMobileEnabled,
   servicePickupEnabled: s.servicePickupEnabled,
   serviceHandoffEnabled: s.serviceHandoffEnabled,
+  freeDeliveryEnabled: s.freeDeliveryEnabled,
+  freeDeliveryPromoCode: s.freeDeliveryPromoCode,
 });
 
 interface FieldErrors {
@@ -123,32 +128,13 @@ export default function AdminPlatformSettingsScreen() {
   const COLORS = getColors(isDark);
   const isRTL = language === 'ar';
 
-  const [adminChecked, setAdminChecked] = useState<boolean | null>(null);
+  const { isAdmin, checking: adminChecking } = useIsAdmin();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [form, setForm] = useState<FormState | null>(null);
   const [errors, setErrors] = useState<FieldErrors>({});
-
-  useEffect(() => {
-    let cancelled = false;
-    if (!user?.id) {
-      setAdminChecked(false);
-      return;
-    }
-    Promise.resolve(
-      supabase.from('users').select('is_admin').eq('id', user.id).maybeSingle()
-    )
-      .then(({ data }: any) => !cancelled && setAdminChecked(data?.is_admin === true))
-      .catch(() => !cancelled && setAdminChecked(false));
-    return () => {
-      cancelled = true;
-    };
-  }, [user?.id]);
-
-  const metaAdmin = (user?.user_metadata as any)?.is_admin === true;
-  const isAdmin = adminChecked === true || (userProfile as any)?.is_admin === true || metaAdmin;
 
   const load = useCallback(async () => {
     setError(null);
@@ -166,9 +152,9 @@ export default function AdminPlatformSettingsScreen() {
   }, [language]);
 
   useEffect(() => {
-    if (adminChecked === null) return;
+    if (adminChecking) return;
     load();
-  }, [adminChecked, load]);
+  }, [adminChecking, load]);
 
   const validate = (f: FormState): FieldErrors => {
     const err: FieldErrors = {};
@@ -244,6 +230,8 @@ export default function AdminPlatformSettingsScreen() {
         { key: PLATFORM_SETTINGS_KEYS.serviceMobileEnabled, value: form.serviceMobileEnabled },
         { key: PLATFORM_SETTINGS_KEYS.servicePickupEnabled, value: form.servicePickupEnabled },
         { key: PLATFORM_SETTINGS_KEYS.serviceHandoffEnabled, value: form.serviceHandoffEnabled },
+        { key: PLATFORM_SETTINGS_KEYS.freeDeliveryEnabled, value: form.freeDeliveryEnabled },
+        { key: PLATFORM_SETTINGS_KEYS.freeDeliveryPromoCode, value: form.freeDeliveryPromoCode.trim().toUpperCase() },
       ]);
       Alert.alert(
         isRTL ? 'تم الحفظ ✓' : 'Saved ✓',
@@ -260,7 +248,7 @@ export default function AdminPlatformSettingsScreen() {
   const styles = useMemo(() => createStyles(COLORS, isRTL), [COLORS, isRTL]);
   const set = (patch: Partial<FormState>) => setForm((f) => (f ? { ...f, ...patch } : f));
 
-  if (adminChecked === null) {
+  if (adminChecking) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.centered}>
@@ -541,6 +529,48 @@ export default function AdminPlatformSettingsScreen() {
                 onChange={(v) => set({ serviceHandoffEnabled: v })}
                 COLORS={COLORS} isRTL={isRTL}
               />
+              {/* Free delivery — master switch + optional promo code. When
+                  the switch is on, every customer sees the delivery fee as
+                  "free". When the code is set, a customer typing that code
+                  in the discount field at request time gets free delivery
+                  even if the master switch is off. Case-insensitive. */}
+              <SwitchRow
+                label={isRTL ? 'توصيل مجاني للجميع' : 'Free delivery for everyone'}
+                hint={isRTL
+                  ? 'عند التفعيل، تظهر رسوم التوصيل بقيمة "مجاناً" لكل العملاء.'
+                  : 'When on, every customer sees the delivery fee as "Free".'}
+                value={form.freeDeliveryEnabled}
+                onChange={(v) => set({ freeDeliveryEnabled: v })}
+                COLORS={COLORS} isRTL={isRTL}
+              />
+              <View style={{ marginTop: 12 }}>
+                <Text style={{ color: COLORS.text, fontWeight: '700', marginBottom: 6, textAlign: isRTL ? 'right' : 'left' }}>
+                  {isRTL ? 'كود التوصيل المجاني (اختياري)' : 'Free-delivery promo code (optional)'}
+                </Text>
+                <Text style={{ color: COLORS.textSecondary, fontSize: 12, marginBottom: 8, textAlign: isRTL ? 'right' : 'left' }}>
+                  {isRTL
+                    ? 'إذا أدخل العميل هذا الكود في خانة الخصم، يصبح التوصيل مجانياً. اتركه فارغاً لتعطيل الميزة.'
+                    : 'If a customer enters this code in the discount field, delivery becomes free. Leave empty to disable.'}
+                </Text>
+                <TextInput
+                  value={form.freeDeliveryPromoCode}
+                  onChangeText={(v) => set({ freeDeliveryPromoCode: v.toUpperCase() })}
+                  autoCapitalize="characters"
+                  autoCorrect={false}
+                  placeholder={isRTL ? 'مثال: FREESHIP' : 'e.g. FREESHIP'}
+                  placeholderTextColor={COLORS.textSecondary}
+                  style={{
+                    borderWidth: 1,
+                    borderColor: COLORS.border,
+                    borderRadius: BORDER_RADIUS.md,
+                    paddingHorizontal: 14,
+                    paddingVertical: 12,
+                    color: COLORS.text,
+                    backgroundColor: COLORS.background,
+                    textAlign: isRTL ? 'right' : 'left',
+                  }}
+                />
+              </View>
               <FieldMultiline
                 label={isRTL ? 'نص الإعلان (عربي)' : 'Announcement text (Arabic)'}
                 value={form.announcementAr}

@@ -18,6 +18,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useApp } from '../contexts/AppContext';
 import { useAuth } from '../contexts/AuthContext';
+import { useIsAdmin } from '../hooks/useAdminGuard';
 import { getColors, SPACING, BORDER_RADIUS } from '../constants/theme';
 import { RTLIonicon } from '../components/RTLIcon';
 import { safeBack } from '../utils/navigation';
@@ -37,7 +38,7 @@ export default function AdminSupportScreen() {
   const COLORS = getColors(isDark);
   const isRTL = language === 'ar';
 
-  const [adminChecked, setAdminChecked] = useState<boolean | null>(null);
+  const { isAdmin, checking: adminChecking } = useIsAdmin();
   const [statusFilter, setStatusFilter] = useState<'open' | 'closed'>('open');
   const [threads, setThreads] = useState<ThreadView[]>([]);
   const [loading, setLoading] = useState(true);
@@ -49,18 +50,6 @@ export default function AdminSupportScreen() {
   const listRef = useRef<FlatList>(null);
   useScrollToEndOnKeyboard(listRef);
   const messagesChannelRef = useRef<any>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    if (!user?.id) return;
-    Promise.resolve(supabase.from('users').select('is_admin').eq('id', user.id).maybeSingle())
-      .then(({ data }: any) => !cancelled && setAdminChecked(data?.is_admin === true))
-      .catch(() => !cancelled && setAdminChecked(false));
-    return () => { cancelled = true; };
-  }, [user?.id]);
-
-  const metaAdmin = (user?.user_metadata as any)?.is_admin === true;
-  const isAdmin = adminChecked === true || (userProfile as any)?.is_admin === true || metaAdmin;
 
   const loadThreads = async (status: 'open' | 'closed' = statusFilter) => {
     try {
@@ -155,7 +144,7 @@ export default function AdminSupportScreen() {
 
   const styles = makeStyles(COLORS, isRTL);
 
-  if (adminChecked === null) {
+  if (adminChecking) {
     return (
       <SafeAreaView style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
         <ActivityIndicator color={COLORS.primary} size="large" />

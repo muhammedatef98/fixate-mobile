@@ -18,6 +18,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useApp } from '../contexts/AppContext';
 import { useAuth } from '../contexts/AuthContext';
+import { useIsAdmin } from '../hooks/useAdminGuard';
 import { getColors, SPACING, BORDER_RADIUS } from '../constants/theme';
 import { RTLIonicon } from '../components/RTLIcon';
 import {
@@ -39,7 +40,7 @@ export default function AdminDiscountCodesScreen() {
   const { userProfile } = useAuth();
   const COLORS = getColors(isDark);
   const isRTL = language === 'ar';
-  const isAdmin = (userProfile as any)?.is_admin === true;
+  const { isAdmin } = useIsAdmin();
 
   const [codes, setCodes] = useState<DiscountCode[]>([]);
   const [loading, setLoading] = useState(true);

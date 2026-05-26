@@ -14,6 +14,7 @@ import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useApp } from '../contexts/AppContext';
 import { useAuth } from '../contexts/AuthContext';
+import { useIsAdmin } from '../hooks/useAdminGuard';
 import { getColors, SPACING, BORDER_RADIUS } from '../constants/theme';
 import { RTLIonicon } from '../components/RTLIcon';
 import { adminListRatings } from '../services/reviewService';
@@ -41,7 +42,7 @@ export default function AdminRatingsScreen() {
   const { userProfile } = useAuth();
   const COLORS = getColors(isDark);
   const isRTL = language === 'ar';
-  const isAdmin = (userProfile as any)?.is_admin === true;
+  const { isAdmin } = useIsAdmin();
 
   const [rows, setRows] = useState<AdminRatingRow[]>([]);
   const [loading, setLoading] = useState(true);

@@ -14,6 +14,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useApp } from '../contexts/AppContext';
 import { useAuth } from '../contexts/AuthContext';
+import { useIsAdmin } from '../hooks/useAdminGuard';
 import { getColors, SPACING, BORDER_RADIUS } from '../constants/theme';
 import { RTLIonicon, RTLMaterialIcon } from '../components/RTLIcon';
 import { safeBack } from '../utils/navigation';
@@ -37,7 +38,7 @@ export default function AdminDashboardScreen() {
   const COLORS = getColors(isDark);
   const isRTL = language === 'ar';
 
-  const [adminChecked, setAdminChecked] = useState<boolean | null>(null);
+  const { isAdmin, checking: adminChecking } = useIsAdmin();
   const [stats, setStats] = useState<Stats>({
     totalUsers: 0,
     totalTechnicians: 0,
@@ -50,23 +51,6 @@ export default function AdminDashboardScreen() {
   });
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-
-  useEffect(() => {
-    let cancelled = false;
-    if (!user?.id) {
-      setAdminChecked(false);
-      return;
-    }
-    Promise.resolve(supabase.from('users').select('is_admin').eq('id', user.id).maybeSingle())
-      .then(({ data }: any) => !cancelled && setAdminChecked(data?.is_admin === true))
-      .catch(() => !cancelled && setAdminChecked(false));
-    return () => {
-      cancelled = true;
-    };
-  }, [user?.id]);
-
-  const metaAdmin = (user?.user_metadata as any)?.is_admin === true;
-  const isAdmin = adminChecked === true || (userProfile as any)?.is_admin === true || metaAdmin;
 
   const loadStats = async () => {
     try {
@@ -117,7 +101,7 @@ export default function AdminDashboardScreen() {
 
   const s = styles(COLORS, isRTL);
 
-  if (adminChecked === null) {
+  if (adminChecking) {
     return (
       <SafeAreaView style={[s.container, { justifyContent: 'center', alignItems: 'center' }]}>
         <ActivityIndicator color={COLORS.primary} size="large" />

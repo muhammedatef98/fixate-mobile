@@ -16,6 +16,7 @@ import {
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useApp } from '../contexts/AppContext';
 import { useAuth } from '../contexts/AuthContext';
+import { useIsAdmin } from '../hooks/useAdminGuard';
 import { getColors, SPACING, BORDER_RADIUS } from '../constants/theme';
 import { RTLIonicon } from '../components/RTLIcon';
 import { supabase } from '../services/supabaseClient';
@@ -83,7 +84,7 @@ export default function AdminTechniciansScreen() {
   const [notesDrafts, setNotesDrafts] = useState<Record<string, string>>({});
 
   const profileLoaded = userProfile !== null;
-  const isAdmin = (userProfile as any)?.is_admin === true;
+  const { isAdmin } = useIsAdmin();
 
   const load = useCallback(async () => {
     try {

@@ -72,13 +72,21 @@ function timeAgo(iso: string | undefined, isRTL: boolean): string {
   return new Date(iso).toLocaleDateString(isRTL ? 'ar' : 'en-GB');
 }
 
+// Full device-type label map. Every type that can appear in the
+// marketplace gets a proper Arabic + English name so the chip and the
+// listing detail screen never fall back to a raw enum value.
 const DEVICE_LABEL: Record<string, { ar: string; en: string }> = {
-  phone:     { ar: 'جوال',     en: 'Phone' },
-  laptop:    { ar: 'لابتوب',   en: 'Laptop' },
-  tablet:    { ar: 'تابلت',    en: 'Tablet' },
-  watch:     { ar: 'ساعة',     en: 'Watch' },
-  accessory: { ar: 'إكسسوار',  en: 'Accessory' },
-  other:     { ar: 'أخرى',     en: 'Other' },
+  phone:      { ar: 'جوال',                  en: 'Mobile phone' },
+  laptop:     { ar: 'لابتوب',                en: 'Laptop' },
+  tablet:     { ar: 'تابلت',                 en: 'Tablet' },
+  watch:      { ar: 'ساعة ذكية',             en: 'Smart watch' },
+  gaming:     { ar: 'أجهزة ألعاب',           en: 'Gaming console' },
+  headphones: { ar: 'سماعات',                en: 'Headphones' },
+  tv:         { ar: 'شاشات وتلفاز',          en: 'TV / Display' },
+  appliance:  { ar: 'أجهزة منزلية',          en: 'Home appliance' },
+  accessory:  { ar: 'إكسسوار',               en: 'Accessory' },
+  salvage:    { ar: 'أجهزة تشليح',           en: 'Salvage devices' },
+  other:      { ar: 'أخرى',                  en: 'Other' },
 };
 
 const CONDITION_LABEL: Record<string, { ar: string; en: string }> = {
@@ -408,9 +416,23 @@ export default function MarketDetailScreen() {
 
             <View style={styles.body}>
               <Text style={styles.listingTitle}>{listing.title}</Text>
-              <Text style={styles.price}>
-                {listing.price.toLocaleString(isRTL ? 'ar-SA' : 'en-US')} {isRTL ? 'ر.س' : listing.currency}
-              </Text>
+              {/* Price block — RTL-clean: amount and currency are wrapped
+                  together so they always render on the trailing side and
+                  the currency symbol never gets stranded on the wrong line.
+                  A small "السعر" label makes the row scannable. */}
+              <View style={styles.priceBlock}>
+                <Text style={styles.priceLabel}>
+                  {isRTL ? 'السعر' : 'Price'}
+                </Text>
+                <View style={styles.priceValueWrap}>
+                  <Text style={styles.priceCurrency}>
+                    {isRTL ? 'ر.س' : (listing.currency || 'SAR')}
+                  </Text>
+                  <Text style={styles.priceAmount}>
+                    {listing.price.toLocaleString(isRTL ? 'ar-SA' : 'en-US')}
+                  </Text>
+                </View>
+              </View>
 
               {/* Chips: device / condition / city / posted */}
               <View style={styles.pillsRow}>
@@ -730,6 +752,42 @@ const createStyles = (C: any, isRTL: boolean) =>
     body: { padding: SPACING.lg, gap: 4 },
     listingTitle: { color: C.text, fontSize: 22, fontWeight: '800', lineHeight: 28, textAlign: isRTL ? 'right' : 'left' },
     price: { color: C.primary, fontSize: 26, fontWeight: '900', marginTop: 4, textAlign: isRTL ? 'right' : 'left' },
+    // New price block — label on the start side, big value on the end.
+    priceBlock: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      backgroundColor: C.primarySoft,
+      borderRadius: 14,
+      paddingVertical: 12,
+      paddingHorizontal: 14,
+      marginTop: 10,
+    },
+    priceLabel: {
+      color: C.textSecondary,
+      fontSize: 13,
+      fontWeight: '700',
+      letterSpacing: 0.2,
+    },
+    priceValueWrap: {
+      // The amount and currency must stay glued together in the reading
+      // direction. Using row-reverse on RTL keeps "1,200 ر.س" reading
+      // right-to-left without the currency sliding to the wrong end.
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'baseline',
+      gap: 6,
+    },
+    priceAmount: {
+      color: C.primary,
+      fontSize: 26,
+      fontWeight: '900',
+      letterSpacing: -0.5,
+    },
+    priceCurrency: {
+      color: C.primary,
+      fontSize: 14,
+      fontWeight: '800',
+    },
 
     pillsRow: { flexDirection: isRTL ? 'row-reverse' : 'row', flexWrap: 'wrap', gap: 6, marginTop: 12 },
     pill: {

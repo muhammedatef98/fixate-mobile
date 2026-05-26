@@ -12,19 +12,19 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { getColors, getShadows, SPACING, BORDER_RADIUS } from '../constants/theme';
-import { useApp } from '../contexts/AppContext';
-import { useAuth } from '../contexts/AuthContext';
-import { RTLIonicon } from '../components/RTLIcon';
-import { safeBack } from '../utils/navigation';
-import { PressableScale } from '../components/ui/PressableScale';
-import { EmptyState } from '../components/ui/EmptyState';
+import { getColors, getShadows, SPACING, BORDER_RADIUS } from '../../constants/theme';
+import { useApp } from '../../contexts/AppContext';
+import { useAuth } from '../../contexts/AuthContext';
+import { RTLIonicon } from '../../components/RTLIcon';
+import { safeBack } from '../../utils/navigation';
+import { PressableScale } from '../../components/ui/PressableScale';
+import { EmptyState } from '../../components/ui/EmptyState';
 import {
   fetchNotifications,
   markAsRead,
   markAllAsRead,
   type AppNotification,
-} from '../utils/notifications';
+} from '../../utils/notifications';
 
 type IconPack = 'ion' | 'mci';
 const TYPE_META: Record<string, { icon: any; pack: IconPack; color: string }> = {
@@ -53,7 +53,7 @@ function timeAgo(iso: string, isRTL: boolean): string {
   return new Date(iso).toLocaleDateString(isRTL ? 'ar-SA' : 'en-US');
 }
 
-export default function NotificationsScreen() {
+export default function TechnicianNotificationsScreen() {
   const router = useRouter();
   const { language, isDark } = useApp();
   const { user, userProfile } = useAuth();
@@ -66,17 +66,17 @@ export default function NotificationsScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  // Role guard — this screen is the customer notifications surface.
-  // A technician who lands here (deep link, cached link, stale push tap)
-  // is bounced to the technician notifications screen instead of seeing
-  // customer-style deep links (e.g. /order-details vs /manage-order).
+  // Defensive role guard: a customer must never see technician deep-link
+  // routing (would push them to /(technician)/manage-order which the
+  // technician layout will then bounce them out of anyway — but bouncing
+  // here is faster and cleaner).
   const role =
     (userProfile as any)?.role ??
     (user?.user_metadata as any)?.role ??
     null;
   useEffect(() => {
-    if (role === 'technician') {
-      router.replace('/(technician)/notifications');
+    if (role && role !== 'technician') {
+      router.replace('/notifications');
     }
   }, [role, router]);
 
@@ -89,9 +89,6 @@ export default function NotificationsScreen() {
     const data = await fetchNotifications(user.id);
     setItems(data);
     setLoading(false);
-    // Mark everything read so the header badge clears. The list keeps the
-    // is_read values it loaded with, so freshly-arrived items stay
-    // highlighted for this viewing session.
     if (data.some((n) => !n.is_read)) {
       markAllAsRead(user.id).catch(() => undefined);
     }
@@ -110,8 +107,10 @@ export default function NotificationsScreen() {
   const handlePress = (n: AppNotification) => {
     if (!n.is_read) markAsRead(n.id).catch(() => undefined);
     if (!n.related_id) return;
+    // Technician deep links — orders open the technician manage-order
+    // workflow, not the customer's order-details page.
     if (n.type === 'order' || n.type === 'message') {
-      router.push({ pathname: '/order-details', params: { id: n.related_id } });
+      router.push(`/(technician)/manage-order?id=${n.related_id}` as any);
     } else if (n.type === 'listing' || n.type === 'comment') {
       router.push({ pathname: '/market-detail', params: { id: n.related_id } });
     }
@@ -135,13 +134,9 @@ export default function NotificationsScreen() {
           )}
         </View>
         <View style={styles.info}>
-          <Text style={styles.title} numberOfLines={1}>
-            {title}
-          </Text>
+          <Text style={styles.title} numberOfLines={1}>{title}</Text>
           {!!body && (
-            <Text style={styles.body} numberOfLines={2}>
-              {body}
-            </Text>
+            <Text style={styles.body} numberOfLines={2}>{body}</Text>
           )}
           <Text style={styles.time}>{timeAgo(item.created_at, isRTL)}</Text>
         </View>
@@ -156,7 +151,6 @@ export default function NotificationsScreen() {
         barStyle={isDark ? 'light-content' : 'dark-content'}
         backgroundColor={COLORS.background}
       />
-
       <View style={styles.header}>
         <TouchableOpacity
           accessibilityRole="button"
@@ -167,7 +161,7 @@ export default function NotificationsScreen() {
           <RTLIonicon name="arrow-back" size={24} color={COLORS.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>
-          {isRTL ? 'الإشعارات' : 'Notifications'}
+          {isRTL ? 'إشعارات الفني' : 'Technician notifications'}
         </Text>
         <View style={{ width: 40 }} />
       </View>
@@ -184,11 +178,7 @@ export default function NotificationsScreen() {
           contentContainerStyle={{ padding: SPACING.m, paddingBottom: 40, flexGrow: 1 }}
           showsVerticalScrollIndicator={false}
           refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              tintColor={COLORS.primary}
-            />
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} />
           }
           ListEmptyComponent={
             <View style={{ marginTop: 60 }}>
@@ -197,8 +187,8 @@ export default function NotificationsScreen() {
                 title={isRTL ? 'لا توجد إشعارات حالياً' : 'No notifications yet'}
                 description={
                   isRTL
-                    ? 'سنخبرك هنا بكل تحديثات طلباتك وإعلاناتك أولاً بأول.'
-                    : "We'll let you know here as soon as something happens."
+                    ? 'سنخبرك هنا بكل طلب جديد وتحديث على عملك.'
+                    : "We'll alert you here as soon as a new job or update arrives."
                 }
               />
             </View>
@@ -239,36 +229,18 @@ const makeStyles = (C: any, isRTL: boolean, SHADOWS: any) =>
       backgroundColor: C.primarySoft,
     },
     iconContainer: {
-      width: 46,
-      height: 46,
-      borderRadius: 14,
-      justifyContent: 'center',
-      alignItems: 'center',
+      width: 46, height: 46, borderRadius: 14,
+      justifyContent: 'center', alignItems: 'center',
     },
     info: { flex: 1 },
     title: {
-      fontSize: 15,
-      fontWeight: '700',
-      marginBottom: 3,
-      color: C.text,
-      textAlign: isRTL ? 'right' : 'left',
+      fontSize: 15, fontWeight: '700', marginBottom: 3,
+      color: C.text, textAlign: isRTL ? 'right' : 'left',
     },
     body: {
-      fontSize: 13,
-      marginBottom: 4,
-      color: C.textSecondary,
-      textAlign: isRTL ? 'right' : 'left',
-      lineHeight: 19,
+      fontSize: 13, marginBottom: 4, color: C.textSecondary,
+      textAlign: isRTL ? 'right' : 'left', lineHeight: 19,
     },
-    time: {
-      fontSize: 11,
-      color: C.textLight,
-      textAlign: isRTL ? 'right' : 'left',
-    },
-    unreadDot: {
-      width: 9,
-      height: 9,
-      borderRadius: 5,
-      backgroundColor: C.primary,
-    },
+    time: { fontSize: 11, color: C.textLight, textAlign: isRTL ? 'right' : 'left' },
+    unreadDot: { width: 9, height: 9, borderRadius: 5, backgroundColor: C.primary },
   });
