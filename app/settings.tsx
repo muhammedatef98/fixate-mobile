@@ -19,6 +19,7 @@ import { useApp } from '../contexts/AppContext';
 import { useAuth } from '../contexts/AuthContext';
 import { tapLight } from '../utils/haptics';
 import { getColors, SPACING, BORDER_RADIUS } from '../constants/theme';
+import { useIsAdmin } from '../hooks/useAdminGuard';
 import { RTLIonicon } from '../components/RTLIcon';
 import { sendPasswordReset } from '../services/authService';
 import { getFriendlyError } from '../utils/errorMessages';
@@ -30,33 +31,10 @@ export default function SettingsScreen() {
   const { user, userProfile } = useAuth();
   const COLORS = getColors(isDark);
   const isRTL = language === 'ar';
-  // Always re-check is_admin against the DB on screen mount. userProfile in
-  // context may be stale (out-of-band promotion) or still null on first
-  // render. This guarantees the Admin card surfaces for real admins.
-  const [adminChecked, setAdminChecked] = useState<boolean | null>(null);
-  useEffect(() => {
-    let cancelled = false;
-    if (!user?.id) {
-      setAdminChecked(false);
-      return;
-    }
-    Promise.resolve(
-      supabase.from('users').select('is_admin').eq('id', user.id).maybeSingle()
-    )
-      .then(({ data }: any) => {
-        if (!cancelled) setAdminChecked(data?.is_admin === true);
-      })
-      .catch(() => {
-        if (!cancelled) setAdminChecked(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [user?.id]);
-  // Three independent admin signals — any one being true is enough so a
-  // failed DB lookup or stale context can't hide the admin card.
-  const metaAdmin = (user?.user_metadata as any)?.is_admin === true;
-  const isAdmin = adminChecked === true || (userProfile as any)?.is_admin === true || metaAdmin;
+  // Admin entry is reserved for the single ADMIN_PHONE account (see
+  // constants/admin.ts). useIsAdmin resolves the phone from the live
+  // session/profile and reports a single boolean.
+  const { isAdmin } = useIsAdmin();
 
   const appVersion = (appConfig as any).expo?.version ?? '1.0.0';
 

@@ -16,6 +16,7 @@ export type DeviceType =
   | 'tv'
   | 'appliance'
   | 'accessory'
+  | 'salvage'
   | 'other';
 export type ListingCondition = 'new' | 'like_new' | 'used' | 'refurbished' | 'for_parts';
 
@@ -30,6 +31,7 @@ export const MARKET_DEVICE_TYPES: { id: DeviceType; ar: string; en: string; icon
   { id: 'tv',         ar: 'شاشات وتلفاز',   en: 'TV / Display',     icon: 'television' },
   { id: 'appliance',  ar: 'أجهزة منزلية',   en: 'Home appliance',   icon: 'home-outline' },
   { id: 'accessory',  ar: 'إكسسوار',        en: 'Accessory',        icon: 'cable-data' },
+  { id: 'salvage',    ar: 'تشليح',          en: 'Salvage',          icon: 'tools' },
   { id: 'other',      ar: 'أخرى',           en: 'Other',            icon: 'dots-horizontal' },
 ];
 
@@ -219,14 +221,23 @@ export interface BrowseFilters {
   pageSize?: number;
 }
 
+// Grid-only column list — excludes the heavy `description` field so the
+// initial browse payload stays small. The full row is fetched lazily by
+// market-detail when the buyer opens an individual listing.
+const BROWSE_LIST_COLUMNS =
+  'id,seller_id,title,category,device_type,condition,price,currency,city,contact_phone,contact_preference,contact_methods,images,status,created_at,updated_at,removed_at,removed_reason';
+
 export const browseListings = async (
   filters: BrowseFilters = {}
 ): Promise<MarketListing[]> => {
   const page = filters.page ?? 0;
-  const pageSize = filters.pageSize ?? 40;
+  // Smaller first paint: 20 cards fill the grid 5+ rows on a tall phone,
+  // which is plenty for the visible viewport. Callers needing more can
+  // ask for additional pages explicitly.
+  const pageSize = filters.pageSize ?? 20;
   let q = supabase
     .from('market_listings')
-    .select('*')
+    .select(BROWSE_LIST_COLUMNS)
     .eq('status', 'active')
     .range(page * pageSize, page * pageSize + pageSize - 1);
 

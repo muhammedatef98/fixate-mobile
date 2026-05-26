@@ -26,10 +26,19 @@ export default function NotificationBell({
   style,
 }: NotificationBellProps) {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, userProfile } = useAuth();
   const { isDark } = useApp();
   const COLORS = getColors(isDark);
   const [count, setCount] = useState(0);
+
+  // Route to the role-appropriate notifications screen so a customer
+  // never lands on the technician deep-link routing (and vice versa).
+  const role =
+    (userProfile as any)?.role ??
+    (user?.user_metadata as any)?.role ??
+    null;
+  const notifPath =
+    role === 'technician' ? '/(technician)/notifications' : '/notifications';
 
   const refresh = useCallback(() => {
     if (!user?.id) {
@@ -55,7 +64,7 @@ export default function NotificationBell({
 
   return (
     <TouchableOpacity
-      onPress={() => router.push('/notifications')}
+      onPress={() => router.push(notifPath as any)}
       accessibilityRole="button"
       accessibilityLabel="Notifications"
       style={style}

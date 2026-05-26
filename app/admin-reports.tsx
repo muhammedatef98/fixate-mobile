@@ -16,6 +16,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import { useApp } from '../contexts/AppContext';
 import { useAuth } from '../contexts/AuthContext';
+import { useIsAdmin } from '../hooks/useAdminGuard';
 import { getColors, SPACING, BORDER_RADIUS } from '../constants/theme';
 import { RTLIonicon } from '../components/RTLIcon';
 import { safeBack } from '../utils/navigation';
@@ -95,7 +96,7 @@ export default function AdminReportsScreen() {
   const [exporting, setExporting] = useState(false);
 
   const profileLoaded = userProfile !== null;
-  const isAdmin = (userProfile as any)?.is_admin === true;
+  const { isAdmin } = useIsAdmin();
 
   const load = useCallback(async () => {
     try {

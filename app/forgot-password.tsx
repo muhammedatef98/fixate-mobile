@@ -20,6 +20,7 @@ import { getColors, SPACING, BORDER_RADIUS } from '../constants/theme';
 import { RTLIonicon } from '../components/RTLIcon';
 import { supabase } from '../services/supabaseClient';
 import { validateEmail, validatePassword } from '../utils/validation';
+import { isAdminPhone } from '../constants/admin';
 import { getFriendlyError } from '../utils/errorMessages';
 import { tapMedium, success } from '../utils/haptics';
 
@@ -28,7 +29,7 @@ type Step = 'email' | 'otp' | 'newPassword';
 export default function ForgotPasswordScreen() {
   const router = useRouter();
   const { language, isDark } = useApp();
-  const { userProfile } = useAuth();
+  const { user, userProfile } = useAuth();
   const COLORS = getColors(isDark);
   const isRTL = language === 'ar';
 
@@ -161,7 +162,9 @@ export default function ForgotPasswordScreen() {
       // in the customer portal. Admins go to /admin, technicians to
       // /(technician), everyone else to /(customer). We only redirect
       // AFTER the password is successfully updated — never before.
-      const isAdmin = (userProfile as any)?.is_admin === true;
+      const phone =
+        (user as any)?.phone ?? (userProfile as any)?.phone ?? null;
+      const isAdmin = isAdminPhone(phone);
       const isTechnician = (userProfile as any)?.role === 'technician';
       const target = isAdmin
         ? '/admin'

@@ -317,7 +317,6 @@ export default function LoginOtpScreen() {
                   autoCorrect={false}
                   style={styles.phoneInput}
                   textAlign={isRTL ? 'right' : 'left'}
-                  autoFocus
                   maxLength={13}
                   returnKeyType="send"
                   onSubmitEditing={() => isPhoneValid && !loading && sendCode()}

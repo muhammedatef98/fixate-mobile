@@ -19,6 +19,7 @@ import { getColors, SPACING, BORDER_RADIUS } from '../constants/theme';
 import { translations } from '../constants/translations';
 import { supabase } from '../services/supabaseClient';
 import { logger } from '../utils/logger';
+import { useIsAdmin } from '../hooks/useAdminGuard';
 import { RTLMaterialIcon } from './RTLIcon';
 import Avatar from './Avatar';
 
@@ -47,28 +48,7 @@ export default function Sidebar({ visible, onClose }: SidebarProps) {
   const t = translations[language];
 
   const slideAnim = useRef(new Animated.Value(-DRAWER_WIDTH)).current;
-  const [adminChecked, setAdminChecked] = useState<boolean>(false);
-
-  useEffect(() => {
-    let cancelled = false;
-    if (!user?.id) {
-      setAdminChecked(false);
-      return;
-    }
-    Promise.resolve(
-      supabase.from('users').select('is_admin').eq('id', user.id).maybeSingle()
-    )
-      .then(({ data }: any) => {
-        if (!cancelled) setAdminChecked(data?.is_admin === true);
-      })
-      .catch(() => undefined);
-    return () => {
-      cancelled = true;
-    };
-  }, [user?.id]);
-
-  const metaAdmin = (user?.user_metadata as any)?.is_admin === true;
-  const isAdmin = adminChecked === true || (userProfile as any)?.is_admin === true || metaAdmin;
+  const { isAdmin } = useIsAdmin();
   const displayName = userProfile?.name?.trim() || user?.email?.split('@')[0] || (isRTL ? 'ضيف' : 'Guest');
   const displayEmail = userProfile?.email || user?.email || '';
 

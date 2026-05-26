@@ -6,6 +6,7 @@ import { RequestProvider } from '../contexts/RequestContext';
 import { ThemeProvider } from '../contexts/ThemeContext';
 import { AppProvider, useApp } from '../contexts/AppContext';
 import { AuthProvider, useAuth } from '../contexts/AuthContext';
+import { isAdminPhone } from '../constants/admin';
 import { OrdersProvider } from '../contexts/OrdersContext';
 import { LoyaltyProvider } from '../contexts/LoyaltyContext';
 import { useRouter, useSegments } from 'expo-router';
@@ -63,11 +64,14 @@ function RootLayoutContent() {
       if (userProfile === null) return;
       // technician-auth is the technician's signup/login screen. If a logged-in
       // user lands there explicitly, respect the intent and route to
-      // /(technician). Admins (is_admin=true) are sent straight to the admin
-      // dashboard. Otherwise route by stored role.
+      // /(technician). The admin entry is reserved for the single admin
+      // phone (see constants/admin.ts) — no other account ever lands on
+      // /admin via auth-redirect.
       const wantsTechnician = first === 'technician-auth';
-      const isAdmin = (userProfile as any)?.is_admin === true;
-      const target = isAdmin
+      const phone =
+        (user as any)?.phone ?? (userProfile as any)?.phone ?? null;
+      const adminByPhone = isAdminPhone(phone);
+      const target = adminByPhone
         ? '/admin'
         : wantsTechnician || (userProfile as any)?.role === 'technician'
         ? '/(technician)'
@@ -78,6 +82,29 @@ function RootLayoutContent() {
 
     if (!user && isProtectedRoute) {
       router.replace('/role-selection');
+    }
+
+    // Route-level admin gate — applies to every admin segment (the bare
+    // /admin hub plus all admin-* detail screens). Only the account whose
+    // phone matches ADMIN_PHONE may render any admin surface. Anyone else
+    // is bounced back to the customer home before the screen mounts.
+    // This is defence-in-depth on top of useAdminGuard inside each
+    // admin-* screen.
+    const isAdminSegment =
+      !!first && (first === 'admin' || first.startsWith('admin-'));
+    if (isAdminSegment) {
+      if (!user) {
+        router.replace('/role-selection');
+        return;
+      }
+      // Wait for the profile to land so we can read the phone without
+      // a false negative on first paint.
+      if (userProfile === null) return;
+      const phone =
+        (user as any)?.phone ?? (userProfile as any)?.phone ?? null;
+      if (!isAdminPhone(phone)) {
+        router.replace('/(customer)');
+      }
     }
   }, [user, userProfile, segments, loading]);
 

@@ -75,6 +75,13 @@ export interface PlatformSettings {
   serviceMobileEnabled: boolean;
   servicePickupEnabled: boolean;
   serviceHandoffEnabled: boolean;
+  // Master switch — when on, the delivery fee shows as "free" everywhere
+  // (request flow + order summary) regardless of distance or city flat fee.
+  freeDeliveryEnabled: boolean;
+  // Optional promo code: customer types this in the discount field at
+  // request time to get free delivery (case-insensitive). Empty string
+  // means no promo code is active.
+  freeDeliveryPromoCode: string;
 }
 
 export const PLATFORM_SETTINGS_KEYS = {
@@ -104,6 +111,8 @@ export const PLATFORM_SETTINGS_KEYS = {
   serviceMobileEnabled: 'service_mobile_enabled',
   servicePickupEnabled: 'service_pickup_enabled',
   serviceHandoffEnabled: 'service_handoff_enabled',
+  freeDeliveryEnabled: 'free_delivery_enabled',
+  freeDeliveryPromoCode: 'free_delivery_promo_code',
 } as const;
 
 const boolFromValue = (raw: any, fallback: boolean): boolean => {
@@ -181,6 +190,8 @@ const DEFAULTS: PlatformSettings = {
   serviceMobileEnabled: true,
   servicePickupEnabled: true,
   serviceHandoffEnabled: true,
+  freeDeliveryEnabled: false,
+  freeDeliveryPromoCode: '',
 };
 
 const loadRaw = async (): Promise<Record<string, any>> => {
@@ -236,6 +247,8 @@ export const getPlatformSettings = async (): Promise<PlatformSettings> => {
     serviceMobileEnabled: boolFromValue(raw[PLATFORM_SETTINGS_KEYS.serviceMobileEnabled], DEFAULTS.serviceMobileEnabled),
     servicePickupEnabled: boolFromValue(raw[PLATFORM_SETTINGS_KEYS.servicePickupEnabled], DEFAULTS.servicePickupEnabled),
     serviceHandoffEnabled: boolFromValue(raw[PLATFORM_SETTINGS_KEYS.serviceHandoffEnabled], DEFAULTS.serviceHandoffEnabled),
+    freeDeliveryEnabled: boolFromValue(raw[PLATFORM_SETTINGS_KEYS.freeDeliveryEnabled], DEFAULTS.freeDeliveryEnabled),
+    freeDeliveryPromoCode: strFromValue(raw[PLATFORM_SETTINGS_KEYS.freeDeliveryPromoCode], DEFAULTS.freeDeliveryPromoCode),
   };
 };
 

@@ -21,7 +21,8 @@ import { formatPrice } from '../utils/pricing';
 import { getRegionTree, type RegionWithCities } from '../services/serviceAreasService';
 import {
   computeDeliveryFee,
-  DELIVERY_FEE_MAX_SAR,
+  getCityCentroid,
+  haversineKm,
   type ComputedDeliveryFee,
 } from '../utils/deliveryPricing';
 import { pointsForSpend } from '../constants/loyalty';
@@ -106,15 +107,11 @@ export default function RequestScreen() {
   // tables). Only enabled regions and cities are offered to the customer.
   const [regionTree, setRegionTree] = useState<RegionWithCities[]>([]);
   const [selectedCityId, setSelectedCityId] = useState<string | null>(null);
-  const [expandedRegions, setExpandedRegions] = useState<string[]>([]);
   useEffect(() => {
     // Only currently-available regions/cities are offered. Coverage is
     // admin-controlled — disabled areas simply do not appear.
     getRegionTree(true)
-      .then((tree) => {
-        setRegionTree(tree);
-        setExpandedRegions(tree.map((r) => r.id));
-      })
+      .then((tree) => setRegionTree(tree))
       .catch(() => undefined);
   }, []);
   const [address, setAddress] = useState('');
@@ -150,6 +147,7 @@ export default function RequestScreen() {
     !!selectedCityRegion &&
     selectedCityRegion.enabled !== false &&
     selectedCity.enabled !== false;
+
   const [selectedDeviceType, setSelectedDeviceType] = useState<string | null>(null);
   const [selectedBrand, setSelectedBrand] = useState<Brand | null>(null);
   const [selectedModel, setSelectedModel] = useState<string | null>(null);
@@ -232,6 +230,48 @@ export default function RequestScreen() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [mapReady, setMapReady] = useState(false);
 
+  // Auto-detect serviceable city from the dropped pin. We compute the
+  // closest enabled-city centroid (using the same lookup the delivery
+  // fee uses) and select it when the pin sits within a generous radius
+  // (50 km — covers a city's outskirts but rejects a pin in the next
+  // governorate). When no city matches we clear the selection so the
+  // Submit button stays disabled and the customer sees the OOS message.
+  const SERVICE_RADIUS_KM = 50;
+  const autoDetectedCityId = useMemo(() => {
+    if (!location?.latitude || !location?.longitude) return null;
+    const enabledCities = regionTree
+      .filter((r) => r.enabled !== false)
+      .flatMap((r) => r.cities.filter((c) => c.enabled !== false));
+    if (enabledCities.length === 0) return null;
+    let bestId: string | null = null;
+    let bestKm = Infinity;
+    for (const c of enabledCities) {
+      const centroid = getCityCentroid(c.name_en, c.name_ar);
+      if (!centroid) continue;
+      const km = haversineKm(centroid, {
+        lat: location.latitude,
+        lng: location.longitude,
+      });
+      if (km < bestKm) {
+        bestKm = km;
+        bestId = c.id;
+      }
+    }
+    return bestKm <= SERVICE_RADIUS_KM ? bestId : null;
+  }, [location?.latitude, location?.longitude, regionTree]);
+  useEffect(() => {
+    // Sync the detected city into selection. When the pin moves outside
+    // any enabled city, clear the selection so Submit becomes disabled.
+    if (autoDetectedCityId !== selectedCityId) {
+      setSelectedCityId(autoDetectedCityId);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoDetectedCityId]);
+  const pinOutsideCoverage =
+    !!location?.latitude &&
+    !!location?.longitude &&
+    !autoDetectedCityId;
+
   // Filter the SERVICE_TYPES menu against the admin toggles so disabled
   // booking modes never appear in the customer's first step. Resolved
   // each render so a settings refresh propagates without a remount.
@@ -256,10 +296,21 @@ export default function RequestScreen() {
     }
   }, [enabledServiceTypes, selectedServiceType]);
 
+  // Admin-controlled free-delivery overrides. The master switch flips
+  // delivery to free for every customer; the promo code (case-insensitive)
+  // flips it for the single customer who typed the code into the
+  // discount field.
+  const adminFreeDelivery = !!platformSettings?.freeDeliveryEnabled;
+  const freeDeliveryPromo = (platformSettings?.freeDeliveryPromoCode ?? '').trim();
+  const promoFreeDelivery =
+    !!freeDeliveryPromo &&
+    discountInput.trim().toUpperCase() === freeDeliveryPromo.toUpperCase();
+
   // Distance-based delivery fee with a hard 40-SAR cap. We pass the
   // service-area city (centroid lookup) AND the customer's GPS pin —
   // the helper picks tier-by-distance when both are present, falls back
-  // to the admin-managed flat fee, or zero on personal hand-off.
+  // to the admin-managed flat fee, or zero on personal hand-off / free
+  // delivery overrides.
   const deliveryQuote: ComputedDeliveryFee = computeDeliveryFee({
     customer: location && location.latitude && location.longitude
       ? { lat: location.latitude, lng: location.longitude }
@@ -267,9 +318,13 @@ export default function RequestScreen() {
     cityNameEn: selectedCity?.name_en ?? null,
     cityNameAr: selectedCity?.name_ar ?? null,
     flatFee: selectedCity?.delivery_fee ?? null,
-    freeOverride: selectedServiceType === 'personal_handoff',
+    freeOverride:
+      selectedServiceType === 'personal_handoff' ||
+      adminFreeDelivery ||
+      promoFreeDelivery,
   });
   const deliveryFee = deliveryQuote.fee;
+  const isFreeDelivery = deliveryQuote.source === 'free' || deliveryFee === 0;
   
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
@@ -1173,7 +1228,9 @@ export default function RequestScreen() {
               </View>
             ) : null}
 
-            {/* Delivery area — Saudi-wide, admin-controlled coverage. */}
+            {/* Delivery area — Saudi-wide, admin-controlled coverage.
+                The serviceable city is auto-detected from the dropped pin;
+                the customer no longer picks a region/city manually. */}
             {regionTree.length > 0 && (
               <View style={styles.deliveryCard}>
                 <View style={styles.deliveryHeader}>
@@ -1184,111 +1241,42 @@ export default function RequestScreen() {
                 </View>
                 <View style={styles.coverageNotice}>
                   <View style={styles.coverageIconWrap}>
-                    <MaterialCommunityIcons name="map-marker-radius" size={18} color={COLORS.primary} />
+                    <MaterialCommunityIcons
+                      name={pinOutsideCoverage ? 'map-marker-off-outline' : 'map-marker-radius'}
+                      size={18}
+                      color={pinOutsideCoverage ? COLORS.error : COLORS.primary}
+                    />
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.coverageTitle}>
-                      {isRTL ? 'التغطية الحالية' : 'Current coverage'}
+                    <Text style={[styles.coverageTitle, pinOutsideCoverage && { color: COLORS.error }]}>
+                      {pinOutsideCoverage
+                        ? (isRTL ? 'خارج نطاق الخدمة' : 'Outside coverage')
+                        : selectedCityAvailable
+                          ? (isRTL ? 'موقعك ضمن منطقة الخدمة' : 'Inside service area')
+                          : (isRTL ? 'حدد موقعك على الخريطة' : 'Drop a pin on the map')}
                     </Text>
                     <Text style={styles.coverageBody}>
-                      {isRTL
-                        ? 'الخدمة متاحة حالياً في القطيف فقط. سنوسّع التغطية لمناطق أخرى قريباً.'
-                        : 'Service is currently available in Al Qatif only. More areas are coming soon.'}
+                      {pinOutsideCoverage
+                        ? (isRTL
+                            ? 'موقعك الحالي خارج المناطق المخدومة. حرّك الدبوس داخل منطقة مفعّلة لإكمال الطلب.'
+                            : 'Your current pin is outside our enabled service areas. Move the pin into a covered area to continue.')
+                        : (isRTL
+                            ? 'نكتشف مدينتك تلقائياً من موقع الدبوس على الخريطة.'
+                            : 'We auto-detect your city from the pin on the map.')}
                     </Text>
                   </View>
                 </View>
-                {regionTree.map((region) => {
-                  const regionAvailable = region.enabled !== false;
-                  const expanded = expandedRegions.includes(region.id);
-                  return (
-                    <View key={region.id} style={{ marginTop: 8 }}>
-                      <TouchableOpacity
-                        onPress={() =>
-                          setExpandedRegions((prev) =>
-                            prev.includes(region.id)
-                              ? prev.filter((x) => x !== region.id)
-                              : [...prev, region.id]
-                          )
-                        }
-                        style={{
-                          flexDirection: isRTL ? 'row-reverse' : 'row',
-                          alignItems: 'center',
-                          gap: 8,
-                          paddingVertical: 6,
-                        }}
-                      >
-                        <Text style={[styles.deliveryRegionName, !regionAvailable && { color: COLORS.gray }]}>
-                          {isRTL ? region.name_ar : region.name_en}
-                        </Text>
-                        {!regionAvailable && (
-                          <View style={{ backgroundColor: COLORS.border, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999 }}>
-                            <Text style={{ fontSize: 10, color: COLORS.gray, fontWeight: '700' }}>
-                              {isRTL ? 'قريباً' : 'Coming soon'}
-                            </Text>
-                          </View>
-                        )}
-                        <View style={{ flex: 1 }} />
-                        <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={16} color={COLORS.gray} />
-                      </TouchableOpacity>
-                      {expanded && (
-                        <View style={styles.areaChips}>
-                          {region.cities.map((city) => {
-                            const cityAvailable = regionAvailable && city.enabled !== false;
-                            const active = selectedCityId === city.id;
-                            return (
-                              <TouchableOpacity
-                                key={city.id}
-                                disabled={!cityAvailable}
-                                style={[
-                                  styles.areaChip,
-                                  active && styles.areaChipActive,
-                                  !cityAvailable && { opacity: 0.4 },
-                                ]}
-                                onPress={() => setSelectedCityId(active ? null : city.id)}
-                              >
-                                <Text style={[styles.areaChipText, active && styles.areaChipTextActive]}>
-                                  {isRTL ? city.name_ar : city.name_en}
-                                </Text>
-                              </TouchableOpacity>
-                            );
-                          })}
-                        </View>
-                      )}
-                    </View>
-                  );
-                })}
-                {!selectedCityAvailable && (
-                  <Text style={{ color: COLORS.error, fontSize: 12, marginTop: 10, textAlign: isRTL ? 'right' : 'left' }}>
-                    {isRTL
-                      ? 'اختر مدينة متاحة للمتابعة. المدن غير المتاحة ستُفعّل قريباً.'
-                      : 'Select an available city to continue. Unavailable cities will be enabled soon.'}
-                  </Text>
-                )}
                 {selectedServiceType !== 'personal_handoff' && selectedCityAvailable && (
                   <View style={styles.deliveryFeeRow}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.summaryLabel}>
-                        {isRTL
-                          ? (selectedServiceType === 'mobile' ? 'رسوم الفني المتنقل' : 'رسوم التوصيل')
-                          : (selectedServiceType === 'mobile' ? 'Mobile-tech fee' : 'Delivery fee')}
-                      </Text>
-                      {/* Tiny basis hint — distance-based when we measured
-                          the customer's location, otherwise a generic
-                          flat-rate note. Max 40 SAR is always disclosed
-                          so the customer is never surprised by a higher
-                          number later in the flow. */}
-                      <Text style={styles.deliveryFeeHint}>
-                        {deliveryQuote.source === 'distance' && deliveryQuote.distanceKm != null
-                          ? (isRTL
-                              ? `محسوبة من موقعك (${deliveryQuote.distanceKm.toFixed(1)} كم) • الحد الأقصى ${DELIVERY_FEE_MAX_SAR} ر.س`
-                              : `Based on your distance (${deliveryQuote.distanceKm.toFixed(1)} km) • capped at ${DELIVERY_FEE_MAX_SAR} SAR`)
-                          : (isRTL
-                              ? `تُحتسب تلقائياً حسب المسافة • الحد الأقصى ${DELIVERY_FEE_MAX_SAR} ر.س`
-                              : `Auto-calculated by distance • capped at ${DELIVERY_FEE_MAX_SAR} SAR`)}
-                      </Text>
-                    </View>
+                    <Text style={styles.summaryLabel}>
+                      {isRTL
+                        ? (selectedServiceType === 'mobile' ? 'رسوم الفني المتنقل' : 'رسوم التوصيل')
+                        : (selectedServiceType === 'mobile' ? 'Mobile-tech fee' : 'Delivery fee')}
+                    </Text>
                     <Text style={[styles.summaryValue, { color: COLORS.primary, fontWeight: '800', fontSize: 16 }]}>
-                      {deliveryFee} {isRTL ? 'ر.س' : 'SAR'}
+                      {isFreeDelivery
+                        ? (isRTL ? 'مجاناً' : 'Free')
+                        : `${deliveryFee} ${isRTL ? 'ر.س' : 'SAR'}`}
                     </Text>
                   </View>
                 )}
@@ -1371,11 +1359,13 @@ export default function RequestScreen() {
                 </Text>
               </View>
 
-              {deliveryFee > 0 && (
+              {selectedServiceType !== 'personal_handoff' && (deliveryFee > 0 || isFreeDelivery) && (
                 <View style={styles.summaryRow}>
                   <Text style={styles.summaryLabel}>{isRTL ? 'رسوم التوصيل' : 'Delivery fee'}</Text>
                   <Text style={styles.summaryValue}>
-                    {deliveryFee} {isRTL ? 'ر.س' : 'SAR'}
+                    {isFreeDelivery
+                      ? (isRTL ? 'مجاناً' : 'Free')
+                      : `${deliveryFee} ${isRTL ? 'ر.س' : 'SAR'}`}
                   </Text>
                 </View>
               )}

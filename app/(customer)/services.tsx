@@ -402,6 +402,30 @@ export default function ServicesScreen() {
             <RTLIonicon name="chevron-forward" size={20} color="#7C3AED" />
           </TouchableOpacity>
 
+          {/* Salvage devices — deep link into the Market with the salvage
+              chip pre-selected so the customer skips browsing. */}
+          <TouchableOpacity
+            onPress={() => router.push({ pathname: '/market', params: { device: 'salvage' } } as any)}
+            style={[styles.helpCard, { backgroundColor: COLORS.card, borderColor: COLORS.border, marginTop: 10 }]}
+            accessibilityRole="button"
+            accessibilityLabel={isRTL ? 'بيع وشراء أجهزة التشليح' : 'Buy & sell salvage devices'}
+          >
+            <View style={[styles.helpIcon, { backgroundColor: '#EA580C15' }]}>
+              <MaterialCommunityIcons name="tools" size={22} color="#EA580C" />
+            </View>
+            <View style={{ flex: 1, marginHorizontal: 12 }}>
+              <Text style={[styles.helpTitle, { color: COLORS.text }]}>
+                {isRTL ? 'بيع وشراء أجهزة التشليح' : 'Buy & sell salvage devices'}
+              </Text>
+              <Text style={[styles.helpSub, { color: COLORS.textSecondary }]}>
+                {isRTL
+                  ? 'أجهزة وقطع غيار للتشليح بأسعار مناسبة'
+                  : 'Salvage devices and parts at the right price'}
+              </Text>
+            </View>
+            <RTLIonicon name="chevron-forward" size={20} color="#EA580C" />
+          </TouchableOpacity>
+
           {/* Help card — opens in-app live support */}
           <PressableScale
             onPress={() => router.push('/support-chat')}

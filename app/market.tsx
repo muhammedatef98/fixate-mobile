@@ -16,7 +16,7 @@ import {
   Platform,
 } from 'react-native';
 import { Image } from 'expo-image';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useApp } from '../contexts/AppContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -111,8 +111,19 @@ export default function MarketScreen() {
   const COLORS = getColors(isDark);
   const isRTL = language === 'ar';
 
+  // A deep link of the form /market?device=salvage pre-selects the chip
+  // so a customer arriving from the services screen lands on the
+  // filtered view directly — no extra tap.
+  const params = useLocalSearchParams<{ device?: string }>();
+  const validDeviceIds: (DeviceType | 'all')[] = DEVICE_CHIPS.map((c) => c.id);
+  const initialDevice: DeviceType | 'all' = validDeviceIds.includes(
+    (params.device as DeviceType | 'all') ?? 'all'
+  )
+    ? ((params.device as DeviceType | 'all') ?? 'all')
+    : 'all';
+
   const [tab, setTab] = useState<'browse' | 'mine'>('browse');
-  const [device, setDevice] = useState<DeviceType | 'all'>('all');
+  const [device, setDevice] = useState<DeviceType | 'all'>(initialDevice);
   const [search, setSearch] = useState('');
   const [appliedSearch, setAppliedSearch] = useState('');
   const [sort, setSort] = useState<SortKey>('newest');
