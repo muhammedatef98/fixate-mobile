@@ -1,5 +1,6 @@
 import { supabase } from './supabaseClient';
 import { logger } from '../utils/logger';
+import { subscribeUnique } from '../utils/realtimeChannel';
 
 export type ListingCategory = 'used_device' | 'accessory' | 'spare_part' | 'other';
 export type ListingStatus = 'pending' | 'active' | 'sold' | 'rejected' | 'archived';
@@ -459,15 +460,19 @@ export const sendMarketMessage = async (
   return data as MarketMessage;
 };
 
+/**
+ * Subscribe to new messages on a market thread. Returns a cleanup
+ * function for useEffect cleanup. subscribeUnique avoids the
+ * realtime "callbacks after subscribe()" race on re-mount.
+ */
 export const subscribeMarketMessages = (
   threadId: string,
   onInsert: (m: MarketMessage) => void
-) =>
-  supabase
-    .channel(`market-thread-${threadId}`)
-    .on(
+): (() => void) =>
+  subscribeUnique(`market-thread-${threadId}`, (ch) =>
+    ch.on(
       'postgres_changes',
       { event: 'INSERT', schema: 'public', table: 'market_messages', filter: `thread_id=eq.${threadId}` },
-      (payload) => onInsert(payload.new as MarketMessage)
+      (payload: any) => onInsert(payload.new as MarketMessage)
     )
-    .subscribe();
+  );

@@ -1,5 +1,6 @@
 import { supabase } from '../services/supabaseClient';
 import { logger } from './logger';
+import { subscribeUnique } from './realtimeChannel';
 
 export type NotificationType =
   | 'order'
@@ -121,9 +122,8 @@ export const subscribeToNotifications = (
   userId: string,
   onChange: () => void
 ) => {
-  const channel = supabase
-    .channel(`notifications-${userId}`)
-    .on(
+  const cleanup = subscribeUnique(`notifications-${userId}`, (ch) =>
+    ch.on(
       'postgres_changes',
       {
         event: '*',
@@ -133,11 +133,6 @@ export const subscribeToNotifications = (
       },
       () => onChange()
     )
-    .subscribe();
-
-  return {
-    unsubscribe: () => {
-      supabase.removeChannel(channel);
-    },
-  };
+  );
+  return { unsubscribe: cleanup };
 };

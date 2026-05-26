@@ -16,6 +16,7 @@ import { useApp } from '../contexts/AppContext';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../services/supabaseClient';
 import { logger } from '../utils/logger';
+import { subscribeUnique } from '../utils/realtimeChannel';
 import { RTLMaterialIcon } from './RTLIcon';
 
 const ACTIVE_STATUSES = [
@@ -87,18 +88,18 @@ export default function FloatingOrderStatus() {
   useEffect(() => {
     if (!user?.id) return;
     checkActiveOrder();
-    // Subscribe to inserts/updates on this user's orders only
-    const channel = supabase
-      .channel(`floating-orders-${user.id}`)
-      .on(
+    // subscribeUnique avoids the realtime "callbacks after subscribe()"
+    // race: a same-named channel from a previous mount can still be
+    // pending its async LEAVE, and re-mounting (Fast Refresh, layout
+    // re-render, etc.) would otherwise pull that already-subscribed
+    // leftover back through .channel() and throw on the next .on().
+    return subscribeUnique(`floating-orders-${user.id}`, (ch) =>
+      ch.on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'orders', filter: `user_id=eq.${user.id}` },
         () => checkActiveOrder()
       )
-      .subscribe();
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    );
   }, [user?.id]);
 
   // Hide on the orders / chat / order-details screens (redundant info there)

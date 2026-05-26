@@ -1,5 +1,6 @@
 import 'react-native-url-polyfill/auto';
 import { logger } from '../utils/logger';
+import { subscribeUnique } from '../utils/realtimeChannel';
 // Single shared Supabase client — re-export so existing imports keep working
 // while only one auth listener / one in-memory session exists app-wide.
 export { supabase } from '../services/supabaseClient';
@@ -267,24 +268,17 @@ export const orders = {
     return data ? true : false;
   },
 
-  // Subscribe to new orders (real-time)
+  // Subscribe to new orders (real-time). Returns a cleanup function;
+  // callers should invoke it from useEffect cleanup. Unused at present
+  // but kept for parity with the legacy API surface.
   subscribeToNew: (callback: (order: any) => void) => {
-    const subscription = supabase
-      .channel('new-orders')
-      .on(
+    return subscribeUnique('new-orders', (ch) =>
+      ch.on(
         'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'orders',
-        },
-        (payload) => {
-          callback(payload.new);
-        }
+        { event: 'INSERT', schema: 'public', table: 'orders' },
+        (payload: any) => callback(payload.new)
       )
-      .subscribe();
-
-    return subscription;
+    );
   },
 };
 

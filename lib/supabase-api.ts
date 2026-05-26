@@ -1,5 +1,6 @@
 import { supabase } from './supabase';
 import { logger } from '../utils/logger';
+import { subscribeUnique } from '../utils/realtimeChannel';
 
 // Database Types (matching Supabase schema)
 export interface User {
@@ -328,53 +329,34 @@ export const requests = {
     return data;
   },
 
-  // Subscribe to orders (real-time)
+  // Subscribe to orders (real-time). subscribeUnique avoids the
+  // realtime race on re-mount.
   subscribeToOrders: (callback: (payload: any) => void) => {
-    const subscription = supabase
-      .channel('orders-all-changes')
-      .on(
+    const cleanup = subscribeUnique('orders-all-changes', (ch) =>
+      ch.on(
         'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'orders'
-        },
-        (payload) => {
-          callback(payload);
-        }
+        { event: '*', schema: 'public', table: 'orders' },
+        (payload) => callback(payload)
       )
-      .subscribe();
-
-    return {
-      unsubscribe: () => {
-        supabase.removeChannel(subscription);
-      }
-    };
+    );
+    return { unsubscribe: cleanup };
   },
 
   // Subscribe to specific order updates
   subscribeToUpdates: (orderId: string, callback: (order: Order) => void) => {
-    const subscription = supabase
-      .channel(`order-${orderId}`)
-      .on(
+    const cleanup = subscribeUnique(`order-${orderId}`, (ch) =>
+      ch.on(
         'postgres_changes',
         {
           event: 'UPDATE',
           schema: 'public',
           table: 'orders',
-          filter: `id=eq.${orderId}`
+          filter: `id=eq.${orderId}`,
         },
-        (payload) => {
-          callback(payload.new as Order);
-        }
+        (payload) => callback(payload.new as Order)
       )
-      .subscribe();
-
-    return {
-      unsubscribe: () => {
-        supabase.removeChannel(subscription);
-      }
-    };
+    );
+    return { unsubscribe: cleanup };
   },
 };
 
@@ -421,26 +403,20 @@ export const chat = {
   },
 
   subscribeToMessages: (orderId: string, callback: (message: Message) => void) => {
-    const subscription = supabase
-      .channel(`chat-${orderId}`)
-      .on(
+    const cleanup = subscribeUnique(`chat-${orderId}`, (ch) =>
+      ch.on(
         'postgres_changes',
         {
           event: 'INSERT',
           schema: 'public',
           table: 'messages',
-          filter: `order_id=eq.${orderId}`
+          filter: `order_id=eq.${orderId}`,
         },
-        (payload) => {
-          callback(payload.new as Message);
-        }
+        (payload) => callback(payload.new as Message)
       )
-      .subscribe();
-
+    );
     return {
-      unsubscribe: () => {
-        supabase.removeChannel(subscription);
-      }
+      unsubscribe: cleanup as any,
     };
   }
 };

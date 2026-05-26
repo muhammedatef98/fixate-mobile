@@ -79,8 +79,8 @@ export default function AdminSupportScreen() {
     // list tidy in real time even without cron configured.
     support.closeIdleThreads(5).catch(() => {});
     loadThreads(statusFilter);
-    const ch = support.subscribeAllThreads(() => loadThreads(statusFilter));
-    return () => { supabase.removeChannel(ch); };
+    // subscribeAllThreads now returns its own cleanup callable.
+    return support.subscribeAllThreads(() => loadThreads(statusFilter));
   }, [isAdmin, statusFilter]);
 
   const openThread = async (t: ThreadView) => {
@@ -91,14 +91,17 @@ export default function AdminSupportScreen() {
       setMessages(msgs);
       await support.markRead(t.id, true);
     } catch {}
-    if (messagesChannelRef.current) supabase.removeChannel(messagesChannelRef.current);
+    // `messagesChannelRef.current` is now the cleanup function from
+    // subscribeMessages. Detach any previous listener by calling its
+    // cleanup before attaching the next one.
+    if (typeof messagesChannelRef.current === 'function') messagesChannelRef.current();
     messagesChannelRef.current = support.subscribeMessages(t.id, (m) => {
       setMessages((prev) => (prev.some((x) => x.id === m.id) ? prev : [...prev, m]));
     });
   };
 
   const leaveThread = () => {
-    if (messagesChannelRef.current) supabase.removeChannel(messagesChannelRef.current);
+    if (typeof messagesChannelRef.current === 'function') messagesChannelRef.current();
     messagesChannelRef.current = null;
     setActive(null);
     setMessages([]);

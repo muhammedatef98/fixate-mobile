@@ -104,13 +104,10 @@ export default function AvailableOrdersScreen() {
     loadOrders();
     getTechnicianLocation();
 
-    const channel = subscribeToPendingOrders((order) => {
+    // subscribeToPendingOrders now returns its own cleanup callable.
+    return subscribeToPendingOrders((order) => {
       setOrders((prev) => (prev.some((o) => o.id === order.id) ? prev : [order, ...prev]));
     });
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
   }, []);
 
   const getTechnicianLocation = async () => {

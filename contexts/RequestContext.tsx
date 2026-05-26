@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode, useCallback } from 'react';
 import { supabase } from '../services/supabaseClient';
 import { logger } from '../utils/logger';
+import { subscribeUnique } from '../utils/realtimeChannel';
 import type { OrderStatus } from '../types/order';
 
 export interface Request {
@@ -72,19 +73,17 @@ export function RequestProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     refresh();
-    const channel = supabase
-      .channel('requests-orders-changes')
-      .on(
+    // subscribeUnique prevents the "callbacks after subscribe()" race
+    // when this provider re-runs (auth state changes, etc.).
+    return subscribeUnique('requests-orders-changes', (ch) =>
+      ch.on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'orders' },
         () => {
           refresh();
         }
       )
-      .subscribe();
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    );
   }, [refresh]);
 
   const updateRequestStatus = async (id: string, status: OrderStatus) => {

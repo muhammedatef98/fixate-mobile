@@ -1,6 +1,7 @@
 import * as Location from 'expo-location';
 import { supabase } from './supabaseClient';
 import { logger } from '../utils/logger';
+import { subscribeUnique } from '../utils/realtimeChannel';
 
 export interface TechnicianLocation {
   technician_id: string;
@@ -61,18 +62,14 @@ export const subscribeToTechnicianLocation = (
     .maybeSingle()
     .then(({ data }) => callback(data));
 
-  const channel = supabase
-    .channel(`tech-loc-${orderId}`)
-    .on(
+  // subscribeUnique returns the cleanup callable directly — pass it
+  // through as this function's own return so the caller's useEffect
+  // wiring still works unchanged.
+  return subscribeUnique(`tech-loc-${orderId}`, (ch) =>
+    ch.on(
       'postgres_changes',
       { event: '*', schema: 'public', table: 'technician_locations', filter: `order_id=eq.${orderId}` },
-      (payload) => {
-        callback((payload.new as TechnicianLocation) ?? null);
-      }
+      (payload: any) => callback((payload.new as TechnicianLocation) ?? null)
     )
-    .subscribe();
-
-  return () => {
-    supabase.removeChannel(channel);
-  };
+  );
 };
