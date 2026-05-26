@@ -62,26 +62,142 @@ const friendly = (key: string | undefined, lang: 'ar' | 'en') => {
   return (lang === 'ar' ? ar : en)[key ?? ''] ?? key ?? 'Unknown error';
 };
 
+/* ────────────────────────────────────────────────────────────────────
+ * Dev OTP auto-fill (temporary — until a real SMS provider is wired)
+ *
+ * Until you subscribe to a real SMS provider (Brevo, Twilio, etc.)
+ * the edge function can't deliver a code. To keep the sign-in flow
+ * usable in development, the helpers below transparently fall back to:
+ *   • returning a fixed devCode "0000" from sendPhoneOtp when the edge
+ *     function fails or doesn't include a dev_code in its response.
+ *   • signing in with a synthetic email/password derived from the
+ *     phone when verifyPhoneOtp is called with the fallback code.
+ *
+ * Both branches are wrapped in `__DEV__` so a real production EAS
+ * build never activates this path. Remove this whole block once a
+ * real SMS provider is live and the edge function is returning a
+ * real code.
+ *
+ * Requirements (Supabase project settings):
+ *   – "Confirm email" should be OFF on the Email provider
+ *     (Auth → Providers → Email → Confirm email). This is the common
+ *     dev default. Without it, signUp returns a user but no session.
+ * ──────────────────────────────────────────────────────────────────── */
+
+const DEV_FALLBACK_CODE = '0000';
+let _pendingDevPhone: string | null = null;
+
+/** Synthetic email derived from the phone — mirrors the edge function's
+ *  pattern so the same phone resolves to the same auth user when SMS
+ *  finally goes live. */
+const phoneToSyntheticEmail = (phone: string) =>
+  `${phone.replace(/[^0-9]/g, '')}@phone.fixate.local`;
+
+/** Deterministic per-phone password for the dev fallback sign-up. */
+const phoneToSyntheticPassword = (phone: string) =>
+  `fixate-dev-otp-${phone.replace(/[^0-9]/g, '')}`;
+
+/** Client-side dev sign-in: try password sign-in first (returning
+ *  developer), then signUp + sign-in (first time on this phone). */
+const devFallbackVerify = async (phone: string, lang: 'ar' | 'en'): Promise<boolean> => {
+  const email = phoneToSyntheticEmail(phone);
+  const password = phoneToSyntheticPassword(phone);
+
+  let userId: string | null = null;
+
+  // Returning developer — credentials already exist.
+  const signIn = await supabase.auth.signInWithPassword({ email, password });
+  if (!signIn.error && signIn.data?.user) {
+    userId = signIn.data.user.id;
+  } else {
+    // First sign-in for this phone — create the account.
+    const signUp = await supabase.auth.signUp({
+      email,
+      password,
+      options: { data: { phone, signup_method: 'phone_otp_dev' } },
+    });
+    if (signUp.error) {
+      logger.warn('dev OTP fallback: signUp failed', signUp.error);
+      throw new Error(friendly('token_failed', lang));
+    }
+    if (signUp.data?.session) {
+      userId = signUp.data.user?.id ?? null;
+    } else {
+      // signUp returned a user without an active session — means
+      // "Confirm email" is ON in the Supabase project. Try one more
+      // password sign-in (works on projects that auto-confirm
+      // .local-domain emails), otherwise surface a clear error.
+      const retry = await supabase.auth.signInWithPassword({ email, password });
+      if (!retry.error && retry.data?.user) {
+        userId = retry.data.user.id;
+      } else {
+        logger.warn(
+          'dev OTP fallback: signUp succeeded but no session. ' +
+            'Disable "Confirm email" in Supabase Dashboard → Authentication → ' +
+            'Providers → Email, then retry.',
+          retry.error
+        );
+        throw new Error(friendly('token_failed', lang));
+      }
+    }
+  }
+
+  // Patch public.users with the phone so app screens that read the
+  // profile have something to render. Best-effort; never blocks login.
+  try {
+    await supabase
+      .from('users')
+      .upsert({ id: userId, phone, name: null }, { onConflict: 'id' });
+  } catch (patchErr) {
+    logger.warn('dev OTP fallback: users-row patch failed (non-blocking)', patchErr);
+  }
+
+  _pendingDevPhone = null;
+  return true;
+};
+
 export const sendPhoneOtp = async (
   rawPhone: string,
   lang: 'ar' | 'en' = 'ar'
 ): Promise<{ expiresIn: number; devCode?: string }> => {
   const phone = normalizeSaudiPhone(rawPhone);
-  const { data, error } = await withTimeout(
-    supabase.functions.invoke('send-phone-otp', { body: { phone, lang } }),
-    20000,
-    'send-phone-otp'
-  );
-  const msg = extractError(data, error);
-  if (msg) {
-    logger.warn('send-phone-otp failed', msg);
-    throw new Error(friendly(msg, lang));
+  try {
+    const { data, error } = await withTimeout(
+      supabase.functions.invoke('send-phone-otp', { body: { phone, lang } }),
+      20000,
+      'send-phone-otp'
+    );
+    const msg = extractError(data, error);
+    if (msg) {
+      logger.warn('send-phone-otp failed', msg);
+      throw new Error(friendly(msg, lang));
+    }
+    const devCode = (data as any)?.dev_code as string | undefined;
+    // Edge function succeeded but didn't include a code (no SMS
+    // provider configured server-side either). Engage the client-side
+    // fallback so the UI still auto-fills.
+    if (__DEV__ && !devCode) {
+      _pendingDevPhone = phone;
+      return { expiresIn: (data as any)?.expires_in ?? OTP_TTL_SECONDS, devCode: DEV_FALLBACK_CODE };
+    }
+    return {
+      expiresIn: (data as any)?.expires_in ?? OTP_TTL_SECONDS,
+      devCode,
+    };
+  } catch (e) {
+    // Edge function unreachable / errored — in dev, fall back to the
+    // fixed code so the developer can still sign in.
+    if (__DEV__) {
+      logger.warn(
+        'send-phone-otp dev fallback engaged. Configure an SMS provider ' +
+          'and deploy the edge function to dispatch real codes.',
+        e
+      );
+      _pendingDevPhone = phone;
+      return { expiresIn: OTP_TTL_SECONDS, devCode: DEV_FALLBACK_CODE };
+    }
+    throw e;
   }
-  return {
-    expiresIn: (data as any)?.expires_in ?? OTP_TTL_SECONDS,
-    // Present only while no real SMS provider is configured (dev mode).
-    devCode: (data as any)?.dev_code,
-  };
 };
 
 export const verifyPhoneOtp = async (
@@ -90,26 +206,45 @@ export const verifyPhoneOtp = async (
   lang: 'ar' | 'en' = 'ar'
 ): Promise<boolean> => {
   const phone = normalizeSaudiPhone(rawPhone);
-  const { data, error } = await withTimeout(
-    supabase.functions.invoke<{ ok?: boolean; token_hash?: string; error?: string }>(
-      'verify-phone-otp',
-      { body: { phone, code } }
-    ),
-    20000,
-    'verify-phone-otp'
-  );
-  const msg = extractError(data, error);
-  if (msg) {
-    logger.warn('verify-phone-otp failed', msg);
-    throw new Error(friendly(msg, lang));
+
+  // Dev fallback path: when the matching phone engaged the fallback
+  // in `sendPhoneOtp`, the user submitted the fixed code → sign in
+  // client-side without touching the edge function.
+  if (__DEV__ && code === DEV_FALLBACK_CODE && _pendingDevPhone === phone) {
+    return devFallbackVerify(phone, lang);
   }
-  if (!data?.ok || !data.token_hash) {
-    throw new Error(friendly('wrong_code', lang));
+
+  try {
+    const { data, error } = await withTimeout(
+      supabase.functions.invoke<{ ok?: boolean; token_hash?: string; error?: string }>(
+        'verify-phone-otp',
+        { body: { phone, code } }
+      ),
+      20000,
+      'verify-phone-otp'
+    );
+    const msg = extractError(data, error);
+    if (msg) {
+      logger.warn('verify-phone-otp failed', msg);
+      throw new Error(friendly(msg, lang));
+    }
+    if (!data?.ok || !data.token_hash) {
+      throw new Error(friendly('wrong_code', lang));
+    }
+    const { error: vErr } = await supabase.auth.verifyOtp({
+      type: 'magiclink',
+      token_hash: data.token_hash,
+    });
+    if (vErr) throw vErr;
+    return true;
+  } catch (e) {
+    // Safety net: even if `_pendingDevPhone` was lost (e.g. the JS
+    // bundle reloaded between send and verify), entering the
+    // fallback code in dev still routes through the client sign-in.
+    if (__DEV__ && code === DEV_FALLBACK_CODE) {
+      logger.warn('verify-phone-otp dev fallback (post-error)', e);
+      return devFallbackVerify(phone, lang);
+    }
+    throw e;
   }
-  const { error: vErr } = await supabase.auth.verifyOtp({
-    type: 'magiclink',
-    token_hash: data.token_hash,
-  });
-  if (vErr) throw vErr;
-  return true;
 };
