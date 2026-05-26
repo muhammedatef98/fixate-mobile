@@ -173,6 +173,15 @@ export const normalizeSaudiPhone = (phone: string): string => {
     return cleanPhone;
   }
 
+  // 966XXXXXXXXX (digits only, no +) -> +966XXXXXXXXX
+  // Supabase stores auth.users.phone as bare digits (e.g. "966548940042"),
+  // and isAdminPhone needs to compare those against the canonical E.164
+  // form. Without this branch the bare-digits form would short-circuit
+  // out of normalization at the trailing `return cleanPhone` below.
+  if (/^966\d{8,9}$/.test(cleanPhone)) {
+    return '+' + cleanPhone;
+  }
+
   // 05XXXXXXXX -> +9665XXXXXXXX
   if (cleanPhone.startsWith('05')) {
     return '+966' + cleanPhone.substring(1);
