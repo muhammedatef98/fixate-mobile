@@ -1,6 +1,7 @@
 import { supabase } from './supabaseClient';
 import { logger } from '../utils/logger';
 import { normalizeSaudiPhone } from '../utils/validation';
+import { ADMIN_PHONE } from '../constants/admin';
 
 // 4-digit phone OTP, 5-minute expiry, resend supported.
 //
@@ -63,86 +64,64 @@ const friendly = (key: string | undefined, lang: 'ar' | 'en') => {
 };
 
 /* ────────────────────────────────────────────────────────────────────
- * Dev OTP auto-fill (temporary — until a real SMS provider is wired)
+ * Dev OTP fallback — allowlist of ONE phone (the admin/dev tester)
  *
- * Until you subscribe to a real SMS provider (Brevo, Twilio, etc.)
- * the edge function can't deliver a code. To keep the sign-in flow
- * usable in development, the helpers below transparently fall back to:
- *   • returning a fixed devCode "0000" from sendPhoneOtp when the edge
- *     function fails or doesn't include a dev_code in its response.
- *   • signing in with a synthetic email/password derived from the
- *     phone when verifyPhoneOtp is called with the fallback code.
+ * Until a real SMS provider is wired, this fallback lets the single
+ * allowlisted phone sign in without a code. Every other phone is
+ * rejected with a clear error so we never:
+ *   • silently sign someone into a shared account, or
+ *   • overwrite an existing profile row with a stranger's phone.
  *
- * Both branches are wrapped in `__DEV__` so a real production EAS
- * build never activates this path. Remove this whole block once a
- * real SMS provider is live and the edge function is returning a
- * real code.
- *
- * Requirements (Supabase project settings):
- *   – "Confirm email" should be OFF on the Email provider
- *     (Auth → Providers → Email → Confirm email). This is the common
- *     dev default. Without it, signUp returns a user but no session.
+ * The allowlisted phone is the same as the admin phone — see
+ * constants/admin.ts. Production EAS builds skip this path entirely
+ * (`__DEV__` is false). Remove the fallback once a real SMS provider
+ * is live and the edge function is returning real codes.
  * ──────────────────────────────────────────────────────────────────── */
 
 const DEV_FALLBACK_CODE = '0000';
 let _pendingDevPhone: string | null = null;
 
-/**
- * Shared dev login account.
- *
- * This is a real, pre-created Supabase auth user with email_confirmed_at
- * set and a known bcrypt password — the schema was prepared via SQL so
- * the client doesn't have to call signUp() (which is unreliable on
- * projects with "Confirm email" on, signups disabled, or pre-existing
- * synthetic-email users that block re-signup).
- *
- * Every dev OTP sign-in lands on this single user regardless of the
- * phone the developer typed. We then UPSERT the entered phone onto
- * the user's public.users row so the rest of the app reads a usable
- * profile.
- *
- * To rotate: run the same UPDATE auth.users / auth.identities
- * statements you ran when this was first set up, with a new
- * encrypted_password / DEV_SHARED_PASSWORD pair.
- *
- * Production builds (`__DEV__` is false) never reach this code path —
- * the edge function path remains the only sign-in route.
- */
-const DEV_SHARED_EMAIL = '966593343812@phone.fixate.local';
-const DEV_SHARED_PASSWORD = 'fixate-dev-2026-shared';
+/** Only this phone is allowed through the dev fallback. Matches the
+ *  admin phone — keep aligned so the dev tester is always the admin. */
+const DEV_ALLOWLISTED_PHONE = ADMIN_PHONE;
 
-/** Client-side dev sign-in: just signInWithPassword against the
- *  shared dev account. No signUp involved → no dependency on the
- *  project's "Confirm email" toggle or anonymous sign-in setting. */
+/** Pre-created auth user that the allowlisted phone signs into. This
+ *  is the synthetic phone account whose `auth.users.phone` already
+ *  matches the admin's phone — no UPSERT needed, no shared-state risk. */
+const DEV_ADMIN_EMAIL = '966548940042@phone.fixate.local';
+const DEV_ADMIN_PASSWORD = 'fixate-dev-2026-shared';
+
+/** Friendly error key for any non-allowlisted phone in dev fallback. */
+const NOT_ALLOWLISTED_AR =
+  'تسجيل الدخول التجريبي مُتاح فقط لرقم المدير. اربط مزوّد رسائل SMS لتفعيل الدخول لباقي الأرقام.';
+const NOT_ALLOWLISTED_EN =
+  'Dev sign-in is restricted to the admin phone. Wire an SMS provider to allow other numbers.';
+
+const notAllowlistedError = (lang: 'ar' | 'en') =>
+  new Error(lang === 'ar' ? NOT_ALLOWLISTED_AR : NOT_ALLOWLISTED_EN);
+
+/** Client-side dev sign-in. Only runs for the allowlisted phone; never
+ *  touches a shared account and never patches the phone column. */
 const devFallbackVerify = async (phone: string, lang: 'ar' | 'en'): Promise<boolean> => {
+  if (phone !== DEV_ALLOWLISTED_PHONE) {
+    // Defensive — sendPhoneOtp also gates this, so we should never get
+    // here for a non-allowlisted phone. Bail without signing anyone in.
+    _pendingDevPhone = null;
+    throw notAllowlistedError(lang);
+  }
   const signIn = await supabase.auth.signInWithPassword({
-    email: DEV_SHARED_EMAIL,
-    password: DEV_SHARED_PASSWORD,
+    email: DEV_ADMIN_EMAIL,
+    password: DEV_ADMIN_PASSWORD,
   });
   if (signIn.error || !signIn.data?.user) {
     logger.warn(
-      'dev OTP fallback: shared-account sign-in failed. The dev login ' +
-        'account may have been rotated. Re-run the auth.users password ' +
-        'reset SQL from supabase/SETUP_DEV_OTP.md.',
+      'dev OTP fallback: admin-account sign-in failed. The dev password ' +
+        'may have been rotated. Re-run the password reset SQL from ' +
+        'supabase/SETUP_DEV_OTP.md.',
       signIn.error
     );
     throw new Error(friendly('token_failed', lang));
   }
-
-  // Patch the entered phone onto the shared user's profile so screens
-  // that read the customer phone show what the developer typed during
-  // this session. Best-effort; never blocks login.
-  try {
-    await supabase
-      .from('users')
-      .upsert(
-        { id: signIn.data.user.id, phone },
-        { onConflict: 'id' }
-      );
-  } catch (patchErr) {
-    logger.warn('dev OTP fallback: users-row patch failed (non-blocking)', patchErr);
-  }
-
   _pendingDevPhone = null;
   return true;
 };
@@ -165,9 +144,13 @@ export const sendPhoneOtp = async (
     }
     const devCode = (data as any)?.dev_code as string | undefined;
     // Edge function succeeded but didn't include a code (no SMS
-    // provider configured server-side either). Engage the client-side
-    // fallback so the UI still auto-fills.
+    // provider configured server-side). Engage the client-side
+    // fallback ONLY for the allowlisted admin phone — every other
+    // number is told plainly that SMS isn't configured yet.
     if (__DEV__ && !devCode) {
+      if (phone !== DEV_ALLOWLISTED_PHONE) {
+        throw notAllowlistedError(lang);
+      }
       _pendingDevPhone = phone;
       return { expiresIn: (data as any)?.expires_in ?? OTP_TTL_SECONDS, devCode: DEV_FALLBACK_CODE };
     }
@@ -177,11 +160,16 @@ export const sendPhoneOtp = async (
     };
   } catch (e) {
     // Edge function unreachable / errored — in dev, fall back to the
-    // fixed code so the developer can still sign in.
+    // fixed code only for the allowlisted admin phone. Other numbers
+    // surface the real error so we never silently sign them into the
+    // dev account.
     if (__DEV__) {
+      if (phone !== DEV_ALLOWLISTED_PHONE) {
+        throw notAllowlistedError(lang);
+      }
       logger.warn(
-        'send-phone-otp dev fallback engaged. Configure an SMS provider ' +
-          'and deploy the edge function to dispatch real codes.',
+        'send-phone-otp dev fallback engaged for admin phone. Configure ' +
+          'an SMS provider and deploy the edge function to dispatch real codes.',
         e
       );
       _pendingDevPhone = phone;
@@ -231,8 +219,13 @@ export const verifyPhoneOtp = async (
   } catch (e) {
     // Safety net: even if `_pendingDevPhone` was lost (e.g. the JS
     // bundle reloaded between send and verify), entering the
-    // fallback code in dev still routes through the client sign-in.
-    if (__DEV__ && code === DEV_FALLBACK_CODE) {
+    // fallback code in dev still routes through the client sign-in
+    // — but only for the allowlisted admin phone, never anyone else.
+    if (
+      __DEV__ &&
+      code === DEV_FALLBACK_CODE &&
+      phone === DEV_ALLOWLISTED_PHONE
+    ) {
       logger.warn('verify-phone-otp dev fallback (post-error)', e);
       return devFallbackVerify(phone, lang);
     }
