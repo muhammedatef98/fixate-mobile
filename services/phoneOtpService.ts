@@ -87,67 +87,58 @@ const friendly = (key: string | undefined, lang: 'ar' | 'en') => {
 const DEV_FALLBACK_CODE = '0000';
 let _pendingDevPhone: string | null = null;
 
-/** Synthetic email derived from the phone — mirrors the edge function's
- *  pattern so the same phone resolves to the same auth user when SMS
- *  finally goes live. */
-const phoneToSyntheticEmail = (phone: string) =>
-  `${phone.replace(/[^0-9]/g, '')}@phone.fixate.local`;
+/**
+ * Shared dev login account.
+ *
+ * This is a real, pre-created Supabase auth user with email_confirmed_at
+ * set and a known bcrypt password — the schema was prepared via SQL so
+ * the client doesn't have to call signUp() (which is unreliable on
+ * projects with "Confirm email" on, signups disabled, or pre-existing
+ * synthetic-email users that block re-signup).
+ *
+ * Every dev OTP sign-in lands on this single user regardless of the
+ * phone the developer typed. We then UPSERT the entered phone onto
+ * the user's public.users row so the rest of the app reads a usable
+ * profile.
+ *
+ * To rotate: run the same UPDATE auth.users / auth.identities
+ * statements you ran when this was first set up, with a new
+ * encrypted_password / DEV_SHARED_PASSWORD pair.
+ *
+ * Production builds (`__DEV__` is false) never reach this code path —
+ * the edge function path remains the only sign-in route.
+ */
+const DEV_SHARED_EMAIL = '966593343812@phone.fixate.local';
+const DEV_SHARED_PASSWORD = 'fixate-dev-2026-shared';
 
-/** Deterministic per-phone password for the dev fallback sign-up. */
-const phoneToSyntheticPassword = (phone: string) =>
-  `fixate-dev-otp-${phone.replace(/[^0-9]/g, '')}`;
-
-/** Client-side dev sign-in: try password sign-in first (returning
- *  developer), then signUp + sign-in (first time on this phone). */
+/** Client-side dev sign-in: just signInWithPassword against the
+ *  shared dev account. No signUp involved → no dependency on the
+ *  project's "Confirm email" toggle or anonymous sign-in setting. */
 const devFallbackVerify = async (phone: string, lang: 'ar' | 'en'): Promise<boolean> => {
-  const email = phoneToSyntheticEmail(phone);
-  const password = phoneToSyntheticPassword(phone);
-
-  let userId: string | null = null;
-
-  // Returning developer — credentials already exist.
-  const signIn = await supabase.auth.signInWithPassword({ email, password });
-  if (!signIn.error && signIn.data?.user) {
-    userId = signIn.data.user.id;
-  } else {
-    // First sign-in for this phone — create the account.
-    const signUp = await supabase.auth.signUp({
-      email,
-      password,
-      options: { data: { phone, signup_method: 'phone_otp_dev' } },
-    });
-    if (signUp.error) {
-      logger.warn('dev OTP fallback: signUp failed', signUp.error);
-      throw new Error(friendly('token_failed', lang));
-    }
-    if (signUp.data?.session) {
-      userId = signUp.data.user?.id ?? null;
-    } else {
-      // signUp returned a user without an active session — means
-      // "Confirm email" is ON in the Supabase project. Try one more
-      // password sign-in (works on projects that auto-confirm
-      // .local-domain emails), otherwise surface a clear error.
-      const retry = await supabase.auth.signInWithPassword({ email, password });
-      if (!retry.error && retry.data?.user) {
-        userId = retry.data.user.id;
-      } else {
-        logger.warn(
-          'dev OTP fallback: signUp succeeded but no session. ' +
-            'Disable "Confirm email" in Supabase Dashboard → Authentication → ' +
-            'Providers → Email, then retry.',
-          retry.error
-        );
-        throw new Error(friendly('token_failed', lang));
-      }
-    }
+  const signIn = await supabase.auth.signInWithPassword({
+    email: DEV_SHARED_EMAIL,
+    password: DEV_SHARED_PASSWORD,
+  });
+  if (signIn.error || !signIn.data?.user) {
+    logger.warn(
+      'dev OTP fallback: shared-account sign-in failed. The dev login ' +
+        'account may have been rotated. Re-run the auth.users password ' +
+        'reset SQL from supabase/SETUP_DEV_OTP.md.',
+      signIn.error
+    );
+    throw new Error(friendly('token_failed', lang));
   }
 
-  // Patch public.users with the phone so app screens that read the
-  // profile have something to render. Best-effort; never blocks login.
+  // Patch the entered phone onto the shared user's profile so screens
+  // that read the customer phone show what the developer typed during
+  // this session. Best-effort; never blocks login.
   try {
     await supabase
       .from('users')
-      .upsert({ id: userId, phone, name: null }, { onConflict: 'id' });
+      .upsert(
+        { id: signIn.data.user.id, phone },
+        { onConflict: 'id' }
+      );
   } catch (patchErr) {
     logger.warn('dev OTP fallback: users-row patch failed (non-blocking)', patchErr);
   }
