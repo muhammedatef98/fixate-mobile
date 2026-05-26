@@ -66,7 +66,9 @@ export default function SupportChatScreen() {
       }
     })();
     return () => {
-      if (channel) supabase.removeChannel(channel);
+      // `channel` is now the cleanup function returned by
+      // subscribeMessages — call it directly.
+      if (typeof channel === 'function') channel();
     };
   }, [user?.id]);
 

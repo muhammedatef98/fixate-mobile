@@ -16,6 +16,7 @@ import RatingModal from '../../components/RatingModal';
 import { getReviewByOrder } from '../../services/reviewService';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../services/supabaseClient';
+import { subscribeUnique } from '../../utils/realtimeChannel';
 
 export default function OrdersScreen() {
   const router = useRouter();
@@ -59,20 +60,17 @@ export default function OrdersScreen() {
     ]).start();
   }, [filter]);
 
-  // Realtime subscription replaces 5s polling
+  // Realtime subscription replaces 5s polling. subscribeUnique guards
+  // against the "callbacks after subscribe()" race on re-mount.
   useEffect(() => {
     if (!user?.id) return;
-    const channel = supabase
-      .channel(`orders-user-${user.id}`)
-      .on(
+    return subscribeUnique(`orders-user-${user.id}`, (ch) =>
+      ch.on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'orders', filter: `user_id=eq.${user.id}` },
         () => loadOrders()
       )
-      .subscribe();
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    );
   }, [user?.id]);
 
   // After loading, prompt for rating on the first completed un-reviewed order

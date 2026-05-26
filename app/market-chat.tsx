@@ -67,7 +67,13 @@ export default function MarketChatScreen() {
   useEffect(() => {
     open();
     return () => {
-      if (channelRef.current) supabase.removeChannel(channelRef.current);
+      // channelRef.current is now the cleanup function returned by
+      // subscribeMarketMessages — invoke it directly. The legacy
+      // supabase.removeChannel call would crash on a function arg.
+      if (typeof channelRef.current === 'function') {
+        channelRef.current();
+        channelRef.current = null;
+      }
     };
   }, [open]);
 

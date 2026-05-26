@@ -1,5 +1,6 @@
 import { supabase } from './supabaseClient';
 import { logger } from '../utils/logger';
+import { subscribeUnique } from '../utils/realtimeChannel';
 
 export interface SupportThread {
   id: string;
@@ -137,13 +138,16 @@ export const markRead = async (threadId: string, asAdmin: boolean): Promise<void
   await supabase.from('support_threads').update(updates).eq('id', threadId);
 };
 
+/**
+ * Subscribe to new messages on a support thread. Returns a cleanup
+ * function (invoke it from useEffect cleanup or via a ref).
+ */
 export const subscribeMessages = (
   threadId: string,
   onInsert: (msg: SupportMessage) => void
-) => {
-  return supabase
-    .channel(`support-thread-${threadId}`)
-    .on(
+): (() => void) => {
+  return subscribeUnique(`support-thread-${threadId}`, (ch) =>
+    ch.on(
       'postgres_changes',
       {
         event: 'INSERT',
@@ -151,9 +155,9 @@ export const subscribeMessages = (
         table: 'support_messages',
         filter: `thread_id=eq.${threadId}`,
       },
-      (payload) => onInsert(payload.new as SupportMessage)
+      (payload: any) => onInsert(payload.new as SupportMessage)
     )
-    .subscribe();
+  );
 };
 
 /**
@@ -189,9 +193,8 @@ export const closeThread = async (threadId: string, reason = 'manual'): Promise<
   }
 };
 
-export const subscribeAllThreads = (onChange: () => void) => {
-  return supabase
-    .channel('support-threads-feed')
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'support_threads' }, onChange)
-    .subscribe();
+export const subscribeAllThreads = (onChange: () => void): (() => void) => {
+  return subscribeUnique('support-threads-feed', (ch) =>
+    ch.on('postgres_changes', { event: '*', schema: 'public', table: 'support_threads' }, onChange)
+  );
 };

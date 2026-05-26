@@ -2,6 +2,7 @@ import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import { supabase } from '../lib/supabase';
 import { logger } from '../utils/logger';
+import { subscribeUnique } from '../utils/realtimeChannel';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -63,42 +64,32 @@ export async function sendLocalNotification(title: string, body: string, data?: 
 }
 
 export function subscribeToNewRequests(userId: string, onNewRequest: (request: any) => void) {
-  const subscription = supabase
-    .channel('new-orders')
-    .on(
+  // Returns a synchronous cleanup function; pass through from useEffect
+  // cleanup. subscribeUnique avoids the realtime race on re-mount.
+  return subscribeUnique('new-orders', (ch) =>
+    ch.on(
       'postgres_changes',
-      {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'orders',
-      },
-      async (payload) => {
+      { event: 'INSERT', schema: 'public', table: 'orders' },
+      async (payload: any) => {
         logger.debug('New order detected', payload.new);
-
         const { data: { user } } = await supabase.auth.getUser();
-
         if (user?.user_metadata?.role === 'technician') {
           const order = payload.new;
-
           await sendLocalNotification(
             '🔔 طلب جديد متاح!',
             `${order.brand || 'جهاز'} ${order.model || ''} - ${order.issue || 'يحتاج صيانة'}`,
             { orderId: order.id, type: 'new_order' }
           );
-
           onNewRequest(order);
         }
       }
     )
-    .subscribe();
-
-  return subscription;
+  );
 }
 
-export function unsubscribeFromNewRequests(subscription: any) {
-  if (subscription) {
-    supabase.removeChannel(subscription);
-  }
+/** @deprecated subscribeToNewRequests now returns its own cleanup. */
+export function unsubscribeFromNewRequests(cleanup: any) {
+  if (typeof cleanup === 'function') cleanup();
 }
 
 export function addNotificationResponseListener(callback: (response: any) => void) {

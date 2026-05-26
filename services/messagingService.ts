@@ -1,6 +1,7 @@
 import { supabase } from './supabaseClient';
 import { RealtimeChannel } from '@supabase/supabase-js';
 import { logger } from '../utils/logger';
+import { subscribeUnique } from '../utils/realtimeChannel';
 
 export interface Message {
   id: string;
@@ -63,10 +64,12 @@ export const getMessages = async (orderId: string): Promise<Message[]> => {
 export const subscribeToMessages = (
   orderId: string,
   callback: (message: Message) => void
-): RealtimeChannel => {
-  const channel = supabase
-    .channel(`messages:${orderId}`)
-    .on(
+): (() => void) => {
+  // Returns a synchronous cleanup function suitable for useEffect
+  // cleanup. subscribeUnique avoids the realtime "callbacks after
+  // subscribe()" race on re-mount.
+  return subscribeUnique(`messages:${orderId}`, (ch) =>
+    ch.on(
       'postgres_changes',
       {
         event: 'INSERT',
@@ -74,20 +77,14 @@ export const subscribeToMessages = (
         table: 'messages',
         filter: `order_id=eq.${orderId}`,
       },
-      (payload) => {
-        callback(payload.new as Message);
-      }
+      (payload: any) => callback(payload.new as Message)
     )
-    .subscribe();
-
-  return channel;
+  );
 };
 
-/**
- * Unsubscribe from messages channel
- */
-export const unsubscribeFromMessages = async (channel: RealtimeChannel) => {
-  await supabase.removeChannel(channel);
+/** @deprecated subscribeToMessages now returns its own cleanup. */
+export const unsubscribeFromMessages = (cleanup: any) => {
+  if (typeof cleanup === 'function') cleanup();
 };
 
 /**
