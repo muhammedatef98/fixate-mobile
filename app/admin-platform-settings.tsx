@@ -36,6 +36,7 @@ import {
   updateRegion,
   updateCity,
   setRegionCitiesEnabled,
+  createCity,
   type RegionWithCities,
   type ServiceCity,
 } from '../services/serviceAreasService';
@@ -531,6 +532,8 @@ function ServiceAreasSection({
   // Active row in the lat/lng + parent editor sheet. The sheet renders
   // when this is non-null and pre-fills with that row's current values.
   const [editingCity, setEditingCity] = useState<{ city: ServiceCity; region: RegionWithCities } | null>(null);
+  // Region currently targeted by the "Add city" modal. Null = sheet closed.
+  const [creatingInRegion, setCreatingInRegion] = useState<RegionWithCities | null>(null);
   const styles = createStyles(COLORS, isRTL);
 
   useEffect(() => {
@@ -662,6 +665,24 @@ function ServiceAreasSection({
                         {isRTL ? 'إيقاف الكل' : 'Disable all'}
                       </Text>
                     </TouchableOpacity>
+                    <View style={{ flex: 1 }} />
+                    {/* "Add city" affordance — opens a small create sheet
+                        whose row gets appended to this region disabled by
+                        default. Admin refines lat/lng + parent next via
+                        the pencil editor. */}
+                    <TouchableOpacity
+                      onPress={() => setCreatingInRegion(region)}
+                      style={{
+                        flexDirection: isRTL ? 'row-reverse' : 'row',
+                        alignItems: 'center',
+                        gap: 4,
+                      }}
+                    >
+                      <MaterialCommunityIcons name="plus-circle-outline" size={14} color={COLORS.primary} />
+                      <Text style={{ color: COLORS.primary, fontSize: 12, fontWeight: '800' }}>
+                        {isRTL ? 'إضافة مدينة' : 'Add city'}
+                      </Text>
+                    </TouchableOpacity>
                   </View>
                   {region.cities.map((city) => {
                     const hasCentroid = city.lat != null && city.lng != null;
@@ -760,7 +781,211 @@ function ServiceAreasSection({
           setEditingCity(null);
         }}
       />
+
+      {/* "Add city" sheet — appends a new row into the targeted region. */}
+      <NewCityModal
+        region={creatingInRegion}
+        isRTL={isRTL}
+        language={language}
+        COLORS={COLORS}
+        onClose={() => setCreatingInRegion(null)}
+        onCreated={(created) => {
+          if (!creatingInRegion) return;
+          // Insert into the in-memory tree in sort order so the new row
+          // appears in its expected position immediately.
+          setTree((t) => t && t.map((r) => {
+            if (r.id !== creatingInRegion.id) return r;
+            const next = [...r.cities, created]
+              .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+            return { ...r, cities: next };
+          }));
+          setCreatingInRegion(null);
+        }}
+      />
     </CollapsibleSection>
+  );
+}
+
+/**
+ * Bottom-sheet create form for a new city row. Intentionally minimal —
+ * collects only the fields needed to insert a safe "draft" row:
+ *   • English name (required, unique within region — client check)
+ *   • Arabic name  (required)
+ *   • Delivery fee (defaults to 20 SAR, matches the seed convention)
+ *   • Sort order   (defaults to max(existing) + 1 so new rows land at
+ *     the bottom of the region's list)
+ *
+ * The new row is created disabled. The admin opens the existing pencil
+ * editor next to set lat/lng + parent_city_id before flipping enabled
+ * on. This two-step create-then-refine matches the project posture
+ * elsewhere (Market: create → admin moderate; device types: create →
+ * admin reviews defaults).
+ */
+function NewCityModal({
+  region, isRTL, language, COLORS, onClose, onCreated,
+}: {
+  region: RegionWithCities | null;
+  isRTL: boolean;
+  language: 'ar' | 'en';
+  COLORS: any;
+  onClose: () => void;
+  onCreated: (city: ServiceCity) => void;
+}) {
+  const visible = !!region;
+  const [nameAr, setNameAr] = useState('');
+  const [nameEn, setNameEn] = useState('');
+  const [deliveryFee, setDeliveryFee] = useState('20');
+  const [sortOrder, setSortOrder] = useState('100');
+  const [saving, setSaving] = useState(false);
+
+  // Re-seed defaults each time the modal opens for a different region.
+  useEffect(() => {
+    if (!region) return;
+    const maxSort = region.cities.reduce((m, c) => Math.max(m, c.sort_order ?? 0), 0);
+    setNameAr('');
+    setNameEn('');
+    setDeliveryFee('20');
+    setSortOrder(String(maxSort + 1));
+  }, [region?.id]);
+
+  if (!region) return null;
+
+  const handleCreate = async () => {
+    if (!nameEn.trim() || !nameAr.trim()) {
+      Alert.alert(
+        isRTL ? 'حقول ناقصة' : 'Missing fields',
+        isRTL ? 'الاسم بالعربي وبالإنجليزي مطلوبان.' : 'Arabic and English names are required.'
+      );
+      return;
+    }
+    const enLower = nameEn.trim().toLowerCase();
+    const arTrim = nameAr.trim();
+    const duplicate = region.cities.find(
+      (c) => c.name_en.trim().toLowerCase() === enLower || c.name_ar.trim() === arTrim
+    );
+    if (duplicate) {
+      Alert.alert(
+        isRTL ? 'مدينة موجودة' : 'City already exists',
+        isRTL
+          ? `هناك مدينة باسم "${duplicate.name_ar}" في هذه المنطقة بالفعل.`
+          : `A city named "${duplicate.name_en}" already exists in this region.`
+      );
+      return;
+    }
+    const fee = Number(deliveryFee);
+    if (!Number.isFinite(fee) || fee < 0) {
+      Alert.alert(isRTL ? 'رسوم غير صالحة' : 'Invalid delivery fee');
+      return;
+    }
+    const sort = Number(sortOrder);
+    if (!Number.isFinite(sort) || sort < 0) {
+      Alert.alert(isRTL ? 'ترتيب غير صالح' : 'Invalid sort order');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const created = await createCity({
+        region_id: region.id,
+        name_ar: arTrim,
+        name_en: nameEn.trim(),
+        delivery_fee: fee,
+        sort_order: Math.floor(sort),
+        enabled: false,
+      });
+      onCreated(created);
+    } catch (e: any) {
+      Alert.alert(isRTL ? 'فشل الإضافة' : 'Create failed', getFriendlyError(e, language));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.4)' }}
+      >
+        <TouchableOpacity style={StyleSheet.absoluteFill} onPress={onClose} />
+        <View style={{
+          backgroundColor: COLORS.card,
+          borderTopLeftRadius: 22,
+          borderTopRightRadius: 22,
+          padding: SPACING.lg,
+          paddingBottom: 28,
+          gap: 12,
+        }}>
+          <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: COLORS.border, alignSelf: 'center' }} />
+          <View>
+            <Text style={{ color: COLORS.text, fontWeight: '800', fontSize: 17, textAlign: isRTL ? 'right' : 'left' }}>
+              {isRTL ? 'إضافة مدينة جديدة' : 'Add a new city'}
+            </Text>
+            <Text style={{ color: COLORS.textSecondary, fontSize: 11, marginTop: 2, textAlign: isRTL ? 'right' : 'left' }}>
+              {isRTL ? region.name_ar : region.name_en}
+            </Text>
+          </View>
+
+          <CityField
+            label={isRTL ? 'الاسم بالعربي' : 'Arabic name'}
+            value={nameAr}
+            onChange={setNameAr}
+            COLORS={COLORS} isRTL={isRTL}
+          />
+          <CityField
+            label={isRTL ? 'الاسم بالإنجليزي' : 'English name'}
+            value={nameEn}
+            onChange={setNameEn}
+            COLORS={COLORS} isRTL={isRTL}
+          />
+          <CityField
+            label={isRTL ? 'رسوم التوصيل (ر.س)' : 'Delivery fee (SAR)'}
+            value={deliveryFee}
+            onChange={setDeliveryFee}
+            keyboard="decimal-pad"
+            COLORS={COLORS} isRTL={isRTL}
+          />
+          <CityField
+            label={isRTL ? 'ترتيب العرض' : 'Sort order'}
+            value={sortOrder}
+            onChange={(v) => setSortOrder(v.replace(/[^0-9]/g, ''))}
+            keyboard="number-pad"
+            COLORS={COLORS} isRTL={isRTL}
+          />
+
+          <Text style={{ color: COLORS.textSecondary, fontSize: 11, lineHeight: 16, textAlign: isRTL ? 'right' : 'left' }}>
+            {isRTL
+              ? 'تُنشأ المدينة معطّلة افتراضياً. اضغط قلم التعديل على الصف الجديد لإضافة الإحداثيات والمدينة الأم قبل تفعيلها.'
+              : 'The new city is created disabled. Tap the pencil on the new row to set lat/lng and the parent city before enabling it.'}
+          </Text>
+
+          <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', gap: 10, marginTop: 6 }}>
+            <TouchableOpacity
+              onPress={onClose}
+              style={{
+                flex: 1, paddingVertical: 13, alignItems: 'center',
+                borderRadius: BORDER_RADIUS.md, borderWidth: 1, borderColor: COLORS.border,
+              }}
+            >
+              <Text style={{ color: COLORS.text, fontWeight: '700' }}>{isRTL ? 'إلغاء' : 'Cancel'}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={handleCreate}
+              disabled={saving}
+              style={{
+                flex: 2, paddingVertical: 13, alignItems: 'center',
+                borderRadius: BORDER_RADIUS.md, backgroundColor: COLORS.primary,
+                opacity: saving ? 0.55 : 1,
+              }}
+            >
+              {saving ? <ActivityIndicator color="#fff" /> : (
+                <Text style={{ color: '#fff', fontWeight: '800' }}>{isRTL ? 'إضافة' : 'Create'}</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+      </KeyboardAvoidingView>
+    </Modal>
   );
 }
 

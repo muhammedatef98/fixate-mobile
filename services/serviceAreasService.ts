@@ -113,6 +113,40 @@ export const updateRegion = async (
   invalidateServiceAreasCache();
 };
 
+/**
+ * Admin-only: insert a new city row into a region. RLS already restricts
+ * INSERT on `service_area_cities` to admins; no extra gate here. The row
+ * is created in a safe "draft" state: enabled defaults to false so a
+ * fresh row never goes live until the admin reviews centroid/parent/
+ * delivery_fee and flips it on. Sensible defaults come from the seed
+ * conventions (delivery_fee = 20, sort_order = max + 1 client-supplied).
+ */
+export const createCity = async (input: {
+  region_id: string;
+  name_ar: string;
+  name_en: string;
+  delivery_fee?: number;
+  sort_order?: number;
+  enabled?: boolean;
+}): Promise<ServiceCity> => {
+  const row = {
+    region_id: input.region_id,
+    name_ar: input.name_ar.trim(),
+    name_en: input.name_en.trim(),
+    enabled: input.enabled ?? false,
+    delivery_fee: input.delivery_fee ?? 20,
+    sort_order: input.sort_order ?? 100,
+  };
+  const { data, error } = await supabase
+    .from('service_area_cities')
+    .insert(row)
+    .select()
+    .single();
+  if (error) throw error;
+  invalidateServiceAreasCache();
+  return data as ServiceCity;
+};
+
 export const updateCity = async (
   id: string,
   patch: Partial<Pick<
