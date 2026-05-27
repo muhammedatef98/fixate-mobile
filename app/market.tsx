@@ -14,20 +14,12 @@ import {
   Modal,
   Dimensions,
   Platform,
-  LayoutAnimation,
-  UIManager,
 } from 'react-native';
-
-// Android needs an explicit opt-in for the `LayoutAnimation` API we use
-// when swapping the grid contents on filter / sort changes. Calling
-// `setLayoutAnimationEnabledExperimental` more than once is harmless.
-if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
-  UIManager.setLayoutAnimationEnabledExperimental(true);
-}
 import { Image } from 'expo-image';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useApp } from '../contexts/AppContext';
+import { useIsAdmin } from '../hooks/useAdminGuard';
 import { getColors, SPACING, BORDER_RADIUS } from '../constants/theme';
 import { RTLIonicon } from '../components/RTLIcon';
 import {
@@ -106,6 +98,7 @@ const timeAgo = (iso: string | undefined, isRTL: boolean): string => {
 export default function MarketScreen() {
   const router = useRouter();
   const { language, isDark } = useApp();
+  const { isAdmin } = useIsAdmin();
   const COLORS = getColors(isDark);
   const isRTL = language === 'ar';
 
@@ -173,15 +166,10 @@ export default function MarketScreen() {
         search: appliedSearch.trim() || undefined,
         sort,
       });
-      // Soft swap: animate the layout change so chips/filter switches feel
-      // like a gentle fade-and-shift instead of an abrupt re-render. We
-      // use a short easeInEaseOut so it never feels sluggish.
-      LayoutAnimation.configureNext({
-        duration: 220,
-        create:  { type: LayoutAnimation.Types.easeInEaseOut, property: LayoutAnimation.Properties.opacity },
-        update:  { type: LayoutAnimation.Types.easeInEaseOut },
-        delete:  { type: LayoutAnimation.Types.easeInEaseOut, property: LayoutAnimation.Properties.opacity },
-      });
+      // Plain state swap — no LayoutAnimation. The earlier ease-in-out
+      // wrap caused the device-chip strip and result-bar text to briefly
+      // shrink and re-expand on every filter change. The default React
+      // re-render is the correct, stable behaviour.
       setListings(next);
     } finally {
       setLoading(false);
@@ -356,13 +344,21 @@ export default function MarketScreen() {
           <RTLIonicon name="chevron-back" size={26} color={COLORS.text} />
         </TouchableOpacity>
         <Text style={styles.title}>{isRTL ? 'سوق Fixate' : 'Fixate Market'}</Text>
-        <TouchableOpacity
-          onPress={() => router.push('/my-listings' as any)}
-          style={styles.headerActionBtn}
-          accessibilityLabel={isRTL ? 'إعلاناتي' : 'My listings'}
-        >
-          <MaterialCommunityIcons name="storefront-edit-outline" size={20} color={COLORS.text} />
-        </TouchableOpacity>
+        {/* "My Listings" is a seller affordance — only shown to non-admin
+            users so the admin browse context stays focused on moderation
+            rather than self-service. Admins reach their own listings (if
+            any) through their personal account flow. */}
+        {!isAdmin ? (
+          <TouchableOpacity
+            onPress={() => router.push('/my-listings' as any)}
+            style={styles.headerActionBtn}
+            accessibilityLabel={isRTL ? 'إعلاناتي' : 'My listings'}
+          >
+            <MaterialCommunityIcons name="storefront-edit-outline" size={20} color={COLORS.text} />
+          </TouchableOpacity>
+        ) : (
+          <View style={{ width: 36 }} />
+        )}
       </View>
 
       {/* Search + filter button */}
@@ -427,16 +423,7 @@ export default function MarketScreen() {
             <TouchableOpacity
               key={c.id}
               activeOpacity={0.75}
-              onPress={() => {
-                if (device === c.id) return;
-                // Quick layout tween so chip selection + grid swap feel
-                // like one continuous motion instead of two abrupt jumps.
-                LayoutAnimation.configureNext({
-                  duration: 160,
-                  update: { type: LayoutAnimation.Types.easeInEaseOut },
-                });
-                setDevice(c.id);
-              }}
+              onPress={() => setDevice(c.id)}
               style={[
                 styles.deviceChip,
                 active && styles.deviceChipActive,
@@ -859,11 +846,11 @@ const createStyles = (C: any, isRTL: boolean) =>
     emptySub: { color: C.textSecondary, textAlign: 'center', fontSize: 13 },
 
     // Floating action button — soft elevation, sits above the grid.
-    // `bottom` is bumped above the default safe-area inset so it stays
-    // comfortably inside the thumb-reach zone on tall devices.
+    // The vertical offset clears tall-device home indicators and lands
+    // squarely in the natural thumb-reach zone for one-handed use.
     fab: {
       position: 'absolute',
-      bottom: 40,
+      bottom: 96,
       ...(isRTL ? { left: 18 } : { right: 18 }),
       flexDirection: isRTL ? 'row-reverse' : 'row',
       alignItems: 'center',
