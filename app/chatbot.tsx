@@ -18,7 +18,10 @@ import { useApp } from '../contexts/AppContext';
 import { getColors, SPACING, BORDER_RADIUS } from '../constants/theme';
 import { RTLIonicon } from '../components/RTLIcon';
 import { safeBack } from '../utils/navigation';
-import { listRequestFaqs } from '../services/requestFaqsService';
+import {
+  listRequestFaqs,
+  subscribeRequestFaqsChanges,
+} from '../services/requestFaqsService';
 
 /**
  * Fixate Assistant — strictly app-scoped FAQ chatbot.
@@ -303,12 +306,19 @@ export default function ChatbotScreen() {
   // and the suggestion drawer never see them.
   const [faqs, setFaqs] = useState<Faq[]>(FALLBACK_FAQS);
   useEffect(() => {
-    listRequestFaqs()
-      .then((rows) => {
-        const enabledMapped = rows.filter((r) => r.enabled).map(dbRowToFaq);
-        if (enabledMapped.length > 0) setFaqs(enabledMapped);
-      })
-      .catch(() => undefined);
+    const loadFaqs = () => {
+      listRequestFaqs()
+        .then((rows) => {
+          const enabledMapped = rows.filter((r) => r.enabled).map(dbRowToFaq);
+          if (enabledMapped.length > 0) setFaqs(enabledMapped);
+        })
+        .catch(() => undefined);
+    };
+    loadFaqs();
+    // Live updates so admin FAQ edits show up in an open chat session
+    // without a screen remount or cache TTL wait.
+    const unsub = subscribeRequestFaqsChanges(loadFaqs);
+    return unsub;
   }, []);
   const faqById = useMemo(
     () => Object.fromEntries(faqs.map((f) => [f.id, f])) as Record<string, Faq>,

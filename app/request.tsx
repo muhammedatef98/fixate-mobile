@@ -18,8 +18,15 @@ import { uploadOrderMedia } from '../services/storageService';
 import { getFriendlyError } from '../utils/errorMessages';
 import { tapLight } from '../utils/haptics';
 import { formatPrice } from '../utils/pricing';
-import { getRegionTree, type RegionWithCities } from '../services/serviceAreasService';
-import { listRequestDeviceTypes } from '../services/requestDeviceTypesService';
+import {
+  getRegionTree,
+  subscribeServiceAreasChanges,
+  type RegionWithCities,
+} from '../services/serviceAreasService';
+import {
+  listRequestDeviceTypes,
+  subscribeRequestDeviceTypesChanges,
+} from '../services/requestDeviceTypesService';
 import {
   computeDeliveryFee,
   getCityCentroid,
@@ -130,6 +137,15 @@ export default function RequestScreen() {
     getRegionTree(false)
       .then((tree) => setRegionTree(tree))
       .catch(() => undefined);
+    // Live updates: when an admin edits a region or city, refresh the
+    // tree so the in-flight request flow reflects the new coverage
+    // without waiting for the 5-minute TTL or a screen remount.
+    const unsub = subscribeServiceAreasChanges(() => {
+      getRegionTree(false)
+        .then((tree) => setRegionTree(tree))
+        .catch(() => undefined);
+    });
+    return unsub;
   }, []);
 
   // Device-type catalogue — admin-controlled, loaded from
@@ -139,19 +155,27 @@ export default function RequestScreen() {
   // matching the legacy hardcoded behaviour.
   const [deviceTypeOptions, setDeviceTypeOptions] = useState<RequestDeviceTypeOption[]>(FALLBACK_DEVICE_TYPES);
   useEffect(() => {
-    listRequestDeviceTypes()
-      .then((rows) => {
-        if (!rows || rows.length === 0) return;
-        setDeviceTypeOptions(rows.map((r) => ({
-          id: r.code,
-          code: r.code,
-          name: r.name_ar,
-          nameEn: r.name_en,
-          icon: r.icon,
-          available: r.enabled,
-        })));
-      })
-      .catch(() => undefined);
+    const loadDeviceTypes = () => {
+      listRequestDeviceTypes()
+        .then((rows) => {
+          if (!rows || rows.length === 0) return;
+          setDeviceTypeOptions(rows.map((r) => ({
+            id: r.code,
+            code: r.code,
+            name: r.name_ar,
+            nameEn: r.name_en,
+            icon: r.icon,
+            available: r.enabled,
+          })));
+        })
+        .catch(() => undefined);
+    };
+    loadDeviceTypes();
+    // Live updates so a customer mid-flow sees a newly enabled device
+    // type (or a soft-disabled one falling out of the chooser) without
+    // a screen remount.
+    const unsub = subscribeRequestDeviceTypesChanges(loadDeviceTypes);
+    return unsub;
   }, []);
   const [address, setAddress] = useState('');
   

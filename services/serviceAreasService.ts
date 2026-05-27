@@ -1,5 +1,6 @@
 import { supabase } from './supabaseClient';
 import { logger } from '../utils/logger';
+import { subscribeUnique } from '../utils/realtimeChannel';
 
 // In-memory cache for the full region tree. The customer-facing city
 // picker hits this on every modal open, so we cache for 5 minutes — long
@@ -171,3 +172,50 @@ export const setRegionCitiesEnabled = async (
   if (error) throw error;
   invalidateServiceAreasCache();
 };
+
+// ---------------------------------------------------------------------------
+// Realtime propagation. Customer apps that are foregrounded when an admin
+// edits a region or city refresh within seconds via a Postgres changes
+// subscription. Idle apps (no consumer subscribed) hold zero channels;
+// channels are torn down once the last consumer unmounts.
+//
+// `subscribeUnique` from utils/realtimeChannel sidesteps the re-mount
+// race where a stale channel would still be in the registry while a new
+// one tries to subscribe. Each consumer's effect gets its own channel
+// scoped to a unique topic suffix.
+//
+// Behavior on event: bust the local cache so the next read hits the DB,
+// then notify the consumer. The consumer's own callback decides what to
+// reload — usually a re-fetch of the region tree.
+// ---------------------------------------------------------------------------
+
+type ServiceAreasListener = () => void;
+
+/**
+ * Subscribe to INSERT/UPDATE/DELETE on `service_area_regions` and
+ * `service_area_cities`. The callback fires once per Postgres change
+ * event. Returns a synchronous unsubscribe suitable for a `useEffect`
+ * cleanup return.
+ */
+export const subscribeServiceAreasChanges = (
+  onChange: ServiceAreasListener
+): (() => void) =>
+  subscribeUnique('service-areas-changes', (ch) =>
+    ch
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'service_area_regions' },
+        () => {
+          invalidateServiceAreasCache();
+          try { onChange(); } catch (e) { logger.warn('serviceAreas onChange threw', e); }
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'service_area_cities' },
+        () => {
+          invalidateServiceAreasCache();
+          try { onChange(); } catch (e) { logger.warn('serviceAreas onChange threw', e); }
+        }
+      )
+  );

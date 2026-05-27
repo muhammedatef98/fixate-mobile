@@ -14,7 +14,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../contexts/AppContext';
 import { getColors, SPACING, BORDER_RADIUS } from '../constants/theme';
 import { SAUDI_REGIONS } from '../constants/saudiCities';
-import { getRegionTree } from '../services/serviceAreasService';
+import {
+  getRegionTree,
+  subscribeServiceAreasChanges,
+} from '../services/serviceAreasService';
 import { logger } from '../utils/logger';
 
 /**
@@ -127,6 +130,19 @@ export default function SaudiCityPicker({
       });
     return () => { cancelled = true; };
   }, [open, mode, data]);
+
+  // Live updates while the picker is visible in serviceable mode: if an
+  // admin toggles a city's enabled flag (or adds a new one) while the
+  // user has the picker open, the list refreshes silently so the user
+  // never sees stale coverage. We re-fetch by clearing `data` — the
+  // load effect above picks it up on the next render.
+  useEffect(() => {
+    if (!open || mode !== 'serviceable') return;
+    const unsub = subscribeServiceAreasChanges(() => {
+      setData(null);
+    });
+    return unsub;
+  }, [open, mode]);
 
   const sections = useMemo(() => {
     const source = data ?? [];

@@ -33,6 +33,7 @@ import {
   updateRequestDeviceType,
   setRequestDeviceTypeEnabled,
   invalidateRequestDeviceTypesCache,
+  subscribeRequestDeviceTypesChanges,
   type RequestDeviceType,
 } from '../services/requestDeviceTypesService';
 import {
@@ -41,6 +42,7 @@ import {
   updateRequestFaq,
   setRequestFaqEnabled,
   invalidateRequestFaqsCache,
+  subscribeRequestFaqsChanges,
   type RequestFaq,
 } from '../services/requestFaqsService';
 import { useIsAdmin } from '../hooks/useAdminGuard';
@@ -175,6 +177,22 @@ export default function AdminRequestSettingsScreen() {
     if (adminChecking) return;
     load();
   }, [adminChecking, load]);
+
+  // Live updates for the two admin-managed catalogues. A change from any
+  // session — including another admin tab — re-runs `load()` so this
+  // screen never drifts from the live DB. The self-mutation case
+  // (admin saves from this same screen) triggers a second redundant
+  // fetch which is harmless.
+  useEffect(() => {
+    if (adminChecking || !isAdmin) return;
+    const unsubDevices = subscribeRequestDeviceTypesChanges(() => {
+      listRequestDeviceTypes().then(setDeviceTypes).catch(() => undefined);
+    });
+    const unsubFaqs = subscribeRequestFaqsChanges(() => {
+      listRequestFaqs().then(setFaqs).catch(() => undefined);
+    });
+    return () => { unsubDevices(); unsubFaqs(); };
+  }, [adminChecking, isAdmin]);
 
   const set = (patch: Partial<FormState>) =>
     setForm((f) => (f ? { ...f, ...patch } : f));

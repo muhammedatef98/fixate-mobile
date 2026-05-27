@@ -37,6 +37,7 @@ import {
   updateCity,
   setRegionCitiesEnabled,
   createCity,
+  subscribeServiceAreasChanges,
   type RegionWithCities,
   type ServiceCity,
 } from '../services/serviceAreasService';
@@ -538,6 +539,14 @@ function ServiceAreasSection({
 
   useEffect(() => {
     getRegionTree(false).then(setTree).catch(() => setTree([]));
+    // Keep this admin view in sync with concurrent admin edits made
+    // from another session (e.g. a second tab or another admin).
+    // Self-mutations also fire this event harmlessly — the second
+    // re-fetch is a sub-kilobyte read.
+    const unsub = subscribeServiceAreasChanges(() => {
+      getRegionTree(false).then(setTree).catch(() => undefined);
+    });
+    return unsub;
   }, []);
 
   const fail = (e: any) =>

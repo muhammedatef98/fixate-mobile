@@ -1,5 +1,6 @@
 import { supabase } from './supabaseClient';
 import { logger } from '../utils/logger';
+import { subscribeUnique } from '../utils/realtimeChannel';
 
 /**
  * Admin-controlled FAQ catalogue powering the in-app chatbot. Reads are
@@ -133,3 +134,25 @@ export const setRequestFaqEnabled = async (
   id: string,
   enabled: boolean
 ): Promise<RequestFaq> => updateRequestFaq(id, { enabled });
+
+// ---------------------------------------------------------------------------
+// Realtime propagation. Mirrors the pattern in serviceAreasService and
+// requestDeviceTypesService — bust the local cache on any change to the
+// `request_faqs` table, then notify the subscriber.
+// ---------------------------------------------------------------------------
+
+type FaqsListener = () => void;
+
+export const subscribeRequestFaqsChanges = (
+  onChange: FaqsListener
+): (() => void) =>
+  subscribeUnique('request-faqs-changes', (ch) =>
+    ch.on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'request_faqs' },
+      () => {
+        invalidateRequestFaqsCache();
+        try { onChange(); } catch (e) { logger.warn('faqs onChange threw', e); }
+      }
+    )
+  );

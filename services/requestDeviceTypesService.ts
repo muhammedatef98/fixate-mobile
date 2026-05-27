@@ -1,5 +1,6 @@
 import { supabase } from './supabaseClient';
 import { logger } from '../utils/logger';
+import { subscribeUnique } from '../utils/realtimeChannel';
 
 /**
  * Admin-controlled device-type catalogue powering the customer repair
@@ -111,3 +112,26 @@ export const setRequestDeviceTypeEnabled = async (
   id: string,
   enabled: boolean
 ): Promise<RequestDeviceType> => updateRequestDeviceType(id, { enabled });
+
+// ---------------------------------------------------------------------------
+// Realtime propagation. Mirrors the pattern in serviceAreasService — see
+// the long-form comment there for the rationale. Bust the local cache on
+// any INSERT/UPDATE/DELETE in request_device_types, then notify the
+// subscriber so it can re-fetch the catalogue.
+// ---------------------------------------------------------------------------
+
+type DeviceTypesListener = () => void;
+
+export const subscribeRequestDeviceTypesChanges = (
+  onChange: DeviceTypesListener
+): (() => void) =>
+  subscribeUnique('request-device-types-changes', (ch) =>
+    ch.on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'request_device_types' },
+      () => {
+        invalidateRequestDeviceTypesCache();
+        try { onChange(); } catch (e) { logger.warn('deviceTypes onChange threw', e); }
+      }
+    )
+  );
