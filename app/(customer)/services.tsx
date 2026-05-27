@@ -252,7 +252,9 @@ export default function ServicesScreen() {
               {isRTL ? 'تصفّح حسب الجهاز' : 'Browse by device'}
             </Text>
             <Text style={[styles.sectionMeta, { color: COLORS.textSecondary }]}>
-              {SERVICES.filter((s) => s.available).length} {isRTL ? 'خدمات متاحة' : 'available'}
+              {isRTL
+                ? `${SERVICES.filter((s) => s.available).length} من ${SERVICES.length} متاحة`
+                : `${SERVICES.filter((s) => s.available).length} of ${SERVICES.length} available`}
             </Text>
           </View>
 
@@ -284,13 +286,7 @@ export default function ServicesScreen() {
                   {isRTL ? s.descAr : s.descEn}
                 </Text>
                 <View style={styles.tileFoot}>
-                  {s.available ? (
-                    s.fromPrice ? (
-                      <Text style={[styles.tilePrice, { color: COLORS.primary }]}>
-                        {isRTL ? `يبدأ من ${s.fromPrice} ر.س` : `From ${s.fromPrice} SAR`}
-                      </Text>
-                    ) : null
-                  ) : (
+                  {!s.available && (
                     <View style={[styles.soonPill, { backgroundColor: COLORS.textSecondary + '20' }]}>
                       <Text style={[styles.soonText, { color: COLORS.textSecondary }]}>
                         {isRTL ? 'قريباً' : 'Coming soon'}
@@ -361,10 +357,7 @@ export default function ServicesScreen() {
                 <Text style={[styles.tileName, { color: COLORS.text }]} numberOfLines={2}>
                   {isRTL ? s.nameAr : s.nameEn}
                 </Text>
-                <Text style={[styles.tilePrice, { color: COLORS.primary, marginTop: 6 }]}>
-                  {isRTL ? `تبدأ من ${s.price} ر.س` : `Starts from ${s.price} SAR`}
-                </Text>
-                <View style={[styles.shopAddBtn, { backgroundColor: COLORS.primary }]}>
+                <View style={[styles.shopAddBtn, { backgroundColor: COLORS.primary, marginTop: 6 }]}>
                   <Ionicons name="add" size={16} color="#fff" />
                   <Text style={styles.shopAddBtnText}>
                     {isRTL ? 'أضف للطلب' : 'Add to request'}
