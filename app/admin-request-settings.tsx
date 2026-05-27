@@ -64,6 +64,42 @@ import { logger } from '../utils/logger';
  * via RLS but the project posture (mirrored from Market) is
  * "archive/disable, never destroy".
  */
+/**
+ * Curated list of MaterialCommunityIcons that are plausible candidates
+ * for a "repairable device type". Replaces the previous free-text icon
+ * input so the admin can pick visually without memorising icon names.
+ * Names that aren't in this list are still allowed via the "Advanced
+ * (custom)" escape hatch in the picker — that preserves flexibility for
+ * any new device category we haven't anticipated.
+ *
+ * Categories below are kept loose intentionally — the search bar
+ * filters across the full list regardless of grouping.
+ */
+const DEVICE_ICONS: string[] = [
+  // Phones / tablets / computers
+  'cellphone', 'cellphone-link', 'tablet', 'laptop', 'desktop-tower',
+  'desktop-mac', 'monitor', 'monitor-multiple', 'keyboard', 'mouse',
+  // Wearables / audio / camera
+  'watch', 'watch-variant', 'headphones', 'headset', 'earbuds',
+  'speaker', 'microphone', 'microphone-variant', 'camera', 'video',
+  // Display / entertainment
+  'television', 'projector', 'projector-screen', 'gamepad-variant',
+  'controller-classic', 'remote-tv',
+  // Office / connectivity
+  'printer', 'scanner', 'fax', 'router-wireless', 'router-network',
+  'server', 'cellphone-wireless', 'wifi', 'devices',
+  // Drones / e-readers / smart-home
+  'drone', 'book-open-variant', 'home-outline', 'lightbulb-outline',
+  'doorbell-video', 'security-camera',
+  // Appliances
+  'fridge-outline', 'microwave', 'stove', 'blender', 'washing-machine',
+  'dishwasher', 'fan', 'air-conditioner', 'air-purifier', 'vacuum',
+  'iron', 'coffee-maker', 'water-pump', 'kettle',
+  // Vehicles / tools / power
+  'car', 'motorbike', 'bike', 'scooter', 'drill', 'wrench', 'hammer',
+  'tools', 'battery', 'solar-panel', 'power-plug', 'lightning-bolt',
+];
+
 interface FormState {
   inspectionFee: string;
   inspectionEnabled: boolean;
@@ -800,6 +836,7 @@ function DeviceTypeEditor({
   const [icon, setIcon] = useState(initial?.icon ?? 'devices');
   const [sortOrder, setSortOrder] = useState(String(initial?.sort_order ?? 100));
   const [busy, setBusy] = useState(false);
+  const [iconPickerOpen, setIconPickerOpen] = useState(false);
 
   // Re-seed form when the target row changes.
   useEffect(() => {
@@ -889,13 +926,48 @@ function DeviceTypeEditor({
             placeholder="e.g. Printer"
             COLORS={COLORS} isRTL={isRTL}
           />
-          <SheetField
-            label={isRTL ? 'اسم الأيقونة (MaterialCommunityIcons)' : 'Icon name (MaterialCommunityIcons)'}
-            value={icon}
-            onChange={setIcon}
-            placeholder="e.g. printer"
-            COLORS={COLORS} isRTL={isRTL}
-          />
+          {/* Icon picker — replaces the previous free-text input. Shows
+              a 44×44 preview tile + the icon's name; tap to open a
+              searchable picker grid. The picker exposes an "Advanced
+              (custom)" toggle so admins can still type a MCI name that
+              isn't in the curated list. */}
+          <View style={{ gap: 4 }}>
+            <Text style={{ color: COLORS.textSecondary, fontWeight: '700', fontSize: 12, textAlign: isRTL ? 'right' : 'left' }}>
+              {isRTL ? 'الأيقونة' : 'Icon'}
+            </Text>
+            <TouchableOpacity
+              onPress={() => setIconPickerOpen(true)}
+              activeOpacity={0.75}
+              style={{
+                flexDirection: isRTL ? 'row-reverse' : 'row',
+                alignItems: 'center',
+                gap: 12,
+                paddingHorizontal: 12,
+                paddingVertical: 10,
+                borderWidth: 1,
+                borderColor: COLORS.border,
+                borderRadius: BORDER_RADIUS.md,
+                backgroundColor: COLORS.background,
+              }}
+            >
+              <View style={{
+                width: 44, height: 44, borderRadius: 12,
+                backgroundColor: COLORS.primary + '14',
+                alignItems: 'center', justifyContent: 'center',
+              }}>
+                <MaterialCommunityIcons name={icon as any} size={24} color={COLORS.primary} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: COLORS.text, fontWeight: '700', fontSize: 13, textAlign: isRTL ? 'right' : 'left' }}>
+                  {icon}
+                </Text>
+                <Text style={{ color: COLORS.textSecondary, fontSize: 11, textAlign: isRTL ? 'right' : 'left' }}>
+                  {isRTL ? 'اضغط لاختيار أيقونة' : 'Tap to pick an icon'}
+                </Text>
+              </View>
+              <MaterialCommunityIcons name="chevron-down" size={16} color={COLORS.textSecondary} />
+            </TouchableOpacity>
+          </View>
           <SheetField
             label={isRTL ? 'ترتيب العرض' : 'Sort order'}
             value={sortOrder}
@@ -929,6 +1001,265 @@ function DeviceTypeEditor({
               )}
             </TouchableOpacity>
           </View>
+        </View>
+      </KeyboardAvoidingView>
+
+      {/* Icon picker — searchable curated grid + Advanced custom input. */}
+      <IconPicker
+        visible={iconPickerOpen}
+        current={icon}
+        isRTL={isRTL}
+        COLORS={COLORS}
+        onClose={() => setIconPickerOpen(false)}
+        onPick={(name) => {
+          setIcon(name);
+          setIconPickerOpen(false);
+        }}
+      />
+    </Modal>
+  );
+}
+
+/**
+ * Searchable curated icon picker. The grid renders the `DEVICE_ICONS`
+ * list filtered by the search query (case-insensitive substring match
+ * on the icon name). The current selection is highlighted with a
+ * primary-tinted border + checkmark.
+ *
+ * An "Advanced: custom name" toggle at the bottom reveals a free-text
+ * input so admins can still pick any MaterialCommunityIcons name that
+ * isn't in the curated list. This preserves the previous behaviour and
+ * means we never have to ship the app just to add one icon.
+ */
+function IconPicker({
+  visible, current, isRTL, COLORS, onClose, onPick,
+}: {
+  visible: boolean;
+  current: string;
+  isRTL: boolean;
+  COLORS: any;
+  onClose: () => void;
+  onPick: (name: string) => void;
+}) {
+  const [query, setQuery] = useState('');
+  const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [custom, setCustom] = useState(current);
+
+  // Re-seed state every time the sheet opens so opening for a different
+  // device type doesn't carry stale custom input.
+  useEffect(() => {
+    if (!visible) return;
+    setQuery('');
+    setCustom(current);
+    setAdvancedOpen(!DEVICE_ICONS.includes(current));
+  }, [visible, current]);
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return DEVICE_ICONS;
+    return DEVICE_ICONS.filter((n) => n.toLowerCase().includes(q));
+  }, [query]);
+
+  if (!visible) return null;
+
+  return (
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.4)' }}
+      >
+        <TouchableOpacity style={StyleSheet.absoluteFill} onPress={onClose} />
+        <View style={{
+          backgroundColor: COLORS.card,
+          borderTopLeftRadius: 22,
+          borderTopRightRadius: 22,
+          padding: SPACING.lg,
+          paddingBottom: 28,
+          maxHeight: '85%',
+          gap: 10,
+        }}>
+          <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: COLORS.border, alignSelf: 'center' }} />
+          <Text style={{ color: COLORS.text, fontWeight: '800', fontSize: 17, textAlign: isRTL ? 'right' : 'left' }}>
+            {isRTL ? 'اختر أيقونة' : 'Pick an icon'}
+          </Text>
+
+          {/* Search */}
+          <View style={{
+            flexDirection: isRTL ? 'row-reverse' : 'row',
+            alignItems: 'center',
+            gap: 8,
+            paddingHorizontal: 12,
+            paddingVertical: 8,
+            borderWidth: 1,
+            borderColor: COLORS.border,
+            borderRadius: BORDER_RADIUS.md,
+            backgroundColor: COLORS.background,
+          }}>
+            <Ionicons name="search" size={16} color={COLORS.textSecondary} />
+            <TextInput
+              value={query}
+              onChangeText={setQuery}
+              placeholder={isRTL ? 'ابحث في الأيقونات…' : 'Search icons…'}
+              placeholderTextColor={COLORS.textSecondary}
+              autoCorrect={false}
+              autoCapitalize="none"
+              style={{
+                flex: 1,
+                color: COLORS.text,
+                fontSize: 14,
+                paddingVertical: 0,
+                textAlign: isRTL ? 'right' : 'left',
+              }}
+            />
+            {query.length > 0 && (
+              <TouchableOpacity onPress={() => setQuery('')}>
+                <Ionicons name="close-circle" size={16} color={COLORS.textSecondary} />
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {/* Grid */}
+          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 8 }}>
+            {filtered.length === 0 ? (
+              <View style={{ alignItems: 'center', paddingVertical: 32, gap: 6 }}>
+                <Ionicons name="search-outline" size={28} color={COLORS.textLight} />
+                <Text style={{ color: COLORS.textSecondary, fontSize: 13 }}>
+                  {isRTL ? 'لا توجد أيقونات مطابقة' : 'No matching icons'}
+                </Text>
+                <Text style={{ color: COLORS.textSecondary, fontSize: 11, textAlign: 'center' }}>
+                  {isRTL
+                    ? 'يمكنك إدخال اسم مخصّص من القسم أدناه.'
+                    : 'You can enter a custom name in the Advanced section below.'}
+                </Text>
+              </View>
+            ) : (
+              <View style={{
+                flexDirection: 'row',
+                flexWrap: 'wrap',
+                gap: 8,
+                justifyContent: 'flex-start',
+              }}>
+                {filtered.map((name) => {
+                  const selected = name === current;
+                  return (
+                    <TouchableOpacity
+                      key={name}
+                      onPress={() => onPick(name)}
+                      activeOpacity={0.75}
+                      style={{
+                        width: 64,
+                        height: 72,
+                        borderRadius: BORDER_RADIUS.md,
+                        borderWidth: selected ? 2 : 1,
+                        borderColor: selected ? COLORS.primary : COLORS.border,
+                        backgroundColor: selected ? COLORS.primary + '12' : COLORS.background,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        paddingHorizontal: 4,
+                        gap: 3,
+                      }}
+                    >
+                      <MaterialCommunityIcons
+                        name={name as any}
+                        size={22}
+                        color={selected ? COLORS.primary : COLORS.text}
+                      />
+                      <Text
+                        style={{
+                          color: selected ? COLORS.primary : COLORS.textSecondary,
+                          fontSize: 9,
+                          fontWeight: selected ? '800' : '600',
+                          textAlign: 'center',
+                        }}
+                        numberOfLines={1}
+                      >
+                        {name}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            )}
+
+            {/* Advanced custom name — preserves the previous free-text
+                behavior for icons not in the curated list. */}
+            <TouchableOpacity
+              onPress={() => setAdvancedOpen((v) => !v)}
+              style={{
+                flexDirection: isRTL ? 'row-reverse' : 'row',
+                alignItems: 'center',
+                gap: 6,
+                marginTop: 14,
+                paddingVertical: 8,
+              }}
+            >
+              <MaterialCommunityIcons
+                name={advancedOpen ? 'chevron-up' : 'chevron-down'}
+                size={16}
+                color={COLORS.textSecondary}
+              />
+              <Text style={{ color: COLORS.textSecondary, fontWeight: '700', fontSize: 12 }}>
+                {isRTL ? 'إعدادات متقدّمة: اسم مخصّص' : 'Advanced: custom name'}
+              </Text>
+            </TouchableOpacity>
+            {advancedOpen && (
+              <View style={{ gap: 6, marginTop: 4 }}>
+                <Text style={{ color: COLORS.textSecondary, fontSize: 11, textAlign: isRTL ? 'right' : 'left' }}>
+                  {isRTL
+                    ? 'أدخل اسم أيقونة من حزمة MaterialCommunityIcons. اسم غير معروف يظهر كأيقونة فارغة.'
+                    : 'Enter any MaterialCommunityIcons name. Unknown names render as a blank tile.'}
+                </Text>
+                <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', gap: 8, alignItems: 'center' }}>
+                  <TextInput
+                    value={custom}
+                    onChangeText={setCustom}
+                    autoCorrect={false}
+                    autoCapitalize="none"
+                    placeholder="e.g. drone"
+                    placeholderTextColor={COLORS.textSecondary}
+                    style={{
+                      flex: 1,
+                      borderWidth: 1,
+                      borderColor: COLORS.border,
+                      borderRadius: BORDER_RADIUS.md,
+                      paddingHorizontal: 12,
+                      paddingVertical: 10,
+                      color: COLORS.text,
+                      backgroundColor: COLORS.background,
+                      textAlign: isRTL ? 'right' : 'left',
+                      fontSize: 14,
+                    }}
+                  />
+                  <View style={{
+                    width: 44, height: 44, borderRadius: 12,
+                    backgroundColor: COLORS.primary + '14',
+                    alignItems: 'center', justifyContent: 'center',
+                  }}>
+                    <MaterialCommunityIcons name={(custom || 'help') as any} size={22} color={COLORS.primary} />
+                  </View>
+                </View>
+                <TouchableOpacity
+                  onPress={() => {
+                    const trimmed = custom.trim();
+                    if (!trimmed) return;
+                    onPick(trimmed);
+                  }}
+                  disabled={!custom.trim()}
+                  style={{
+                    paddingVertical: 12,
+                    alignItems: 'center',
+                    borderRadius: BORDER_RADIUS.md,
+                    backgroundColor: COLORS.primary,
+                    opacity: custom.trim() ? 1 : 0.55,
+                  }}
+                >
+                  <Text style={{ color: '#fff', fontWeight: '800', fontSize: 13 }}>
+                    {isRTL ? 'استخدم هذا الاسم' : 'Use this name'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </ScrollView>
         </View>
       </KeyboardAvoidingView>
     </Modal>
