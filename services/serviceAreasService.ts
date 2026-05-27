@@ -1,6 +1,18 @@
 import { supabase } from './supabaseClient';
 import { logger } from '../utils/logger';
 
+// In-memory cache for the full region tree. The customer-facing city
+// picker hits this on every modal open, so we cache for 5 minutes — long
+// enough to avoid spamming the DB, short enough that an admin's coverage
+// change is visible to customers within minutes. The admin save handlers
+// also call `invalidateServiceAreasCache()` directly for instant refresh.
+const TREE_CACHE_TTL_MS = 5 * 60 * 1000;
+let treeCache: { ts: number; key: 'all' | 'enabled'; value: RegionWithCities[] } | null = null;
+
+export const invalidateServiceAreasCache = (): void => {
+  treeCache = null;
+};
+
 export interface ServiceRegion {
   id: string;
   code: string;
@@ -59,14 +71,20 @@ export const listCities = async (regionId?: string): Promise<ServiceCity[]> => {
 export const getRegionTree = async (
   onlyEnabled = false
 ): Promise<RegionWithCities[]> => {
+  const key = onlyEnabled ? 'enabled' : 'all';
+  if (treeCache && treeCache.key === key && Date.now() - treeCache.ts < TREE_CACHE_TTL_MS) {
+    return treeCache.value;
+  }
   const [regions, cities] = await Promise.all([listRegions(), listCities()]);
-  return regions
+  const tree = regions
     .filter((r) => (onlyEnabled ? r.enabled : true))
     .map((r) => ({
       ...r,
       cities: cities
         .filter((c) => c.region_id === r.id && (onlyEnabled ? c.enabled : true)),
     }));
+  treeCache = { ts: Date.now(), key, value: tree };
+  return tree;
 };
 
 export const updateRegion = async (
@@ -75,6 +93,7 @@ export const updateRegion = async (
 ): Promise<void> => {
   const { error } = await supabase.from('service_area_regions').update(patch).eq('id', id);
   if (error) throw error;
+  invalidateServiceAreasCache();
 };
 
 export const updateCity = async (
@@ -83,6 +102,7 @@ export const updateCity = async (
 ): Promise<void> => {
   const { error } = await supabase.from('service_area_cities').update(patch).eq('id', id);
   if (error) throw error;
+  invalidateServiceAreasCache();
 };
 
 /** Enable/disable every city in a region in one call (admin convenience). */
@@ -95,4 +115,5 @@ export const setRegionCitiesEnabled = async (
     .update({ enabled })
     .eq('region_id', regionId);
   if (error) throw error;
+  invalidateServiceAreasCache();
 };

@@ -26,6 +26,7 @@ import ErrorState from '../components/ErrorState';
 import { safeBack } from '../utils/navigation';
 import * as Location from 'expo-location';
 import SaudiCityPicker from '../components/SaudiCityPicker';
+import { getRegionTree } from '../services/serviceAreasService';
 
 export default function AddressesScreen() {
   const router = useRouter();
@@ -37,6 +38,11 @@ export default function AddressesScreen() {
   const [addresses, setAddresses] = useState<addressService.UserAddress[]>([]);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  // Lower-cased set of currently-enabled city names (Arabic + English).
+  // Used to flag saved addresses whose city is no longer in active
+  // coverage with a subtle informational chip. `null` means "not loaded"
+  // — in that case we suppress the warning so it never false-alarms.
+  const [enabledCityNames, setEnabledCityNames] = useState<Set<string> | null>(null);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<addressService.UserAddress | null>(null);
@@ -70,6 +76,32 @@ export default function AddressesScreen() {
   useEffect(() => {
     load();
   }, [load]);
+
+  // Build the enabled-cities lookup once. We deliberately ignore failures
+  // and an empty result here — without a known coverage set we hide the
+  // "outside coverage" chip rather than risk a false warning.
+  useEffect(() => {
+    let cancelled = false;
+    getRegionTree(true)
+      .then((tree) => {
+        if (cancelled || !tree || tree.length === 0) return;
+        const names = new Set<string>();
+        for (const r of tree) {
+          for (const c of r.cities) {
+            if (c.name_ar) names.add(c.name_ar.trim().toLowerCase());
+            if (c.name_en) names.add(c.name_en.trim().toLowerCase());
+          }
+        }
+        if (names.size > 0) setEnabledCityNames(names);
+      })
+      .catch(() => undefined);
+    return () => { cancelled = true; };
+  }, []);
+
+  const isCityCovered = (city: string | null | undefined): boolean => {
+    if (!city || !enabledCityNames) return true;
+    return enabledCityNames.has(city.trim().toLowerCase());
+  };
 
   const resetForm = () => {
     setLabel('');
@@ -258,6 +290,16 @@ export default function AddressesScreen() {
               </View>
               <Text style={styles.cardAddress}>{a.address}</Text>
               {a.city ? <Text style={styles.cardCity}>{a.city}</Text> : null}
+              {!isCityCovered(a.city) && (
+                <View style={styles.coverageWarn}>
+                  <Ionicons name="information-circle-outline" size={13} color="#B45309" />
+                  <Text style={styles.coverageWarnText}>
+                    {isRTL
+                      ? 'هذا العنوان خارج نطاق التغطية حالياً'
+                      : 'This address is outside current service coverage'}
+                  </Text>
+                </View>
+              )}
               <View style={styles.cardActions}>
                 {!a.is_default && (
                   <TouchableOpacity onPress={() => handleSetDefault(a)} accessibilityRole="button">
@@ -455,6 +497,27 @@ const createStyles = (C: any, isRTL: boolean) =>
     defaultText: { color: C.primary, fontSize: 11, fontWeight: '600' },
     cardAddress: { color: C.text, lineHeight: 22, textAlign: isRTL ? 'right' : 'left' },
     cardCity: { color: C.textSecondary, marginTop: 4, textAlign: isRTL ? 'right' : 'left' },
+    // Subtle amber chip below the city line when the saved address sits
+    // outside the currently-enabled service coverage. Informational only —
+    // no auto-edits, no link to delete.
+    coverageWarn: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
+      gap: 5,
+      alignSelf: isRTL ? 'flex-end' : 'flex-start',
+      marginTop: 8,
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      borderRadius: 999,
+      backgroundColor: '#B4530912',
+      borderWidth: 1,
+      borderColor: '#B4530930',
+    },
+    coverageWarnText: {
+      color: '#B45309',
+      fontSize: 11,
+      fontWeight: '700',
+    },
     cardActions: {
       flexDirection: isRTL ? 'row-reverse' : 'row',
       gap: SPACING.lg,
