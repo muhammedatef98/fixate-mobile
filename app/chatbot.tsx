@@ -18,6 +18,7 @@ import { useApp } from '../contexts/AppContext';
 import { getColors, SPACING, BORDER_RADIUS } from '../constants/theme';
 import { RTLIonicon } from '../components/RTLIcon';
 import { safeBack } from '../utils/navigation';
+import { listRequestFaqs } from '../services/requestFaqsService';
 
 /**
  * Fixate Assistant — strictly app-scoped FAQ chatbot.
@@ -70,7 +71,12 @@ interface Faq {
   related?: string[];
 }
 
-const FAQS: Faq[] = [
+// Hardcoded fallback catalogue. The customer-side chat loads the live
+// admin-managed catalogue from `request_faqs` on mount; this array is
+// used only when the DB returns an empty list (migration not applied,
+// network failure, etc.) so the chatbot never breaks. The seed for the
+// DB table is byte-for-byte identical to this list at migration time.
+const FALLBACK_FAQS: Faq[] = [
   {
     id: 'request',
     q_ar: 'كيف أطلب صيانة؟',
@@ -223,7 +229,19 @@ const FAQS: Faq[] = [
   },
 ];
 
-const FAQ_BY_ID: Record<string, Faq> = Object.fromEntries(FAQS.map((f) => [f.id, f]));
+// Map RequestFaq DB rows to the in-memory Faq shape the matcher uses.
+// `id` in the matcher is intentionally the FAQ's `code` so `related`
+// references survive row reordering / soft renames.
+const dbRowToFaq = (r: import('../services/requestFaqsService').RequestFaq): Faq => ({
+  id: r.code,
+  q_ar: r.q_ar,
+  q_en: r.q_en,
+  a_ar: r.a_ar,
+  a_en: r.a_en,
+  keywords: r.keywords ?? [],
+  strong: r.strong ?? [],
+  related: r.related ?? [],
+});
 
 /** Explicit handoff intent — fast-path before scoring. */
 const HANDOFF_KEYWORDS = [
@@ -279,6 +297,24 @@ export default function ChatbotScreen() {
   const [thinking, setThinking] = useState(false);
   const [allFaqsOpen, setAllFaqsOpen] = useState(false);
 
+  // Live FAQ catalogue. Starts on the hardcoded fallback so the chat is
+  // usable on cold open; replaced by the admin-managed DB rows as soon
+  // as they load. Disabled rows are filtered out here so the matcher
+  // and the suggestion drawer never see them.
+  const [faqs, setFaqs] = useState<Faq[]>(FALLBACK_FAQS);
+  useEffect(() => {
+    listRequestFaqs()
+      .then((rows) => {
+        const enabledMapped = rows.filter((r) => r.enabled).map(dbRowToFaq);
+        if (enabledMapped.length > 0) setFaqs(enabledMapped);
+      })
+      .catch(() => undefined);
+  }, []);
+  const faqById = useMemo(
+    () => Object.fromEntries(faqs.map((f) => [f.id, f])) as Record<string, Faq>,
+    [faqs]
+  );
+
   useEffect(() => {
     const t = setTimeout(() => scrollViewRef.current?.scrollToEnd({ animated: true }), 120);
     return () => clearTimeout(t);
@@ -316,7 +352,7 @@ export default function ChatbotScreen() {
     // (earlier = more important).
     let best: Faq | null = null;
     let bestScore = 0;
-    for (const f of FAQS) {
+    for (const f of faqs) {
       const s = scoreFaq(f, q);
       if (s > bestScore) {
         bestScore = s;
@@ -433,7 +469,12 @@ export default function ChatbotScreen() {
                 {isLatestBot && m.followUpIds && m.followUpIds.length > 0 && (
                   <FollowUpChips
                     ids={m.followUpIds}
-                    onPick={(id) => sendMessage(isRTL ? FAQ_BY_ID[id].q_ar : FAQ_BY_ID[id].q_en)}
+                    faqById={faqById}
+                    onPick={(id) => {
+                      const target = faqById[id];
+                      if (!target) return;
+                      sendMessage(isRTL ? target.q_ar : target.q_en);
+                    }}
                     isRTL={isRTL}
                     COLORS={COLORS}
                   />
@@ -456,7 +497,7 @@ export default function ChatbotScreen() {
           {allFaqsOpen && (
             <View style={styles.allFaqsWrap}>
               <Text style={styles.quickHint}>{isRTL ? 'الأسئلة الشائعة:' : 'Common questions:'}</Text>
-              {FAQS.map((f) => (
+              {faqs.map((f) => (
                 <TouchableOpacity
                   key={f.id}
                   style={styles.quickChip}
@@ -532,14 +573,15 @@ export default function ChatbotScreen() {
  * user having to type or scroll back to the common-questions block.
  */
 function FollowUpChips({
-  ids, onPick, isRTL, COLORS,
+  ids, faqById, onPick, isRTL, COLORS,
 }: {
   ids: string[];
+  faqById: Record<string, Faq>;
   onPick: (id: string) => void;
   isRTL: boolean;
   COLORS: any;
 }) {
-  const valid = ids.map((id) => FAQ_BY_ID[id]).filter(Boolean);
+  const valid = ids.map((id) => faqById[id]).filter(Boolean);
   if (valid.length === 0) return null;
   return (
     <View style={{ marginBottom: 14, marginTop: 2 }}>

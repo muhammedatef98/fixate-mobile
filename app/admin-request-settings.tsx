@@ -35,6 +35,14 @@ import {
   invalidateRequestDeviceTypesCache,
   type RequestDeviceType,
 } from '../services/requestDeviceTypesService';
+import {
+  listRequestFaqs,
+  createRequestFaq,
+  updateRequestFaq,
+  setRequestFaqEnabled,
+  invalidateRequestFaqsCache,
+  type RequestFaq,
+} from '../services/requestFaqsService';
 import { useIsAdmin } from '../hooks/useAdminGuard';
 import { getFriendlyError } from '../utils/errorMessages';
 import { logger } from '../utils/logger';
@@ -90,14 +98,20 @@ export default function AdminRequestSettingsScreen() {
   const [editingDevice, setEditingDevice] = useState<RequestDeviceType | null>(null);
   const [creatingDevice, setCreatingDevice] = useState(false);
 
+  const [faqs, setFaqs] = useState<RequestFaq[]>([]);
+  const [editingFaq, setEditingFaq] = useState<RequestFaq | null>(null);
+  const [creatingFaq, setCreatingFaq] = useState(false);
+
   const load = useCallback(async () => {
     setError(null);
     try {
       invalidatePlatformSettingsCache();
       invalidateRequestDeviceTypesCache();
-      const [s, types] = await Promise.all([
+      invalidateRequestFaqsCache();
+      const [s, types, faqRows] = await Promise.all([
         getPlatformSettings(),
         listRequestDeviceTypes(),
+        listRequestFaqs(),
       ]);
       setForm({
         inspectionFee: String(s.inspectionFee),
@@ -111,6 +125,7 @@ export default function AdminRequestSettingsScreen() {
         freeDeliveryPromoCode: s.freeDeliveryPromoCode,
       });
       setDeviceTypes(types);
+      setFaqs(faqRows);
     } catch (e: any) {
       logger.error('admin request-settings load failed', e);
       setError(getFriendlyError(e, language));
@@ -183,6 +198,16 @@ export default function AdminRequestSettingsScreen() {
       await setRequestDeviceTypeEnabled(d.id, enabled);
     } catch (e: any) {
       setDeviceTypes((arr) => arr.map((x) => (x.id === d.id ? { ...x, enabled: !enabled } : x)));
+      Alert.alert(isRTL ? 'فشل' : 'Failed', getFriendlyError(e, language));
+    }
+  };
+
+  const toggleFaq = async (f: RequestFaq, enabled: boolean) => {
+    setFaqs((arr) => arr.map((x) => (x.id === f.id ? { ...x, enabled } : x)));
+    try {
+      await setRequestFaqEnabled(f.id, enabled);
+    } catch (e: any) {
+      setFaqs((arr) => arr.map((x) => (x.id === f.id ? { ...x, enabled: !enabled } : x)));
       Alert.alert(isRTL ? 'فشل' : 'Failed', getFriendlyError(e, language));
     }
   };
@@ -451,6 +476,76 @@ export default function AdminRequestSettingsScreen() {
               </Text>
             </Section>
 
+            {/* FAQ catalogue — drives the in-app chatbot. */}
+            <Section
+              icon="message-question-outline"
+              iconColor="#0ea5a4"
+              title={isRTL ? 'أسئلة المساعد الذكي' : 'AI assistant FAQ catalogue'}
+              subtitle={isRTL
+                ? 'أضف، عدّل، أو عطّل الأسئلة والإجابات التي يعرضها المساعد'
+                : 'Add, edit, or disable the questions and answers the chatbot uses'}
+              COLORS={COLORS} isRTL={isRTL}
+            >
+              {faqs.length === 0 ? (
+                <Text style={[styles.fieldHint, { color: COLORS.textSecondary, marginTop: 6 }]}>
+                  {isRTL ? 'لا توجد أسئلة بعد.' : 'No FAQs yet.'}
+                </Text>
+              ) : (
+                faqs.map((f) => (
+                  <View key={f.id} style={styles.deviceRow}>
+                    <View style={[styles.deviceIcon, { backgroundColor: '#0ea5a414' }]}>
+                      <MaterialCommunityIcons name="message-question-outline" size={18} color="#0ea5a4" />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text
+                        style={[styles.deviceName, { color: COLORS.text, textAlign: isRTL ? 'right' : 'left' }]}
+                        numberOfLines={1}
+                      >
+                        {isRTL ? f.q_ar : f.q_en}
+                      </Text>
+                      <Text
+                        style={[styles.deviceMeta, { color: COLORS.textSecondary, textAlign: isRTL ? 'right' : 'left' }]}
+                        numberOfLines={1}
+                      >
+                        {f.code} · {(f.keywords?.length ?? 0)}
+                        {' '}
+                        {isRTL ? 'كلمة' : 'keywords'}
+                        {f.related?.length ? ` · ${f.related.length} ${isRTL ? 'متابعة' : 'follow-ups'}` : ''}
+                      </Text>
+                    </View>
+                    <TouchableOpacity
+                      onPress={() => setEditingFaq(f)}
+                      style={styles.deviceEdit}
+                      accessibilityLabel={isRTL ? 'تعديل' : 'Edit'}
+                    >
+                      <MaterialCommunityIcons name="pencil-outline" size={18} color={COLORS.textSecondary} />
+                    </TouchableOpacity>
+                    <Switch
+                      value={f.enabled}
+                      onValueChange={(v) => toggleFaq(f, v)}
+                      trackColor={{ false: COLORS.border, true: COLORS.primary }}
+                      thumbColor="#fff"
+                    />
+                  </View>
+                ))
+              )}
+              <TouchableOpacity
+                onPress={() => setCreatingFaq(true)}
+                style={styles.addDeviceBtn}
+                accessibilityRole="button"
+              >
+                <Ionicons name="add-circle" size={18} color={COLORS.primary} />
+                <Text style={[styles.addDeviceText, { color: COLORS.primary }]}>
+                  {isRTL ? 'إضافة سؤال' : 'Add FAQ'}
+                </Text>
+              </TouchableOpacity>
+              <Text style={[styles.fieldHint, { color: COLORS.textSecondary, marginTop: 8 }]}>
+                {isRTL
+                  ? 'الأسئلة المعطّلة لا تظهر في المساعد ولا في الاقتراحات. لا يوجد حذف نهائي — فقط إيقاف. المسار الافتراضي للأسئلة الأولى في الترحيب وكلمات الرفض/التحويل تبقى داخل الكود لضمان نطاق المساعد.'
+                  : 'Disabled FAQs are hidden from the matcher and the suggestion drawer. No hard-delete — disable only. The welcome bubble\'s starter questions, off-topic guard, and handoff keywords stay code-side as scope guarantees.'}
+              </Text>
+            </Section>
+
             {/* Save bar */}
             <TouchableOpacity
               style={[styles.saveBtn, saving && { opacity: 0.6 }]}
@@ -479,6 +574,23 @@ export default function AdminRequestSettingsScreen() {
           setCreatingDevice(false);
           invalidateRequestDeviceTypesCache();
           setDeviceTypes(await listRequestDeviceTypes());
+        }}
+      />
+
+      {/* Edit / create FAQ sheet */}
+      <FaqEditor
+        visible={!!editingFaq || creatingFaq}
+        initial={editingFaq}
+        allFaqs={faqs}
+        isRTL={isRTL}
+        COLORS={COLORS}
+        language={language}
+        onClose={() => { setEditingFaq(null); setCreatingFaq(false); }}
+        onSaved={async () => {
+          setEditingFaq(null);
+          setCreatingFaq(false);
+          invalidateRequestFaqsCache();
+          setFaqs(await listRequestFaqs());
         }}
       />
     </SafeAreaView>
@@ -821,6 +933,403 @@ function SheetField({
           backgroundColor: disabled ? COLORS.cardAlt : COLORS.background,
           textAlign: isRTL ? 'right' : 'left',
           fontSize: 14,
+        }}
+      />
+    </View>
+  );
+}
+
+/**
+ * Bottom-sheet editor for a FAQ row. Shape mirrors the in-memory matcher
+ * exactly: question (ar/en), answer (ar/en), keywords (normal weight),
+ * strong phrases (3x weight), related codes (other FAQ codes for the
+ * follow-up chips), and sort order.
+ *
+ * Validation, defense-in-depth:
+ *  • All four text fields required after trim.
+ *  • At least one keyword OR one strong phrase — otherwise the FAQ can
+ *    never match free text and only surfaces if tapped directly.
+ *  • Code: lowercase, non-empty, unique within the catalogue. Editable
+ *    only on create (it's a join key referenced by other FAQs' `related`
+ *    arrays — renaming would silently break those links).
+ *  • Related: only existing codes; self-reference dropped.
+ *  • sort_order: non-negative integer.
+ */
+function FaqEditor({
+  visible, initial, allFaqs, isRTL, language, COLORS, onClose, onSaved,
+}: {
+  visible: boolean;
+  initial: RequestFaq | null;
+  allFaqs: RequestFaq[];
+  isRTL: boolean;
+  language: 'ar' | 'en';
+  COLORS: any;
+  onClose: () => void;
+  onSaved: () => void | Promise<void>;
+}) {
+  const editing = !!initial;
+  const [code, setCode] = useState('');
+  const [qAr, setQAr] = useState('');
+  const [qEn, setQEn] = useState('');
+  const [aAr, setAAr] = useState('');
+  const [aEn, setAEn] = useState('');
+  const [keywords, setKeywords] = useState('');
+  const [strong, setStrong] = useState('');
+  const [related, setRelated] = useState<string[]>([]);
+  const [sortOrder, setSortOrder] = useState('100');
+  const [picking, setPicking] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (!visible) return;
+    const maxSort = allFaqs.reduce((m, f) => Math.max(m, f.sort_order ?? 0), 0);
+    setCode(initial?.code ?? '');
+    setQAr(initial?.q_ar ?? '');
+    setQEn(initial?.q_en ?? '');
+    setAAr(initial?.a_ar ?? '');
+    setAEn(initial?.a_en ?? '');
+    setKeywords((initial?.keywords ?? []).join(', '));
+    setStrong((initial?.strong ?? []).join(', '));
+    setRelated(initial?.related ?? []);
+    setSortOrder(String(initial?.sort_order ?? maxSort + 1));
+  }, [initial?.id, visible]);
+
+  const splitCsv = (raw: string): string[] =>
+    raw.split(',').map((s) => s.trim()).filter(Boolean);
+
+  const submit = async () => {
+    const codeTrim = code.trim().toLowerCase();
+    if (!editing && !codeTrim) {
+      Alert.alert(isRTL ? 'حقول ناقصة' : 'Missing fields', isRTL ? 'الكود مطلوب.' : 'Code is required.');
+      return;
+    }
+    if (!editing && allFaqs.some((f) => f.code.toLowerCase() === codeTrim)) {
+      Alert.alert(
+        isRTL ? 'كود مكرر' : 'Duplicate code',
+        isRTL ? `هناك سؤال بهذا الكود بالفعل.` : `A FAQ with this code already exists.`
+      );
+      return;
+    }
+    if (!qAr.trim() || !qEn.trim() || !aAr.trim() || !aEn.trim()) {
+      Alert.alert(
+        isRTL ? 'حقول ناقصة' : 'Missing fields',
+        isRTL ? 'السؤال والإجابة (عربي وإنجليزي) مطلوبة.' : 'Question and answer (Arabic and English) are required.'
+      );
+      return;
+    }
+    const kws = splitCsv(keywords);
+    const strs = splitCsv(strong);
+    if (kws.length === 0 && strs.length === 0) {
+      Alert.alert(
+        isRTL ? 'لا توجد كلمات مفتاحية' : 'No keywords',
+        isRTL
+          ? 'أضف كلمة مفتاحية واحدة على الأقل أو عبارة قوية، وإلا لن يتمكن المساعد من مطابقة السؤال.'
+          : 'Add at least one keyword or strong phrase, otherwise the matcher can never reach this FAQ.'
+      );
+      return;
+    }
+    const sort = Number(sortOrder);
+    if (!Number.isFinite(sort) || sort < 0) {
+      Alert.alert(isRTL ? 'ترتيب غير صالح' : 'Invalid sort order');
+      return;
+    }
+    // Drop self-references and any unknown codes from related.
+    const knownCodes = new Set(
+      allFaqs
+        .filter((f) => !editing || f.id !== initial?.id)
+        .map((f) => f.code.toLowerCase())
+    );
+    const cleanRelated = related
+      .map((c) => c.trim().toLowerCase())
+      .filter((c) => c && c !== codeTrim && knownCodes.has(c));
+
+    setBusy(true);
+    try {
+      if (editing && initial) {
+        await updateRequestFaq(initial.id, {
+          q_ar: qAr,
+          q_en: qEn,
+          a_ar: aAr,
+          a_en: aEn,
+          keywords: kws,
+          strong: strs,
+          related: cleanRelated,
+          sort_order: Math.floor(sort),
+        });
+      } else {
+        await createRequestFaq({
+          code: codeTrim,
+          q_ar: qAr,
+          q_en: qEn,
+          a_ar: aAr,
+          a_en: aEn,
+          keywords: kws,
+          strong: strs,
+          related: cleanRelated,
+          sort_order: Math.floor(sort),
+          enabled: true,
+        });
+      }
+      await onSaved();
+    } catch (e: any) {
+      Alert.alert(isRTL ? 'فشل الحفظ' : 'Save failed', getFriendlyError(e, language));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const otherFaqs = allFaqs.filter((f) => f.id !== initial?.id);
+  const relatedSelected = (c: string) => related.includes(c);
+  const toggleRelated = (c: string) =>
+    setRelated((arr) => (arr.includes(c) ? arr.filter((x) => x !== c) : [...arr, c]));
+
+  if (!visible) return null;
+
+  return (
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.4)' }}
+      >
+        <TouchableOpacity style={StyleSheet.absoluteFill} onPress={onClose} />
+        <View style={{
+          backgroundColor: COLORS.card,
+          borderTopLeftRadius: 22,
+          borderTopRightRadius: 22,
+          padding: SPACING.lg,
+          paddingBottom: 28,
+          gap: 10,
+          maxHeight: '92%',
+        }}>
+          <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: COLORS.border, alignSelf: 'center' }} />
+          <Text style={{ color: COLORS.text, fontWeight: '800', fontSize: 17, textAlign: isRTL ? 'right' : 'left' }}>
+            {editing
+              ? (isRTL ? 'تعديل سؤال' : 'Edit FAQ')
+              : (isRTL ? 'إضافة سؤال جديد' : 'Add a new FAQ')}
+          </Text>
+
+          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: 10 }}>
+            <SheetField
+              label={isRTL ? 'الكود (إنجليزي، فريد)' : 'Code (English, unique)'}
+              value={code}
+              onChange={setCode}
+              placeholder="e.g. shipping"
+              disabled={editing}
+              COLORS={COLORS} isRTL={isRTL}
+            />
+            <SheetField
+              label={isRTL ? 'السؤال بالعربي' : 'Question (Arabic)'}
+              value={qAr}
+              onChange={setQAr}
+              placeholder={isRTL ? 'مثال: ما هو الضمان؟' : 'e.g. ما هو الضمان؟'}
+              COLORS={COLORS} isRTL={isRTL}
+            />
+            <SheetField
+              label={isRTL ? 'السؤال بالإنجليزي' : 'Question (English)'}
+              value={qEn}
+              onChange={setQEn}
+              placeholder="e.g. What warranty do I get?"
+              COLORS={COLORS} isRTL={isRTL}
+            />
+            <MultilineField
+              label={isRTL ? 'الإجابة بالعربي' : 'Answer (Arabic)'}
+              value={aAr}
+              onChange={setAAr}
+              COLORS={COLORS} isRTL={isRTL}
+            />
+            <MultilineField
+              label={isRTL ? 'الإجابة بالإنجليزي' : 'Answer (English)'}
+              value={aEn}
+              onChange={setAEn}
+              COLORS={COLORS} isRTL={isRTL}
+            />
+            <SheetField
+              label={isRTL
+                ? 'كلمات مفتاحية (مفصولة بفاصلة، وزن 1)'
+                : 'Keywords (comma-separated, weight 1)'}
+              value={keywords}
+              onChange={setKeywords}
+              placeholder="warranty, ضمان, guarantee"
+              COLORS={COLORS} isRTL={isRTL}
+            />
+            <SheetField
+              label={isRTL
+                ? 'عبارات قوية (مفصولة بفاصلة، وزن 3)'
+                : 'Strong phrases (comma-separated, weight 3)'}
+              value={strong}
+              onChange={setStrong}
+              placeholder="how much, كم يكلف"
+              COLORS={COLORS} isRTL={isRTL}
+            />
+
+            {/* Related FAQs picker */}
+            <View style={{ gap: 4 }}>
+              <Text style={{ color: COLORS.textSecondary, fontWeight: '700', fontSize: 12, textAlign: isRTL ? 'right' : 'left' }}>
+                {isRTL ? 'أسئلة المتابعة المقترحة' : 'Follow-up questions'}
+              </Text>
+              <Text style={{ color: COLORS.textSecondary, fontSize: 11, marginBottom: 4, textAlign: isRTL ? 'right' : 'left' }}>
+                {isRTL
+                  ? 'تظهر للعميل كاقتراحات قابلة للنقر تحت إجابة هذا السؤال.'
+                  : 'Shown to the user as tappable chips under this answer.'}
+              </Text>
+              <TouchableOpacity
+                onPress={() => setPicking(true)}
+                style={{
+                  borderWidth: 1,
+                  borderColor: COLORS.border,
+                  borderRadius: BORDER_RADIUS.md,
+                  paddingHorizontal: 12,
+                  paddingVertical: 10,
+                  backgroundColor: COLORS.background,
+                  flexDirection: isRTL ? 'row-reverse' : 'row',
+                  alignItems: 'center',
+                  gap: 8,
+                }}
+              >
+                <MaterialCommunityIcons name="link-variant" size={16} color={COLORS.textSecondary} />
+                <Text style={{ flex: 1, color: COLORS.text, fontSize: 13, textAlign: isRTL ? 'right' : 'left' }}>
+                  {related.length === 0
+                    ? (isRTL ? 'لم يتم اختيار أسئلة متابعة' : 'No follow-ups selected')
+                    : related.join(', ')}
+                </Text>
+                <MaterialCommunityIcons name="chevron-down" size={16} color={COLORS.textSecondary} />
+              </TouchableOpacity>
+            </View>
+
+            <SheetField
+              label={isRTL ? 'ترتيب العرض' : 'Sort order'}
+              value={sortOrder}
+              onChange={(v) => setSortOrder(v.replace(/[^0-9]/g, ''))}
+              placeholder="100"
+              COLORS={COLORS} isRTL={isRTL}
+            />
+
+            <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', gap: 10, marginTop: 6 }}>
+              <TouchableOpacity
+                onPress={onClose}
+                style={{
+                  flex: 1, paddingVertical: 13, alignItems: 'center',
+                  borderRadius: BORDER_RADIUS.md, borderWidth: 1, borderColor: COLORS.border,
+                }}
+              >
+                <Text style={{ color: COLORS.text, fontWeight: '700' }}>{isRTL ? 'إلغاء' : 'Cancel'}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={submit}
+                disabled={busy}
+                style={{
+                  flex: 2, paddingVertical: 13, alignItems: 'center',
+                  borderRadius: BORDER_RADIUS.md, backgroundColor: COLORS.primary,
+                  opacity: busy ? 0.55 : 1,
+                }}
+              >
+                {busy ? <ActivityIndicator color="#fff" /> : (
+                  <Text style={{ color: '#fff', fontWeight: '800' }}>
+                    {editing ? (isRTL ? 'حفظ' : 'Save') : (isRTL ? 'إضافة' : 'Create')}
+                  </Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </ScrollView>
+        </View>
+      </KeyboardAvoidingView>
+
+      {/* Related-FAQs picker */}
+      <Modal visible={picking} animationType="fade" transparent onRequestClose={() => setPicking(false)}>
+        <View style={{ flex: 1, justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.5)', padding: SPACING.lg }}>
+          <TouchableOpacity style={StyleSheet.absoluteFill} onPress={() => setPicking(false)} />
+          <View style={{
+            backgroundColor: COLORS.card,
+            borderRadius: BORDER_RADIUS.lg,
+            padding: SPACING.md,
+            maxHeight: '75%',
+          }}>
+            <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+              <Text style={{ color: COLORS.text, fontWeight: '800', fontSize: 15 }}>
+                {isRTL ? 'اختر أسئلة المتابعة' : 'Pick follow-up FAQs'}
+              </Text>
+              <TouchableOpacity onPress={() => setPicking(false)}>
+                <Text style={{ color: COLORS.primary, fontWeight: '700' }}>{isRTL ? 'تم' : 'Done'}</Text>
+              </TouchableOpacity>
+            </View>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {otherFaqs.length === 0 ? (
+                <Text style={{ color: COLORS.textSecondary, fontSize: 12, paddingVertical: 12 }}>
+                  {isRTL ? 'لا توجد أسئلة أخرى بعد.' : 'No other FAQs yet.'}
+                </Text>
+              ) : (
+                otherFaqs.map((f) => {
+                  const checked = relatedSelected(f.code);
+                  return (
+                    <TouchableOpacity
+                      key={f.id}
+                      onPress={() => toggleRelated(f.code)}
+                      style={{
+                        paddingVertical: 12,
+                        borderBottomWidth: StyleSheet.hairlineWidth,
+                        borderBottomColor: COLORS.border,
+                        flexDirection: isRTL ? 'row-reverse' : 'row',
+                        alignItems: 'center',
+                        gap: 8,
+                      }}
+                    >
+                      <MaterialCommunityIcons
+                        name={checked ? 'checkbox-marked' : 'checkbox-blank-outline'}
+                        size={20}
+                        color={checked ? COLORS.primary : COLORS.textSecondary}
+                      />
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ color: COLORS.text, fontSize: 13, fontWeight: checked ? '700' : '500', textAlign: isRTL ? 'right' : 'left' }}>
+                          {isRTL ? f.q_ar : f.q_en}
+                        </Text>
+                        <Text style={{ color: COLORS.textSecondary, fontSize: 11, textAlign: isRTL ? 'right' : 'left' }}>
+                          {f.code}
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })
+              )}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+    </Modal>
+  );
+}
+
+/** Multi-line variant of SheetField — used for long-form answer bodies. */
+function MultilineField({
+  label, value, onChange, COLORS, isRTL,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  COLORS: any;
+  isRTL: boolean;
+}) {
+  return (
+    <View style={{ gap: 4 }}>
+      <Text style={{ color: COLORS.textSecondary, fontWeight: '700', fontSize: 12, textAlign: isRTL ? 'right' : 'left' }}>
+        {label}
+      </Text>
+      <TextInput
+        value={value}
+        onChangeText={onChange}
+        multiline
+        style={{
+          borderWidth: 1,
+          borderColor: COLORS.border,
+          borderRadius: BORDER_RADIUS.md,
+          paddingHorizontal: 12,
+          paddingTop: 10,
+          paddingBottom: 10,
+          color: COLORS.text,
+          backgroundColor: COLORS.background,
+          textAlign: isRTL ? 'right' : 'left',
+          textAlignVertical: 'top',
+          fontSize: 14,
+          minHeight: 80,
         }}
       />
     </View>
