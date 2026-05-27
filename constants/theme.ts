@@ -151,15 +151,17 @@ export const SPACING = {
   xxxl: 64,
 };
 
-// Tajawal is the brand font. See app/_layout.tsx — Tajawal weights 400, 500,
-// 700, 800 are loaded once at boot and applied as the default fontFamily on
-// every Text and TextInput so individual screens don't need to set it.
+// IBM Plex Sans Arabic is the brand font. See app/_layout.tsx — weights
+// 400 Regular, 500 Medium, 600 SemiBold, and 700 Bold are loaded once at
+// boot and applied as the default fontFamily on every Text and TextInput
+// so individual screens don't need to set it. There is no 800 weight in
+// IBM Plex Sans Arabic, so `extraBold` collapses to 700 Bold.
 export const FONTS = {
-  regular: 'Tajawal_400Regular',
-  medium: 'Tajawal_500Medium',
-  semibold: 'Tajawal_500Medium',
-  bold: 'Tajawal_700Bold',
-  extraBold: 'Tajawal_800ExtraBold',
+  regular: 'IBMPlexSansArabic_400Regular',
+  medium: 'IBMPlexSansArabic_500Medium',
+  semibold: 'IBMPlexSansArabic_600SemiBold',
+  bold: 'IBMPlexSansArabic_700Bold',
+  extraBold: 'IBMPlexSansArabic_700Bold',
 };
 
 export const TYPOGRAPHY = {

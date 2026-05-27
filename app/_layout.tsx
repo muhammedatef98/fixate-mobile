@@ -16,12 +16,12 @@ import OfflineBanner from '../components/OfflineBanner';
 import BlockedScreen from '../components/BlockedScreen';
 import {
   useFonts,
-  Tajawal_400Regular,
-  Tajawal_500Medium,
-  Tajawal_700Bold,
-  Tajawal_800ExtraBold,
-} from '@expo-google-fonts/tajawal';
-import { applyTajawalToText } from '../utils/applyTajawal';
+  IBMPlexSansArabic_400Regular,
+  IBMPlexSansArabic_500Medium,
+  IBMPlexSansArabic_600SemiBold,
+  IBMPlexSansArabic_700Bold,
+} from '@expo-google-fonts/ibm-plex-sans-arabic';
+import { applyAppFontToText } from '../utils/applyFont';
 import '../i18n';
 
 function RootLayoutContent() {
@@ -262,10 +262,10 @@ function RootLayoutContent() {
 
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({
-    Tajawal_400Regular,
-    Tajawal_500Medium,
-    Tajawal_700Bold,
-    Tajawal_800ExtraBold,
+    IBMPlexSansArabic_400Regular,
+    IBMPlexSansArabic_500Medium,
+    IBMPlexSansArabic_600SemiBold,
+    IBMPlexSansArabic_700Bold,
   });
 
   if (!fontsLoaded) {
@@ -276,15 +276,16 @@ export default function RootLayout() {
     );
   }
 
-  // Tajawal globally — but on iOS/Android, custom fonts don't auto-map
-  // fontWeight: 'bold' to a bold variant; you must name the family
-  // explicitly. Without this override every "bold" Text on screen would
-  // render in the regular weight, which is exactly the "the font isn't
-  // really applied" symptom users report.
+  // IBM Plex Sans Arabic globally — but on iOS/Android, custom fonts
+  // don't auto-map fontWeight: 'bold' to a bold variant; you must name
+  // the family explicitly. Without this override every "bold" Text on
+  // screen would render in the regular weight, which is exactly the
+  // "the font isn't really applied" symptom users report.
   //
   // We intercept Text/TextInput's render once and rewrite the resolved
-  // style so the right Tajawal variant is picked based on fontWeight.
-  applyTajawalToText();
+  // style so the right IBM Plex Sans Arabic variant is picked based
+  // on fontWeight.
+  applyAppFontToText();
 
   return (
     <ErrorBoundary>
