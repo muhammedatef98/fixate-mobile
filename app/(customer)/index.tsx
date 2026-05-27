@@ -563,7 +563,16 @@ const makeStyles = (C: any, isRTL: boolean, SHADOWS: any) =>
       marginBottom: 14,
       marginTop: 8,
     },
-    sectionTitle: { fontSize: 20, fontWeight: '800' },
+    sectionTitle: {
+      fontSize: 20,
+      fontWeight: '800',
+      // Section titles must sit on the start edge of the section grid.
+      // Without an explicit alignment, RN inherits the default (left) and
+      // the title sat flush-left in Arabic above a row-reverse grid that
+      // started on the right — visually disconnected.
+      textAlign: isRTL ? 'right' : 'left',
+      writingDirection: isRTL ? 'rtl' : 'ltr',
+    },
 
     deviceGrid: {
       flexDirection: isRTL ? 'row-reverse' : 'row',

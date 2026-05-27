@@ -14,7 +14,16 @@ import {
   Modal,
   Dimensions,
   Platform,
+  LayoutAnimation,
+  UIManager,
 } from 'react-native';
+
+// Android needs an explicit opt-in for the `LayoutAnimation` API we use
+// when swapping the grid contents on filter / sort changes. Calling
+// `setLayoutAnimationEnabledExperimental` more than once is harmless.
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 import { Image } from 'expo-image';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -155,17 +164,25 @@ export default function MarketScreen() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      setListings(
-        await browseListings({
-          deviceType: device === 'all' ? undefined : device,
-          condition: condition ?? undefined,
-          city: city.trim() || undefined,
-          minPrice: minPrice ? Number(minPrice) : undefined,
-          maxPrice: maxPrice ? Number(maxPrice) : undefined,
-          search: appliedSearch.trim() || undefined,
-          sort,
-        })
-      );
+      const next = await browseListings({
+        deviceType: device === 'all' ? undefined : device,
+        condition: condition ?? undefined,
+        city: city.trim() || undefined,
+        minPrice: minPrice ? Number(minPrice) : undefined,
+        maxPrice: maxPrice ? Number(maxPrice) : undefined,
+        search: appliedSearch.trim() || undefined,
+        sort,
+      });
+      // Soft swap: animate the layout change so chips/filter switches feel
+      // like a gentle fade-and-shift instead of an abrupt re-render. We
+      // use a short easeInEaseOut so it never feels sluggish.
+      LayoutAnimation.configureNext({
+        duration: 220,
+        create:  { type: LayoutAnimation.Types.easeInEaseOut, property: LayoutAnimation.Properties.opacity },
+        update:  { type: LayoutAnimation.Types.easeInEaseOut },
+        delete:  { type: LayoutAnimation.Types.easeInEaseOut, property: LayoutAnimation.Properties.opacity },
+      });
+      setListings(next);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -409,7 +426,17 @@ export default function MarketScreen() {
           return (
             <TouchableOpacity
               key={c.id}
-              onPress={() => setDevice(c.id)}
+              activeOpacity={0.75}
+              onPress={() => {
+                if (device === c.id) return;
+                // Quick layout tween so chip selection + grid swap feel
+                // like one continuous motion instead of two abrupt jumps.
+                LayoutAnimation.configureNext({
+                  duration: 160,
+                  update: { type: LayoutAnimation.Types.easeInEaseOut },
+                });
+                setDevice(c.id);
+              }}
               style={[
                 styles.deviceChip,
                 active && styles.deviceChipActive,
@@ -832,9 +859,11 @@ const createStyles = (C: any, isRTL: boolean) =>
     emptySub: { color: C.textSecondary, textAlign: 'center', fontSize: 13 },
 
     // Floating action button — soft elevation, sits above the grid.
+    // `bottom` is bumped above the default safe-area inset so it stays
+    // comfortably inside the thumb-reach zone on tall devices.
     fab: {
       position: 'absolute',
-      bottom: 22,
+      bottom: 40,
       ...(isRTL ? { left: 18 } : { right: 18 }),
       flexDirection: isRTL ? 'row-reverse' : 'row',
       alignItems: 'center',
