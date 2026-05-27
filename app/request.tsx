@@ -260,7 +260,16 @@ export default function RequestScreen() {
     const candidates: Candidate[] = [];
     for (const r of regionTree) {
       for (const c of r.cities) {
-        const centroid = getCityCentroid(c.name_en, c.name_ar);
+        // Prefer the DB-stored centroid (long-term source of truth — works
+        // for any city the admin seeds without a code change). Fall back
+        // to the hardcoded `CITY_CENTROIDS` table for legacy rows that
+        // haven't been backfilled yet.
+        const dbLat = c.lat == null ? null : Number(c.lat);
+        const dbLng = c.lng == null ? null : Number(c.lng);
+        const centroid =
+          (dbLat != null && dbLng != null && Number.isFinite(dbLat) && Number.isFinite(dbLng))
+            ? { lat: dbLat, lng: dbLng }
+            : getCityCentroid(c.name_en, c.name_ar);
         if (!centroid) continue;
         candidates.push({
           cityId: c.id,

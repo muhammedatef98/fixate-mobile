@@ -30,6 +30,14 @@ export interface ServiceCity {
   enabled: boolean;
   delivery_fee: number;
   sort_order: number;
+  /**
+   * Centroid coordinates used by the request-flow pin-to-city auto-detect.
+   * Nullable: rows that haven't been backfilled yet fall back to the
+   * `CITY_CENTROIDS` table in `utils/deliveryPricing.ts`. Long-term source
+   * of truth is the DB so new cities are matchable without a code change.
+   */
+  lat?: number | null;
+  lng?: number | null;
 }
 
 export interface RegionWithCities extends ServiceRegion {
