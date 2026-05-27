@@ -232,37 +232,41 @@ export default function RequestScreen() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [mapReady, setMapReady] = useState(false);
 
-  // Auto-detect the city the pin actually sits in, then accept it only
-  // when that city is enabled. The previous implementation searched the
-  // *enabled* cities only and accepted any pin within 50 km of an
-  // enabled centroid — which silently mis-classified pins in Dammam,
-  // Khobar, and Dhahran as "Qatif" because Qatif's centroid was the
-  // nearest enabled one within radius.
+  // Auto-detect the city the pin sits in, then resolve coverage along
+  // the parent_city_id chain. The matcher:
+  //   1. picks the absolute nearest centroid among all known cities
+  //      (enabled or not), bounded by SERVICE_RADIUS_KM;
+  //   2. walks the parent chain from that nearest city to find the
+  //      first ancestor whose city + region are both enabled;
+  //   3. returns the ANCESTOR's id when accepting via inheritance, so
+  //      delivery fee / order metadata follow the canonical service
+  //      area (Qatif), not the matched neighborhood (Saihat).
   //
-  // The fix: iterate every city in the tree (enabled OR disabled) that
-  // has a known centroid, pick the absolute nearest, and accept the pin
-  // only when that nearest city is bookable (city + region both
-  // enabled) AND within the sanity radius. A pin in Dammam now resolves
-  // to "Dammam" (disabled) → rejected, with the OOS banner shown.
+  // Inheritance is one-way — only the explicit parent chain is walked,
+  // so unrelated nearby cities (Dammam, Khobar) can never inherit
+  // coverage from a neighbor.
   const SERVICE_RADIUS_KM = 50;
   const autoDetectedCityId = useMemo(() => {
     if (!location?.latitude || !location?.longitude) return null;
     if (regionTree.length === 0) return null;
 
-    // Flatten every city with its parent-region enable flag so we can
-    // judge bookability without a second lookup.
     type Candidate = {
       cityId: string;
+      parentCityId: string | null;
       cityEnabled: boolean;
       regionEnabled: boolean;
       centroid: { lat: number; lng: number };
     };
-    const candidates: Candidate[] = [];
+
+    // Build a flat map of every city so the parent walk can resolve in
+    // O(depth). The map covers cities with AND without centroids — a
+    // child without a centroid still needs its parent looked up.
+    const cityById = new Map<string, Candidate>();
     for (const r of regionTree) {
       for (const c of r.cities) {
         // Prefer the DB-stored centroid (long-term source of truth — works
         // for any city the admin seeds without a code change). Fall back
-        // to the hardcoded `CITY_CENTROIDS` table for legacy rows that
+        // to the hardcoded CITY_CENTROIDS table for legacy rows that
         // haven't been backfilled yet.
         const dbLat = c.lat == null ? null : Number(c.lat);
         const dbLng = c.lng == null ? null : Number(c.lng);
@@ -270,21 +274,28 @@ export default function RequestScreen() {
           (dbLat != null && dbLng != null && Number.isFinite(dbLat) && Number.isFinite(dbLng))
             ? { lat: dbLat, lng: dbLng }
             : getCityCentroid(c.name_en, c.name_ar);
-        if (!centroid) continue;
-        candidates.push({
+        // We still record the city in the map even without a centroid,
+        // so parent lookups work when a chain reaches an un-geocoded
+        // node. The match step itself only considers cities with a
+        // centroid (see `candidates` below).
+        cityById.set(c.id, {
           cityId: c.id,
+          parentCityId: c.parent_city_id ?? null,
           cityEnabled: c.enabled !== false,
           regionEnabled: r.enabled !== false,
-          centroid,
+          centroid: centroid ?? { lat: NaN, lng: NaN },
         });
       }
     }
-    if (candidates.length === 0) return null;
+    if (cityById.size === 0) return null;
 
-    // Absolute nearest among ALL known cities, not just enabled ones.
+    // Absolute nearest among cities that have a usable centroid.
     let nearest: Candidate | null = null;
     let nearestKm = Infinity;
-    for (const cand of candidates) {
+    for (const cand of cityById.values()) {
+      if (!Number.isFinite(cand.centroid.lat) || !Number.isFinite(cand.centroid.lng)) {
+        continue;
+      }
       const km = haversineKm(cand.centroid, {
         lat: location.latitude,
         lng: location.longitude,
@@ -296,11 +307,25 @@ export default function RequestScreen() {
     }
     if (!nearest) return null;
 
-    // Reject if the nearest city is too far (pin somewhere unsupported,
-    // e.g. deep desert / outside KSA) OR if it isn't currently bookable.
+    // Sanity bound — a pin nowhere near any known city (deep desert,
+    // outside KSA) is rejected regardless of which centroid was closest.
     if (nearestKm > SERVICE_RADIUS_KM) return null;
-    if (!nearest.cityEnabled || !nearest.regionEnabled) return null;
-    return nearest.cityId;
+
+    // Walk the parent chain looking for the first ancestor that's
+    // bookable. The matched neighborhood itself counts as ancestor #0.
+    // A visited-set guards against accidental cycles in the data.
+    const visited = new Set<string>();
+    let cursor: Candidate | undefined = nearest;
+    while (cursor && !visited.has(cursor.cityId)) {
+      visited.add(cursor.cityId);
+      if (cursor.cityEnabled && cursor.regionEnabled) {
+        return cursor.cityId;
+      }
+      cursor = cursor.parentCityId ? cityById.get(cursor.parentCityId) : undefined;
+    }
+    // Nearest city + every ancestor disabled → pin is genuinely outside
+    // current coverage.
+    return null;
   }, [location?.latitude, location?.longitude, regionTree]);
   useEffect(() => {
     // Sync the detected city into selection. When the pin moves outside

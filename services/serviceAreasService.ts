@@ -38,6 +38,15 @@ export interface ServiceCity {
    */
   lat?: number | null;
   lng?: number | null;
+  /**
+   * Self-referencing FK. When set, this city is administratively a sub-
+   * area of `parent_city_id` and inherits its coverage state. Lets a
+   * neighborhood (e.g. Saihat) be matched as its own row by nearest-
+   * centroid yet still be treated as part of the canonical service area
+   * (Qatif) downstream. Inheritance is one-way and never extends to
+   * unrelated cities — only the explicit parent chain is followed.
+   */
+  parent_city_id?: string | null;
 }
 
 export interface RegionWithCities extends ServiceRegion {
