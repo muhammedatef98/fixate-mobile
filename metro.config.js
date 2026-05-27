@@ -4,16 +4,16 @@ const path = require('path');
 const config = getDefaultConfig(__dirname);
 
 /**
- * Global Tajawal font injection via module alias.
+ * Global IBM Plex Sans Arabic font injection via module alias.
  *
  * React 19 removed defaultProps on function components, so we can no
  * longer patch Text globally at runtime. Instead we tell Metro to
  * resolve react-native's Text and TextInput to our wrapper components
- * that always inject the correct Tajawal variant.
+ * that always inject the correct IBM Plex Sans Arabic variant.
  *
  * Result: every <Text> and <TextInput> in the entire app — including
  * third-party UI libs that import from react-native — automatically
- * gets Tajawal without touching individual screen files.
+ * gets IBM Plex Sans Arabic without touching individual screen files.
  */
 config.resolver = config.resolver ?? {};
 config.resolver.extraNodeModules = {
@@ -53,7 +53,7 @@ config.resolver.resolveRequest = (context, moduleName, platform) => {
  * Pragmatic decision: keep metro.config.js minimal and let screens
  * import from components/AppText. For screens we own, the alias is
  * a one-line find-and-replace. For third-party libs, they don’t need
- * Tajawal anyway.
+ * IBM Plex Sans Arabic anyway.
  *
  * What this file DOES add:
  *   - Ensures Metro resolves our custom aliases correctly
