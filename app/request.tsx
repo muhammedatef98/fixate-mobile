@@ -104,13 +104,15 @@ export default function RequestScreen() {
   const isRTL = language === 'ar';
 
   // Repair service areas — Saudi-wide, admin-controlled (service_area_*
-  // tables). Only enabled regions and cities are offered to the customer.
+  // tables). We deliberately load the FULL tree (enabled + disabled) so
+  // the pin-to-city auto-detect can reason about which actual city the
+  // pin sits in — not just the nearest enabled one. Whether a city is
+  // bookable is then decided by its `enabled` flag, gated by
+  // `selectedCityAvailable` below.
   const [regionTree, setRegionTree] = useState<RegionWithCities[]>([]);
   const [selectedCityId, setSelectedCityId] = useState<string | null>(null);
   useEffect(() => {
-    // Only currently-available regions/cities are offered. Coverage is
-    // admin-controlled — disabled areas simply do not appear.
-    getRegionTree(true)
+    getRegionTree(false)
       .then((tree) => setRegionTree(tree))
       .catch(() => undefined);
   }, []);
@@ -230,34 +232,66 @@ export default function RequestScreen() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [mapReady, setMapReady] = useState(false);
 
-  // Auto-detect serviceable city from the dropped pin. We compute the
-  // closest enabled-city centroid (using the same lookup the delivery
-  // fee uses) and select it when the pin sits within a generous radius
-  // (50 km — covers a city's outskirts but rejects a pin in the next
-  // governorate). When no city matches we clear the selection so the
-  // Submit button stays disabled and the customer sees the OOS message.
+  // Auto-detect the city the pin actually sits in, then accept it only
+  // when that city is enabled. The previous implementation searched the
+  // *enabled* cities only and accepted any pin within 50 km of an
+  // enabled centroid — which silently mis-classified pins in Dammam,
+  // Khobar, and Dhahran as "Qatif" because Qatif's centroid was the
+  // nearest enabled one within radius.
+  //
+  // The fix: iterate every city in the tree (enabled OR disabled) that
+  // has a known centroid, pick the absolute nearest, and accept the pin
+  // only when that nearest city is bookable (city + region both
+  // enabled) AND within the sanity radius. A pin in Dammam now resolves
+  // to "Dammam" (disabled) → rejected, with the OOS banner shown.
   const SERVICE_RADIUS_KM = 50;
   const autoDetectedCityId = useMemo(() => {
     if (!location?.latitude || !location?.longitude) return null;
-    const enabledCities = regionTree
-      .filter((r) => r.enabled !== false)
-      .flatMap((r) => r.cities.filter((c) => c.enabled !== false));
-    if (enabledCities.length === 0) return null;
-    let bestId: string | null = null;
-    let bestKm = Infinity;
-    for (const c of enabledCities) {
-      const centroid = getCityCentroid(c.name_en, c.name_ar);
-      if (!centroid) continue;
-      const km = haversineKm(centroid, {
+    if (regionTree.length === 0) return null;
+
+    // Flatten every city with its parent-region enable flag so we can
+    // judge bookability without a second lookup.
+    type Candidate = {
+      cityId: string;
+      cityEnabled: boolean;
+      regionEnabled: boolean;
+      centroid: { lat: number; lng: number };
+    };
+    const candidates: Candidate[] = [];
+    for (const r of regionTree) {
+      for (const c of r.cities) {
+        const centroid = getCityCentroid(c.name_en, c.name_ar);
+        if (!centroid) continue;
+        candidates.push({
+          cityId: c.id,
+          cityEnabled: c.enabled !== false,
+          regionEnabled: r.enabled !== false,
+          centroid,
+        });
+      }
+    }
+    if (candidates.length === 0) return null;
+
+    // Absolute nearest among ALL known cities, not just enabled ones.
+    let nearest: Candidate | null = null;
+    let nearestKm = Infinity;
+    for (const cand of candidates) {
+      const km = haversineKm(cand.centroid, {
         lat: location.latitude,
         lng: location.longitude,
       });
-      if (km < bestKm) {
-        bestKm = km;
-        bestId = c.id;
+      if (km < nearestKm) {
+        nearestKm = km;
+        nearest = cand;
       }
     }
-    return bestKm <= SERVICE_RADIUS_KM ? bestId : null;
+    if (!nearest) return null;
+
+    // Reject if the nearest city is too far (pin somewhere unsupported,
+    // e.g. deep desert / outside KSA) OR if it isn't currently bookable.
+    if (nearestKm > SERVICE_RADIUS_KM) return null;
+    if (!nearest.cityEnabled || !nearest.regionEnabled) return null;
+    return nearest.cityId;
   }, [location?.latitude, location?.longitude, regionTree]);
   useEffect(() => {
     // Sync the detected city into selection. When the pin moves outside
