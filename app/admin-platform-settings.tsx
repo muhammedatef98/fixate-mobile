@@ -46,9 +46,10 @@ import { getFriendlyError } from '../utils/errorMessages';
 import { logger } from '../utils/logger';
 import { useIsAdmin } from '../hooks/useAdminGuard';
 
+// Request-flow controls (inspection / commitment / service-type toggles /
+// free delivery) have moved to the dedicated /admin-request-settings
+// screen. This screen keeps only the platform-wide controls.
 interface FormState {
-  inspectionFee: string;
-  inspectionEnabled: boolean;
   returnFee: string;
   commissionRate: string;
   easternProvinceEnabled: boolean;
@@ -60,8 +61,6 @@ interface FormState {
   loyaltyRedeemRate: string;
   loyaltyRedeemMaxPct: string;
   loyaltyTiersJson: string;
-  commitmentFee: string;
-  commitmentEnabled: boolean;
   maintenanceMode: boolean;
   announcementEnabled: boolean;
   announcementAr: string;
@@ -70,16 +69,9 @@ interface FormState {
   pushNotificationsEnabled: boolean;
   ratingsEnabled: boolean;
   marketplaceEnabled: boolean;
-  serviceMobileEnabled: boolean;
-  servicePickupEnabled: boolean;
-  serviceHandoffEnabled: boolean;
-  freeDeliveryEnabled: boolean;
-  freeDeliveryPromoCode: string;
 }
 
 const toForm = (s: PlatformSettings): FormState => ({
-  inspectionFee: String(s.inspectionFee),
-  inspectionEnabled: s.inspectionEnabled,
   returnFee: String(s.returnFee),
   commissionRate: String(s.commissionRate),
   easternProvinceEnabled: s.easternProvinceEnabled,
@@ -91,8 +83,6 @@ const toForm = (s: PlatformSettings): FormState => ({
   loyaltyRedeemRate: String(s.loyalty.redeemRate),
   loyaltyRedeemMaxPct: String(s.loyalty.redeemMaxPct),
   loyaltyTiersJson: JSON.stringify(s.loyalty.tiers, null, 2),
-  commitmentFee: String(s.commitmentFee),
-  commitmentEnabled: s.commitmentEnabled,
   maintenanceMode: s.maintenanceMode,
   announcementEnabled: s.announcementEnabled,
   announcementAr: s.announcementAr,
@@ -101,15 +91,9 @@ const toForm = (s: PlatformSettings): FormState => ({
   pushNotificationsEnabled: s.pushNotificationsEnabled,
   ratingsEnabled: s.ratingsEnabled,
   marketplaceEnabled: s.marketplaceEnabled,
-  serviceMobileEnabled: s.serviceMobileEnabled,
-  servicePickupEnabled: s.servicePickupEnabled,
-  serviceHandoffEnabled: s.serviceHandoffEnabled,
-  freeDeliveryEnabled: s.freeDeliveryEnabled,
-  freeDeliveryPromoCode: s.freeDeliveryPromoCode,
 });
 
 interface FieldErrors {
-  inspectionFee?: string;
   returnFee?: string;
   commissionRate?: string;
   serviceAreaMessageAr?: string;
@@ -119,7 +103,6 @@ interface FieldErrors {
   loyaltyRedeemRate?: string;
   loyaltyRedeemMaxPct?: string;
   loyaltyTiersJson?: string;
-  commitmentFee?: string;
 }
 
 export default function AdminPlatformSettingsScreen() {
@@ -159,8 +142,6 @@ export default function AdminPlatformSettingsScreen() {
   const validate = (f: FormState): FieldErrors => {
     const err: FieldErrors = {};
     const num = (v: string) => Number(v);
-    if (!Number.isFinite(num(f.inspectionFee)) || num(f.inspectionFee) < 0)
-      err.inspectionFee = isRTL ? 'أدخل رقماً صحيحاً' : 'Enter a valid number';
     if (!Number.isFinite(num(f.returnFee)) || num(f.returnFee) < 0)
       err.returnFee = isRTL ? 'أدخل رقماً صحيحاً' : 'Enter a valid number';
     const rate = num(f.commissionRate);
@@ -180,8 +161,6 @@ export default function AdminPlatformSettingsScreen() {
     } catch {
       err.loyaltyTiersJson = isRTL ? 'JSON غير صالح' : 'Invalid JSON array';
     }
-    if (!Number.isFinite(num(f.commitmentFee)) || num(f.commitmentFee) < 0)
-      err.commitmentFee = isRTL ? 'أدخل رقماً صحيحاً' : 'Enter a valid number';
     if (!f.serviceAreaMessageAr.trim())
       err.serviceAreaMessageAr = isRTL ? 'مطلوب' : 'Required';
     if (!f.serviceAreaMessageEn.trim())
@@ -204,8 +183,6 @@ export default function AdminPlatformSettingsScreen() {
     try {
       const tiers = JSON.parse(form.loyaltyTiersJson);
       await upsertPlatformSettings([
-        { key: PLATFORM_SETTINGS_KEYS.inspectionFee, value: Number(form.inspectionFee) },
-        { key: PLATFORM_SETTINGS_KEYS.inspectionEnabled, value: form.inspectionEnabled },
         { key: PLATFORM_SETTINGS_KEYS.returnFee, value: Number(form.returnFee) },
         { key: PLATFORM_SETTINGS_KEYS.commissionRate, value: Number(form.commissionRate) },
         { key: PLATFORM_SETTINGS_KEYS.easternProvinceEnabled, value: form.easternProvinceEnabled },
@@ -217,8 +194,6 @@ export default function AdminPlatformSettingsScreen() {
         { key: PLATFORM_SETTINGS_KEYS.loyaltyRedeemRate, value: Number(form.loyaltyRedeemRate) },
         { key: PLATFORM_SETTINGS_KEYS.loyaltyRedeemMaxPct, value: Number(form.loyaltyRedeemMaxPct) },
         { key: PLATFORM_SETTINGS_KEYS.loyaltyTiers, value: tiers },
-        { key: PLATFORM_SETTINGS_KEYS.commitmentFee, value: Number(form.commitmentFee) },
-        { key: PLATFORM_SETTINGS_KEYS.commitmentEnabled, value: form.commitmentEnabled },
         { key: PLATFORM_SETTINGS_KEYS.maintenanceMode, value: form.maintenanceMode },
         { key: PLATFORM_SETTINGS_KEYS.announcementEnabled, value: form.announcementEnabled },
         { key: PLATFORM_SETTINGS_KEYS.announcementAr, value: form.announcementAr.trim() },
@@ -227,11 +202,6 @@ export default function AdminPlatformSettingsScreen() {
         { key: PLATFORM_SETTINGS_KEYS.pushNotificationsEnabled, value: form.pushNotificationsEnabled },
         { key: PLATFORM_SETTINGS_KEYS.ratingsEnabled, value: form.ratingsEnabled },
         { key: PLATFORM_SETTINGS_KEYS.marketplaceEnabled, value: form.marketplaceEnabled },
-        { key: PLATFORM_SETTINGS_KEYS.serviceMobileEnabled, value: form.serviceMobileEnabled },
-        { key: PLATFORM_SETTINGS_KEYS.servicePickupEnabled, value: form.servicePickupEnabled },
-        { key: PLATFORM_SETTINGS_KEYS.serviceHandoffEnabled, value: form.serviceHandoffEnabled },
-        { key: PLATFORM_SETTINGS_KEYS.freeDeliveryEnabled, value: form.freeDeliveryEnabled },
-        { key: PLATFORM_SETTINGS_KEYS.freeDeliveryPromoCode, value: form.freeDeliveryPromoCode.trim().toUpperCase() },
       ]);
       Alert.alert(
         isRTL ? 'تم الحفظ ✓' : 'Saved ✓',
@@ -320,70 +290,13 @@ export default function AdminPlatformSettingsScreen() {
                 : 'Values apply platform-wide. Tap a section to expand it.'}
             </Text>
 
-            {/* 1. Confirmation amount */}
-            <CollapsibleSection
-              icon="cash-lock"
-              iconColor="#8b5cf6"
-              title={isRTL ? 'مبلغ التأكيد' : 'Confirmation amount'}
-              subtitle={isRTL ? 'المبلغ المدفوع قبل الفحص' : 'Amount paid before inspection'}
-              defaultOpen
-              COLORS={COLORS}
-              isRTL={isRTL}
-            >
-              <SwitchRow
-                label={isRTL ? 'تفعيل مبلغ التأكيد' : 'Enable confirmation amount'}
-                hint={isRTL
-                  ? 'عند الإيقاف، لا يُطلب من العميل دفع أي مبلغ قبل الفحص.'
-                  : 'When off, the customer pays nothing before inspection.'}
-                value={form.commitmentEnabled}
-                onChange={(v) => set({ commitmentEnabled: v })}
-                COLORS={COLORS} isRTL={isRTL}
-              />
-              {form.commitmentEnabled && (
-                <FieldNumber
-                  label={isRTL ? 'قيمة مبلغ التأكيد (ر.س)' : 'Confirmation amount (SAR)'}
-                  hint={isRTL ? 'يُخصم من الفاتورة النهائية بعد الإصلاح.' : 'Deducted from the final invoice after the repair.'}
-                  value={form.commitmentFee}
-                  onChangeText={(v) => set({ commitmentFee: v })}
-                  error={errors.commitmentFee}
-                  COLORS={COLORS} isRTL={isRTL}
-                />
-              )}
-            </CollapsibleSection>
+            {/* Confirmation amount, inspection, service types, and free
+                delivery moved to the dedicated /admin-request-settings
+                screen. Keep this screen focused on platform-wide
+                concerns (loyalty, marketplace, maintenance, ratings,
+                announcements, commission, return fee). */}
 
-            {/* 2. Inspection */}
-            <CollapsibleSection
-              icon="magnify-scan"
-              iconColor="#3b82f6"
-              title={isRTL ? 'الفحص' : 'Inspection'}
-              subtitle={isRTL ? 'رسوم فحص الجهاز' : 'Device inspection fee'}
-              COLORS={COLORS}
-              isRTL={isRTL}
-            >
-              <SwitchRow
-                label={isRTL ? 'تفعيل رسوم الفحص' : 'Charge an inspection fee'}
-                hint={isRTL
-                  ? 'عند الإيقاف، يكون الفحص مجانياً للعميل.'
-                  : 'When off, inspection is free for the customer.'}
-                value={form.inspectionEnabled}
-                onChange={(v) => set({ inspectionEnabled: v })}
-                COLORS={COLORS} isRTL={isRTL}
-              />
-              {form.inspectionEnabled && (
-                <FieldNumber
-                  label={isRTL ? 'قيمة رسوم الفحص (ر.س)' : 'Inspection fee (SAR)'}
-                  hint={isRTL
-                    ? 'تُحتسب عند رفض العميل لعرض السعر بعد الفحص.'
-                    : 'Charged when the customer rejects the post-inspection quote.'}
-                  value={form.inspectionFee}
-                  onChangeText={(v) => set({ inspectionFee: v })}
-                  error={errors.inspectionFee}
-                  COLORS={COLORS} isRTL={isRTL}
-                />
-              )}
-            </CollapsibleSection>
-
-            {/* 3. Repair service areas */}
+            {/* Repair service areas */}
             <PaymentMethodsSection COLORS={COLORS} isRTL={isRTL} language={language} />
 
             <ServiceAreasSection COLORS={COLORS} isRTL={isRTL} language={language} />
@@ -499,78 +412,8 @@ export default function AdminPlatformSettingsScreen() {
                 onChange={(v) => set({ marketplaceEnabled: v })}
                 COLORS={COLORS} isRTL={isRTL}
               />
-              {/* Per-service availability — turn off a booking mode without
-                  a code release. Disabled modes are hidden from the
-                  customer's service-type chooser entirely. */}
-              <SwitchRow
-                label={isRTL ? 'خدمة الفني المتنقل' : 'Mobile-technician service'}
-                hint={isRTL
-                  ? 'فني يأتي إلى موقع العميل ويصلح الجهاز في المكان.'
-                  : 'Technician comes to the customer location and fixes on-site.'}
-                value={form.serviceMobileEnabled}
-                onChange={(v) => set({ serviceMobileEnabled: v })}
-                COLORS={COLORS} isRTL={isRTL}
-              />
-              <SwitchRow
-                label={isRTL ? 'خدمة الاستلام والتوصيل' : 'Pickup & delivery service'}
-                hint={isRTL
-                  ? 'نستلم جهاز العميل ونوصّله للمحل المتعاقد ونُرجعه بعد الإصلاح.'
-                  : 'We pick up the device, take it to the partner shop, and return it.'}
-                value={form.servicePickupEnabled}
-                onChange={(v) => set({ servicePickupEnabled: v })}
-                COLORS={COLORS} isRTL={isRTL}
-              />
-              <SwitchRow
-                label={isRTL ? 'تسليم واستلام شخصي' : 'Personal hand-off'}
-                hint={isRTL
-                  ? 'العميل يسلّم الجهاز للفني شخصياً في مركز الخدمة بدون رسوم توصيل.'
-                  : 'Customer hands the device to the technician in person — no delivery fee.'}
-                value={form.serviceHandoffEnabled}
-                onChange={(v) => set({ serviceHandoffEnabled: v })}
-                COLORS={COLORS} isRTL={isRTL}
-              />
-              {/* Free delivery — master switch + optional promo code. When
-                  the switch is on, every customer sees the delivery fee as
-                  "free". When the code is set, a customer typing that code
-                  in the discount field at request time gets free delivery
-                  even if the master switch is off. Case-insensitive. */}
-              <SwitchRow
-                label={isRTL ? 'توصيل مجاني للجميع' : 'Free delivery for everyone'}
-                hint={isRTL
-                  ? 'عند التفعيل، تظهر رسوم التوصيل بقيمة "مجاناً" لكل العملاء.'
-                  : 'When on, every customer sees the delivery fee as "Free".'}
-                value={form.freeDeliveryEnabled}
-                onChange={(v) => set({ freeDeliveryEnabled: v })}
-                COLORS={COLORS} isRTL={isRTL}
-              />
-              <View style={{ marginTop: 12 }}>
-                <Text style={{ color: COLORS.text, fontWeight: '700', marginBottom: 6, textAlign: isRTL ? 'right' : 'left' }}>
-                  {isRTL ? 'كود التوصيل المجاني (اختياري)' : 'Free-delivery promo code (optional)'}
-                </Text>
-                <Text style={{ color: COLORS.textSecondary, fontSize: 12, marginBottom: 8, textAlign: isRTL ? 'right' : 'left' }}>
-                  {isRTL
-                    ? 'إذا أدخل العميل هذا الكود في خانة الخصم، يصبح التوصيل مجانياً. اتركه فارغاً لتعطيل الميزة.'
-                    : 'If a customer enters this code in the discount field, delivery becomes free. Leave empty to disable.'}
-                </Text>
-                <TextInput
-                  value={form.freeDeliveryPromoCode}
-                  onChangeText={(v) => set({ freeDeliveryPromoCode: v.toUpperCase() })}
-                  autoCapitalize="characters"
-                  autoCorrect={false}
-                  placeholder={isRTL ? 'مثال: FREESHIP' : 'e.g. FREESHIP'}
-                  placeholderTextColor={COLORS.textSecondary}
-                  style={{
-                    borderWidth: 1,
-                    borderColor: COLORS.border,
-                    borderRadius: BORDER_RADIUS.md,
-                    paddingHorizontal: 14,
-                    paddingVertical: 12,
-                    color: COLORS.text,
-                    backgroundColor: COLORS.background,
-                    textAlign: isRTL ? 'right' : 'left',
-                  }}
-                />
-              </View>
+              {/* Service-type toggles and free-delivery controls moved
+                  to /admin-request-settings. */}
               <FieldMultiline
                 label={isRTL ? 'نص الإعلان (عربي)' : 'Announcement text (Arabic)'}
                 value={form.announcementAr}

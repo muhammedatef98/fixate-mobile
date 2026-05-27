@@ -254,8 +254,17 @@ export default function AdminDashboardScreen() {
         <ActionCard
           icon="tune-vertical" iconColor="#6366f1"
           title={isRTL ? 'إعدادات المنصة' : 'Platform Settings'}
-          subtitle={isRTL ? 'الرسوم، العمولة، وضع الصيانة، الإعلانات' : 'Fees, commission, maintenance mode, announcements'}
+          subtitle={isRTL ? 'الولاء، السوق، الصيانة، الإعلانات' : 'Loyalty, marketplace, maintenance, announcements'}
           onPress={() => router.push('/admin-platform-settings')}
+          COLORS={COLORS} isRTL={isRTL}
+        />
+        <ActionCard
+          icon="clipboard-edit-outline" iconColor="#0ea5a4"
+          title={isRTL ? 'إعدادات الطلب' : 'Request Settings'}
+          subtitle={isRTL
+            ? 'أنواع الخدمة، الفحص، التأكيد، التوصيل، أنواع الأجهزة'
+            : 'Service types, inspection, confirmation, delivery, device types'}
+          onPress={() => router.push('/admin-request-settings' as any)}
           COLORS={COLORS} isRTL={isRTL}
         />
         <ActionCard

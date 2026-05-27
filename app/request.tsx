@@ -19,6 +19,7 @@ import { getFriendlyError } from '../utils/errorMessages';
 import { tapLight } from '../utils/haptics';
 import { formatPrice } from '../utils/pricing';
 import { getRegionTree, type RegionWithCities } from '../services/serviceAreasService';
+import { listRequestDeviceTypes } from '../services/requestDeviceTypesService';
 import {
   computeDeliveryFee,
   getCityCentroid,
@@ -82,17 +83,31 @@ const SERVICE_TYPES = [
   },
 ];
 
-const DEVICE_TYPES = [
-  { id: 'phone', name: 'جوال', nameEn: 'Phone', icon: 'cellphone', available: true },
-  { id: 'tablet', name: 'تابلت', nameEn: 'Tablet', icon: 'tablet', available: true },
-  { id: 'laptop', name: 'لابتوب', nameEn: 'Laptop', icon: 'laptop', available: true },
-  { id: 'watch', name: 'ساعة ذكية', nameEn: 'Smart Watch', icon: 'watch', available: true },
-  { id: 'gaming', name: 'أجهزة الألعاب', nameEn: 'Gaming Devices', icon: 'gamepad-variant', available: true },
-  { id: 'other', name: 'أجهزة أخرى', nameEn: 'Other Devices', icon: 'devices', available: true },
-  { id: 'printer', name: 'طابعة', nameEn: 'Printer', icon: 'printer', available: false },
-  { id: 'headphones', name: 'سماعات', nameEn: 'Headphones', icon: 'headphones', available: false },
-  { id: 'tv', name: 'شاشة/تلفاز', nameEn: 'TV/Monitor', icon: 'television', available: false },
-  { id: 'appliance', name: 'أجهزة منزلية', nameEn: 'Home Appliances', icon: 'home-outline', available: false },
+// Fallback device list — used when the DB-backed catalogue from
+// `request_device_types` is unavailable (migration not yet applied,
+// network failure, etc.) so the request flow never breaks. The
+// admin-managed catalogue is the long-term source of truth; this
+// shape mirrors the DB rows so the rendering code is uniform.
+type RequestDeviceTypeOption = {
+  id: string;
+  code: string;
+  name: string;
+  nameEn: string;
+  icon: string;
+  available: boolean;
+};
+
+const FALLBACK_DEVICE_TYPES: RequestDeviceTypeOption[] = [
+  { id: 'phone',      code: 'phone',      name: 'جوال',            nameEn: 'Phone',           icon: 'cellphone',       available: true },
+  { id: 'tablet',     code: 'tablet',     name: 'تابلت',           nameEn: 'Tablet',          icon: 'tablet',          available: true },
+  { id: 'laptop',     code: 'laptop',     name: 'لابتوب',          nameEn: 'Laptop',          icon: 'laptop',          available: true },
+  { id: 'watch',      code: 'watch',      name: 'ساعة ذكية',       nameEn: 'Smart Watch',     icon: 'watch',           available: true },
+  { id: 'gaming',     code: 'gaming',     name: 'أجهزة الألعاب',    nameEn: 'Gaming Devices',  icon: 'gamepad-variant', available: true },
+  { id: 'other',      code: 'other',      name: 'أجهزة أخرى',      nameEn: 'Other Devices',   icon: 'devices',         available: true },
+  { id: 'printer',    code: 'printer',    name: 'طابعة',           nameEn: 'Printer',         icon: 'printer',         available: false },
+  { id: 'headphones', code: 'headphones', name: 'سماعات',          nameEn: 'Headphones',      icon: 'headphones',      available: false },
+  { id: 'tv',         code: 'tv',         name: 'شاشة/تلفاز',      nameEn: 'TV/Monitor',      icon: 'television',      available: false },
+  { id: 'appliance',  code: 'appliance',  name: 'أجهزة منزلية',    nameEn: 'Home Appliances', icon: 'home-outline',    available: false },
 ];
 
 export default function RequestScreen() {
@@ -114,6 +129,28 @@ export default function RequestScreen() {
   useEffect(() => {
     getRegionTree(false)
       .then((tree) => setRegionTree(tree))
+      .catch(() => undefined);
+  }, []);
+
+  // Device-type catalogue — admin-controlled, loaded from
+  // `request_device_types`. Falls back to the hardcoded list when the DB
+  // returns empty so the chooser is never blank in a half-configured
+  // environment. Disabled rows render with a "Coming soon" pill,
+  // matching the legacy hardcoded behaviour.
+  const [deviceTypeOptions, setDeviceTypeOptions] = useState<RequestDeviceTypeOption[]>(FALLBACK_DEVICE_TYPES);
+  useEffect(() => {
+    listRequestDeviceTypes()
+      .then((rows) => {
+        if (!rows || rows.length === 0) return;
+        setDeviceTypeOptions(rows.map((r) => ({
+          id: r.code,
+          code: r.code,
+          name: r.name_ar,
+          nameEn: r.name_en,
+          icon: r.icon,
+          available: r.enabled,
+        })));
+      })
       .catch(() => undefined);
   }, []);
   const [address, setAddress] = useState('');
@@ -822,7 +859,7 @@ export default function RequestScreen() {
           <ScrollView>
             <Text style={styles.sectionTitle}>{isRTL ? 'اختر نوع الجهاز' : 'Select Device Type'}</Text>
             <View style={styles.deviceGrid}>
-              {DEVICE_TYPES.map((device) => (
+              {deviceTypeOptions.map((device) => (
                 <PressableScale
                   key={device.id}
                   to={0.97}
