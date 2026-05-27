@@ -731,8 +731,12 @@ function ServiceAreasSection({
                         </View>
                         {/* Compact data summary so the admin can audit
                             centroid / parent status at a glance without
-                            opening the editor. */}
-                        {(hasCentroid || hasParent) && (
+                            opening the editor. An enabled city without
+                            a centroid gets a small amber warning — the
+                            customer-side matcher skips such cities, so
+                            the toggle is effectively a no-op until the
+                            admin sets lat/lng. */}
+                        {(hasCentroid || hasParent || (city.enabled && !hasCentroid && !hasParent)) && (
                           <View style={{
                             flexDirection: isRTL ? 'row-reverse' : 'row',
                             flexWrap: 'wrap',
@@ -748,6 +752,24 @@ function ServiceAreasSection({
                               <Text style={{ color: COLORS.primary, fontSize: 10, fontWeight: '700' }}>
                                 ↳ {isRTL ? parentName.name_ar : parentName.name_en}
                               </Text>
+                            )}
+                            {city.enabled && !hasCentroid && !hasParent && (
+                              <View style={{
+                                flexDirection: isRTL ? 'row-reverse' : 'row',
+                                alignItems: 'center',
+                                gap: 3,
+                              }}>
+                                <MaterialCommunityIcons
+                                  name="alert-circle-outline"
+                                  size={11}
+                                  color="#B45309"
+                                />
+                                <Text style={{ color: '#B45309', fontSize: 10, fontWeight: '700' }}>
+                                  {isRTL
+                                    ? 'لم يتم تحديد الإحداثيات — لن تتطابق مع أي دبوس'
+                                    : 'Missing centroid — pin matching disabled'}
+                                </Text>
+                              </View>
                             )}
                           </View>
                         )}
@@ -894,6 +916,15 @@ function NewCityModal({
         enabled: false,
       });
       onCreated(created);
+      // Confirm the create + remind the admin the row is disabled by
+      // default so they don't expect customers to see it until they
+      // finish setting centroid/parent and flip enabled on.
+      Alert.alert(
+        isRTL ? 'تمت الإضافة ✓' : 'City added ✓',
+        isRTL
+          ? `أُنشئت "${arTrim}" معطّلة. اضغط القلم بجانبها لإضافة الإحداثيات والمدينة الأم ثم فعّلها.`
+          : `"${nameEn.trim()}" is created and disabled. Tap the pencil next to it to set lat/lng + parent, then enable.`
+      );
     } catch (e: any) {
       Alert.alert(isRTL ? 'فشل الإضافة' : 'Create failed', getFriendlyError(e, language));
     } finally {
@@ -1126,6 +1157,15 @@ function CityEditor({
     try {
       await updateCity(city.id, patch);
       await onSaved(patch);
+      // Subtle confirmation so the admin gets a positive signal that
+      // the change went through. Matches the platform-settings save
+      // pattern used elsewhere on this screen.
+      Alert.alert(
+        isRTL ? 'تم الحفظ ✓' : 'Saved ✓',
+        isRTL
+          ? `تم تحديث "${isRTL ? city.name_ar : city.name_en}".`
+          : `Updated "${city.name_en}".`
+      );
     } catch (e: any) {
       Alert.alert(isRTL ? 'فشل الحفظ' : 'Save failed', getFriendlyError(e, language));
     } finally {

@@ -315,6 +315,31 @@ export default function ChatbotScreen() {
     [faqs]
   );
 
+  // Resolve the welcome bubble's starter chips. Prefer the hardcoded
+  // four; if an admin has disabled or renamed those codes, fall back to
+  // whatever enabled FAQs the live catalogue starts with so the bubble
+  // never lands with zero starting points.
+  const PREFERRED_STARTERS = ['request', 'price', 'warranty', 'area'];
+  const starterFollowUps = useMemo(() => {
+    const present = PREFERRED_STARTERS.filter((code) => faqById[code]);
+    if (present.length > 0) return present;
+    return faqs.slice(0, 4).map((f) => f.id);
+  }, [faqs, faqById]);
+  // Keep the most-recent welcome bubble in sync with the resolved
+  // starters whenever the catalogue loads / changes.
+  useEffect(() => {
+    setMessages((prev) => {
+      if (prev.length === 0 || prev[0].id !== 'welcome') return prev;
+      const same =
+        (prev[0].followUpIds ?? []).length === starterFollowUps.length &&
+        (prev[0].followUpIds ?? []).every((c, i) => c === starterFollowUps[i]);
+      if (same) return prev;
+      const next = [...prev];
+      next[0] = { ...next[0], followUpIds: starterFollowUps };
+      return next;
+    });
+  }, [starterFollowUps]);
+
   useEffect(() => {
     const t = setTimeout(() => scrollViewRef.current?.scrollToEnd({ animated: true }), 120);
     return () => clearTimeout(t);

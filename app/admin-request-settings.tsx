@@ -179,7 +179,9 @@ export default function AdminRequestSettingsScreen() {
       ]);
       Alert.alert(
         isRTL ? 'تم الحفظ ✓' : 'Saved ✓',
-        isRTL ? 'تم تحديث إعدادات الطلب.' : 'Request settings updated.'
+        isRTL
+          ? 'تم تحديث إعدادات الطلب. (أنواع الأجهزة وأسئلة المساعد تُحفظ تلقائياً.)'
+          : 'Request settings updated. (Device types and FAQs save automatically.)'
       );
     } catch (e: any) {
       logger.error('admin request-settings save failed', e);
@@ -299,6 +301,7 @@ export default function AdminRequestSettingsScreen() {
               title={isRTL ? 'أنواع الخدمة' : 'Service types'}
               subtitle={isRTL ? 'تفعيل أو إيقاف وضع الحجز' : 'Enable or disable booking modes'}
               COLORS={COLORS} isRTL={isRTL}
+              defaultOpen
             >
               <SwitchRow
                 label={isRTL ? 'خدمة الفني المتنقل' : 'Mobile-technician service'}
@@ -546,7 +549,12 @@ export default function AdminRequestSettingsScreen() {
               </Text>
             </Section>
 
-            {/* Save bar */}
+            {/* Save bar — only covers the platform-settings half of this
+                screen (service types, inspection, confirmation, free
+                delivery). The device-type and FAQ catalogues save inline
+                from their own editor sheets; the helper line below makes
+                that scope explicit so admins don't wonder if their FAQ
+                or device edits also need this button. */}
             <TouchableOpacity
               style={[styles.saveBtn, saving && { opacity: 0.6 }]}
               onPress={handleSave}
@@ -555,9 +563,20 @@ export default function AdminRequestSettingsScreen() {
               {saving ? (
                 <ActivityIndicator color="#fff" />
               ) : (
-                <Text style={styles.saveBtnText}>{isRTL ? 'حفظ التغييرات' : 'Save changes'}</Text>
+                <Text style={styles.saveBtnText}>
+                  {isRTL ? 'حفظ إعدادات الطلب' : 'Save request settings'}
+                </Text>
               )}
             </TouchableOpacity>
+            <Text style={[styles.fieldHint, {
+              color: COLORS.textSecondary,
+              textAlign: 'center',
+              marginTop: 6,
+            }]}>
+              {isRTL
+                ? 'أنواع الأجهزة وأسئلة المساعد تُحفظ تلقائياً من شاشة التعديل الخاصة بها.'
+                : 'Device types and FAQs save automatically from their own editor sheet.'}
+            </Text>
           </ScrollView>
         )}
       </KeyboardAvoidingView>
@@ -631,6 +650,7 @@ function Header({
 
 function Section({
   icon, iconColor, title, subtitle, children, COLORS, isRTL,
+  defaultOpen = false,
 }: {
   icon: string;
   iconColor: string;
@@ -639,7 +659,12 @@ function Section({
   children: React.ReactNode;
   COLORS: any;
   isRTL: boolean;
+  /** Whether the section starts expanded. The first section on the
+   *  screen passes true; the rest collapse so the page is scannable
+   *  even with six sections stacked. */
+  defaultOpen?: boolean;
 }) {
+  const [open, setOpen] = useState(defaultOpen);
   return (
     <View
       style={{
@@ -648,10 +673,14 @@ function Section({
         borderWidth: 1,
         borderColor: COLORS.border,
         padding: SPACING.md,
-        gap: 10,
+        gap: open ? 10 : 0,
       }}
     >
-      <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 10 }}>
+      <TouchableOpacity
+        onPress={() => setOpen((v) => !v)}
+        activeOpacity={0.7}
+        style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 10 }}
+      >
         <View style={{
           width: 36, height: 36, borderRadius: 12,
           backgroundColor: iconColor + '18',
@@ -667,8 +696,13 @@ function Section({
             </Text>
           )}
         </View>
-      </View>
-      <View style={{ gap: 10 }}>{children}</View>
+        <MaterialCommunityIcons
+          name={open ? 'chevron-up' : 'chevron-down'}
+          size={20}
+          color={COLORS.textSecondary}
+        />
+      </TouchableOpacity>
+      {open && <View style={{ gap: 10 }}>{children}</View>}
     </View>
   );
 }
