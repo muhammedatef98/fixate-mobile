@@ -14,6 +14,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   RefreshControl,
+  Modal,
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useApp } from '../contexts/AppContext';
@@ -36,6 +37,7 @@ import {
   updateCity,
   setRegionCitiesEnabled,
   type RegionWithCities,
+  type ServiceCity,
 } from '../services/serviceAreasService';
 import {
   listPaymentMethods,
@@ -526,6 +528,9 @@ function ServiceAreasSection({
 }) {
   const [tree, setTree] = useState<RegionWithCities[] | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
+  // Active row in the lat/lng + parent editor sheet. The sheet renders
+  // when this is non-null and pre-fills with that row's current values.
+  const [editingCity, setEditingCity] = useState<{ city: ServiceCity; region: RegionWithCities } | null>(null);
   const styles = createStyles(COLORS, isRTL);
 
   useEffect(() => {
@@ -658,35 +663,506 @@ function ServiceAreasSection({
                       </Text>
                     </TouchableOpacity>
                   </View>
-                  {region.cities.map((city) => (
-                    <View
-                      key={city.id}
-                      style={{
-                        flexDirection: isRTL ? 'row-reverse' : 'row',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        paddingVertical: 6,
-                        gap: 10,
-                      }}
-                    >
-                      <Text style={{ color: COLORS.text, fontSize: 13, flex: 1, textAlign: isRTL ? 'right' : 'left' }}>
-                        {isRTL ? city.name_ar : city.name_en}
-                      </Text>
-                      <Switch
-                        value={city.enabled}
-                        onValueChange={(v) => toggleCity(region, city.id, v)}
-                        trackColor={{ false: COLORS.border, true: COLORS.primary }}
-                        thumbColor="#fff"
-                      />
-                    </View>
-                  ))}
+                  {region.cities.map((city) => {
+                    const hasCentroid = city.lat != null && city.lng != null;
+                    const hasParent = !!city.parent_city_id;
+                    const parentName = hasParent
+                      ? region.cities.find((c) => c.id === city.parent_city_id)
+                      : null;
+                    return (
+                      <View
+                        key={city.id}
+                        style={{
+                          paddingVertical: 6,
+                          gap: 4,
+                        }}
+                      >
+                        <View style={{
+                          flexDirection: isRTL ? 'row-reverse' : 'row',
+                          alignItems: 'center',
+                          gap: 10,
+                        }}>
+                          <Text style={{ color: COLORS.text, fontSize: 13, flex: 1, textAlign: isRTL ? 'right' : 'left' }}>
+                            {isRTL ? city.name_ar : city.name_en}
+                          </Text>
+                          {/* Edit affordance — opens the centroid / parent
+                              / fee / sort editor sheet for this city.
+                              Visible regardless of enabled state so admin
+                              can fix data on a disabled row before turning
+                              it on. */}
+                          <TouchableOpacity
+                            onPress={() => setEditingCity({ city, region })}
+                            style={{ padding: 6 }}
+                            accessibilityLabel={isRTL ? 'تعديل' : 'Edit'}
+                          >
+                            <MaterialCommunityIcons
+                              name="pencil-outline"
+                              size={16}
+                              color={COLORS.textSecondary}
+                            />
+                          </TouchableOpacity>
+                          <Switch
+                            value={city.enabled}
+                            onValueChange={(v) => toggleCity(region, city.id, v)}
+                            trackColor={{ false: COLORS.border, true: COLORS.primary }}
+                            thumbColor="#fff"
+                          />
+                        </View>
+                        {/* Compact data summary so the admin can audit
+                            centroid / parent status at a glance without
+                            opening the editor. */}
+                        {(hasCentroid || hasParent) && (
+                          <View style={{
+                            flexDirection: isRTL ? 'row-reverse' : 'row',
+                            flexWrap: 'wrap',
+                            gap: 6,
+                            paddingHorizontal: 4,
+                          }}>
+                            {hasCentroid && (
+                              <Text style={{ color: COLORS.textSecondary, fontSize: 10, fontWeight: '600' }}>
+                                {Number(city.lat).toFixed(3)}, {Number(city.lng).toFixed(3)}
+                              </Text>
+                            )}
+                            {hasParent && parentName && (
+                              <Text style={{ color: COLORS.primary, fontSize: 10, fontWeight: '700' }}>
+                                ↳ {isRTL ? parentName.name_ar : parentName.name_en}
+                              </Text>
+                            )}
+                          </View>
+                        )}
+                      </View>
+                    );
+                  })}
                 </View>
               )}
             </View>
           );
         })
       )}
+
+      {/* City editor sheet — single instance, driven by `editingCity`. */}
+      <CityEditor
+        target={editingCity}
+        isRTL={isRTL}
+        language={language}
+        COLORS={COLORS}
+        onClose={() => setEditingCity(null)}
+        onSaved={async (next: Partial<ServiceCity>) => {
+          if (!editingCity) return;
+          // Optimistic local update so the row reflects the change
+          // immediately; the cache bust inside updateCity ensures the
+          // next read is fresh too.
+          setTree((t) => t && t.map((r) =>
+            r.id === editingCity.region.id
+              ? { ...r, cities: r.cities.map((c) => c.id === editingCity.city.id ? { ...c, ...next } : c) }
+              : r
+          ));
+          setEditingCity(null);
+        }}
+      />
     </CollapsibleSection>
+  );
+}
+
+/**
+ * Bottom-sheet editor for one city row in the service-area tree. Lets
+ * the admin update centroid (lat/lng), parent_city_id, delivery_fee,
+ * and sort_order without leaving the platform-settings screen.
+ *
+ * Validation is client-side, defense-in-depth:
+ *  • lat in [-90, 90], lng in [-180, 180] (or both empty for null)
+ *  • delivery_fee and sort_order non-negative finite numbers
+ *  • parent_city_id ≠ self, and the parent chain must not contain self
+ *    (cycle detection walks the proposed chain via the live region tree)
+ *
+ * Parent picker is restricted to other cities in the same region — the
+ * use case is governorate-style hierarchy, not cross-region links. The
+ * DB still permits cross-region parents; only the UI is restricted.
+ */
+function CityEditor({
+  target, isRTL, language, COLORS, onClose, onSaved,
+}: {
+  target: { city: ServiceCity; region: RegionWithCities } | null;
+  isRTL: boolean;
+  language: 'ar' | 'en';
+  COLORS: any;
+  onClose: () => void;
+  onSaved: (next: Partial<ServiceCity>) => void | Promise<void>;
+}) {
+  const visible = !!target;
+  const [lat, setLat] = useState('');
+  const [lng, setLng] = useState('');
+  const [parentId, setParentId] = useState<string | null>(null);
+  const [deliveryFee, setDeliveryFee] = useState('');
+  const [sortOrder, setSortOrder] = useState('');
+  const [picking, setPicking] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  // Re-seed the form whenever the target changes so editing a different
+  // city doesn't carry stale values across.
+  useEffect(() => {
+    if (!target) return;
+    const c = target.city;
+    setLat(c.lat == null ? '' : String(c.lat));
+    setLng(c.lng == null ? '' : String(c.lng));
+    setParentId(c.parent_city_id ?? null);
+    setDeliveryFee(String(c.delivery_fee ?? 0));
+    setSortOrder(String(c.sort_order ?? 0));
+  }, [target?.city.id]);
+
+  if (!target) return null;
+  const { city, region } = target;
+  const siblings = region.cities.filter((c) => c.id !== city.id);
+  const currentParent = parentId ? region.cities.find((c) => c.id === parentId) ?? null : null;
+
+  // Walk the proposed parent chain; if we ever revisit `city.id` it would
+  // form a cycle and we refuse the save. Bounded by the region size.
+  const wouldCycle = (proposedParentId: string | null): boolean => {
+    if (!proposedParentId) return false;
+    const byId = new Map(region.cities.map((c) => [c.id, c]));
+    const seen = new Set<string>([city.id]);
+    let cursor: string | null | undefined = proposedParentId;
+    while (cursor) {
+      if (seen.has(cursor)) return true;
+      seen.add(cursor);
+      const next = byId.get(cursor);
+      cursor = next?.parent_city_id ?? null;
+    }
+    return false;
+  };
+
+  const parseOptionalNumber = (raw: string): { ok: true; value: number | null } | { ok: false } => {
+    const t = raw.trim();
+    if (t === '') return { ok: true, value: null };
+    const n = Number(t);
+    if (!Number.isFinite(n)) return { ok: false };
+    return { ok: true, value: n };
+  };
+
+  const handleSave = async () => {
+    // lat / lng: paired — both blank = clear centroid; otherwise both
+    // must be valid numbers in range.
+    const latP = parseOptionalNumber(lat);
+    const lngP = parseOptionalNumber(lng);
+    if (!latP.ok || !lngP.ok) {
+      Alert.alert(isRTL ? 'إحداثيات غير صالحة' : 'Invalid coordinates');
+      return;
+    }
+    if ((latP.value == null) !== (lngP.value == null)) {
+      Alert.alert(
+        isRTL ? 'إحداثيات ناقصة' : 'Both coordinates required',
+        isRTL ? 'يجب إدخال الاثنين أو تركهما فارغين معاً.' : 'Enter both lat & lng, or leave both blank.'
+      );
+      return;
+    }
+    if (latP.value != null && (latP.value < -90 || latP.value > 90)) {
+      Alert.alert(isRTL ? 'خط العرض خارج النطاق' : 'Latitude out of range', '-90 ≤ lat ≤ 90');
+      return;
+    }
+    if (lngP.value != null && (lngP.value < -180 || lngP.value > 180)) {
+      Alert.alert(isRTL ? 'خط الطول خارج النطاق' : 'Longitude out of range', '-180 ≤ lng ≤ 180');
+      return;
+    }
+
+    // delivery_fee + sort_order: numbers ≥ 0.
+    const fee = Number(deliveryFee);
+    if (!Number.isFinite(fee) || fee < 0) {
+      Alert.alert(isRTL ? 'رسوم غير صالحة' : 'Invalid delivery fee');
+      return;
+    }
+    const sort = Number(sortOrder);
+    if (!Number.isFinite(sort) || sort < 0) {
+      Alert.alert(isRTL ? 'ترتيب غير صالح' : 'Invalid sort order');
+      return;
+    }
+
+    if (parentId === city.id) {
+      Alert.alert(isRTL ? 'مرجع غير صالح' : 'Invalid parent', isRTL ? 'لا يمكن أن تكون المدينة أبواً لنفسها.' : 'A city cannot be its own parent.');
+      return;
+    }
+    if (wouldCycle(parentId)) {
+      Alert.alert(
+        isRTL ? 'دورة في التبعية' : 'Parent cycle detected',
+        isRTL
+          ? 'هذا الاختيار يُنشئ حلقة مغلقة في علاقات المدن. اختر أباً مختلفاً.'
+          : 'This selection would create a cycle in the parent chain. Pick a different parent.'
+      );
+      return;
+    }
+
+    const patch: Partial<ServiceCity> = {
+      lat: latP.value,
+      lng: lngP.value,
+      parent_city_id: parentId,
+      delivery_fee: fee,
+      sort_order: Math.floor(sort),
+    };
+    setSaving(true);
+    try {
+      await updateCity(city.id, patch);
+      await onSaved(patch);
+    } catch (e: any) {
+      Alert.alert(isRTL ? 'فشل الحفظ' : 'Save failed', getFriendlyError(e, language));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.4)' }}
+      >
+        <TouchableOpacity style={StyleSheet.absoluteFill} onPress={onClose} />
+        <View style={{
+          backgroundColor: COLORS.card,
+          borderTopLeftRadius: 22,
+          borderTopRightRadius: 22,
+          padding: SPACING.lg,
+          paddingBottom: 28,
+          gap: 12,
+          maxHeight: '90%',
+        }}>
+          <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: COLORS.border, alignSelf: 'center' }} />
+          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: 12 }}>
+            <View>
+              <Text style={{ color: COLORS.text, fontWeight: '800', fontSize: 17, textAlign: isRTL ? 'right' : 'left' }}>
+                {isRTL ? city.name_ar : city.name_en}
+              </Text>
+              <Text style={{ color: COLORS.textSecondary, fontSize: 11, marginTop: 2, textAlign: isRTL ? 'right' : 'left' }}>
+                {isRTL ? region.name_ar : region.name_en}
+              </Text>
+            </View>
+
+            <CityField
+              label={isRTL ? 'خط العرض (Latitude)' : 'Latitude'}
+              hint={isRTL ? 'من -90 إلى 90. اتركه فارغاً مع خط الطول لإلغاء الإحداثي.' : '-90 to 90. Leave blank (with lng) to clear the centroid.'}
+              value={lat}
+              onChange={setLat}
+              keyboard="decimal-pad"
+              COLORS={COLORS} isRTL={isRTL}
+            />
+            <CityField
+              label={isRTL ? 'خط الطول (Longitude)' : 'Longitude'}
+              hint={isRTL ? 'من -180 إلى 180.' : '-180 to 180.'}
+              value={lng}
+              onChange={setLng}
+              keyboard="decimal-pad"
+              COLORS={COLORS} isRTL={isRTL}
+            />
+
+            {/* Parent picker */}
+            <View style={{ gap: 4 }}>
+              <Text style={{ color: COLORS.textSecondary, fontWeight: '700', fontSize: 12, textAlign: isRTL ? 'right' : 'left' }}>
+                {isRTL ? 'المدينة الأم (نفس المنطقة فقط)' : 'Parent city (same region only)'}
+              </Text>
+              <Text style={{ color: COLORS.textSecondary, fontSize: 11, marginBottom: 4, textAlign: isRTL ? 'right' : 'left' }}>
+                {isRTL
+                  ? 'عند الاختيار، تتبع هذه المدينة حالة التغطية للمدينة الأم تلقائياً.'
+                  : 'When set, this city inherits coverage from the parent city automatically.'}
+              </Text>
+              <TouchableOpacity
+                onPress={() => setPicking(true)}
+                style={{
+                  borderWidth: 1,
+                  borderColor: COLORS.border,
+                  borderRadius: BORDER_RADIUS.md,
+                  paddingHorizontal: 12,
+                  paddingVertical: 12,
+                  backgroundColor: COLORS.background,
+                  flexDirection: isRTL ? 'row-reverse' : 'row',
+                  alignItems: 'center',
+                  gap: 8,
+                }}
+              >
+                <MaterialCommunityIcons
+                  name={currentParent ? 'family-tree' : 'circle-outline'}
+                  size={16}
+                  color={currentParent ? COLORS.primary : COLORS.textSecondary}
+                />
+                <Text style={{
+                  flex: 1,
+                  color: currentParent ? COLORS.text : COLORS.textSecondary,
+                  fontSize: 14,
+                  fontWeight: currentParent ? '700' : '500',
+                  textAlign: isRTL ? 'right' : 'left',
+                }}>
+                  {currentParent
+                    ? (isRTL ? currentParent.name_ar : currentParent.name_en)
+                    : (isRTL ? 'بدون مدينة أم (مدينة رئيسية)' : 'None (top-level city)')}
+                </Text>
+                <MaterialCommunityIcons name="chevron-down" size={16} color={COLORS.textSecondary} />
+              </TouchableOpacity>
+            </View>
+
+            <CityField
+              label={isRTL ? 'رسوم التوصيل (ر.س)' : 'Delivery fee (SAR)'}
+              hint={isRTL ? 'لا يمكن أن تكون سالبة.' : 'Must be non-negative.'}
+              value={deliveryFee}
+              onChange={setDeliveryFee}
+              keyboard="decimal-pad"
+              COLORS={COLORS} isRTL={isRTL}
+            />
+            <CityField
+              label={isRTL ? 'ترتيب العرض' : 'Sort order'}
+              hint={isRTL ? 'أصغر = أعلى في القائمة.' : 'Lower = higher in the list.'}
+              value={sortOrder}
+              onChange={(v) => setSortOrder(v.replace(/[^0-9]/g, ''))}
+              keyboard="number-pad"
+              COLORS={COLORS} isRTL={isRTL}
+            />
+
+            <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', gap: 10, marginTop: 6 }}>
+              <TouchableOpacity
+                onPress={onClose}
+                style={{
+                  flex: 1, paddingVertical: 13, alignItems: 'center',
+                  borderRadius: BORDER_RADIUS.md, borderWidth: 1, borderColor: COLORS.border,
+                }}
+              >
+                <Text style={{ color: COLORS.text, fontWeight: '700' }}>{isRTL ? 'إلغاء' : 'Cancel'}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={handleSave}
+                disabled={saving}
+                style={{
+                  flex: 2, paddingVertical: 13, alignItems: 'center',
+                  borderRadius: BORDER_RADIUS.md, backgroundColor: COLORS.primary,
+                  opacity: saving ? 0.55 : 1,
+                }}
+              >
+                {saving ? <ActivityIndicator color="#fff" /> : (
+                  <Text style={{ color: '#fff', fontWeight: '800' }}>{isRTL ? 'حفظ' : 'Save'}</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </ScrollView>
+        </View>
+      </KeyboardAvoidingView>
+
+      {/* Parent picker — nested modal so it covers the editor sheet
+          while still being dismissable back to it. */}
+      <Modal visible={picking} animationType="fade" transparent onRequestClose={() => setPicking(false)}>
+        <View style={{ flex: 1, justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.5)', padding: SPACING.lg }}>
+          <TouchableOpacity style={StyleSheet.absoluteFill} onPress={() => setPicking(false)} />
+          <View style={{
+            backgroundColor: COLORS.card,
+            borderRadius: BORDER_RADIUS.lg,
+            padding: SPACING.md,
+            maxHeight: '70%',
+          }}>
+            <Text style={{ color: COLORS.text, fontWeight: '800', fontSize: 15, marginBottom: 10, textAlign: isRTL ? 'right' : 'left' }}>
+              {isRTL ? 'اختر مدينة أم' : 'Pick a parent city'}
+            </Text>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <TouchableOpacity
+                onPress={() => { setParentId(null); setPicking(false); }}
+                style={{
+                  paddingVertical: 12,
+                  borderBottomWidth: StyleSheet.hairlineWidth,
+                  borderBottomColor: COLORS.border,
+                  flexDirection: isRTL ? 'row-reverse' : 'row',
+                  alignItems: 'center',
+                  gap: 8,
+                }}
+              >
+                <MaterialCommunityIcons
+                  name={parentId === null ? 'radiobox-marked' : 'radiobox-blank'}
+                  size={18}
+                  color={parentId === null ? COLORS.primary : COLORS.textSecondary}
+                />
+                <Text style={{ color: COLORS.text, fontSize: 14, fontWeight: parentId === null ? '700' : '500' }}>
+                  {isRTL ? 'بدون (مدينة رئيسية)' : 'None (top-level)'}
+                </Text>
+              </TouchableOpacity>
+              {siblings.map((s) => {
+                const selected = parentId === s.id;
+                const cycles = wouldCycle(s.id);
+                return (
+                  <TouchableOpacity
+                    key={s.id}
+                    onPress={() => {
+                      if (cycles) return;
+                      setParentId(s.id);
+                      setPicking(false);
+                    }}
+                    disabled={cycles}
+                    style={{
+                      paddingVertical: 12,
+                      borderBottomWidth: StyleSheet.hairlineWidth,
+                      borderBottomColor: COLORS.border,
+                      flexDirection: isRTL ? 'row-reverse' : 'row',
+                      alignItems: 'center',
+                      gap: 8,
+                      opacity: cycles ? 0.4 : 1,
+                    }}
+                  >
+                    <MaterialCommunityIcons
+                      name={selected ? 'radiobox-marked' : 'radiobox-blank'}
+                      size={18}
+                      color={selected ? COLORS.primary : COLORS.textSecondary}
+                    />
+                    <Text style={{
+                      flex: 1,
+                      color: COLORS.text,
+                      fontSize: 14,
+                      fontWeight: selected ? '700' : '500',
+                      textAlign: isRTL ? 'right' : 'left',
+                    }}>
+                      {isRTL ? s.name_ar : s.name_en}
+                    </Text>
+                    {cycles && (
+                      <Text style={{ color: COLORS.error, fontSize: 10, fontWeight: '700' }}>
+                        {isRTL ? 'دورة' : 'cycle'}
+                      </Text>
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+    </Modal>
+  );
+}
+
+function CityField({
+  label, hint, value, onChange, keyboard, COLORS, isRTL,
+}: {
+  label: string;
+  hint?: string;
+  value: string;
+  onChange: (v: string) => void;
+  keyboard?: 'decimal-pad' | 'number-pad' | 'default';
+  COLORS: any;
+  isRTL: boolean;
+}) {
+  return (
+    <View style={{ gap: 4 }}>
+      <Text style={{ color: COLORS.text, fontWeight: '700', fontSize: 12, textAlign: isRTL ? 'right' : 'left' }}>{label}</Text>
+      {!!hint && (
+        <Text style={{ color: COLORS.textSecondary, fontSize: 11, textAlign: isRTL ? 'right' : 'left' }}>{hint}</Text>
+      )}
+      <TextInput
+        value={value}
+        onChangeText={onChange}
+        keyboardType={keyboard ?? 'default'}
+        placeholderTextColor={COLORS.textSecondary}
+        style={{
+          borderWidth: 1,
+          borderColor: COLORS.border,
+          borderRadius: BORDER_RADIUS.md,
+          paddingHorizontal: 12,
+          paddingVertical: 10,
+          color: COLORS.text,
+          backgroundColor: COLORS.background,
+          textAlign: isRTL ? 'right' : 'left',
+          fontSize: 15,
+        }}
+      />
+    </View>
   );
 }
 

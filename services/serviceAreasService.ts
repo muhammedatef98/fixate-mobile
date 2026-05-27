@@ -115,7 +115,10 @@ export const updateRegion = async (
 
 export const updateCity = async (
   id: string,
-  patch: Partial<Pick<ServiceCity, 'enabled' | 'delivery_fee' | 'sort_order'>>
+  patch: Partial<Pick<
+    ServiceCity,
+    'enabled' | 'delivery_fee' | 'sort_order' | 'lat' | 'lng' | 'parent_city_id'
+  >>
 ): Promise<void> => {
   const { error } = await supabase.from('service_area_cities').update(patch).eq('id', id);
   if (error) throw error;
