@@ -4,6 +4,7 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
+  Pressable,
   SafeAreaView,
   StatusBar,
   ScrollView,
@@ -420,10 +421,16 @@ export default function MarketScreen() {
         {DEVICE_CHIPS.map((c) => {
           const active = device === c.id;
           return (
-            <TouchableOpacity
+            // Plain Pressable with no opacity fade / Android ripple. The
+            // earlier TouchableOpacity press animation (opacity 1 → 0.75
+            // → 1) ran concurrently with the active-state color swap and
+            // was perceived as a brief shrink/squeeze of the chip. With
+            // visual feedback disabled the chip stays geometrically
+            // identical — only its colours change.
+            <Pressable
               key={c.id}
-              activeOpacity={0.75}
               onPress={() => setDevice(c.id)}
+              android_ripple={null as any}
               style={[
                 styles.deviceChip,
                 active && styles.deviceChipActive,
@@ -437,7 +444,7 @@ export default function MarketScreen() {
               <Text style={[styles.deviceChipText, active && { color: COLORS.primary }]}>
                 {isRTL ? c.ar : c.en}
               </Text>
-            </TouchableOpacity>
+            </Pressable>
           );
         })}
       </ScrollView>
