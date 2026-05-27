@@ -271,7 +271,11 @@ export default function MarketNewScreen() {
           </Field>
 
           <Field label={isRTL ? 'المدينة' : 'City'} COLORS={COLORS} isRTL={isRTL}>
+            {/* Marketplace listings are not service-gated — a seller can
+                post from anywhere in KSA. Explicitly opt out of the
+                coverage-gating default so every Saudi city is pickable. */}
             <SaudiCityPicker
+              mode="all"
               value={city}
               onSelect={setCity}
               isRTL={isRTL}

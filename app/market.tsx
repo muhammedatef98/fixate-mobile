@@ -553,7 +553,11 @@ export default function MarketScreen() {
             </View>
 
             <Text style={styles.sheetLabel}>{isRTL ? 'المدينة' : 'City'}</Text>
+            {/* Market browse filter — buyers may filter by any city a
+                listing was posted from, including ones outside our current
+                service coverage. Explicitly opt out of the gating default. */}
             <SaudiCityPicker
+              mode="all"
               value={city}
               onSelect={setCity}
               isRTL={isRTL}
