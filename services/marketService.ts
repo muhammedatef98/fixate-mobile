@@ -3,7 +3,37 @@ import { logger } from '../utils/logger';
 import { subscribeUnique } from '../utils/realtimeChannel';
 
 export type ListingCategory = 'used_device' | 'accessory' | 'spare_part' | 'other';
-export type ListingStatus = 'pending' | 'active' | 'sold' | 'rejected' | 'archived';
+
+/**
+ * Marketplace listing lifecycle (v3 — see migration
+ * 2026_05_27_market_lifecycle_v3.sql).
+ *
+ *   draft               → seller saved but not submitted
+ *   pending             → submitted, awaiting admin moderation
+ *   live                → admin-approved, publicly browsable
+ *   sold                → owner marked as sold
+ *   hidden_by_owner     → owner unlisted; reversible
+ *   delete_requested    → owner asked Fixate to remove the listing
+ *   rejected            → admin rejected; owner may edit & resubmit
+ *   archived_by_admin   → admin archived; client cannot restore
+ *
+ * Legacy `active` / `archived` values are accepted on read and normalised
+ * to `live` / `archived_by_admin` via {@link normalizeStatus}. Old clients
+ * may still emit them; the DB CHECK constraint accepts both.
+ */
+export type ListingStatus =
+  | 'draft'
+  | 'pending'
+  | 'live'
+  | 'sold'
+  | 'hidden_by_owner'
+  | 'delete_requested'
+  | 'rejected'
+  | 'archived_by_admin';
+
+/** Raw status as it may appear in the DB (incl. legacy values). */
+type RawListingStatus = ListingStatus | 'active' | 'archived';
+
 export type ContactPreference = 'dm' | 'phone' | 'both';
 export type ContactMethod = 'whatsapp' | 'phone' | 'in_app';
 export type DeviceType =
@@ -55,33 +85,118 @@ export interface MarketListing {
   status: ListingStatus;
   created_at?: string;
   updated_at?: string;
+  /** Owner-removed timestamp (legacy column; still set on hide for compat). */
   removed_at?: string | null;
+  /** Optional owner-supplied reason. Legacy; superseded by `moderation_reason`. */
   removed_reason?: string | null;
+  /** Admin reason attached to reject / archive transitions. */
+  moderation_reason?: string | null;
+  /** Admin-only internal notes. Not shown to sellers. */
+  admin_notes?: string | null;
+  /** Set when status enters `hidden_by_owner`. */
+  hidden_at?: string | null;
+  /** Set when status enters `delete_requested`. */
+  delete_requested_at?: string | null;
+  /** Set when status enters `archived_by_admin`. */
+  archived_at?: string | null;
 }
 
-/**
- * Soft-delete a listing by the owner: sets status to 'archived' and stamps
- * `removed_at` so admins can review owner-removed listings later. We keep
- * the row (rather than hard-deleting) so any conversation history,
- * receipts, or future disputes remain intact.
- */
-export const removeListingByOwner = async (
+/** Normalise legacy DB statuses (`active`, `archived`) to the v3 vocabulary. */
+const normalizeStatus = (raw: RawListingStatus | string | null | undefined): ListingStatus => {
+  if (raw === 'active') return 'live';
+  if (raw === 'archived') return 'archived_by_admin';
+  return (raw ?? 'pending') as ListingStatus;
+};
+
+const normalizeRow = <T extends { status?: any } | null | undefined>(row: T): T => {
+  if (row && typeof row === 'object' && 'status' in row && row.status) {
+    (row as any).status = normalizeStatus((row as any).status);
+  }
+  return row;
+};
+
+const normalizeRows = <T extends { status?: any }>(rows: T[]): T[] => {
+  for (const r of rows) normalizeRow(r);
+  return rows;
+};
+
+// ---------------------------------------------------------------------------
+// Seller state-machine helpers. The DB RLS WITH CHECK already enforces the
+// allowed transitions; these helpers exist so the UI calls intent-named
+// functions instead of raw status updates.
+// ---------------------------------------------------------------------------
+
+/** Owner hides a listing from public browse. Reversible via `unhideListing`. */
+export const hideListing = async (id: string): Promise<MarketListing> => {
+  const { data, error } = await supabase
+    .from('market_listings')
+    .update({
+      status: 'hidden_by_owner',
+      hidden_at: new Date().toISOString(),
+      // Mirror into legacy column for older rows / queries.
+      removed_at: new Date().toISOString(),
+    })
+    .eq('id', id)
+    .select()
+    .single();
+  if (error) throw error;
+  return normalizeRow(data) as MarketListing;
+};
+
+/** Owner re-lists a previously hidden listing. Returns to `pending` so admin
+ *  re-moderates before it goes public again. */
+export const unhideListing = async (id: string): Promise<MarketListing> => {
+  const { data, error } = await supabase
+    .from('market_listings')
+    .update({
+      status: 'pending',
+      hidden_at: null,
+      removed_at: null,
+    })
+    .eq('id', id)
+    .select()
+    .single();
+  if (error) throw error;
+  return normalizeRow(data) as MarketListing;
+};
+
+/** Owner asks Fixate to permanently remove the listing. Admin reviews. */
+export const requestListingDeletion = async (
   id: string,
   reason?: string
 ): Promise<MarketListing> => {
   const { data, error } = await supabase
     .from('market_listings')
     .update({
-      status: 'archived',
-      removed_at: new Date().toISOString(),
+      status: 'delete_requested',
+      delete_requested_at: new Date().toISOString(),
       removed_reason: reason ?? null,
     })
     .eq('id', id)
     .select()
     .single();
   if (error) throw error;
-  return data as MarketListing;
+  return normalizeRow(data) as MarketListing;
 };
+
+/** Owner marks a `live` listing as sold. */
+export const markListingSold = async (id: string): Promise<MarketListing> => {
+  const { data, error } = await supabase
+    .from('market_listings')
+    .update({ status: 'sold' })
+    .eq('id', id)
+    .select()
+    .single();
+  if (error) throw error;
+  return normalizeRow(data) as MarketListing;
+};
+
+/**
+ * @deprecated Replaced by {@link hideListing} (now correctly maps to
+ * `hidden_by_owner` instead of the admin-only `archived_by_admin`). Kept
+ * as a thin alias so any in-flight callers keep compiling.
+ */
+export const removeListingByOwner = hideListing;
 
 /** Resolve the set of contact methods a listing supports, honouring both
  *  the new `contact_methods` array and the legacy `contact_preference`. */
@@ -153,7 +268,7 @@ export const getListing = async (id: string): Promise<MarketListing | null> => {
     logger.warn('getListing failed', error);
     return null;
   }
-  return (data ?? null) as MarketListing | null;
+  return data ? (normalizeRow(data) as MarketListing) : null;
 };
 
 export const listComments = async (listingId: string): Promise<ListingComment[]> => {
@@ -225,7 +340,7 @@ export interface BrowseFilters {
 // initial browse payload stays small. The full row is fetched lazily by
 // market-detail when the buyer opens an individual listing.
 const BROWSE_LIST_COLUMNS =
-  'id,seller_id,title,category,device_type,condition,price,currency,city,contact_phone,contact_preference,contact_methods,images,status,created_at,updated_at,removed_at,removed_reason';
+  'id,seller_id,title,category,device_type,condition,price,currency,city,contact_phone,contact_preference,contact_methods,images,status,created_at,updated_at,removed_at,removed_reason,moderation_reason,hidden_at,delete_requested_at,archived_at';
 
 export const browseListings = async (
   filters: BrowseFilters = {}
@@ -235,10 +350,13 @@ export const browseListings = async (
   // which is plenty for the visible viewport. Callers needing more can
   // ask for additional pages explicitly.
   const pageSize = filters.pageSize ?? 20;
+  // Browse the public feed: only admin-approved (`live`) listings show up.
+  // We accept the legacy `active` value too so the feed stays populated on
+  // databases where the v3 migration hasn't run yet.
   let q = supabase
     .from('market_listings')
     .select(BROWSE_LIST_COLUMNS)
-    .eq('status', 'active')
+    .in('status', ['live', 'active'])
     .range(page * pageSize, page * pageSize + pageSize - 1);
 
   // Sort
@@ -271,7 +389,7 @@ export const browseListings = async (
     logger.warn('browseListings failed', error);
     return [];
   }
-  return (data ?? []) as MarketListing[];
+  return normalizeRows((data ?? []) as MarketListing[]);
 };
 
 export const myListings = async (sellerId: string): Promise<MarketListing[]> => {
@@ -284,7 +402,7 @@ export const myListings = async (sellerId: string): Promise<MarketListing[]> => 
     logger.warn('myListings failed', error);
     return [];
   }
-  return (data ?? []) as MarketListing[];
+  return normalizeRows((data ?? []) as MarketListing[]);
 };
 
 // Translate the legacy `contact_preference` enum into the new
@@ -363,6 +481,12 @@ export const createListing = async (
   return res.data as MarketListing;
 };
 
+/**
+ * Low-level status update. The DB RLS policies enforce who is allowed to
+ * make which transition, so this stays generic. Callers should prefer the
+ * intent-named wrappers ({@link hideListing}, {@link markListingSold},
+ * {@link adminApprove}, etc.) — this is the escape hatch.
+ */
 export const updateListingStatus = async (
   id: string,
   status: ListingStatus
@@ -374,11 +498,16 @@ export const updateListingStatus = async (
     .select()
     .single();
   if (error) throw error;
-  return data as MarketListing;
+  return normalizeRow(data) as MarketListing;
 };
 
-// Admin-only: list everything regardless of status. Relies on the
-// `market_listings_admin_all` RLS policy.
+// ---------------------------------------------------------------------------
+// Admin-only helpers. Each wraps the moderation transition with the right
+// timestamp / metadata so the admin queue and audit trail stay clean. The
+// `market_listings_admin_all` RLS policy gates all of these server-side.
+// ---------------------------------------------------------------------------
+
+/** Admin-only: list everything regardless of status. */
 export const adminListAll = async (): Promise<MarketListing[]> => {
   const { data, error } = await supabase
     .from('market_listings')
@@ -388,7 +517,106 @@ export const adminListAll = async (): Promise<MarketListing[]> => {
     logger.warn('adminListAll failed', error);
     return [];
   }
-  return (data ?? []) as MarketListing[];
+  return normalizeRows((data ?? []) as MarketListing[]);
+};
+
+/** Admin-only: approve a pending/rejected/hidden listing → goes live. */
+export const adminApprove = async (id: string): Promise<MarketListing> => {
+  const { data, error } = await supabase
+    .from('market_listings')
+    .update({
+      status: 'live',
+      moderation_reason: null,
+      archived_at: null,
+      hidden_at: null,
+      delete_requested_at: null,
+      removed_at: null,
+    })
+    .eq('id', id)
+    .select()
+    .single();
+  if (error) throw error;
+  return normalizeRow(data) as MarketListing;
+};
+
+/** Admin-only: reject with a reason the seller can see. */
+export const adminReject = async (
+  id: string,
+  reason: string
+): Promise<MarketListing> => {
+  const { data, error } = await supabase
+    .from('market_listings')
+    .update({
+      status: 'rejected',
+      moderation_reason: reason?.trim() || null,
+    })
+    .eq('id', id)
+    .select()
+    .single();
+  if (error) throw error;
+  return normalizeRow(data) as MarketListing;
+};
+
+/** Admin-only: archive (soft-remove). Seller cannot restore this. */
+export const adminArchive = async (
+  id: string,
+  reason?: string
+): Promise<MarketListing> => {
+  const { data, error } = await supabase
+    .from('market_listings')
+    .update({
+      status: 'archived_by_admin',
+      archived_at: new Date().toISOString(),
+      moderation_reason: reason?.trim() || null,
+    })
+    .eq('id', id)
+    .select()
+    .single();
+  if (error) throw error;
+  return normalizeRow(data) as MarketListing;
+};
+
+/** Admin-only: restore an archived / rejected / hidden listing → pending. */
+export const adminRestore = async (id: string): Promise<MarketListing> => {
+  const { data, error } = await supabase
+    .from('market_listings')
+    .update({
+      status: 'pending',
+      archived_at: null,
+      hidden_at: null,
+      delete_requested_at: null,
+      removed_at: null,
+      moderation_reason: null,
+    })
+    .eq('id', id)
+    .select()
+    .single();
+  if (error) throw error;
+  return normalizeRow(data) as MarketListing;
+};
+
+/** Admin-only: permanent delete. Irreversible — UI must double-confirm. */
+export const adminHardDelete = async (id: string): Promise<void> => {
+  const { error } = await supabase
+    .from('market_listings')
+    .delete()
+    .eq('id', id);
+  if (error) throw error;
+};
+
+/** Admin-only: set internal notes (not shown to the seller). */
+export const adminSetNotes = async (
+  id: string,
+  notes: string
+): Promise<MarketListing> => {
+  const { data, error } = await supabase
+    .from('market_listings')
+    .update({ admin_notes: notes?.trim() || null })
+    .eq('id', id)
+    .select()
+    .single();
+  if (error) throw error;
+  return normalizeRow(data) as MarketListing;
 };
 
 // ---------------------------------------------------------------------

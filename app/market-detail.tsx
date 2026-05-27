@@ -34,10 +34,13 @@ import {
   deleteComment,
   resolveContactMethods,
   getUserCard,
-  updateListingStatus,
-  removeListingByOwner,
+  hideListing,
+  unhideListing,
+  markListingSold,
+  requestListingDeletion,
   type MarketListing,
   type ListingComment,
+  type ListingStatus,
   type UserCard,
 } from '../services/marketService';
 
@@ -139,8 +142,9 @@ export default function MarketDetailScreen() {
   const styles = useMemo(() => createStyles(COLORS, isRTL), [COLORS, isRTL]);
 
   const isOwner = !!listing && listing.seller_id === user?.id;
-  const isSold = listing?.status === 'sold';
-  const isRemoved = listing?.status === 'archived';
+  const status = listing?.status as ListingStatus | undefined;
+  const isLive = status === 'live';
+  const isSold = status === 'sold';
 
   const submitComment = async () => {
     if (!user) {
@@ -236,6 +240,26 @@ export default function MarketDetailScreen() {
       [{ text: 'OK' }]
     );
   };
+  const runOwnerAction = async (
+    fn: () => Promise<MarketListing>,
+    successMsg?: string,
+    closeAfter?: boolean
+  ) => {
+    setMarking(true);
+    try {
+      const updated = await fn();
+      setListing(updated);
+      if (successMsg) {
+        Alert.alert(isRTL ? 'تم' : 'Done', successMsg);
+      }
+      if (closeAfter) router.back();
+    } catch (e: any) {
+      Alert.alert(isRTL ? 'خطأ' : 'Error', e?.message ?? String(e));
+    } finally {
+      setMarking(false);
+    }
+  };
+
   const handleMarkSold = () => {
     if (!listing) return;
     Alert.alert(
@@ -247,50 +271,76 @@ export default function MarketDetailScreen() {
         { text: isRTL ? 'إلغاء' : 'Cancel', style: 'cancel' },
         {
           text: isRTL ? 'تأكيد' : 'Confirm',
-          onPress: async () => {
-            setMarking(true);
-            try {
-              const updated = await updateListingStatus(listing.id, 'sold');
-              setListing(updated);
-            } catch (e: any) {
-              Alert.alert(isRTL ? 'خطأ' : 'Error', e?.message ?? String(e));
-            } finally {
-              setMarking(false);
-            }
-          },
+          onPress: () => runOwnerAction(() => markListingSold(listing.id)),
         },
       ]
     );
   };
 
-  const handleRemove = () => {
+  const handleHide = () => {
     if (!listing) return;
     Alert.alert(
-      isRTL ? 'إزالة الإعلان' : 'Remove listing',
+      isRTL ? 'إخفاء الإعلان' : 'Hide listing',
       isRTL
-        ? 'سيتم إخفاء الإعلان من السوق فوراً. يمكنك إعادة نشره لاحقاً عبر الدعم إذا تغيّر رأيك.'
-        : 'This listing will be hidden from the marketplace immediately. You can contact support to restore it later if you change your mind.',
+        ? 'سيتم إخفاء إعلانك من السوق العام. تستطيع إظهاره مجدّداً في أي وقت من شاشة "إعلاناتي".'
+        : 'Your listing will be hidden from the public marketplace. You can unhide it any time from "My Listings".',
       [
         { text: isRTL ? 'إلغاء' : 'Cancel', style: 'cancel' },
         {
-          text: isRTL ? 'إزالة' : 'Remove',
+          text: isRTL ? 'إخفاء' : 'Hide',
+          onPress: () =>
+            runOwnerAction(
+              () => hideListing(listing.id),
+              isRTL ? 'تم إخفاء إعلانك من السوق.' : 'Your listing is now hidden.'
+            ),
+        },
+      ]
+    );
+  };
+
+  const handleUnhide = () => {
+    if (!listing) return;
+    Alert.alert(
+      isRTL ? 'إظهار الإعلان' : 'Unhide listing',
+      isRTL
+        ? 'سيخضع الإعلان للمراجعة مرة أخرى قبل أن يظهر للجميع.'
+        : 'Your listing will go back through review before it appears publicly again.',
+      [
+        { text: isRTL ? 'إلغاء' : 'Cancel', style: 'cancel' },
+        {
+          text: isRTL ? 'إرسال للمراجعة' : 'Resubmit',
+          onPress: () =>
+            runOwnerAction(
+              () => unhideListing(listing.id),
+              isRTL
+                ? 'تم إرسال إعلانك للمراجعة.'
+                : 'Your listing is back in the review queue.'
+            ),
+        },
+      ]
+    );
+  };
+
+  const handleRequestDeletion = () => {
+    if (!listing) return;
+    Alert.alert(
+      isRTL ? 'طلب حذف' : 'Request deletion',
+      isRTL
+        ? 'سيقوم فريق Fixate بمراجعة طلبك وحذف الإعلان نهائياً. سيختفي إعلانك من السوق فوراً.'
+        : "The Fixate team will review your request and permanently remove the listing. It will be hidden from the marketplace immediately.",
+      [
+        { text: isRTL ? 'إلغاء' : 'Cancel', style: 'cancel' },
+        {
+          text: isRTL ? 'طلب حذف' : 'Request deletion',
           style: 'destructive',
-          onPress: async () => {
-            setMarking(true);
-            try {
-              const updated = await removeListingByOwner(listing.id);
-              setListing(updated);
-              Alert.alert(
-                isRTL ? 'تمت الإزالة' : 'Removed',
-                isRTL ? 'تم إخفاء إعلانك من السوق.' : 'Your listing has been hidden from the marketplace.'
-              );
-              router.back();
-            } catch (e: any) {
-              Alert.alert(isRTL ? 'خطأ' : 'Error', e?.message ?? String(e));
-            } finally {
-              setMarking(false);
-            }
-          },
+          onPress: () =>
+            runOwnerAction(
+              () => requestListingDeletion(listing.id),
+              isRTL
+                ? 'تم إرسال طلب الحذف. ستراجعه إدارة السوق قريباً.'
+                : 'Deletion request sent. Our team will review it shortly.',
+              true
+            ),
         },
       ]
     );
@@ -308,9 +358,13 @@ export default function MarketDetailScreen() {
   };
 
   const methods = listing ? resolveContactMethods(listing) : new Set<string>();
-  const showPhone = methods.has('phone') && !!listing?.contact_phone;
-  const showWhats = methods.has('whatsapp') && !!listing?.contact_phone;
-  const showInApp = methods.has('in_app');
+  // Buyer contact actions only show when the listing is publicly live. Any
+  // other state (pending, sold, hidden, rejected, archived) hides them so
+  // buyers don't message about a listing that isn't really available.
+  const contactAllowed = !isOwner && isLive;
+  const showPhone = contactAllowed && methods.has('phone') && !!listing?.contact_phone;
+  const showWhats = contactAllowed && methods.has('whatsapp') && !!listing?.contact_phone;
+  const showInApp = contactAllowed && methods.has('in_app');
 
   const deviceLbl = listing?.device_type ? DEVICE_LABEL[listing.device_type]?.[isRTL ? 'ar' : 'en'] : null;
   const conditionLbl = listing?.condition ? CONDITION_LABEL[listing.condition]?.[isRTL ? 'ar' : 'en'] : null;
@@ -491,51 +545,43 @@ export default function MarketDetailScreen() {
                 </View>
 
                 {isOwner ? (
-                  isRemoved ? (
-                    <View style={styles.soldInline}>
-                      <Ionicons name="eye-off" size={16} color="#EF4444" />
-                      <Text style={styles.soldInlineText}>
-                        {isRTL ? 'تمت إزالة هذا الإعلان' : 'This listing was removed'}
+                  <OwnerActions
+                    styles={styles}
+                    COLORS={COLORS}
+                    isRTL={isRTL}
+                    marking={marking}
+                    status={status}
+                    moderationReason={listing.moderation_reason ?? null}
+                    onMarkSold={handleMarkSold}
+                    onHide={handleHide}
+                    onUnhide={handleUnhide}
+                    onRequestDeletion={handleRequestDeletion}
+                  />
+                ) : !isLive ? (
+                  // Buyer is viewing a non-live listing (pending / sold /
+                  // hidden / rejected / archived / delete-requested). We
+                  // surface a quiet banner instead of contact buttons so
+                  // they don't reach out about something that isn't really
+                  // available.
+                  <View style={[styles.ownerBanner, { backgroundColor: COLORS.cardAlt, borderColor: COLORS.border }]}>
+                    <Ionicons
+                      name={isSold ? 'checkmark-circle' : 'eye-off-outline'}
+                      size={16}
+                      color={COLORS.textSecondary}
+                    />
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.ownerBannerTitle, { color: COLORS.text }]}>
+                        {isSold
+                          ? (isRTL ? 'تم بيع هذا الإعلان' : 'This listing is sold')
+                          : (isRTL ? 'هذا الإعلان غير متاح حالياً' : 'This listing is not currently available')}
+                      </Text>
+                      <Text style={styles.ownerBannerBody}>
+                        {isRTL
+                          ? 'تصفّح المزيد من الإعلانات في سوق Fixate.'
+                          : 'Browse other listings on Fixate Market.'}
                       </Text>
                     </View>
-                  ) : isSold ? (
-                    <View style={styles.soldInline}>
-                      <Ionicons name="checkmark-circle" size={16} color="#EF4444" />
-                      <Text style={styles.soldInlineText}>
-                        {isRTL ? 'تم بيع هذا الإعلان' : 'This listing is sold'}
-                      </Text>
-                    </View>
-                  ) : (
-                    <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', gap: 8 }}>
-                      <TouchableOpacity
-                        style={[styles.markSoldBtn, { flex: 1, opacity: marking ? 0.6 : 1 }]}
-                        onPress={handleMarkSold}
-                        disabled={marking}
-                      >
-                        {marking ? (
-                          <ActivityIndicator color="#fff" size="small" />
-                        ) : (
-                          <>
-                            <Ionicons name="checkmark-done" size={18} color="#fff" />
-                            <Text style={styles.markSoldText}>
-                              {isRTL ? 'تعليم كمباع' : 'Mark as Sold'}
-                            </Text>
-                          </>
-                        )}
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={[styles.removeBtn, { opacity: marking ? 0.6 : 1 }]}
-                        onPress={handleRemove}
-                        disabled={marking}
-                        accessibilityLabel={isRTL ? 'إزالة الإعلان' : 'Remove listing'}
-                      >
-                        <Ionicons name="trash-outline" size={18} color="#EF4444" />
-                        <Text style={styles.removeBtnText}>
-                          {isRTL ? 'إزالة' : 'Remove'}
-                        </Text>
-                      </TouchableOpacity>
-                    </View>
-                  )
+                  </View>
                 ) : (
                   <View style={styles.contactRow}>
                     {showInApp && (
@@ -673,6 +719,228 @@ export default function MarketDetailScreen() {
         onClose={() => setViewerOpen(false)}
       />
     </SafeAreaView>
+  );
+}
+
+/**
+ * Owner-only action group shown inside the seller card. Renders the
+ * appropriate primary/secondary actions for the listing's current state,
+ * and a quiet status banner when there's nothing to do (sold, archived,
+ * delete-requested, etc.). Buyer contact actions are rendered in the
+ * parent component (this block is owner-only).
+ */
+function OwnerActions(props: {
+  styles: any;
+  COLORS: any;
+  isRTL: boolean;
+  marking: boolean;
+  status: ListingStatus | undefined;
+  moderationReason: string | null;
+  onMarkSold: () => void;
+  onHide: () => void;
+  onUnhide: () => void;
+  onRequestDeletion: () => void;
+}) {
+  const {
+    styles, COLORS, isRTL, marking, status, moderationReason,
+    onMarkSold, onHide, onUnhide, onRequestDeletion,
+  } = props;
+
+  const banner = (
+    icon: keyof typeof Ionicons.glyphMap,
+    color: string,
+    title: string,
+    body?: string | null
+  ) => (
+    <View style={[styles.ownerBanner, { backgroundColor: color + '12', borderColor: color + '30' }]}>
+      <Ionicons name={icon} size={16} color={color} />
+      <View style={{ flex: 1 }}>
+        <Text style={[styles.ownerBannerTitle, { color }]}>{title}</Text>
+        {!!body && <Text style={styles.ownerBannerBody}>{body}</Text>}
+      </View>
+    </View>
+  );
+
+  // Read-only states first — these have no actions, only a banner.
+  if (status === 'archived_by_admin') {
+    return banner(
+      'archive-outline',
+      '#8A94A3',
+      isRTL ? 'تمت أرشفة هذا الإعلان من قبل الإدارة' : 'Archived by the Fixate team',
+      isRTL
+        ? 'لا يمكن إعادة نشر هذا الإعلان من جانبك. تواصل مع الدعم إذا كنت تعتقد أن ذلك خطأ.'
+        : "You can't restore this from your side. Contact support if you think this is a mistake.",
+    );
+  }
+  if (status === 'delete_requested') {
+    return banner(
+      'time-outline',
+      '#B45309',
+      isRTL ? 'طلب الحذف قيد المراجعة' : 'Deletion request pending',
+      isRTL
+        ? 'سيقوم فريق Fixate بمعالجة طلبك قريباً.'
+        : 'The Fixate team will process your request shortly.',
+    );
+  }
+  if (status === 'sold') {
+    return banner(
+      'checkmark-circle',
+      '#3B82F6',
+      isRTL ? 'تم بيع هذا الإعلان' : 'This listing is sold',
+    );
+  }
+
+  // Actionable states. The primary action sits on the left (or right in
+  // RTL); a small "more" overflow groups the destructive options.
+  const rowStyle = { flexDirection: isRTL ? 'row-reverse' as const : 'row' as const, gap: 8 };
+  const disabledOpacity = marking ? 0.55 : 1;
+
+  if (status === 'rejected') {
+    return (
+      <View style={{ gap: 10 }}>
+        {banner(
+          'close-circle',
+          '#DC2626',
+          isRTL ? 'تم رفض هذا الإعلان' : 'Listing rejected',
+          moderationReason
+            ?? (isRTL
+              ? 'يمكنك تعديل التفاصيل وإعادة إرسال الإعلان للمراجعة.'
+              : 'Edit the listing and resubmit it for review.'),
+        )}
+        <View style={rowStyle}>
+          <TouchableOpacity
+            style={[styles.ownerSecondary, { flex: 1, opacity: disabledOpacity }]}
+            onPress={onRequestDeletion}
+            disabled={marking}
+          >
+            <Ionicons name="trash-outline" size={16} color="#DC2626" />
+            <Text style={[styles.ownerSecondaryText, { color: '#DC2626' }]}>
+              {isRTL ? 'طلب حذف' : 'Request deletion'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
+
+  if (status === 'hidden_by_owner') {
+    return (
+      <View style={{ gap: 10 }}>
+        {banner(
+          'eye-off-outline',
+          '#64748B',
+          isRTL ? 'هذا الإعلان مخفي من السوق' : 'This listing is hidden',
+          isRTL
+            ? 'لا يظهر للمشترين الآن. يمكنك إعادة نشره في أي وقت.'
+            : "Buyers can't see it right now. You can put it back on the marketplace any time.",
+        )}
+        <View style={rowStyle}>
+          <TouchableOpacity
+            style={[styles.ownerPrimary, { flex: 1, opacity: disabledOpacity, backgroundColor: COLORS.primary }]}
+            onPress={onUnhide}
+            disabled={marking}
+          >
+            {marking ? (
+              <ActivityIndicator color="#fff" size="small" />
+            ) : (
+              <>
+                <Ionicons name="eye-outline" size={18} color="#fff" />
+                <Text style={styles.ownerPrimaryText}>{isRTL ? 'إعادة نشر' : 'Unhide'}</Text>
+              </>
+            )}
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.ownerSecondary, { opacity: disabledOpacity }]}
+            onPress={onRequestDeletion}
+            disabled={marking}
+          >
+            <Ionicons name="trash-outline" size={16} color="#DC2626" />
+            <Text style={[styles.ownerSecondaryText, { color: '#DC2626' }]}>
+              {isRTL ? 'حذف' : 'Delete'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
+
+  if (status === 'pending' || status === 'draft') {
+    return (
+      <View style={{ gap: 10 }}>
+        {banner(
+          status === 'draft' ? 'document-outline' : 'time-outline',
+          '#F59E0B',
+          status === 'draft'
+            ? (isRTL ? 'مسودة' : 'Draft')
+            : (isRTL ? 'قيد المراجعة' : 'Under review'),
+          status === 'draft'
+            ? (isRTL ? 'هذه مسودة لم تُرسل بعد للمراجعة.' : 'This draft has not been submitted yet.')
+            : (isRTL
+              ? 'سيظهر إعلانك للمشترين بعد موافقة الإدارة.'
+              : 'Buyers will see your listing once the team approves it.'),
+        )}
+        <View style={rowStyle}>
+          <TouchableOpacity
+            style={[styles.ownerSecondary, { flex: 1, opacity: disabledOpacity }]}
+            onPress={onHide}
+            disabled={marking}
+          >
+            <Ionicons name="eye-off-outline" size={16} color={COLORS.text} />
+            <Text style={[styles.ownerSecondaryText, { color: COLORS.text }]}>
+              {isRTL ? 'إخفاء' : 'Hide'}
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.ownerSecondary, { opacity: disabledOpacity }]}
+            onPress={onRequestDeletion}
+            disabled={marking}
+          >
+            <Ionicons name="trash-outline" size={16} color="#DC2626" />
+            <Text style={[styles.ownerSecondaryText, { color: '#DC2626' }]}>
+              {isRTL ? 'حذف' : 'Delete'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
+
+  // Default: status === 'live' (or unknown — treat as live so the owner
+  // always has the standard action set).
+  return (
+    <View style={rowStyle}>
+      <TouchableOpacity
+        style={[styles.ownerPrimary, { flex: 1, opacity: disabledOpacity, backgroundColor: '#16A34A' }]}
+        onPress={onMarkSold}
+        disabled={marking}
+      >
+        {marking ? (
+          <ActivityIndicator color="#fff" size="small" />
+        ) : (
+          <>
+            <Ionicons name="checkmark-done" size={18} color="#fff" />
+            <Text style={styles.ownerPrimaryText}>{isRTL ? 'تم البيع' : 'Mark as Sold'}</Text>
+          </>
+        )}
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={[styles.ownerSecondary, { opacity: disabledOpacity }]}
+        onPress={onHide}
+        disabled={marking}
+      >
+        <Ionicons name="eye-off-outline" size={16} color={COLORS.text} />
+        <Text style={[styles.ownerSecondaryText, { color: COLORS.text }]}>
+          {isRTL ? 'إخفاء' : 'Hide'}
+        </Text>
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={[styles.ownerSecondary, { opacity: disabledOpacity }]}
+        onPress={onRequestDeletion}
+        disabled={marking}
+      >
+        <Ionicons name="trash-outline" size={16} color="#DC2626" />
+      </TouchableOpacity>
+    </View>
   );
 }
 
@@ -857,39 +1125,45 @@ const createStyles = (C: any, isRTL: boolean) =>
     contactBtnNarrow: { flex: 0, paddingHorizontal: 16 },
     contactBtnText: { color: '#fff', fontWeight: '800', fontSize: 14 },
 
-    markSoldBtn: {
+    ownerPrimary: {
       flexDirection: isRTL ? 'row-reverse' : 'row',
       alignItems: 'center',
       justifyContent: 'center',
       gap: 8,
       paddingVertical: 13,
       borderRadius: BORDER_RADIUS.md,
-      backgroundColor: '#EF4444',
     },
-    markSoldText: { color: '#fff', fontWeight: '800', fontSize: 14 },
-    removeBtn: {
+    ownerPrimaryText: { color: '#fff', fontWeight: '800', fontSize: 14 },
+    ownerSecondary: {
       flexDirection: isRTL ? 'row-reverse' : 'row',
       alignItems: 'center',
       justifyContent: 'center',
       gap: 6,
-      paddingVertical: 13,
+      paddingVertical: 12,
       paddingHorizontal: 14,
       borderRadius: BORDER_RADIUS.md,
       backgroundColor: 'transparent',
       borderWidth: 1.5,
-      borderColor: '#EF4444',
+      borderColor: C.border,
     },
-    removeBtnText: { color: '#EF4444', fontWeight: '800', fontSize: 13 },
-    soldInline: {
+    ownerSecondaryText: { fontWeight: '800', fontSize: 13 },
+    ownerBanner: {
       flexDirection: isRTL ? 'row-reverse' : 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: 6,
-      paddingVertical: 10,
+      alignItems: 'flex-start',
+      gap: 10,
+      paddingVertical: 12,
+      paddingHorizontal: 12,
       borderRadius: BORDER_RADIUS.md,
-      backgroundColor: '#EF444415',
+      borderWidth: 1,
     },
-    soldInlineText: { color: '#EF4444', fontWeight: '800', fontSize: 13 },
+    ownerBannerTitle: { fontWeight: '800', fontSize: 13, textAlign: isRTL ? 'right' : 'left' },
+    ownerBannerBody: {
+      color: C.textSecondary,
+      fontSize: 12,
+      lineHeight: 17,
+      marginTop: 3,
+      textAlign: isRTL ? 'right' : 'left',
+    },
 
     section: { marginTop: 22, gap: 6 },
     commentsSection: {

@@ -19,12 +19,10 @@ import { Image } from 'expo-image';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useApp } from '../contexts/AppContext';
-import { useAuth } from '../contexts/AuthContext';
 import { getColors, SPACING, BORDER_RADIUS } from '../constants/theme';
 import { RTLIonicon } from '../components/RTLIcon';
 import {
   browseListings,
-  myListings,
   type MarketListing,
   type ListingCondition,
   type DeviceType,
@@ -71,14 +69,6 @@ const debounce = <T extends (...args: any[]) => void>(fn: T, ms: number) => {
   };
 };
 
-const statusAr = (s: string) => ({
-  pending: 'بانتظار الموافقة',
-  active: 'مفعّل',
-  sold: 'تم البيع',
-  rejected: 'مرفوض',
-  archived: 'مؤرشف',
-}[s] ?? s);
-
 /**
  * Compact "time since posted" formatter. Marketplaces live or die on
  * freshness signals — buyers trust recent listings far more than month-old
@@ -107,7 +97,6 @@ const timeAgo = (iso: string | undefined, isRTL: boolean): string => {
 export default function MarketScreen() {
   const router = useRouter();
   const { language, isDark } = useApp();
-  const { user } = useAuth();
   const COLORS = getColors(isDark);
   const isRTL = language === 'ar';
 
@@ -122,7 +111,6 @@ export default function MarketScreen() {
     ? ((params.device as DeviceType | 'all') ?? 'all')
     : 'all';
 
-  const [tab, setTab] = useState<'browse' | 'mine'>('browse');
   const [device, setDevice] = useState<DeviceType | 'all'>(initialDevice);
   const [search, setSearch] = useState('');
   const [appliedSearch, setAppliedSearch] = useState('');
@@ -167,26 +155,22 @@ export default function MarketScreen() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      if (tab === 'mine' && user) {
-        setListings(await myListings(user.id));
-      } else {
-        setListings(
-          await browseListings({
-            deviceType: device === 'all' ? undefined : device,
-            condition: condition ?? undefined,
-            city: city.trim() || undefined,
-            minPrice: minPrice ? Number(minPrice) : undefined,
-            maxPrice: maxPrice ? Number(maxPrice) : undefined,
-            search: appliedSearch.trim() || undefined,
-            sort,
-          })
-        );
-      }
+      setListings(
+        await browseListings({
+          deviceType: device === 'all' ? undefined : device,
+          condition: condition ?? undefined,
+          city: city.trim() || undefined,
+          minPrice: minPrice ? Number(minPrice) : undefined,
+          maxPrice: maxPrice ? Number(maxPrice) : undefined,
+          search: appliedSearch.trim() || undefined,
+          sort,
+        })
+      );
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [tab, device, condition, city, minPrice, maxPrice, appliedSearch, sort, user]);
+  }, [device, condition, city, minPrice, maxPrice, appliedSearch, sort]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -194,7 +178,8 @@ export default function MarketScreen() {
 
   const renderCard = ({ item }: { item: MarketListing }) => {
     const posted = timeAgo(item.created_at, isRTL);
-    const isVerified = item.status === 'active'; // admin-approved listings only
+    // Admin-approved listings only — accepts the legacy `active` alias too.
+    const isVerified = item.status === 'live' || (item.status as any) === 'active';
     return (
       <TouchableOpacity
         style={styles.card}
@@ -268,21 +253,16 @@ export default function MarketScreen() {
           </View>
 
           {/* Trust signal — only on admin-approved listings */}
-          <View style={styles.trustRow}>
-            {isVerified && tab === 'browse' && (
+          {isVerified && (
+            <View style={styles.trustRow}>
               <View style={styles.verifyChip}>
                 <Ionicons name="shield-checkmark" size={10} color={COLORS.primary} />
                 <Text style={styles.verifyChipText}>
                   {isRTL ? 'موثّق' : 'Verified'}
                 </Text>
               </View>
-            )}
-            {tab === 'mine' && (
-              <Text style={styles.cardStatus}>
-                {isRTL ? statusAr(item.status) : item.status}
-              </Text>
-            )}
-          </View>
+            </View>
+          )}
         </View>
       </TouchableOpacity>
     );
@@ -359,7 +339,13 @@ export default function MarketScreen() {
           <RTLIonicon name="chevron-back" size={26} color={COLORS.text} />
         </TouchableOpacity>
         <Text style={styles.title}>{isRTL ? 'سوق Fixate' : 'Fixate Market'}</Text>
-        <View style={{ width: 28 }} />
+        <TouchableOpacity
+          onPress={() => router.push('/my-listings' as any)}
+          style={styles.headerActionBtn}
+          accessibilityLabel={isRTL ? 'إعلاناتي' : 'My listings'}
+        >
+          <MaterialCommunityIcons name="storefront-edit-outline" size={20} color={COLORS.text} />
+        </TouchableOpacity>
       </View>
 
       {/* Search + filter button */}
@@ -395,46 +381,7 @@ export default function MarketScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Internal Market tab bar */}
-      <View style={styles.tabs}>
-        <TouchableOpacity
-          onPress={() => setTab('browse')}
-          style={[styles.tab, tab === 'browse' && { backgroundColor: COLORS.primary }]}
-        >
-          <Ionicons
-            name="grid-outline"
-            size={15}
-            color={tab === 'browse' ? '#fff' : COLORS.textSecondary}
-          />
-          <Text style={[styles.tabText, tab === 'browse' && { color: '#fff' }]}>
-            {isRTL ? 'تصفّح' : 'Browse'}
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          onPress={() => setTab('mine')}
-          style={[styles.tab, tab === 'mine' && { backgroundColor: COLORS.primary }]}
-        >
-          <Ionicons
-            name="pricetags-outline"
-            size={15}
-            color={tab === 'mine' ? '#fff' : COLORS.textSecondary}
-          />
-          <Text style={[styles.tabText, tab === 'mine' && { color: '#fff' }]}>
-            {isRTL ? 'إعلاناتي' : 'My Listings'}
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          onPress={() => router.push('/market-new')}
-          style={styles.tab}
-        >
-          <Ionicons name="add-circle-outline" size={15} color={COLORS.primary} />
-          <Text style={[styles.tabText, { color: COLORS.primary }]}>
-            {isRTL ? 'إضافة إعلان' : 'Add Listing'}
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Device-type chips (Browse tab only).
+      {/* Device-type chips.
           RTL fix: with `flexDirection: row-reverse`, the FIRST array
           entry ("الكل") is laid out at the rightmost edge of the scroll
           buffer, but the ScrollView opens at offset 0 (the LEFT edge),
@@ -442,46 +389,44 @@ export default function MarketScreen() {
           and had to scroll right to find "الكل / جوال / لابتوب". We now
           jump to the content-end on initial layout in RTL so the rail
           opens on the first/main categories. */}
-      {tab === 'browse' && (
-        <ScrollView
-          ref={deviceStripRef}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.deviceStrip}
-          style={{ maxHeight: 56 }}
-          onContentSizeChange={(w) => {
-            if (isRTL && w > 0) {
-              // Defer one frame so layout settles before we scroll.
-              requestAnimationFrame(() => {
-                deviceStripRef.current?.scrollToEnd({ animated: false });
-              });
-            }
-          }}
-        >
-          {DEVICE_CHIPS.map((c) => {
-            const active = device === c.id;
-            return (
-              <TouchableOpacity
-                key={c.id}
-                onPress={() => setDevice(c.id)}
-                style={[
-                  styles.deviceChip,
-                  active && { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
-                ]}
-              >
-                <MaterialCommunityIcons
-                  name={c.icon as any}
-                  size={14}
-                  color={active ? '#fff' : COLORS.text}
-                />
-                <Text style={[styles.deviceChipText, active && { color: '#fff' }]}>
-                  {isRTL ? c.ar : c.en}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
-      )}
+      <ScrollView
+        ref={deviceStripRef}
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.deviceStrip}
+        style={{ maxHeight: 56 }}
+        onContentSizeChange={(w) => {
+          if (isRTL && w > 0) {
+            // Defer one frame so layout settles before we scroll.
+            requestAnimationFrame(() => {
+              deviceStripRef.current?.scrollToEnd({ animated: false });
+            });
+          }
+        }}
+      >
+        {DEVICE_CHIPS.map((c) => {
+          const active = device === c.id;
+          return (
+            <TouchableOpacity
+              key={c.id}
+              onPress={() => setDevice(c.id)}
+              style={[
+                styles.deviceChip,
+                active && styles.deviceChipActive,
+              ]}
+            >
+              <MaterialCommunityIcons
+                name={c.icon as any}
+                size={14}
+                color={active ? COLORS.primary : COLORS.textSecondary}
+              />
+              <Text style={[styles.deviceChipText, active && { color: COLORS.primary }]}>
+                {isRTL ? c.ar : c.en}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </ScrollView>
 
       {/* Grid */}
       {loading && listings.length === 0 ? (
@@ -491,49 +436,33 @@ export default function MarketScreen() {
           <View style={[styles.emptyIconBubble, { backgroundColor: COLORS.primary + '15' }]}>
             <MaterialCommunityIcons name="storefront-outline" size={48} color={COLORS.primary} />
           </View>
-          <Text style={styles.emptyTitle}>
-            {tab === 'mine'
-              ? (isRTL ? 'لم تنشر أي إعلان بعد' : 'You have no listings yet')
-              : (isRTL ? 'لا توجد نتائج' : 'No results')}
-          </Text>
+          <Text style={styles.emptyTitle}>{isRTL ? 'لا توجد نتائج' : 'No results'}</Text>
           <Text style={styles.emptySub}>
-            {tab === 'mine'
-              ? (isRTL ? 'انشر إعلانك الأول' : 'Post your first listing')
-              : (isRTL ? 'جرّب تعديل الفلاتر أو البحث' : 'Try a different filter or search')}
+            {isRTL ? 'جرّب تعديل الفلاتر أو البحث' : 'Try a different filter or search'}
           </Text>
-          {tab === 'mine' && (
-            <TouchableOpacity
-              style={[styles.cta, { backgroundColor: COLORS.primary }]}
-              onPress={() => router.push('/market-new')}
-            >
-              <Text style={styles.ctaText}>{isRTL ? 'انشر إعلاناً' : 'Post a listing'}</Text>
-            </TouchableOpacity>
-          )}
         </View>
       ) : (
         <>
           {/* Result summary + active sort — a real marketplace always
               tells the buyer what they're looking at. */}
-          {tab === 'browse' && (
-            <View style={styles.resultBar}>
-              <Text style={styles.resultCount} numberOfLines={1}>
-                {isRTL
-                  ? `${listings.length.toLocaleString('ar-SA')} نتيجة`
-                  : `${listings.length} ${listings.length === 1 ? 'result' : 'results'}`}
+          <View style={styles.resultBar}>
+            <Text style={styles.resultCount} numberOfLines={1}>
+              {isRTL
+                ? `${listings.length.toLocaleString('ar-SA')} نتيجة`
+                : `${listings.length} ${listings.length === 1 ? 'result' : 'results'}`}
+            </Text>
+            <TouchableOpacity
+              onPress={() => setFiltersOpen(true)}
+              style={styles.sortChip}
+              accessibilityRole="button"
+            >
+              <Ionicons name="swap-vertical" size={13} color={COLORS.primary} />
+              <Text style={styles.sortChipText}>
+                {(SORT_OPTS.find((s) => s.id === sort) ?? SORT_OPTS[0])[isRTL ? 'ar' : 'en']}
               </Text>
-              <TouchableOpacity
-                onPress={() => setFiltersOpen(true)}
-                style={styles.sortChip}
-                accessibilityRole="button"
-              >
-                <Ionicons name="swap-vertical" size={13} color={COLORS.primary} />
-                <Text style={styles.sortChipText}>
-                  {(SORT_OPTS.find((s) => s.id === sort) ?? SORT_OPTS[0])[isRTL ? 'ar' : 'en']}
-                </Text>
-                <Ionicons name="chevron-down" size={12} color={COLORS.primary} />
-              </TouchableOpacity>
-            </View>
-          )}
+              <Ionicons name="chevron-down" size={12} color={COLORS.primary} />
+            </TouchableOpacity>
+          </View>
           <FlatList
             data={listings}
             keyExtractor={(l) => l.id}
@@ -555,6 +484,20 @@ export default function MarketScreen() {
           />
         </>
       )}
+
+      {/* Floating "post a listing" action. Always visible while browsing —
+          conversion-critical, so it sits above the grid on the trailing
+          side without competing with the scroll content. */}
+      <TouchableOpacity
+        style={[styles.fab, { backgroundColor: COLORS.primary }]}
+        onPress={() => router.push('/market-new')}
+        accessibilityRole="button"
+        accessibilityLabel={isRTL ? 'إضافة إعلان' : 'Post a listing'}
+        activeOpacity={0.88}
+      >
+        <Ionicons name="add" size={22} color="#fff" />
+        <Text style={styles.fabText}>{isRTL ? 'إعلان' : 'Sell'}</Text>
+      </TouchableOpacity>
 
       {/* Filter sheet */}
       <Modal visible={filtersOpen} animationType="slide" transparent onRequestClose={() => setFiltersOpen(false)}>
@@ -673,6 +616,16 @@ const createStyles = (C: any, isRTL: boolean) =>
       paddingBottom: SPACING.sm,
     },
     title: { fontSize: 18, fontWeight: '800', color: C.text },
+    headerActionBtn: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: C.card,
+      borderWidth: 1,
+      borderColor: C.border,
+    },
     searchRow: {
       flexDirection: isRTL ? 'row-reverse' : 'row',
       alignItems: 'center',
@@ -716,42 +669,31 @@ const createStyles = (C: any, isRTL: boolean) =>
       justifyContent: 'center',
     },
     filterBadgeText: { color: '#fff', fontSize: 10, fontWeight: '800' },
-    tabs: {
-      flexDirection: isRTL ? 'row-reverse' : 'row',
-      marginHorizontal: SPACING.lg,
-      marginVertical: 8,
-      backgroundColor: C.card,
-      borderRadius: BORDER_RADIUS.md,
-      padding: 4,
-    },
-    tab: {
-      flex: 1,
-      flexDirection: isRTL ? 'row-reverse' : 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: 5,
-      paddingVertical: 10,
-      borderRadius: BORDER_RADIUS.md - 2,
-    },
-    tabText: { color: C.textSecondary, fontWeight: '700', fontSize: 13 },
     deviceStrip: {
       paddingHorizontal: SPACING.lg,
       gap: 8,
-      paddingVertical: 4,
+      paddingVertical: 6,
       flexDirection: isRTL ? 'row-reverse' : 'row',
     },
     deviceChip: {
       flexDirection: isRTL ? 'row-reverse' : 'row',
       alignItems: 'center',
       gap: 6,
-      paddingHorizontal: 12,
+      paddingHorizontal: 13,
       paddingVertical: 8,
       borderRadius: 999,
       borderWidth: 1,
       borderColor: C.border,
       backgroundColor: C.card,
     },
-    deviceChipText: { color: C.text, fontSize: 13, fontWeight: '700' },
+    // Softer "active" treatment: tinted background + primary text/border
+    // instead of a hard solid pill — feels lighter and matches modern
+    // classifieds UI better than the previous full-fill chip.
+    deviceChipActive: {
+      backgroundColor: C.primary + '14',
+      borderColor: C.primary,
+    },
+    deviceChipText: { color: C.textSecondary, fontSize: 13, fontWeight: '700' },
 
     // Result bar — small but high-value: tells the buyer "we found N
     // items, sorted by X" and gives them a one-tap shortcut to change
@@ -881,7 +823,6 @@ const createStyles = (C: any, isRTL: boolean) =>
       borderRadius: 999,
     },
     verifyChipText: { color: C.primary, fontWeight: '700', fontSize: 10 },
-    cardStatus: { color: C.textSecondary, fontSize: 10, fontStyle: 'italic' },
 
     center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32, gap: 6 },
     emptyIconBubble: {
@@ -889,8 +830,25 @@ const createStyles = (C: any, isRTL: boolean) =>
     },
     emptyTitle: { color: C.text, fontWeight: '800', fontSize: 16, marginTop: 10 },
     emptySub: { color: C.textSecondary, textAlign: 'center', fontSize: 13 },
-    cta: { paddingVertical: 12, paddingHorizontal: 24, borderRadius: BORDER_RADIUS.md, marginTop: 12 },
-    ctaText: { color: '#fff', fontWeight: '800' },
+
+    // Floating action button — soft elevation, sits above the grid.
+    fab: {
+      position: 'absolute',
+      bottom: 22,
+      ...(isRTL ? { left: 18 } : { right: 18 }),
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
+      gap: 6,
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      borderRadius: 999,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 6 },
+      shadowOpacity: 0.18,
+      shadowRadius: 14,
+      elevation: 6,
+    },
+    fabText: { color: '#fff', fontWeight: '800', fontSize: 14, letterSpacing: 0.2 },
 
     modalBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.4)' },
     sheet: {
