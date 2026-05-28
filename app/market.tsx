@@ -345,21 +345,17 @@ export default function MarketScreen() {
           <RTLIonicon name="chevron-back" size={26} color={COLORS.text} />
         </TouchableOpacity>
         <Text style={styles.title}>{isRTL ? 'سوق Fixate' : 'Fixate Market'}</Text>
-        {/* "My Listings" is a seller affordance — only shown to non-admin
-            users so the admin browse context stays focused on moderation
-            rather than self-service. Admins reach their own listings (if
-            any) through their personal account flow. */}
-        {!isAdmin ? (
-          <TouchableOpacity
-            onPress={() => router.push('/my-listings' as any)}
-            style={styles.headerActionBtn}
-            accessibilityLabel={isRTL ? 'إعلاناتي' : 'My listings'}
-          >
-            <MaterialCommunityIcons name="storefront-edit-outline" size={20} color={COLORS.text} />
-          </TouchableOpacity>
-        ) : (
-          <View style={{ width: 36 }} />
-        )}
+        {/* "My Listings" entry — visible to all authenticated users
+            including admins. Admins can own listings on the same account,
+            and hiding the entry was hiding the only header path to
+            /my-listings, so they had no way to reach it from this screen. */}
+        <TouchableOpacity
+          onPress={() => router.push('/my-listings' as any)}
+          style={styles.headerActionBtn}
+          accessibilityLabel={isRTL ? 'إعلاناتي' : 'My listings'}
+        >
+          <MaterialCommunityIcons name="storefront-edit-outline" size={20} color={COLORS.text} />
+        </TouchableOpacity>
       </View>
 
       {/* Search + filter button */}
