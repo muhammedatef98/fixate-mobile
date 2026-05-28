@@ -25,6 +25,7 @@ import { logger } from '../utils/logger';
 import LiveTrackingMap from '../components/LiveTrackingMap';
 import * as reviewService from '../services/reviewService';
 import { supabase } from '../services/supabaseClient';
+import { resolveOrderMediaUrls } from '../services/storageService';
 import ImageViewer from '../components/ImageViewer';
 import ServiceCenterCard from '../components/ServiceCenterCard';
 import { getPlatformSettings } from '../services/platformSettingsService';
@@ -63,6 +64,9 @@ export default function OrderDetailsScreen() {
   const [ratingsEnabled, setRatingsEnabled] = useState(true);
   const [viewerOpen, setViewerOpen] = useState(false);
   const [viewerIndex, setViewerIndex] = useState(0);
+  // D2 / B-5: signed-URL mirror of order.media_urls. Falls back to the
+  // stored values if signing fails, so display never breaks.
+  const [displayMediaUrls, setDisplayMediaUrls] = useState<string[]>([]);
   const [respondingQuote, setRespondingQuote] = useState(false);
   const [feePreview, setFeePreview] = useState<{ total: number; inspection: number; return: number } | null>(null);
 
@@ -202,6 +206,20 @@ export default function OrderDetailsScreen() {
       subscription.unsubscribe();
     };
   }, [id]);
+
+  // Re-sign attached photos every time the order payload changes.
+  useEffect(() => {
+    let cancelled = false;
+    const stored: string[] = Array.isArray(order?.media_urls) ? order!.media_urls : [];
+    if (stored.length === 0) {
+      setDisplayMediaUrls([]);
+      return;
+    }
+    resolveOrderMediaUrls(stored)
+      .then((resolved) => { if (!cancelled) setDisplayMediaUrls(resolved); })
+      .catch(() => { if (!cancelled) setDisplayMediaUrls(stored); });
+    return () => { cancelled = true; };
+  }, [order]);
 
   const checkUserType = async () => {
     const user = await auth.getCurrentUser();
@@ -434,14 +452,14 @@ export default function OrderDetailsScreen() {
               </Text>
             </View>
 
-            {order.media_urls && order.media_urls.length > 0 && (
+            {displayMediaUrls.length > 0 && (
               <>
                 <View style={[styles.divider, { backgroundColor: COLORS.border }]} />
                 <Text style={[styles.infoLabel, { color: COLORS.textSecondary, marginBottom: 8 }]}>
                   {isRTL ? 'الصور المرفقة' : 'Attached photos'}
                 </Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 4 }}>
-                  {order.media_urls.map((url, idx) => (
+                  {displayMediaUrls.map((url, idx) => (
                     <TouchableOpacity
                       key={idx}
                       onPress={() => { setViewerIndex(idx); setViewerOpen(true); }}
@@ -909,7 +927,7 @@ export default function OrderDetailsScreen() {
       </ScrollView>
       <ImageViewer
         visible={viewerOpen}
-        images={order?.media_urls ?? []}
+        images={displayMediaUrls}
         initialIndex={viewerIndex}
         onClose={() => setViewerOpen(false)}
       />

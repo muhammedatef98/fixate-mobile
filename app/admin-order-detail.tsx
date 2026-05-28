@@ -20,6 +20,7 @@ import { getColors, SPACING, BORDER_RADIUS } from '../constants/theme';
 import { RTLIonicon } from '../components/RTLIcon';
 import { safeBack } from '../utils/navigation';
 import { supabase } from '../services/supabaseClient';
+import { resolveOrderMediaUrls } from '../services/storageService';
 import ImageViewer from '../components/ImageViewer';
 
 const STATUS_META = (s: string, isRTL: boolean): { label: string; color: string } => {
@@ -87,6 +88,11 @@ export default function AdminOrderDetailScreen() {
   const [technicianName, setTechnicianName] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [viewer, setViewer] = useState<{ images: string[]; index: number } | null>(null);
+  // D2 / B-5: display URLs are re-signed every load so the screen keeps
+  // working whether the `orders` bucket is currently public or private.
+  const [beforePhotos, setBeforePhotos] = useState<string[]>([]);
+  const [afterPhotos, setAfterPhotos] = useState<string[]>([]);
+  const [mediaUrls, setMediaUrls] = useState<string[]>([]);
 
   const profileLoaded = userProfile !== null;
   const { isAdmin } = useIsAdmin();
@@ -127,6 +133,40 @@ export default function AdminOrderDetailScreen() {
     if (profileLoaded && isAdmin) load();
   }, [profileLoaded, isAdmin, load]);
 
+  // Resolve stored values into signed URLs whenever the order changes. If
+  // resolution fails the helper returns the original values so this is a
+  // safe no-op on bad networks or while the bucket is still public.
+  useEffect(() => {
+    let cancelled = false;
+    const before: string[] = Array.isArray(order?.before_photos) ? order!.before_photos : [];
+    const after:  string[] = Array.isArray(order?.after_photos)  ? order!.after_photos  : [];
+    const media:  string[] = Array.isArray(order?.media_urls)    ? order!.media_urls    : [];
+
+    if (before.length === 0 && after.length === 0 && media.length === 0) {
+      setBeforePhotos([]); setAfterPhotos([]); setMediaUrls([]);
+      return;
+    }
+
+    Promise.all([
+      resolveOrderMediaUrls(before),
+      resolveOrderMediaUrls(after),
+      resolveOrderMediaUrls(media),
+    ]).then(([b, a, m]) => {
+      if (cancelled) return;
+      setBeforePhotos(b);
+      setAfterPhotos(a);
+      setMediaUrls(m);
+    }).catch(() => {
+      if (cancelled) return;
+      // Final fallback — show whatever is stored verbatim.
+      setBeforePhotos(before);
+      setAfterPhotos(after);
+      setMediaUrls(media);
+    });
+
+    return () => { cancelled = true; };
+  }, [order]);
+
   if (!profileLoaded) {
     return (
       <SafeAreaView style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
@@ -154,9 +194,8 @@ export default function AdminOrderDetailScreen() {
 
   const status = order ? STATUS_META(order.status, isRTL) : null;
   const payStatus = order ? paymentStatusLabel(order.payment_status, isRTL) : null;
-  const beforePhotos: string[] = Array.isArray(order?.before_photos) ? order.before_photos : [];
-  const afterPhotos: string[] = Array.isArray(order?.after_photos) ? order.after_photos : [];
-  const mediaUrls: string[] = Array.isArray(order?.media_urls) ? order.media_urls : [];
+  // beforePhotos / afterPhotos / mediaUrls now come from state populated by
+  // the resolver effect above. Local consts are no longer derived inline.
 
   return (
     <SafeAreaView style={styles.container}>

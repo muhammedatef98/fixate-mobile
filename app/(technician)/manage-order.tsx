@@ -29,7 +29,7 @@ import { RTLIonicon } from '../../components/RTLIcon';
 import ImageViewer from '../../components/ImageViewer';
 import ImagePickerSheet from '../../components/ImagePickerSheet';
 import { supabase } from '../../services/supabaseClient';
-import { uploadOrderMedia } from '../../services/storageService';
+import { uploadOrderMedia, resolveOrderMediaUrls } from '../../services/storageService';
 import {
   startBroadcastingLocation,
   stopBroadcastingLocation,
@@ -70,6 +70,11 @@ export default function ManageOrderScreen() {
   const [savingNotes, setSavingNotes] = useState(false);
   const [beforePhotos, setBeforePhotos] = useState<string[]>([]);
   const [afterPhotos, setAfterPhotos] = useState<string[]>([]);
+  // D2 / B-5: display-only signed-URL mirrors of the stored arrays. The
+  // stored arrays remain the source of truth for DB writes (removePhoto)
+  // so the bucket can be flipped to private without breaking anything.
+  const [displayBeforePhotos, setDisplayBeforePhotos] = useState<string[]>([]);
+  const [displayAfterPhotos, setDisplayAfterPhotos] = useState<string[]>([]);
   const [photoSheetOpen, setPhotoSheetOpen] = useState(false);
   const [photoTarget, setPhotoTarget] = useState<'before' | 'after'>('before');
   const [uploadingPhotos, setUploadingPhotos] = useState(false);
@@ -119,6 +124,28 @@ export default function ManageOrderScreen() {
       stopBroadcastingLocation();
     };
   }, [order?.status, order?.technician_id, id]);
+
+  // Resolve stored photo URLs into signed URLs whenever the stored arrays
+  // change. Falls back to the originals on failure so the bucket-private
+  // flip will be a true no-op at the client level.
+  useEffect(() => {
+    let cancelled = false;
+    if (beforePhotos.length === 0) {
+      setDisplayBeforePhotos([]);
+    } else {
+      resolveOrderMediaUrls(beforePhotos)
+        .then((r) => { if (!cancelled) setDisplayBeforePhotos(r); })
+        .catch(() => { if (!cancelled) setDisplayBeforePhotos(beforePhotos); });
+    }
+    if (afterPhotos.length === 0) {
+      setDisplayAfterPhotos([]);
+    } else {
+      resolveOrderMediaUrls(afterPhotos)
+        .then((r) => { if (!cancelled) setDisplayAfterPhotos(r); })
+        .catch(() => { if (!cancelled) setDisplayAfterPhotos(afterPhotos); });
+    }
+    return () => { cancelled = true; };
+  }, [beforePhotos, afterPhotos]);
 
   const loadOrderDetails = async () => {
     try {
@@ -851,8 +878,8 @@ export default function ManageOrderScreen() {
             {isRTL ? 'صور قبل / بعد الإصلاح' : 'Before / After photos'}
           </Text>
           {([
-            { key: 'before' as const, label: isRTL ? 'قبل الإصلاح' : 'Before repair', photos: beforePhotos },
-            { key: 'after' as const, label: isRTL ? 'بعد الإصلاح' : 'After repair', photos: afterPhotos },
+            { key: 'before' as const, label: isRTL ? 'قبل الإصلاح' : 'Before repair', stored: beforePhotos, display: displayBeforePhotos },
+            { key: 'after' as const, label: isRTL ? 'بعد الإصلاح' : 'After repair', stored: afterPhotos, display: displayAfterPhotos },
           ]).map((group) => (
             <View key={group.key} style={{ marginTop: 12 }}>
               <Text style={{ color: COLORS.textSecondary, fontWeight: '700', fontSize: 13, marginBottom: 6, textAlign: isRTL ? 'right' : 'left' }}>
@@ -880,19 +907,27 @@ export default function ManageOrderScreen() {
                     <Ionicons name="camera" size={22} color={COLORS.textSecondary} />
                   )}
                 </TouchableOpacity>
-                {group.photos.map((url, i) => (
+                {group.stored.map((storedUrl, i) => {
+                  // Prefer the signed display URL when available; fall back
+                  // to the stored value while the resolver is still pending
+                  // or if signing failed entirely.
+                  const displayUrl = group.display[i] ?? storedUrl;
+                  return (
                   <View key={i} style={{ marginRight: 8, position: 'relative' }}>
                     <TouchableOpacity
                       activeOpacity={0.85}
-                      onPress={() => openPhotoViewer(group.photos, i)}
+                      onPress={() => openPhotoViewer(
+                        group.display.length === group.stored.length ? group.display : group.stored,
+                        i
+                      )}
                     >
                       <Image
-                        source={{ uri: url }}
+                        source={{ uri: displayUrl }}
                         style={{ width: 72, height: 72, borderRadius: BORDER_RADIUS.md }}
                       />
                     </TouchableOpacity>
                     <TouchableOpacity
-                      onPress={() => removePhoto(group.key, url)}
+                      onPress={() => removePhoto(group.key, storedUrl)}
                       style={{
                         position: 'absolute',
                         top: -7,
@@ -906,8 +941,9 @@ export default function ManageOrderScreen() {
                       <Ionicons name="close-circle" size={22} color="#EF4444" />
                     </TouchableOpacity>
                   </View>
-                ))}
-                {group.photos.length === 0 && (
+                  );
+                })}
+                {group.stored.length === 0 && (
                   <Text style={{ color: COLORS.textSecondary, fontSize: 12, alignSelf: 'center' }}>
                     {isRTL ? 'لا توجد صور بعد' : 'No photos yet'}
                   </Text>
