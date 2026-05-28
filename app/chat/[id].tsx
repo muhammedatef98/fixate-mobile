@@ -25,7 +25,7 @@ import { logger } from '../../utils/logger';
 import { RTLIonicon } from '../../components/RTLIcon';
 import { safeBack } from '../../utils/navigation';
 import { useScrollToEndOnKeyboard } from '../../hooks/useScrollToEndOnKeyboard';
-import { uploadOrderMedia } from '../../services/storageService';
+import { uploadOrderMedia, resolveOrderMediaUrls } from '../../services/storageService';
 import ImageViewer from '../../components/ImageViewer';
 
 // Quick-reply suggestions that match each side of the conversation. The
@@ -76,6 +76,9 @@ export default function ChatScreen() {
   const [viewerOpen, setViewerOpen] = useState(false);
   const [viewerImages, setViewerImages] = useState<string[]>([]);
   const [viewerIndex, setViewerIndex] = useState(0);
+  // B-5 Wave 3: signed-URL mirror for chat image attachments keyed by
+  // message id. Temp/local file:// URIs are skipped and rendered as-is.
+  const [displayAttachments, setDisplayAttachments] = useState<Record<string, string>>({});
 
   const flatListRef = useRef<FlatList>(null);
   useScrollToEndOnKeyboard(flatListRef);
@@ -93,6 +96,29 @@ export default function ChatScreen() {
       subscription.unsubscribe();
     };
   }, [id]);
+
+  // Re-sign chat image attachments whenever the message list changes.
+  // Only non-temp messages with a remote attachment_url participate; temp
+  // messages still carry a local file:// URI and render straight from it.
+  useEffect(() => {
+    let cancelled = false;
+    const entries = messages
+      .filter((m) => !m?.is_temp && m?.attachment_type === 'image' && typeof m?.attachment_url === 'string' && m.attachment_url.startsWith('http'))
+      .map((m) => [m.id, m.attachment_url] as const);
+    if (entries.length === 0) {
+      setDisplayAttachments({});
+      return;
+    }
+    resolveOrderMediaUrls(entries.map(([, v]) => v))
+      .then((resolved) => {
+        if (cancelled) return;
+        const next: Record<string, string> = {};
+        entries.forEach(([k, original], i) => { next[k] = resolved[i] ?? original; });
+        setDisplayAttachments(next);
+      })
+      .catch(() => { /* keep stored URLs */ });
+    return () => { cancelled = true; };
+  }, [messages]);
 
   const loadData = async () => {
     try {
@@ -263,12 +289,12 @@ export default function ChatScreen() {
           {item.attachment_type === 'image' && item.attachment_url && (
             <TouchableOpacity
               activeOpacity={0.85}
-              onPress={() => openImage(item.attachment_url)}
+              onPress={() => openImage(displayAttachments[item.id] ?? item.attachment_url)}
               style={{ marginBottom: 4 }}
               accessibilityRole="button"
             >
               <Image
-                source={{ uri: item.attachment_url }}
+                source={{ uri: displayAttachments[item.id] ?? item.attachment_url }}
                 style={{ width: 220, height: 180, borderRadius: 14, backgroundColor: '#00000020' }}
               />
             </TouchableOpacity>

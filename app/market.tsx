@@ -23,6 +23,7 @@ import { useApp } from '../contexts/AppContext';
 import { useIsAdmin } from '../hooks/useAdminGuard';
 import { getColors, SPACING, BORDER_RADIUS } from '../constants/theme';
 import { RTLIonicon } from '../components/RTLIcon';
+import { resolveOrderMediaUrls } from '../services/storageService';
 import {
   browseListings,
   type MarketListing,
@@ -125,6 +126,9 @@ export default function MarketScreen() {
   const [filtersOpen, setFiltersOpen] = useState(false);
 
   const [listings, setListings] = useState<MarketListing[]>([]);
+  // B-5 Wave 3: signed-URL mirror for grid cover images. Falls back to
+  // the stored URL whenever signing fails so the screen never breaks.
+  const [displayCovers, setDisplayCovers] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [marketplaceEnabled, setMarketplaceEnabled] = useState(true);
@@ -180,6 +184,24 @@ export default function MarketScreen() {
 
   useEffect(() => { load(); }, [load]);
 
+  // Re-sign the first image of every listing whenever the grid changes.
+  useEffect(() => {
+    let cancelled = false;
+    const entries = listings
+      .map((l) => [l.id, l.images?.[0]] as const)
+      .filter((e): e is readonly [string, string] => !!e[1]);
+    if (entries.length === 0) { setDisplayCovers({}); return; }
+    resolveOrderMediaUrls(entries.map(([, v]) => v))
+      .then((resolved) => {
+        if (cancelled) return;
+        const next: Record<string, string> = {};
+        entries.forEach(([k, original], i) => { next[k] = resolved[i] ?? original; });
+        setDisplayCovers(next);
+      })
+      .catch(() => { /* keep stored URLs */ });
+    return () => { cancelled = true; };
+  }, [listings]);
+
   const styles = useMemo(() => createStyles(COLORS, isRTL), [COLORS, isRTL]);
 
   const renderCard = ({ item }: { item: MarketListing }) => {
@@ -195,7 +217,7 @@ export default function MarketScreen() {
         <View style={styles.cardImageWrap}>
           {item.images?.[0] ? (
             <Image
-              source={{ uri: item.images[0] }}
+              source={{ uri: displayCovers[item.id] ?? item.images[0] }}
               style={styles.cardImage}
               placeholder={{ blurhash: IMG_BLURHASH }}
               transition={220}

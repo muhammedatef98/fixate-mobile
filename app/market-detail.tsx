@@ -27,6 +27,7 @@ import { getColors, SPACING, BORDER_RADIUS } from '../constants/theme';
 import { RTLIonicon } from '../components/RTLIcon';
 import ImageViewer from '../components/ImageViewer';
 import Avatar from '../components/Avatar';
+import { resolveOrderMediaUrls } from '../services/storageService';
 import {
   getListing,
   listComments,
@@ -109,6 +110,9 @@ export default function MarketDetailScreen() {
   const isRTL = language === 'ar';
 
   const [listing, setListing] = useState<MarketListing | null>(null);
+  // B-5 Wave 3: signed-URL mirror of listing.images. Falls back to the
+  // stored values so the screen never breaks when signing fails.
+  const [displayImages, setDisplayImages] = useState<string[]>([]);
   const [seller, setSeller] = useState<UserCard | null>(null);
   const [comments, setComments] = useState<ListingComment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -138,6 +142,17 @@ export default function MarketDetailScreen() {
   }, [id]);
 
   useEffect(() => { load(); }, [load]);
+
+  // Re-sign listing images whenever the listing changes.
+  useEffect(() => {
+    let cancelled = false;
+    const stored: string[] = Array.isArray(listing?.images) ? listing!.images : [];
+    if (stored.length === 0) { setDisplayImages([]); return; }
+    resolveOrderMediaUrls(stored)
+      .then((r) => { if (!cancelled) setDisplayImages(r); })
+      .catch(() => { if (!cancelled) setDisplayImages(stored); });
+    return () => { cancelled = true; };
+  }, [listing]);
 
   const styles = useMemo(() => createStyles(COLORS, isRTL), [COLORS, isRTL]);
 
@@ -414,14 +429,14 @@ export default function MarketDetailScreen() {
                   showsHorizontalScrollIndicator={false}
                   onMomentumScrollEnd={onHeroScroll}
                 >
-                  {listing.images.map((uri, i) => (
+                  {listing.images.map((storedUri, i) => (
                     <TouchableOpacity
                       key={i}
                       activeOpacity={0.95}
                       onPress={() => openViewer(i)}
                     >
                       <Image
-                        source={{ uri }}
+                        source={{ uri: displayImages[i] ?? storedUri }}
                         style={{ width: SCREEN_W, height: HERO_H }}
                         contentFit="cover"
                         cachePolicy="memory-disk"
@@ -714,7 +729,11 @@ export default function MarketDetailScreen() {
 
       <ImageViewer
         visible={viewerOpen}
-        images={listing?.images ?? []}
+        images={
+          displayImages.length === (listing?.images?.length ?? 0)
+            ? displayImages
+            : (listing?.images ?? [])
+        }
         initialIndex={viewerIndex}
         onClose={() => setViewerOpen(false)}
       />
