@@ -75,6 +75,10 @@ export default function ManageOrderScreen() {
   // so the bucket can be flipped to private without breaking anything.
   const [displayBeforePhotos, setDisplayBeforePhotos] = useState<string[]>([]);
   const [displayAfterPhotos, setDisplayAfterPhotos] = useState<string[]>([]);
+  // B-5 Wave 4: signed-URL mirror of the customer's pre-upload media
+  // (order.media_urls) that the technician views read-only in the
+  // "Attached photos" section. Strip + viewer both consume this state.
+  const [displayCustomerMedia, setDisplayCustomerMedia] = useState<string[]>([]);
   const [photoSheetOpen, setPhotoSheetOpen] = useState(false);
   const [photoTarget, setPhotoTarget] = useState<'before' | 'after'>('before');
   const [uploadingPhotos, setUploadingPhotos] = useState(false);
@@ -146,6 +150,18 @@ export default function ManageOrderScreen() {
     }
     return () => { cancelled = true; };
   }, [beforePhotos, afterPhotos]);
+
+  // B-5 Wave 4: resolve the read-only customer media whenever the
+  // underlying order payload changes.
+  useEffect(() => {
+    let cancelled = false;
+    const stored: string[] = Array.isArray((order as any)?.media_urls) ? ((order as any).media_urls as string[]) : [];
+    if (stored.length === 0) { setDisplayCustomerMedia([]); return; }
+    resolveOrderMediaUrls(stored)
+      .then((r) => { if (!cancelled) setDisplayCustomerMedia(r); })
+      .catch(() => { if (!cancelled) setDisplayCustomerMedia(stored); });
+    return () => { cancelled = true; };
+  }, [order]);
 
   const loadOrderDetails = async () => {
     try {
@@ -809,13 +825,18 @@ export default function ManageOrderScreen() {
               {order.media_urls.map((url, index) => (
                 <TouchableOpacity
                   key={index}
-                  onPress={() => openPhotoViewer(order.media_urls ?? [], index)}
+                  onPress={() => openPhotoViewer(
+                    displayCustomerMedia.length === (order.media_urls?.length ?? 0)
+                      ? displayCustomerMedia
+                      : (order.media_urls ?? []),
+                    index
+                  )}
                   activeOpacity={0.85}
                   style={{ marginRight: 8 }}
                   accessibilityRole="button"
                 >
                   <Image
-                    source={{ uri: url }}
+                    source={{ uri: displayCustomerMedia[index] ?? url }}
                     style={styles.mediaImage}
                     resizeMode="cover"
                   />
