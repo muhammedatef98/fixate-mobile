@@ -26,6 +26,7 @@ import { RTLIonicon } from '../../components/RTLIcon';
 import { safeBack } from '../../utils/navigation';
 import { useScrollToEndOnKeyboard } from '../../hooks/useScrollToEndOnKeyboard';
 import { uploadOrderMedia, resolveOrderMediaUrls } from '../../services/storageService';
+import { useAppForegroundRefresh } from '../../hooks/useAppForegroundRefresh';
 import ImageViewer from '../../components/ImageViewer';
 
 // Quick-reply suggestions that match each side of the conversation. The
@@ -119,6 +120,12 @@ export default function ChatScreen() {
       .catch(() => { /* keep stored URLs */ });
     return () => { cancelled = true; };
   }, [messages]);
+
+  // H-6: refetch when the app returns from background so messages missed
+  // while the realtime socket was suspended catch up. Wrapped in arrow
+  // so the closure reads the latest `loadData` even though the const is
+  // declared just below.
+  useAppForegroundRefresh(() => { void loadData(); });
 
   const loadData = async () => {
     try {

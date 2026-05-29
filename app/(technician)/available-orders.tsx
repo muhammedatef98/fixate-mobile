@@ -23,6 +23,7 @@ import * as orderService from '../../services/orderService';
 import { subscribeToPendingOrders } from '../../services/realtimeService';
 import { supabase } from '../../services/supabaseClient';
 import { resolveOrderMediaUrls } from '../../services/storageService';
+import { useAppForegroundRefresh } from '../../hooks/useAppForegroundRefresh';
 import { ISSUE_CATEGORIES, getIssueCategory } from '../../constants/issueCategories';
 import NeuCard from '../../components/NeuCard';
 import ErrorState from '../../components/ErrorState';
@@ -159,6 +160,10 @@ export default function AvailableOrdersScreen() {
       setTechnicianLocation({ lat: 24.7136, lon: 46.6753 });
     }
   };
+
+  // H-6: refetch on foreground so jobs taken by other technicians while
+  // we were backgrounded disappear from the available list.
+  useAppForegroundRefresh(() => { void loadOrders(); });
 
   const loadOrders = async () => {
     try {

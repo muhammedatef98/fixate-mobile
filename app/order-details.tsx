@@ -26,6 +26,7 @@ import LiveTrackingMap from '../components/LiveTrackingMap';
 import * as reviewService from '../services/reviewService';
 import { supabase } from '../services/supabaseClient';
 import { resolveOrderMediaUrls } from '../services/storageService';
+import { useAppForegroundRefresh } from '../hooks/useAppForegroundRefresh';
 import ImageViewer from '../components/ImageViewer';
 import ServiceCenterCard from '../components/ServiceCenterCard';
 import { getPlatformSettings } from '../services/platformSettingsService';
@@ -220,6 +221,10 @@ export default function OrderDetailsScreen() {
       .catch(() => { if (!cancelled) setDisplayMediaUrls(stored); });
     return () => { cancelled = true; };
   }, [order]);
+
+  // H-6: re-sync the order on foreground so status / quote / tracking
+  // updates that arrived while the app was suspended are not missed.
+  useAppForegroundRefresh(() => { void loadOrderDetails(); });
 
   const checkUserType = async () => {
     const user = await auth.getCurrentUser();
