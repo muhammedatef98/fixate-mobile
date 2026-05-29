@@ -131,7 +131,7 @@ export default function TermsScreen() {
 إذا كان لديك أي استفسارات حول هذه الشروط، يرجى التواصل معنا:
 
 - البريد الإلكتروني: support@fixatee.com
-- الهاتف: +966 XX XXX XXXX
+- الهاتف: +966 54 894 0042
 - العنوان: الرياض، المملكة العربية السعودية
 
 ---
@@ -248,7 +248,7 @@ Welcome to Fixate ("the App"). By using this App, you agree to comply with these
 If you have any questions about these terms, please contact us:
 
 - Email: support@fixatee.com
-- Phone: +966 XX XXX XXXX
+- Phone: +966 54 894 0042
 - Address: Riyadh, Saudi Arabia
 
 ---

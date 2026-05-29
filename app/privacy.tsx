@@ -139,7 +139,7 @@ export default function PrivacyScreen() {
 لأي استفسارات حول الخصوصية:
 
 - البريد الإلكتروني: privacy@fixatee.com
-- الهاتف: +966 XX XXX XXXX
+- الهاتف: +966 54 894 0042
 - العنوان: الرياض، المملكة العربية السعودية
 
 ---
@@ -264,7 +264,7 @@ We comply with:
 For any privacy inquiries:
 
 - Email: privacy@fixatee.com
-- Phone: +966 XX XXX XXXX
+- Phone: +966 54 894 0042
 - Address: Riyadh, Saudi Arabia
 
 ---
