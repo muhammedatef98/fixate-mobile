@@ -114,22 +114,11 @@ export default function LoginOtpScreen() {
     }
     setLoading(true);
     try {
-      const { expiresIn: ttl, devCode } = await sendPhoneOtp(phone, language);
+      const { expiresIn: ttl } = await sendPhoneOtp(phone, language);
       tapMedium();
       setCode('');
       setStep('otp');
       startTimers(ttl);
-      // Test mode — backend returns the code so QA can verify without
-      // a real SMS provider. Disappears as soon as SMS goes live.
-      if (devCode) {
-        setCode(devCode);
-        Alert.alert(
-          isRTL ? 'وضع الاختبار' : 'Test mode',
-          isRTL
-            ? `لا يوجد مزوّد رسائل بعد. كود التحقق: ${devCode}`
-            : `No SMS provider yet. Verification code: ${devCode}`
-        );
-      }
       // Focus the hidden input so the keypad pops immediately.
       setTimeout(() => hiddenOtpRef.current?.focus(), 50);
     } catch (e: any) {
@@ -311,6 +300,7 @@ export default function LoginOtpScreen() {
                   value={phone}
                   onChangeText={(v) => { setError(null); setPhone(v.replace(/[^\d+]/g, '')); }}
                   placeholder="5XXXXXXXX"
+                  // OTP length expanded to 6 digits by Authentica
                   placeholderTextColor={COLORS.textSecondary}
                   keyboardType="phone-pad"
                   autoCapitalize="none"
