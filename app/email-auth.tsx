@@ -27,6 +27,7 @@ import { tapMedium, success } from '../utils/haptics';
 import {
   signUpWithPhoneOrEmail,
   loginWithPhoneOrEmail,
+  EMAIL_ALREADY_EXISTS,
 } from '../services/authService';
 import { getFriendlyError } from '../utils/errorMessages';
 
@@ -299,6 +300,31 @@ export default function EmailAuthScreen() {
       // "Confirm email" disabled → session in hand, go straight in.
       await finishAndRouteCustomer();
     } catch (e: any) {
+      // Email-already-exists: offer "Sign in" instead of a confusing error.
+      // Two-button alert keeps the user in place if they cancel, or flips
+      // them into the password sign-in form with the email pre-filled.
+      if ((e as Error)?.message === EMAIL_ALREADY_EXISTS) {
+        Alert.alert(
+          isRTL ? 'البريد مسجَّل بالفعل' : 'Email already registered',
+          isRTL
+            ? 'هذا البريد الإلكتروني مسجّل بالفعل. هل تريد تسجيل الدخول؟'
+            : 'An account with this email already exists. Would you like to sign in instead?',
+          [
+            { text: isRTL ? 'إلغاء' : 'Cancel', style: 'cancel' },
+            {
+              text: isRTL ? 'تسجيل الدخول' : 'Sign in',
+              onPress: () => {
+                setError(null);
+                setMode('password');
+                setPwSub('signin');
+                setPassword('');
+                // email is preserved as-is so the user only types the password.
+              },
+            },
+          ]
+        );
+        return;
+      }
       setError(getFriendlyError(e, language));
       runShake();
     } finally {

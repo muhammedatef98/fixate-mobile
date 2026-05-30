@@ -52,6 +52,11 @@ export interface SignUpResult {
   requiresConfirmation: boolean;
 }
 
+// Stable error code thrown by signUpWithPhoneOrEmail when the email is
+// already taken. Callers match on this exact message to offer the user a
+// "sign in instead" affordance — see app/email-auth.tsx.
+export const EMAIL_ALREADY_EXISTS = 'EMAIL_ALREADY_EXISTS';
+
 export const signUpWithPhoneOrEmail = async (data: SignUpData): Promise<SignUpResult> => {
   assertValidSignUp(data);
   const normalizedPhone = data.phone ? normalizeSaudiPhone(data.phone) : undefined;
@@ -87,6 +92,23 @@ export const signUpWithPhoneOrEmail = async (data: SignUpData): Promise<SignUpRe
         },
       },
     });
+
+    // Duplicate-email detection (the common case Supabase makes awkward):
+    // When "Confirm email" is ON, supabase.auth.signUp does NOT throw for
+    // an already-registered email. It silently returns a fake user object
+    // with an empty `identities` array and no real session, to avoid
+    // leaking which emails are taken. Detect that and surface a stable
+    // EMAIL_ALREADY_EXISTS code so the UI can offer "Sign in instead".
+    //
+    // When "Confirm email" is OFF, Supabase DOES throw "User already
+    // registered" — handled in the catch below.
+    if (!signUpError) {
+      const identities = (signUpData?.user as any)?.identities;
+      if (signUpData?.user && Array.isArray(identities) && identities.length === 0) {
+        throw new Error(EMAIL_ALREADY_EXISTS);
+      }
+    }
+
     if (signUpError) throw signUpError;
 
     return {
@@ -99,6 +121,18 @@ export const signUpWithPhoneOrEmail = async (data: SignUpData): Promise<SignUpRe
   } catch (error: any) {
     // Duplicate email / weak password are user-correctable, not real errors.
     logger.warn('Sign up failed', error);
+    // Normalise the "Confirm email = OFF" Supabase error and the auth
+    // server's other phrasings into the same stable code the UI matches.
+    const raw = String(error?.message ?? '').toLowerCase();
+    if (
+      error?.message === EMAIL_ALREADY_EXISTS ||
+      raw.includes('already registered') ||
+      raw.includes('already exists') ||
+      raw.includes('user already') ||
+      error?.code === 'user_already_exists'
+    ) {
+      throw new Error(EMAIL_ALREADY_EXISTS);
+    }
     throw error;
   }
 };
