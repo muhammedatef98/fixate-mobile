@@ -43,7 +43,16 @@ export interface UserProfile {
   created_at?: string;
 }
 
-export const signUpWithPhoneOrEmail = async (data: SignUpData) => {
+export interface SignUpResult {
+  user: import('@supabase/supabase-js').User | null;
+  session: import('@supabase/supabase-js').Session | null;
+  // true when Supabase requires email confirmation before signing the user
+  // in. Callers MUST check this and route the user to the OTP confirmation
+  // step instead of assuming they're signed in.
+  requiresConfirmation: boolean;
+}
+
+export const signUpWithPhoneOrEmail = async (data: SignUpData): Promise<SignUpResult> => {
   assertValidSignUp(data);
   const normalizedPhone = data.phone ? normalizeSaudiPhone(data.phone) : undefined;
   const email = data.email.trim().toLowerCase();
@@ -51,39 +60,42 @@ export const signUpWithPhoneOrEmail = async (data: SignUpData) => {
   const role = data.role || 'customer';
 
   try {
-    // Route signup through the `signup` Edge Function. It uses the service
-    // role to admin.createUser({ email_confirm: true }) — bypassing the
-    // "Error sending confirmation email" failure when project SMTP isn't
-    // configured. The Edge Function also upserts the public.users row as
-    // a defence in depth in case the handle_new_user trigger is missing.
-    const { data: fnData, error: fnError } = await supabase.functions.invoke('signup', {
-      body: { email, password: data.password, name, phone: normalizedPhone, role },
-    });
-
-    if (fnError) {
-      // supabase.functions.invoke wraps non-2xx responses; pull the real
-      // server-side message out of context.body when present.
-      let serverMsg: string | undefined;
-      try {
-        const ctx: any = (fnError as any).context;
-        if (ctx?.body) {
-          const parsed = typeof ctx.body === 'string' ? JSON.parse(ctx.body) : ctx.body;
-          serverMsg = parsed?.error;
-        }
-      } catch {}
-      throw new Error(serverMsg || fnError.message || 'Sign up failed');
-    }
-    if (fnData?.error) throw new Error(fnData.error);
-
-    // Account created and confirmed — sign in immediately so the client has
-    // a session in hand without round-tripping through email verification.
-    const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+    // Use Supabase Auth's native signUp so the project's "Confirm email"
+    // setting + the "Confirm signup" template ({{ .Token }}) are honoured.
+    // When confirmation is required Supabase returns session=null and
+    // sends the OTP email; the caller routes the user to the OTP step.
+    //
+    // We deliberately do NOT use the legacy `signup` edge function here.
+    // That path called admin.createUser({ email_confirm: true }) which
+    // pre-confirms the email and bypasses verification entirely, then
+    // immediately signInWithPassword to mint a session — the customer
+    // never saw a confirmation code. The edge function is left in place
+    // for any other caller that explicitly needs the bypass.
+    //
+    // Role flows through user_metadata. handle_new_user (M-3 hardening)
+    // applies the ('customer','technician') whitelist server-side, so
+    // tampering with raw_user_meta_data.role still resolves to 'customer'.
+    const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
       email,
       password: data.password,
+      options: {
+        data: {
+          name,
+          role,
+          user_type: role,
+          phone: normalizedPhone ?? null,
+        },
+      },
     });
-    if (signInError) throw signInError;
+    if (signUpError) throw signUpError;
 
-    return { user: signInData.user, session: signInData.session };
+    return {
+      user: signUpData.user,
+      session: signUpData.session,
+      // session === null when "Confirm email" is enabled. Callers must
+      // not auto-route the user into the app in that case.
+      requiresConfirmation: signUpData.session === null,
+    };
   } catch (error: any) {
     // Duplicate email / weak password are user-correctable, not real errors.
     logger.warn('Sign up failed', error);

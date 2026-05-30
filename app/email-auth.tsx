@@ -65,6 +65,11 @@ export default function EmailAuthScreen() {
   const [mode, setMode]     = useState<Mode>('code');
   const [pwSub, setPwSub]   = useState<PwSub>('signin');
   const [codeStep, setCodeStep] = useState<CodeStep>('email');
+  // Tracks which verifyOtp `type` to use:
+  //   'email'  → arrived via signInWithOtp (Code mode quick login)
+  //   'signup' → arrived via auth.signUp confirmation (password sign-up
+  //              landed here because Supabase requires email confirmation)
+  const [otpType, setOtpType] = useState<'email' | 'signup'>('email');
 
   // Field state — shared across modes where reasonable.
   const [email, setEmail]       = useState('');
@@ -178,6 +183,7 @@ export default function EmailAuthScreen() {
       if (sendErr) throw sendErr;
       tapMedium();
       setCode('');
+      setOtpType('email');
       setCodeStep('otp');
       startTimers(OTP_TTL_SECONDS);
       setTimeout(() => hiddenOtpRef.current?.focus(), 50);
@@ -206,7 +212,9 @@ export default function EmailAuthScreen() {
       const { error: verifyErr } = await supabase.auth.verifyOtp({
         email: email.trim().toLowerCase(),
         token: code,
-        type: 'email',
+        // 'email' → quick OTP login (signInWithOtp)
+        // 'signup' → confirming a brand-new account from auth.signUp
+        type: otpType,
       });
       if (verifyErr) throw verifyErr;
       await finishAndRouteCustomer();
@@ -260,15 +268,35 @@ export default function EmailAuthScreen() {
     }
     setLoading(true);
     try {
-      // Role is pinned to 'customer'. signup edge function and the
-      // handle_new_user trigger both whitelist roles, so a tampered
-      // client value still resolves to 'customer'.
-      await signUpWithPhoneOrEmail({
+      // Role is pinned to 'customer'. auth.signUp + handle_new_user
+      // (M-3 whitelist) both enforce this; client tampering cannot
+      // elevate the role.
+      const result = await signUpWithPhoneOrEmail({
         email: email.trim().toLowerCase(),
         password,
         name: name.trim(),
         role: 'customer',
       });
+      // When the project has "Confirm email" enabled, Supabase returns
+      // session=null and sends the OTP "Confirm signup" email. Route
+      // the user into the OTP step instead of pretending they're in.
+      if (result.requiresConfirmation) {
+        tapMedium();
+        setCode('');
+        setOtpType('signup');
+        setMode('code');
+        setCodeStep('otp');
+        startTimers(OTP_TTL_SECONDS);
+        setTimeout(() => hiddenOtpRef.current?.focus(), 50);
+        Alert.alert(
+          isRTL ? 'تأكيد البريد' : 'Verify your email',
+          isRTL
+            ? 'أرسلنا كوداً مكوّناً من 6 أرقام إلى بريدك. أدخله لإكمال إنشاء الحساب.'
+            : 'We emailed you a 6-digit code. Enter it to finish creating your account.'
+        );
+        return;
+      }
+      // "Confirm email" disabled → session in hand, go straight in.
       await finishAndRouteCustomer();
     } catch (e: any) {
       setError(getFriendlyError(e, language));
