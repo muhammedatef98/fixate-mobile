@@ -240,6 +240,7 @@ function RootLayoutContent() {
         <Stack.Screen name="settings" options={{ headerShown: false }} />
         <Stack.Screen name="technician-onboarding" options={{ headerShown: false }} />
         <Stack.Screen name="login-otp" options={{ headerShown: false }} />
+        <Stack.Screen name="email-auth" options={{ headerShown: false }} />
         <Stack.Screen name="forgot-password" options={{ headerShown: false }} />
         <Stack.Screen name="admin-verifications" options={{ headerShown: false }} />
         <Stack.Screen name="loyalty" options={{ headerShown: false }} />
