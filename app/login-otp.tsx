@@ -354,6 +354,25 @@ export default function LoginOtpScreen() {
                 </View>
               </View>
 
+              {/* Secondary path — email auth for customers. Phone OTP
+                  above remains the primary, visually-first option. */}
+              <View style={styles.dividerRow}>
+                <View style={styles.dividerLine} />
+                <Text style={styles.dividerText}>{isRTL ? 'أو' : 'or'}</Text>
+                <View style={styles.dividerLine} />
+              </View>
+              <TouchableOpacity
+                onPress={() => router.push('/email-auth')}
+                style={[styles.emailBtn, { borderColor: COLORS.border }]}
+                accessibilityRole="button"
+                accessibilityLabel={isRTL ? 'متابعة بالبريد الإلكتروني' : 'Continue with email'}
+              >
+                <Ionicons name="mail-outline" size={18} color={COLORS.text} />
+                <Text style={[styles.emailBtnText, { color: COLORS.text }]}>
+                  {isRTL ? 'متابعة بالبريد الإلكتروني' : 'Continue with email'}
+                </Text>
+              </TouchableOpacity>
+
               <Text style={styles.hint}>
                 {isRTL
                   ? 'بمتابعتك توافق على شروط الاستخدام وسياسة الخصوصية.'
@@ -696,6 +715,27 @@ const createStyles = (C: any, isRTL: boolean) =>
       lineHeight: 18,
       marginTop: 6,
     },
+
+    dividerRow: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
+      gap: 10,
+      marginTop: 18,
+      marginBottom: 12,
+    },
+    dividerLine: { flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: C.border },
+    dividerText: { color: C.textSecondary, fontSize: 11.5, fontWeight: '700' },
+    emailBtn: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      paddingVertical: 14,
+      borderRadius: BORDER_RADIUS.lg,
+      borderWidth: 1.5,
+      backgroundColor: 'transparent',
+    },
+    emailBtnText: { fontSize: 14.5, fontWeight: '700' },
   });
 
 // Re-export so legacy callers that imported the constant directly still build.
