@@ -12,7 +12,9 @@ import {
   ActivityIndicator,
   Alert,
   Animated,
-  Easing,
+  ScrollView,
+  Keyboard,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -26,7 +28,6 @@ import {
   signUpWithPhoneOrEmail,
   loginWithPhoneOrEmail,
 } from '../services/authService';
-import { sendOtp, verifyOtp } from '../services/customOtpService';
 import { getFriendlyError } from '../utils/errorMessages';
 
 /**
@@ -149,6 +150,15 @@ export default function EmailAuthScreen() {
   };
 
   // ─── Email OTP flow ───────────────────────────────────────────────────
+  // Uses Supabase Auth's built-in email OTP. The provider handles delivery
+  // (via Supabase's email service or your configured SMTP), code storage,
+  // verification, and session creation. No custom edge function — that
+  // removes the "non-2xx" failure path the Resend-backed pipeline produced.
+  //
+  // For new users, shouldCreateUser=true lets the same call double as
+  // signup-by-OTP. The role is passed via raw_user_meta_data and locked to
+  // 'customer' by handle_new_user's whitelist (M-3 hardening) even if the
+  // client value is tampered with.
   const sendCodeEmail = async () => {
     setError(null);
     if (!validateEmail(email)) {
@@ -158,7 +168,14 @@ export default function EmailAuthScreen() {
     }
     setLoading(true);
     try {
-      await sendOtp(email.trim().toLowerCase(), 'login', language);
+      const { error: sendErr } = await supabase.auth.signInWithOtp({
+        email: email.trim().toLowerCase(),
+        options: {
+          shouldCreateUser: true,
+          data: { role: 'customer', user_type: 'customer' },
+        },
+      });
+      if (sendErr) throw sendErr;
       tapMedium();
       setCode('');
       setCodeStep('otp');
@@ -186,7 +203,12 @@ export default function EmailAuthScreen() {
     }
     setLoading(true);
     try {
-      await verifyOtp(email.trim().toLowerCase(), code, 'login');
+      const { error: verifyErr } = await supabase.auth.verifyOtp({
+        email: email.trim().toLowerCase(),
+        token: code,
+        type: 'email',
+      });
+      if (verifyErr) throw verifyErr;
       await finishAndRouteCustomer();
     } catch (e: any) {
       setError(getFriendlyError(e, language));
@@ -293,8 +315,22 @@ export default function EmailAuthScreen() {
         <View style={{ width: 32 }} />
       </View>
 
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <Animated.View style={[styles.content, { transform: [{ translateX: shake }] }]}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 24}
+      >
+        {/* Wrapping in TouchableWithoutFeedback lets a tap outside any input
+            dismiss the keyboard; the inner ScrollView keeps the active
+            input visible while typing on both iOS and Android. */}
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+          <ScrollView
+            contentContainerStyle={{ flexGrow: 1, paddingBottom: SPACING.xl }}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+            keyboardDismissMode="interactive"
+          >
+            <Animated.View style={[styles.content, { transform: [{ translateX: shake }] }]}>
           {/* Mode segmented selector — hidden on the OTP digit step. */}
           {codeStep === 'email' && (
             <View style={styles.segment}>
@@ -583,7 +619,9 @@ export default function EmailAuthScreen() {
               )}
             </>
           )}
-        </Animated.View>
+            </Animated.View>
+          </ScrollView>
+        </TouchableWithoutFeedback>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
