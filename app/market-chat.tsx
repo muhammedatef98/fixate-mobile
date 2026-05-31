@@ -12,7 +12,6 @@ import {
   Platform,
   ActivityIndicator,
   Alert,
-  Image,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -50,9 +49,6 @@ export default function MarketChatScreen() {
     sellerId?: string;
     buyerId?: string;
     threadId?: string;
-    counterpartyName?: string;
-    listingTitle?: string;
-    listingImage?: string;
   }>();
   const { language, isDark } = useApp();
   const { user } = useAuth();
@@ -64,9 +60,6 @@ export default function MarketChatScreen() {
   const [loading, setLoading] = useState(true);
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
-  const [headerCounterparty, setHeaderCounterparty] = useState<string>(
-    params.counterpartyName ?? ''
-  );
   const listRef = useRef<FlatList<MarketMessage>>(null);
   useScrollToEndOnKeyboard(listRef);
   const channelRef = useRef<any>(null);
@@ -113,19 +106,6 @@ export default function MarketChatScreen() {
 
       setThread(t);
 
-      // If the counterparty name wasn't passed in (mode 1 from listing
-      // detail), resolve it from the public_user_cards view so the header
-      // shows a real name instead of just "seller".
-      if (!headerCounterparty) {
-        const counterpartyId = t.buyer_id === user.id ? t.seller_id : t.buyer_id;
-        const { data: card } = await supabase
-          .from('public_user_cards')
-          .select('name')
-          .eq('id', counterpartyId)
-          .maybeSingle();
-        if (card?.name) setHeaderCounterparty(card.name);
-      }
-
       const msgs = await listMarketMessages(t.id);
       setMessages(msgs);
 
@@ -154,7 +134,6 @@ export default function MarketChatScreen() {
     params.listingId,
     params.sellerId,
     isRTL,
-    headerCounterparty,
     router,
   ]);
 
@@ -198,32 +177,15 @@ export default function MarketChatScreen() {
 
   const styles = useMemo(() => makeStyles(COLORS, isRTL), [COLORS, isRTL]);
 
-  const counterpartyLabel =
-    headerCounterparty?.trim() ||
-    (isRTL ? 'محادثة السوق' : 'Marketplace chat');
-
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.headerBtn}>
+        <TouchableOpacity onPress={() => router.back()} style={{ padding: 4 }}>
           <RTLIonicon name="chevron-back" size={24} color={COLORS.text} />
         </TouchableOpacity>
-        <View style={styles.headerCenter}>
-          <Text numberOfLines={1} style={styles.title}>
-            {counterpartyLabel}
-          </Text>
-          {!!params.listingTitle && (
-            <Text numberOfLines={1} style={styles.subtitle}>
-              {params.listingTitle}
-            </Text>
-          )}
-        </View>
-        {params.listingImage ? (
-          <Image source={{ uri: params.listingImage }} style={styles.headerThumb} />
-        ) : (
-          <View style={{ width: 36 }} />
-        )}
+        <Text style={styles.title}>{isRTL ? 'مراسلة البائع' : 'Chat with seller'}</Text>
+        <View style={{ width: 32 }} />
       </View>
 
       <KeyboardAvoidingView
@@ -334,11 +296,7 @@ export default function MarketChatScreen() {
             accessibilityRole="button"
             accessibilityLabel={isRTL ? 'إرسال' : 'Send'}
           >
-            {sending ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Ionicons name="send" size={18} color="#fff" />
-            )}
+            <Ionicons name={isRTL ? 'arrow-back' : 'arrow-forward'} size={20} color="#fff" />
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
@@ -352,40 +310,14 @@ const makeStyles = (C: any, isRTL: boolean) =>
     header: {
       flexDirection: isRTL ? 'row-reverse' : 'row',
       alignItems: 'center',
-      gap: 10,
+      justifyContent: 'space-between',
       paddingHorizontal: SPACING.lg,
       paddingVertical: SPACING.md,
       backgroundColor: C.card,
       borderBottomWidth: 1,
       borderBottomColor: C.border,
     },
-    headerBtn: {
-      width: 32,
-      height: 32,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    headerCenter: { flex: 1 },
-    headerThumb: {
-      width: 36,
-      height: 36,
-      borderRadius: BORDER_RADIUS.sm,
-      backgroundColor: C.background,
-    },
-    title: {
-      color: C.text,
-      fontWeight: '800',
-      fontSize: 16,
-      textAlign: isRTL ? 'right' : 'left',
-      writingDirection: isRTL ? 'rtl' : 'ltr',
-    },
-    subtitle: {
-      color: C.textSecondary,
-      fontSize: 12,
-      marginTop: 2,
-      textAlign: isRTL ? 'right' : 'left',
-      writingDirection: isRTL ? 'rtl' : 'ltr',
-    },
+    title: { color: C.text, fontWeight: '800', fontSize: 16 },
     msgRow: { flexDirection: 'row', marginVertical: 4 },
     bubble: {
       maxWidth: '78%',
