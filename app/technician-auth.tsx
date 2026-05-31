@@ -281,14 +281,6 @@ export default function TechnicianAuthScreen() {
 
             {isLogin && (
               <View style={styles.altRow}>
-                <TouchableOpacity
-                  onPress={() =>
-                    router.push({ pathname: '/login-otp', params: { actor: 'technician' } })
-                  }
-                  accessibilityRole="button"
-                >
-                  <Text style={styles.altLink}>{isRTL ? 'الدخول بكود الجوال' : 'Login with phone code'}</Text>
-                </TouchableOpacity>
                 <TouchableOpacity onPress={() => router.push('/forgot-password')} accessibilityRole="button">
                   <Text style={styles.altLink}>{isRTL ? 'نسيت كلمة المرور؟' : 'Forgot password?'}</Text>
                 </TouchableOpacity>
@@ -453,7 +445,10 @@ const createStyles = (COLORS: any, isRTL: boolean) => StyleSheet.create({
   },
   altRow: {
     flexDirection: isRTL ? 'row-reverse' : 'row',
-    justifyContent: 'space-between',
+    // Only one secondary link remains (Forgot password). flex-end keeps
+    // it tucked at the end of the row in both LTR and RTL, matching the
+    // conventional "secondary action under the primary button" position.
+    justifyContent: 'flex-end',
     alignItems: 'center',
     marginTop: 12,
   },
