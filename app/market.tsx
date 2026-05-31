@@ -367,17 +367,28 @@ export default function MarketScreen() {
           <RTLIonicon name="chevron-back" size={26} color={COLORS.text} />
         </TouchableOpacity>
         <Text style={styles.title}>{isRTL ? 'سوق Fixate' : 'Fixate Market'}</Text>
-        {/* "My Listings" entry — visible to all authenticated users
-            including admins. Admins can own listings on the same account,
-            and hiding the entry was hiding the only header path to
-            /my-listings, so they had no way to reach it from this screen. */}
-        <TouchableOpacity
-          onPress={() => router.push('/my-listings' as any)}
-          style={styles.headerActionBtn}
-          accessibilityLabel={isRTL ? 'إعلاناتي' : 'My listings'}
-        >
-          <MaterialCommunityIcons name="storefront-edit-outline" size={20} color={COLORS.text} />
-        </TouchableOpacity>
+        <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', gap: 8 }}>
+          {/* Inbox (Phase 2): every buyer/seller chat in one place. */}
+          <TouchableOpacity
+            onPress={() => router.push('/market-messages' as any)}
+            style={styles.headerActionBtn}
+            accessibilityLabel={isRTL ? 'الرسائل' : 'Messages'}
+            accessibilityRole="button"
+          >
+            <MaterialCommunityIcons name="message-text-outline" size={20} color={COLORS.text} />
+          </TouchableOpacity>
+          {/* "My Listings" entry — visible to all authenticated users
+              including admins. Admins can own listings on the same account,
+              and hiding the entry was hiding the only header path to
+              /my-listings, so they had no way to reach it from this screen. */}
+          <TouchableOpacity
+            onPress={() => router.push('/my-listings' as any)}
+            style={styles.headerActionBtn}
+            accessibilityLabel={isRTL ? 'إعلاناتي' : 'My listings'}
+          >
+            <MaterialCommunityIcons name="storefront-edit-outline" size={20} color={COLORS.text} />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Search + filter button */}
