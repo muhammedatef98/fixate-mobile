@@ -345,21 +345,30 @@ export default function MarketScreen() {
           <RTLIonicon name="chevron-back" size={26} color={COLORS.text} />
         </TouchableOpacity>
         <Text style={styles.title}>{isRTL ? 'سوق Fixate' : 'Fixate Market'}</Text>
-        {/* "My Listings" is a seller affordance — only shown to non-admin
-            users so the admin browse context stays focused on moderation
-            rather than self-service. Admins reach their own listings (if
-            any) through their personal account flow. */}
-        {!isAdmin ? (
+        {/* Header actions — Messages inbox is universal (admins still need
+            to see incoming chats about any listings they may own). My
+            Listings remains a seller affordance and is hidden from admins
+            so the admin browse context stays focused on moderation. */}
+        <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', gap: 8 }}>
           <TouchableOpacity
-            onPress={() => router.push('/my-listings' as any)}
+            onPress={() => router.push('/market-messages' as any)}
             style={styles.headerActionBtn}
-            accessibilityLabel={isRTL ? 'إعلاناتي' : 'My listings'}
+            accessibilityLabel={isRTL ? 'الرسائل' : 'Messages'}
+            accessibilityRole="button"
           >
-            <MaterialCommunityIcons name="storefront-edit-outline" size={20} color={COLORS.text} />
+            <MaterialCommunityIcons name="message-text-outline" size={20} color={COLORS.text} />
           </TouchableOpacity>
-        ) : (
-          <View style={{ width: 36 }} />
-        )}
+          {!isAdmin && (
+            <TouchableOpacity
+              onPress={() => router.push('/my-listings' as any)}
+              style={styles.headerActionBtn}
+              accessibilityLabel={isRTL ? 'إعلاناتي' : 'My listings'}
+              accessibilityRole="button"
+            >
+              <MaterialCommunityIcons name="storefront-edit-outline" size={20} color={COLORS.text} />
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
 
       {/* Search + filter button */}

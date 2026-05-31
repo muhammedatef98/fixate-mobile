@@ -632,6 +632,14 @@ export interface MarketThread {
   last_message_at: string;
   unread_for_buyer: boolean;
   unread_for_seller: boolean;
+  /** Last message snippet kept hot on the thread for inbox rendering. */
+  last_message_preview?: string | null;
+  /** Per-side "hide from inbox" flag. Reset on next inbound message. */
+  archived_for_buyer?: boolean;
+  archived_for_seller?: boolean;
+  /** Per-side read mark stamped by mark_market_thread_read RPC. */
+  last_read_at_buyer?: string | null;
+  last_read_at_seller?: string | null;
   created_at: string;
 }
 
@@ -644,14 +652,48 @@ export interface MarketMessage {
 }
 
 /**
+ * Inbox row: a thread joined to the counterparty's public profile card and
+ * a slim listing summary. Returned by list_my_market_threads (one round-trip
+ * for the whole inbox).
+ */
+export interface MarketThreadSummary {
+  thread_id: string;
+  listing_id: string;
+  listing_title: string | null;
+  listing_price: number | null;
+  listing_currency: string | null;
+  listing_image: string | null;
+  listing_status: string | null;
+  counterparty_id: string;
+  counterparty_name: string | null;
+  counterparty_avatar: string | null;
+  my_role: 'buyer' | 'seller';
+  last_message_at: string;
+  last_message_preview: string | null;
+  unread: boolean;
+  archived: boolean;
+}
+
+/**
  * Opens (or creates) the DM thread for a listing between the current
  * buyer and the seller. Returns the thread.
+ *
+ * Refuses to create a self-DM at the client layer as well as the DB
+ * (the migration adds `CHECK (buyer_id <> seller_id)`); failing fast
+ * here gives a friendlier error than a constraint violation.
  */
 export const getOrCreateMarketThread = async (
   listingId: string,
   buyerId: string,
   sellerId: string
 ): Promise<MarketThread> => {
+  if (!listingId || !buyerId || !sellerId) {
+    throw new Error('listingId, buyerId and sellerId are required');
+  }
+  if (buyerId === sellerId) {
+    throw new Error('You cannot start a chat with yourself');
+  }
+
   const { data: existing } = await supabase
     .from('market_threads')
     .select('*')
@@ -715,3 +757,86 @@ export const subscribeMarketMessages = (
       (payload: any) => onInsert(payload.new as MarketMessage)
     )
   );
+
+// ---------------------------------------------------------------------
+// Inbox-grade APIs (Phase 2 — see 2026_05_31_market_chat_phase2.sql)
+// ---------------------------------------------------------------------
+
+/**
+ * Lists the current user's market threads in inbox order (most recent
+ * activity first). Server-side join gives us counterparty profile +
+ * listing summary in one round-trip, avoiding N+1 lookups in the inbox.
+ *
+ * `before` is the cursor — pass the `last_message_at` of the last row
+ * from the previous page for infinite scroll.
+ */
+export const listMyMarketThreads = async (
+  opts?: { limit?: number; before?: string }
+): Promise<MarketThreadSummary[]> => {
+  const { data, error } = await supabase.rpc('list_my_market_threads', {
+    p_limit: opts?.limit ?? 50,
+    p_before: opts?.before ?? null,
+  });
+  if (error) {
+    logger.warn('listMyMarketThreads failed', error);
+    return [];
+  }
+  return (data ?? []) as MarketThreadSummary[];
+};
+
+/**
+ * Marks a thread as read for the current user. Uses an RPC so the
+ * client doesn't need to know whether it's the buyer or seller side.
+ */
+export const markMarketThreadRead = async (threadId: string): Promise<void> => {
+  if (!threadId) return;
+  const { error } = await supabase.rpc('mark_market_thread_read', {
+    p_thread_id: threadId,
+  });
+  if (error) logger.warn('markMarketThreadRead failed', error);
+};
+
+/** Hide/unhide a thread from the caller's inbox (per-side soft archive). */
+export const setMarketThreadArchived = async (
+  threadId: string,
+  archived: boolean
+): Promise<void> => {
+  if (!threadId) return;
+  const { error } = await supabase.rpc('set_market_thread_archived', {
+    p_thread_id: threadId,
+    p_archived: archived,
+  });
+  if (error) throw error;
+};
+
+/**
+ * Subscribe to inbox activity for the current user. Fires on every
+ * INSERT/UPDATE on `market_threads` where the user participates; the
+ * caller refetches (cheap — RPC returns ≤100 rows) and we keep the
+ * subscription dumb on purpose.
+ */
+export const subscribeMyMarketThreads = (
+  userId: string,
+  onChange: () => void
+): (() => void) => {
+  if (!userId) return () => undefined;
+  const channelKey = `market-inbox-${userId}`;
+  return subscribeUnique(channelKey, (ch) =>
+    ch
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'market_threads', filter: `buyer_id=eq.${userId}` },
+        () => onChange()
+      )
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'market_threads', filter: `seller_id=eq.${userId}` },
+        () => onChange()
+      )
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'market_threads', filter: `seller_id=eq.${userId}` },
+        () => onChange()
+      )
+  );
+};
