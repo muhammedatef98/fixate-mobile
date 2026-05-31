@@ -180,8 +180,17 @@ export default function MarketNewScreen() {
         <View style={{ width: 26 }} />
       </View>
 
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView contentContainerStyle={{ padding: SPACING.lg, gap: 12 }}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
+      >
+        <ScrollView
+          contentContainerStyle={{ padding: SPACING.lg, gap: 12, paddingBottom: 80, flexGrow: 1 }}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="interactive"
+          showsVerticalScrollIndicator={false}
+        >
           <Field label={isRTL ? 'العنوان' : 'Title'} COLORS={COLORS} isRTL={isRTL}>
             <TextInput
               value={title}
