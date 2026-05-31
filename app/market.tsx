@@ -509,6 +509,8 @@ export default function MarketScreen() {
             numColumns={2}
             columnWrapperStyle={{ gap: GRID_GUTTER, paddingHorizontal: GRID_GUTTER }}
             contentContainerStyle={{ gap: GRID_GUTTER, paddingVertical: GRID_GUTTER, paddingBottom: 40 }}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
             refreshControl={
               <RefreshControl
                 refreshing={refreshing}

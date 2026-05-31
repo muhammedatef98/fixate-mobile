@@ -422,9 +422,12 @@ export default function LoginOtpScreen() {
               {/* Hidden TextInput collects the digits; the visible row of
                   boxes mirrors it. Tapping any box opens the keyboard. */}
               <TouchableOpacity activeOpacity={1} onPress={() => hiddenOtpRef.current?.focus()}>
+                {/* OTP digits MUST always render LTR — the verification code is
+                    a number, not Arabic text. Forcing row (not row-reverse)
+                    keeps the first typed digit on the left in any locale. */}
                 <View
                   style={{
-                    flexDirection: isRTL ? 'row-reverse' : 'row',
+                    flexDirection: 'row',
                     justifyContent: 'center',
                     gap: 10,
                     marginTop: 6,

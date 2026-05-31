@@ -468,7 +468,8 @@ export default function EmailAuthScreen() {
               </Text>
 
               <TouchableOpacity activeOpacity={1} onPress={() => hiddenOtpRef.current?.focus()}>
-                <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', justifyContent: 'center', gap: 8, marginTop: 6 }}>
+                {/* OTP digits stay LTR regardless of UI language — code is numeric. */}
+                <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 8, marginTop: 6 }}>
                   {otpDigits.map((d, i) => {
                     const filled = d !== ' ';
                     const isCursor = i === code.length;

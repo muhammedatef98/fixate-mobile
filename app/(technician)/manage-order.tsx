@@ -22,6 +22,7 @@ import { useApp } from '../../contexts/AppContext';
 import * as ImagePicker from 'expo-image-picker';
 import { requests, auth } from '../../lib/supabase-api';
 import type { Order } from '../../lib/supabase-api';
+import { getUserProfile } from '../../services/userService';
 import { logger } from '../../utils/logger';
 import { ORDER_STATUS_LABELS_AR, ORDER_STATUS_LABELS_EN } from '../../types/order';
 import { safeBack } from '../../utils/navigation';
@@ -169,7 +170,11 @@ export default function ManageOrderScreen() {
       setOrder(orderData);
       
       if (orderData?.user_id) {
-        const customerProfile = await auth.getUserProfile(orderData.user_id);
+        // IMPORTANT: use the userService lookup (queries `users` table by id),
+        // NOT auth.getUserProfile() — that one returns the currently-signed-in
+        // user (the technician), which caused the technician's own name/phone
+        // to show up as if it were the customer.
+        const customerProfile = await getUserProfile(orderData.user_id);
         setCustomer(customerProfile);
       }
       if (orderData) {
@@ -669,27 +674,31 @@ export default function ManageOrderScreen() {
           </View>
         )}
 
-        {/* Customer Info */}
+        {/* Customer Info — strictly from the customer's profile.
+            Falls back to a clear "not available" label rather than the
+            technician's identity or an ambiguous "Customer" placeholder. */}
         <View style={[styles.card, { backgroundColor: COLORS.card }, SHADOWS.medium]}>
-          <Text style={[styles.cardTitle, { color: COLORS.text }]}>
+          <Text style={[styles.cardTitle, { color: COLORS.text, textAlign: isRTL ? 'right' : 'left' }]}>
             {isRTL ? 'معلومات العميل' : 'Customer Information'}
           </Text>
           <View style={styles.infoRow}>
             <MaterialIcons name="person" size={20} color={COLORS.textSecondary} />
-            <Text style={[styles.infoLabel, { color: COLORS.textSecondary }]}>
+            <Text style={[styles.infoLabel, { color: COLORS.textSecondary, textAlign: isRTL ? 'right' : 'left' }]}>
               {isRTL ? 'الاسم' : 'Name'}
             </Text>
-            <Text style={[styles.infoValue, { color: COLORS.text }]}>
-              {customer?.name || (isRTL ? 'عميل' : 'Customer')}
+            <Text style={[styles.infoValue, { color: COLORS.text, textAlign: isRTL ? 'right' : 'left' }]}>
+              {(customer?.name && customer.name.trim()) || (isRTL ? 'غير متوفر' : 'Not available')}
             </Text>
           </View>
           <View style={styles.infoRow}>
             <MaterialIcons name="phone" size={20} color={COLORS.textSecondary} />
-            <Text style={[styles.infoLabel, { color: COLORS.textSecondary }]}>
+            <Text style={[styles.infoLabel, { color: COLORS.textSecondary, textAlign: isRTL ? 'right' : 'left' }]}>
               {isRTL ? 'الهاتف' : 'Phone'}
             </Text>
-            <Text style={[styles.infoValue, { color: COLORS.text }]}>
-              {order.customer_phone || customer?.phone || (isRTL ? 'غير متوفر' : 'N/A')}
+            <Text style={[styles.infoValue, { color: COLORS.text, writingDirection: 'ltr', textAlign: isRTL ? 'right' : 'left' }]}>
+              {(customer?.phone && customer.phone.trim()) ||
+                (order.customer_phone && String(order.customer_phone).trim()) ||
+                (isRTL ? 'غير متوفر' : 'Not available')}
             </Text>
           </View>
         </View>
@@ -1059,9 +1068,13 @@ const makeStyles = (isRTL: boolean) => StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     marginBottom: SPACING.s,
+    textAlign: isRTL ? 'right' : 'left',
+    writingDirection: isRTL ? 'rtl' : 'ltr',
   },
   sectionSubtitle: {
     fontSize: 14,
+    textAlign: isRTL ? 'right' : 'left',
+    writingDirection: isRTL ? 'rtl' : 'ltr',
   },
   workflowGrid: {
     gap: SPACING.m,
