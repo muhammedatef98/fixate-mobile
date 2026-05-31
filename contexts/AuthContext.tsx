@@ -147,6 +147,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const refreshUser = async () => {
+    // Pull the latest auth user from the server. This bypasses the JWT
+    // cached in AsyncStorage and picks up server-side mutations (most
+    // importantly an email change that completed after the current token
+    // was issued) without waiting for the next auto-refresh tick.
+    try {
+      const { data: { user: freshUser } } = await supabase.auth.getUser();
+      if (freshUser) setUser(freshUser);
+    } catch {
+      // Non-fatal — fall through to the public profile refresh below.
+    }
+
+    // Re-fetch the public.users row (existing behaviour, unchanged).
     if (user) {
       const profile = await userService.getUserProfile(user.id);
       setUserProfile(profile);

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -11,7 +11,7 @@ import {
   Alert,
   StatusBar,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useApp } from '../contexts/AppContext';
@@ -40,6 +40,26 @@ export default function EditProfileScreen() {
   );
   const [saving, setSaving] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+
+  // Refresh the auth user on every focus. The email-change confirmation
+  // completes server-side; without this, the locally cached JWT keeps the
+  // old email claim until the next auto-refresh tick (~60 min) and the
+  // screen would keep showing the old email after the user returns from
+  // confirming the change.
+  useFocusEffect(
+    useCallback(() => {
+      refreshUser();
+    }, [refreshUser])
+  );
+
+  // Sync local email input with the canonical user.email whenever
+  // refreshUser (or any other path) lands a fresh auth user. The initial
+  // useState above only fires once at mount; without this effect, the
+  // field would stay at the value it had on first render even after the
+  // email actually flips.
+  useEffect(() => {
+    setEmail(user?.email ?? '');
+  }, [user?.email]);
 
   const pickAvatar = (fromCamera: boolean) => async () => {
     if (!user) return;
