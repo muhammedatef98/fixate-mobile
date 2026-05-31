@@ -57,6 +57,66 @@ export interface SignUpResult {
 // "sign in instead" affordance — see app/email-auth.tsx.
 export const EMAIL_ALREADY_EXISTS = 'EMAIL_ALREADY_EXISTS';
 
+// Stable error codes for strict role separation between customers and
+// technicians. Thrown by assertExpectedRole below.
+//
+// WRONG_ROLE_TECHNICIAN  → a technician account hit a customer-only path
+// WRONG_ROLE_CUSTOMER    → a customer account hit a technician-only path
+export const WRONG_ROLE_TECHNICIAN = 'WRONG_ROLE_TECHNICIAN';
+export const WRONG_ROLE_CUSTOMER = 'WRONG_ROLE_CUSTOMER';
+
+/**
+ * Confirm the freshly-signed-in user holds the expected role, otherwise
+ * sign them out locally and throw a stable role-mismatch code. Canonical
+ * source is public.users.role (set once at signup via handle_new_user and
+ * locked from non-admin updates by the users_guard_role_columns trigger).
+ * auth user_metadata is the fall-back when the public row hasn't been
+ * fetched yet.
+ *
+ * Note: this is a routing concern, not a security boundary. The real
+ * security boundary is RLS plus the role-update trigger (B-1).
+ */
+export const assertExpectedRole = async (
+  userId: string,
+  expected: 'customer' | 'technician',
+): Promise<void> => {
+  let role: string | null = null;
+  try {
+    const { data } = await supabase
+      .from('users')
+      .select('role')
+      .eq('id', userId)
+      .maybeSingle();
+    role = ((data as any)?.role as string | null) ?? null;
+  } catch {
+    /* fall through to metadata */
+  }
+
+  if (!role) {
+    try {
+      const { data } = await supabase.auth.getUser();
+      role =
+        ((data.user?.user_metadata as any)?.role as string | null) ??
+        ((data.user?.app_metadata as any)?.role as string | null) ??
+        null;
+    } catch {
+      /* keep null */
+    }
+  }
+
+  if (role && role !== expected) {
+    // Drop the session locally so the UI can't accidentally route into
+    // the wrong app surface on the next render.
+    try { await supabase.auth.signOut({ scope: 'local' }); } catch {}
+    if (expected === 'customer' && role === 'technician') {
+      throw new Error(WRONG_ROLE_TECHNICIAN);
+    }
+    if (expected === 'technician' && role === 'customer') {
+      throw new Error(WRONG_ROLE_CUSTOMER);
+    }
+  }
+};
+
 export const signUpWithPhoneOrEmail = async (data: SignUpData): Promise<SignUpResult> => {
   assertValidSignUp(data);
   const normalizedPhone = data.phone ? normalizeSaudiPhone(data.phone) : undefined;

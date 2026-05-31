@@ -27,7 +27,9 @@ import { tapMedium, success } from '../utils/haptics';
 import {
   signUpWithPhoneOrEmail,
   loginWithPhoneOrEmail,
+  assertExpectedRole,
   EMAIL_ALREADY_EXISTS,
+  WRONG_ROLE_TECHNICIAN,
 } from '../services/authService';
 import { getFriendlyError } from '../utils/errorMessages';
 
@@ -116,40 +118,32 @@ export default function EmailAuthScreen() {
     return `${m}:${String(r).padStart(2, '0')}`;
   };
 
-  // After ANY successful auth we check the resolved profile.role and bounce
-  // technicians back to their portal so they never accidentally land in the
-  // customer app from the email path.
+  // After ANY successful auth on the customer path, enforce strict role
+  // separation: a technician account must NOT land in the customer app.
+  // We sign them out locally and show an OK-only alert per the strict
+  // role-separation spec (no "go to technician portal" affordance).
   const finishAndRouteCustomer = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
-        const { data: profile } = await supabase
-          .from('users')
-          .select('role')
-          .eq('id', user.id)
-          .maybeSingle();
-        const profileRole =
-          ((profile as any)?.role as string | null) ??
-          ((user.user_metadata as any)?.role as string | null) ??
-          null;
-        if (profileRole === 'technician') {
-          try { await supabase.auth.signOut({ scope: 'local' }); } catch {}
-          Alert.alert(
-            isRTL ? 'هذا الحساب فني' : 'Technician account',
-            isRTL
-              ? 'هذا الحساب مسجّل كفني. الرجاء الدخول من بوابة الفنيين.'
-              : 'This account is registered as a technician. Please sign in from the technician portal.',
-            [
-              { text: isRTL ? 'إلغاء' : 'Cancel', style: 'cancel' },
-              { text: isRTL ? 'بوابة الفنيين' : 'Technician portal', onPress: () => router.replace('/technician-auth') },
-            ]
-          );
-          return;
-        }
+        // Throws WRONG_ROLE_TECHNICIAN + signs out locally if the user is
+        // actually a technician. Any other error is swallowed so a flaky
+        // RLS query can't strand a legitimate customer.
+        await assertExpectedRole(user.id, 'customer');
       }
-    } catch {
-      // Profile lookup failure: fall through; the (customer) layout guard
-      // handles any role mismatch and BlockedScreen handles suspended accounts.
+    } catch (e: any) {
+      if ((e as Error)?.message === WRONG_ROLE_TECHNICIAN) {
+        Alert.alert(
+          isRTL ? 'حساب فني' : 'Technician account',
+          isRTL
+            ? 'هذا البريد مرتبط بحساب فني. يرجى استخدام تطبيق الفنيين.'
+            : 'This email is linked to a technician account. Please use the technician login.',
+          [{ text: 'OK' }],
+        );
+        return;
+      }
+      // Profile lookup failure or any other unexpected error: fall through
+      // so the (customer) layout guard + BlockedScreen handle it.
     }
     success();
     router.replace('/(customer)');
