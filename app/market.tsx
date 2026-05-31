@@ -23,6 +23,7 @@ import { useApp } from '../contexts/AppContext';
 import { useIsAdmin } from '../hooks/useAdminGuard';
 import { getColors, SPACING, BORDER_RADIUS } from '../constants/theme';
 import { RTLIonicon } from '../components/RTLIcon';
+import { resolveOrderMediaUrls } from '../services/storageService';
 import {
   browseListings,
   type MarketListing,
@@ -125,6 +126,9 @@ export default function MarketScreen() {
   const [filtersOpen, setFiltersOpen] = useState(false);
 
   const [listings, setListings] = useState<MarketListing[]>([]);
+  // B-5 Wave 3: signed-URL mirror for grid cover images. Falls back to
+  // the stored URL whenever signing fails so the screen never breaks.
+  const [displayCovers, setDisplayCovers] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [marketplaceEnabled, setMarketplaceEnabled] = useState(true);
@@ -180,6 +184,24 @@ export default function MarketScreen() {
 
   useEffect(() => { load(); }, [load]);
 
+  // Re-sign the first image of every listing whenever the grid changes.
+  useEffect(() => {
+    let cancelled = false;
+    const entries = listings
+      .map((l) => [l.id, l.images?.[0]] as const)
+      .filter((e): e is readonly [string, string] => !!e[1]);
+    if (entries.length === 0) { setDisplayCovers({}); return; }
+    resolveOrderMediaUrls(entries.map(([, v]) => v))
+      .then((resolved) => {
+        if (cancelled) return;
+        const next: Record<string, string> = {};
+        entries.forEach(([k, original], i) => { next[k] = resolved[i] ?? original; });
+        setDisplayCovers(next);
+      })
+      .catch(() => { /* keep stored URLs */ });
+    return () => { cancelled = true; };
+  }, [listings]);
+
   const styles = useMemo(() => createStyles(COLORS, isRTL), [COLORS, isRTL]);
 
   const renderCard = ({ item }: { item: MarketListing }) => {
@@ -195,7 +217,7 @@ export default function MarketScreen() {
         <View style={styles.cardImageWrap}>
           {item.images?.[0] ? (
             <Image
-              source={{ uri: item.images[0] }}
+              source={{ uri: displayCovers[item.id] ?? item.images[0] }}
               style={styles.cardImage}
               placeholder={{ blurhash: IMG_BLURHASH }}
               transition={220}
@@ -345,11 +367,20 @@ export default function MarketScreen() {
           <RTLIonicon name="chevron-back" size={26} color={COLORS.text} />
         </TouchableOpacity>
         <Text style={styles.title}>{isRTL ? 'سوق Fixate' : 'Fixate Market'}</Text>
-        {/* "My Listings" is a seller affordance — only shown to non-admin
-            users so the admin browse context stays focused on moderation
-            rather than self-service. Admins reach their own listings (if
-            any) through their personal account flow. */}
-        {!isAdmin ? (
+        <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', gap: 8 }}>
+          {/* Inbox (Phase 2): every buyer/seller chat in one place. */}
+          <TouchableOpacity
+            onPress={() => router.push('/market-messages' as any)}
+            style={styles.headerActionBtn}
+            accessibilityLabel={isRTL ? 'الرسائل' : 'Messages'}
+            accessibilityRole="button"
+          >
+            <MaterialCommunityIcons name="message-text-outline" size={20} color={COLORS.text} />
+          </TouchableOpacity>
+          {/* "My Listings" entry — visible to all authenticated users
+              including admins. Admins can own listings on the same account,
+              and hiding the entry was hiding the only header path to
+              /my-listings, so they had no way to reach it from this screen. */}
           <TouchableOpacity
             onPress={() => router.push('/my-listings' as any)}
             style={styles.headerActionBtn}
@@ -357,9 +388,7 @@ export default function MarketScreen() {
           >
             <MaterialCommunityIcons name="storefront-edit-outline" size={20} color={COLORS.text} />
           </TouchableOpacity>
-        ) : (
-          <View style={{ width: 36 }} />
-        )}
+        </View>
       </View>
 
       {/* Search + filter button */}
@@ -491,6 +520,8 @@ export default function MarketScreen() {
             numColumns={2}
             columnWrapperStyle={{ gap: GRID_GUTTER, paddingHorizontal: GRID_GUTTER }}
             contentContainerStyle={{ gap: GRID_GUTTER, paddingVertical: GRID_GUTTER, paddingBottom: 40 }}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
             refreshControl={
               <RefreshControl
                 refreshing={refreshing}

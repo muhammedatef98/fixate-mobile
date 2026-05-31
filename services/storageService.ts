@@ -131,6 +131,85 @@ export const uploadOrderMedia = async (
  * policy requires the first path segment to be the user's id. Returns the
  * public URL ready to store in users.avatar_url.
  */
+/**
+ * D2 / B-5 prep: convert whatever is stored in orders.before_photos /
+ * orders.after_photos / orders.media_urls (either a legacy public URL or a
+ * raw storage path) into a short-lived signed URL that works regardless of
+ * whether the `orders` bucket is currently public or private.
+ *
+ * Behaviour is intentionally permissive:
+ *   - If the bucket is still public, signed URLs are still produced (Supabase
+ *     allows signing on public buckets), so nothing visible to the user
+ *     changes.
+ *   - If `createSignedUrls` fails for any reason, we fall back to the
+ *     original stored values so the rest of the app does not break.
+ *   - If a stored value is an HTTP URL that does NOT point at the orders
+ *     bucket (e.g. someone hand-pasted an external image URL), we leave it
+ *     untouched and return it as-is.
+ *
+ * This makes the eventual private-bucket flip a no-op at the client level.
+ */
+const ORDERS_URL_PATH_RE =
+  /\/storage\/v1\/object\/(?:public|sign)\/orders\/([^?]+)(?:\?.*)?$/i;
+
+const extractOrdersPath = (value: string): string | null => {
+  if (!value) return null;
+  const match = ORDERS_URL_PATH_RE.exec(value);
+  if (match) {
+    try {
+      return decodeURIComponent(match[1]);
+    } catch {
+      return match[1];
+    }
+  }
+  // Anything that doesn't look like an absolute URL is treated as a path
+  // already relative to the bucket.
+  if (!/^https?:\/\//i.test(value)) return value;
+  // Absolute URL that doesn't belong to our orders bucket — leave alone.
+  return null;
+};
+
+export const resolveOrderMediaUrls = async (
+  values: ReadonlyArray<string> | null | undefined
+): Promise<string[]> => {
+  if (!values || values.length === 0) return [];
+
+  // Build a per-index "needs signing" map. Foreign URLs (e.g. picsum) keep
+  // their value unchanged in the final array.
+  const paths: (string | null)[] = values.map(extractOrdersPath);
+  const signableIndices: number[] = [];
+  const signablePaths: string[] = [];
+  paths.forEach((p, i) => {
+    if (p !== null) {
+      signableIndices.push(i);
+      signablePaths.push(p);
+    }
+  });
+
+  if (signablePaths.length === 0) return [...values];
+
+  try {
+    const { data, error } = await supabase.storage
+      .from(ORDERS_BUCKET)
+      .createSignedUrls(signablePaths, 60 * 60);
+
+    if (error || !data) {
+      logger.warn('resolveOrderMediaUrls: createSignedUrls failed, falling back to stored values', error);
+      return [...values];
+    }
+
+    const resolved: string[] = [...values];
+    signableIndices.forEach((origIndex, i) => {
+      const signed = data[i]?.signedUrl;
+      if (signed) resolved[origIndex] = signed;
+    });
+    return resolved;
+  } catch (e) {
+    logger.warn('resolveOrderMediaUrls threw, falling back to stored values', e);
+    return [...values];
+  }
+};
+
 export const uploadAvatar = async (
   userId: string,
   uri: string

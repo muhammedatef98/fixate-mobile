@@ -22,6 +22,7 @@ import { useApp } from '../../contexts/AppContext';
 import * as ImagePicker from 'expo-image-picker';
 import { requests, auth } from '../../lib/supabase-api';
 import type { Order } from '../../lib/supabase-api';
+import { getUserProfile } from '../../services/userService';
 import { logger } from '../../utils/logger';
 import { ORDER_STATUS_LABELS_AR, ORDER_STATUS_LABELS_EN } from '../../types/order';
 import { safeBack } from '../../utils/navigation';
@@ -29,7 +30,7 @@ import { RTLIonicon } from '../../components/RTLIcon';
 import ImageViewer from '../../components/ImageViewer';
 import ImagePickerSheet from '../../components/ImagePickerSheet';
 import { supabase } from '../../services/supabaseClient';
-import { uploadOrderMedia } from '../../services/storageService';
+import { uploadOrderMedia, resolveOrderMediaUrls } from '../../services/storageService';
 import {
   startBroadcastingLocation,
   stopBroadcastingLocation,
@@ -70,6 +71,15 @@ export default function ManageOrderScreen() {
   const [savingNotes, setSavingNotes] = useState(false);
   const [beforePhotos, setBeforePhotos] = useState<string[]>([]);
   const [afterPhotos, setAfterPhotos] = useState<string[]>([]);
+  // D2 / B-5: display-only signed-URL mirrors of the stored arrays. The
+  // stored arrays remain the source of truth for DB writes (removePhoto)
+  // so the bucket can be flipped to private without breaking anything.
+  const [displayBeforePhotos, setDisplayBeforePhotos] = useState<string[]>([]);
+  const [displayAfterPhotos, setDisplayAfterPhotos] = useState<string[]>([]);
+  // B-5 Wave 4: signed-URL mirror of the customer's pre-upload media
+  // (order.media_urls) that the technician views read-only in the
+  // "Attached photos" section. Strip + viewer both consume this state.
+  const [displayCustomerMedia, setDisplayCustomerMedia] = useState<string[]>([]);
   const [photoSheetOpen, setPhotoSheetOpen] = useState(false);
   const [photoTarget, setPhotoTarget] = useState<'before' | 'after'>('before');
   const [uploadingPhotos, setUploadingPhotos] = useState(false);
@@ -120,13 +130,51 @@ export default function ManageOrderScreen() {
     };
   }, [order?.status, order?.technician_id, id]);
 
+  // Resolve stored photo URLs into signed URLs whenever the stored arrays
+  // change. Falls back to the originals on failure so the bucket-private
+  // flip will be a true no-op at the client level.
+  useEffect(() => {
+    let cancelled = false;
+    if (beforePhotos.length === 0) {
+      setDisplayBeforePhotos([]);
+    } else {
+      resolveOrderMediaUrls(beforePhotos)
+        .then((r) => { if (!cancelled) setDisplayBeforePhotos(r); })
+        .catch(() => { if (!cancelled) setDisplayBeforePhotos(beforePhotos); });
+    }
+    if (afterPhotos.length === 0) {
+      setDisplayAfterPhotos([]);
+    } else {
+      resolveOrderMediaUrls(afterPhotos)
+        .then((r) => { if (!cancelled) setDisplayAfterPhotos(r); })
+        .catch(() => { if (!cancelled) setDisplayAfterPhotos(afterPhotos); });
+    }
+    return () => { cancelled = true; };
+  }, [beforePhotos, afterPhotos]);
+
+  // B-5 Wave 4: resolve the read-only customer media whenever the
+  // underlying order payload changes.
+  useEffect(() => {
+    let cancelled = false;
+    const stored: string[] = Array.isArray((order as any)?.media_urls) ? ((order as any).media_urls as string[]) : [];
+    if (stored.length === 0) { setDisplayCustomerMedia([]); return; }
+    resolveOrderMediaUrls(stored)
+      .then((r) => { if (!cancelled) setDisplayCustomerMedia(r); })
+      .catch(() => { if (!cancelled) setDisplayCustomerMedia(stored); });
+    return () => { cancelled = true; };
+  }, [order]);
+
   const loadOrderDetails = async () => {
     try {
       const orderData = await requests.getById(id as string);
       setOrder(orderData);
       
       if (orderData?.user_id) {
-        const customerProfile = await auth.getUserProfile(orderData.user_id);
+        // IMPORTANT: use the userService lookup (queries `users` table by id),
+        // NOT auth.getUserProfile() — that one returns the currently-signed-in
+        // user (the technician), which caused the technician's own name/phone
+        // to show up as if it were the customer.
+        const customerProfile = await getUserProfile(orderData.user_id);
         setCustomer(customerProfile);
       }
       if (orderData) {
@@ -626,27 +674,31 @@ export default function ManageOrderScreen() {
           </View>
         )}
 
-        {/* Customer Info */}
+        {/* Customer Info — strictly from the customer's profile.
+            Falls back to a clear "not available" label rather than the
+            technician's identity or an ambiguous "Customer" placeholder. */}
         <View style={[styles.card, { backgroundColor: COLORS.card }, SHADOWS.medium]}>
-          <Text style={[styles.cardTitle, { color: COLORS.text }]}>
+          <Text style={[styles.cardTitle, { color: COLORS.text, textAlign: isRTL ? 'right' : 'left' }]}>
             {isRTL ? 'معلومات العميل' : 'Customer Information'}
           </Text>
           <View style={styles.infoRow}>
             <MaterialIcons name="person" size={20} color={COLORS.textSecondary} />
-            <Text style={[styles.infoLabel, { color: COLORS.textSecondary }]}>
+            <Text style={[styles.infoLabel, { color: COLORS.textSecondary, textAlign: isRTL ? 'right' : 'left' }]}>
               {isRTL ? 'الاسم' : 'Name'}
             </Text>
-            <Text style={[styles.infoValue, { color: COLORS.text }]}>
-              {customer?.name || (isRTL ? 'عميل' : 'Customer')}
+            <Text style={[styles.infoValue, { color: COLORS.text, textAlign: isRTL ? 'right' : 'left' }]}>
+              {(customer?.name && customer.name.trim()) || (isRTL ? 'غير متوفر' : 'Not available')}
             </Text>
           </View>
           <View style={styles.infoRow}>
             <MaterialIcons name="phone" size={20} color={COLORS.textSecondary} />
-            <Text style={[styles.infoLabel, { color: COLORS.textSecondary }]}>
+            <Text style={[styles.infoLabel, { color: COLORS.textSecondary, textAlign: isRTL ? 'right' : 'left' }]}>
               {isRTL ? 'الهاتف' : 'Phone'}
             </Text>
-            <Text style={[styles.infoValue, { color: COLORS.text }]}>
-              {order.customer_phone || customer?.phone || (isRTL ? 'غير متوفر' : 'N/A')}
+            <Text style={[styles.infoValue, { color: COLORS.text, writingDirection: 'ltr', textAlign: isRTL ? 'right' : 'left' }]}>
+              {(customer?.phone && customer.phone.trim()) ||
+                (order.customer_phone && String(order.customer_phone).trim()) ||
+                (isRTL ? 'غير متوفر' : 'Not available')}
             </Text>
           </View>
         </View>
@@ -782,13 +834,18 @@ export default function ManageOrderScreen() {
               {order.media_urls.map((url, index) => (
                 <TouchableOpacity
                   key={index}
-                  onPress={() => openPhotoViewer(order.media_urls ?? [], index)}
+                  onPress={() => openPhotoViewer(
+                    displayCustomerMedia.length === (order.media_urls?.length ?? 0)
+                      ? displayCustomerMedia
+                      : (order.media_urls ?? []),
+                    index
+                  )}
                   activeOpacity={0.85}
                   style={{ marginRight: 8 }}
                   accessibilityRole="button"
                 >
                   <Image
-                    source={{ uri: url }}
+                    source={{ uri: displayCustomerMedia[index] ?? url }}
                     style={styles.mediaImage}
                     resizeMode="cover"
                   />
@@ -851,8 +908,8 @@ export default function ManageOrderScreen() {
             {isRTL ? 'صور قبل / بعد الإصلاح' : 'Before / After photos'}
           </Text>
           {([
-            { key: 'before' as const, label: isRTL ? 'قبل الإصلاح' : 'Before repair', photos: beforePhotos },
-            { key: 'after' as const, label: isRTL ? 'بعد الإصلاح' : 'After repair', photos: afterPhotos },
+            { key: 'before' as const, label: isRTL ? 'قبل الإصلاح' : 'Before repair', stored: beforePhotos, display: displayBeforePhotos },
+            { key: 'after' as const, label: isRTL ? 'بعد الإصلاح' : 'After repair', stored: afterPhotos, display: displayAfterPhotos },
           ]).map((group) => (
             <View key={group.key} style={{ marginTop: 12 }}>
               <Text style={{ color: COLORS.textSecondary, fontWeight: '700', fontSize: 13, marginBottom: 6, textAlign: isRTL ? 'right' : 'left' }}>
@@ -880,19 +937,27 @@ export default function ManageOrderScreen() {
                     <Ionicons name="camera" size={22} color={COLORS.textSecondary} />
                   )}
                 </TouchableOpacity>
-                {group.photos.map((url, i) => (
+                {group.stored.map((storedUrl, i) => {
+                  // Prefer the signed display URL when available; fall back
+                  // to the stored value while the resolver is still pending
+                  // or if signing failed entirely.
+                  const displayUrl = group.display[i] ?? storedUrl;
+                  return (
                   <View key={i} style={{ marginRight: 8, position: 'relative' }}>
                     <TouchableOpacity
                       activeOpacity={0.85}
-                      onPress={() => openPhotoViewer(group.photos, i)}
+                      onPress={() => openPhotoViewer(
+                        group.display.length === group.stored.length ? group.display : group.stored,
+                        i
+                      )}
                     >
                       <Image
-                        source={{ uri: url }}
+                        source={{ uri: displayUrl }}
                         style={{ width: 72, height: 72, borderRadius: BORDER_RADIUS.md }}
                       />
                     </TouchableOpacity>
                     <TouchableOpacity
-                      onPress={() => removePhoto(group.key, url)}
+                      onPress={() => removePhoto(group.key, storedUrl)}
                       style={{
                         position: 'absolute',
                         top: -7,
@@ -906,8 +971,9 @@ export default function ManageOrderScreen() {
                       <Ionicons name="close-circle" size={22} color="#EF4444" />
                     </TouchableOpacity>
                   </View>
-                ))}
-                {group.photos.length === 0 && (
+                  );
+                })}
+                {group.stored.length === 0 && (
                   <Text style={{ color: COLORS.textSecondary, fontSize: 12, alignSelf: 'center' }}>
                     {isRTL ? 'لا توجد صور بعد' : 'No photos yet'}
                   </Text>
@@ -1002,9 +1068,13 @@ const makeStyles = (isRTL: boolean) => StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     marginBottom: SPACING.s,
+    textAlign: isRTL ? 'right' : 'left',
+    writingDirection: isRTL ? 'rtl' : 'ltr',
   },
   sectionSubtitle: {
     fontSize: 14,
+    textAlign: isRTL ? 'right' : 'left',
+    writingDirection: isRTL ? 'rtl' : 'ltr',
   },
   workflowGrid: {
     gap: SPACING.m,

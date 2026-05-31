@@ -22,6 +22,7 @@ import { useApp } from '../contexts/AppContext';
 import { useIsAdmin } from '../hooks/useAdminGuard';
 import { getColors, SPACING, BORDER_RADIUS } from '../constants/theme';
 import { RTLIonicon } from '../components/RTLIcon';
+import { resolveOrderMediaUrls } from '../services/storageService';
 import {
   adminListAll,
   adminApprove,
@@ -66,6 +67,8 @@ export default function AdminMarketScreen() {
   const { isAdmin } = useIsAdmin();
 
   const [listings, setListings] = useState<MarketListing[]>([]);
+  // B-5 Wave 3: signed-URL mirror for grid cover images.
+  const [displayCovers, setDisplayCovers] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [filter, setFilter] = useState<ListingStatus>('pending');
@@ -91,6 +94,23 @@ export default function AdminMarketScreen() {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const entries = listings
+      .map((l) => [l.id, l.images?.[0]] as const)
+      .filter((e): e is readonly [string, string] => !!e[1]);
+    if (entries.length === 0) { setDisplayCovers({}); return; }
+    resolveOrderMediaUrls(entries.map(([, v]) => v))
+      .then((resolved) => {
+        if (cancelled) return;
+        const next: Record<string, string> = {};
+        entries.forEach(([k, original], i) => { next[k] = resolved[i] ?? original; });
+        setDisplayCovers(next);
+      })
+      .catch(() => { /* keep stored URLs */ });
+    return () => { cancelled = true; };
+  }, [listings]);
 
   const replaceInList = (next: MarketListing) =>
     setListings((prev) => prev.map((x) => (x.id === next.id ? next : x)));
@@ -312,7 +332,7 @@ export default function AdminMarketScreen() {
                   onPress={() => router.push({ pathname: '/market-detail', params: { id: l.id } })}
                 >
                   {l.images?.[0] ? (
-                    <Image source={{ uri: l.images[0] }} style={styles.thumb} />
+                    <Image source={{ uri: displayCovers[l.id] ?? l.images[0] }} style={styles.thumb} />
                   ) : (
                     <View style={[styles.thumb, styles.thumbEmpty]}>
                       <MaterialCommunityIcons name="image-off-outline" size={22} color={COLORS.textSecondary} />

@@ -9,6 +9,7 @@ import {
   StatusBar,
   Alert,
   ActivityIndicator,
+  Modal,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -22,6 +23,13 @@ import {
   getPaymentPageMethods,
   type PaymentMethod,
 } from '../services/paymentMethodsService';
+import {
+  createPaypalOrder,
+  capturePaypalOrder,
+  openPaypalCheckout,
+  friendlyPaypalError,
+  type PaypalOrderInit,
+} from '../services/paypalService';
 
 /**
  * The real payment page — reached after the customer accepts a repair quote.
@@ -55,6 +63,11 @@ export default function PaymentScreen() {
   const [methods, setMethods] = useState<PaymentMethod[] | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  // B-4 PayPal: server-built order shown in a confirmation modal so the
+  // customer can see both the SAR display amount and the exact USD charge
+  // before approving on PayPal's hosted page.
+  const [paypalConfirm, setPaypalConfirm] = useState<PaypalOrderInit | null>(null);
+  const [paypalRunning, setPaypalRunning] = useState(false);
 
   // Order pricing — loaded so accessories/add-ons can be shown and removed
   // before the customer pays. Delivery-fee payments skip this entirely.
@@ -124,6 +137,54 @@ export default function PaymentScreen() {
     }
   };
 
+  // B-4 PayPal: kick off the real settlement flow. We ask the backend to
+  // build a PayPal order (server-controlled amount), surface the SAR/USD
+  // breakdown in a modal, then — on customer confirmation — open the
+  // hosted approval page and capture on return. payment_status is only
+  // flipped to 'paid' by the capture edge function after PayPal completes.
+  const runPaypalFlow = async (): Promise<void> => {
+    if (!orderId) return;
+    setSubmitting(true);
+    try {
+      const init = await createPaypalOrder(orderId);
+      setPaypalConfirm(init);
+    } catch (e) {
+      Alert.alert(isRTL ? 'خطأ' : 'Error', friendlyPaypalError(e, language));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const confirmPaypalAndOpen = async (): Promise<void> => {
+    if (!paypalConfirm || !orderId) return;
+    setPaypalRunning(true);
+    try {
+      const { approved } = await openPaypalCheckout(paypalConfirm.approveUrl);
+      if (!approved) {
+        // User dismissed the in-app browser before completing approval.
+        Alert.alert(
+          isRTL ? 'تنبيه' : 'Notice',
+          isRTL ? 'لم يكتمل الدفع. يمكنك المحاولة مجدداً.' : 'Payment was not completed. You can try again.'
+        );
+        return;
+      }
+      const result = await capturePaypalOrder(paypalConfirm.paypalOrderId, orderId);
+      if (!result.ok) throw new Error('capture_failed');
+
+      setPaypalConfirm(null);
+      Alert.alert(
+        isRTL ? 'تم بنجاح ✓' : 'Done ✓',
+        isRTL ? 'تم تأكيد الدفع. سيتابع الفني الإصلاح الآن.'
+              : 'Payment confirmed. The technician will now proceed with the repair.',
+        [{ text: 'OK', onPress: () => safeBack(`/order-details?id=${orderId}` as any) }]
+      );
+    } catch (e) {
+      Alert.alert(isRTL ? 'خطأ' : 'Error', friendlyPaypalError(e, language));
+    } finally {
+      setPaypalRunning(false);
+    }
+  };
+
   const handleConfirm = async () => {
     if (!orderId || !selected) {
       Alert.alert(isRTL ? 'تنبيه' : 'Notice', isRTL ? 'اختر طريقة دفع' : 'Select a payment method');
@@ -131,6 +192,13 @@ export default function PaymentScreen() {
     }
     const method = methods?.find((m) => m.code === selected);
     if (!method || method.is_coming_soon) return;
+
+    // B-4 PayPal: detour through the real payment flow before touching
+    // orders.payment_status. Other methods follow the existing path.
+    if (method.code === 'paypal' && !isDeliveryFee) {
+      await runPaypalFlow();
+      return;
+    }
 
     setSubmitting(true);
     try {
@@ -368,6 +436,77 @@ export default function PaymentScreen() {
           </Text>
         </View>
 
+        {/* B-4 PayPal confirmation modal — surfaces the exact USD charge
+            before launching the hosted PayPal approval flow. */}
+        <Modal
+          visible={!!paypalConfirm}
+          transparent
+          animationType="fade"
+          onRequestClose={() => !paypalRunning && setPaypalConfirm(null)}
+        >
+          <View style={styles.modalBackdrop}>
+            <View style={[styles.modalCard, { backgroundColor: COLORS.card }]}>
+              <Text style={[styles.modalTitle, { color: COLORS.text }]}>
+                {isRTL ? 'تأكيد الدفع عبر PayPal' : 'Confirm PayPal payment'}
+              </Text>
+              <Text style={[styles.modalBody, { color: COLORS.textSecondary }]}>
+                {isRTL
+                  ? 'PayPal لا يدعم الريال السعودي. مبلغ طلبك معروض بالريال، وسيُحصَّل بالدولار الأمريكي على PayPal.'
+                  : 'PayPal does not support SAR. Your order is displayed in SAR; the charge will settle on PayPal in USD.'}
+              </Text>
+
+              <View style={[styles.modalRow, { borderColor: COLORS.border }]}>
+                <Text style={[styles.modalRowLabel, { color: COLORS.textSecondary }]}>
+                  {isRTL ? 'المبلغ في التطبيق' : 'In-app amount'}
+                </Text>
+                <Text style={[styles.modalRowValue, { color: COLORS.text }]}>
+                  {(paypalConfirm?.sarAmount ?? 0).toLocaleString(isRTL ? 'ar-SA' : 'en-US')} {isRTL ? 'ر.س' : 'SAR'}
+                </Text>
+              </View>
+              <View style={[styles.modalRow, { borderColor: COLORS.border }]}>
+                <Text style={[styles.modalRowLabel, { color: COLORS.textSecondary }]}>
+                  {isRTL ? 'سيُحصَّل عبر PayPal' : 'PayPal will charge'}
+                </Text>
+                <Text style={[styles.modalRowValue, { color: COLORS.primary, fontWeight: '900' }]}>
+                  ${(paypalConfirm?.usdAmount ?? 0).toFixed(2)} USD
+                </Text>
+              </View>
+              <Text style={{ color: COLORS.textSecondary, fontSize: 11, marginTop: 6 }}>
+                {isRTL ? 'سعر الصرف المستخدم: ' : 'FX rate used: '}
+                1 SAR ≈ {(paypalConfirm?.fxRate ?? 0).toFixed(4)} USD
+                {paypalConfirm?.env === 'sandbox' && (isRTL ? '  •  وضع تجريبي' : '  •  sandbox')}
+              </Text>
+
+              <View style={styles.modalActions}>
+                <TouchableOpacity
+                  onPress={() => setPaypalConfirm(null)}
+                  disabled={paypalRunning}
+                  style={[styles.modalBtnGhost, { borderColor: COLORS.border }]}
+                  accessibilityRole="button"
+                >
+                  <Text style={{ color: COLORS.text, fontWeight: '700' }}>
+                    {isRTL ? 'إلغاء' : 'Cancel'}
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={confirmPaypalAndOpen}
+                  disabled={paypalRunning}
+                  style={[styles.modalBtnPrimary, { backgroundColor: COLORS.primary, opacity: paypalRunning ? 0.6 : 1 }]}
+                  accessibilityRole="button"
+                >
+                  {paypalRunning ? (
+                    <ActivityIndicator color="#fff" />
+                  ) : (
+                    <Text style={{ color: '#fff', fontWeight: '800' }}>
+                      {isRTL ? 'متابعة إلى PayPal' : 'Continue to PayPal'}
+                    </Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
+
         <TouchableOpacity
           onPress={handleConfirm}
           disabled={submitting || !selectedMethod || selectedMethod.is_coming_soon}
@@ -488,4 +627,50 @@ const makeStyles = (C: any, isRTL: boolean, SHADOWS: any) =>
       ...SHADOWS.small,
     },
     confirmText: { color: '#fff', fontSize: 16, fontWeight: '800' },
+    // B-4 PayPal confirmation modal
+    modalBackdrop: {
+      flex: 1,
+      backgroundColor: '#0008',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: 24,
+    },
+    modalCard: {
+      width: '100%',
+      maxWidth: 420,
+      borderRadius: BORDER_RADIUS.md,
+      padding: 20,
+      gap: 8,
+    },
+    modalTitle: { fontSize: 18, fontWeight: '800', textAlign: isRTL ? 'right' : 'left' },
+    modalBody: { fontSize: 13, lineHeight: 19, textAlign: isRTL ? 'right' : 'left' },
+    modalRow: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      borderTopWidth: StyleSheet.hairlineWidth,
+      paddingVertical: 10,
+    },
+    modalRowLabel: { fontSize: 13 },
+    modalRowValue: { fontSize: 14, fontWeight: '700' },
+    modalActions: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      gap: 10,
+      marginTop: 14,
+    },
+    modalBtnGhost: {
+      flex: 1,
+      borderWidth: 1,
+      paddingVertical: 12,
+      borderRadius: BORDER_RADIUS.sm,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    modalBtnPrimary: {
+      flex: 2,
+      paddingVertical: 12,
+      borderRadius: BORDER_RADIUS.sm,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
   });

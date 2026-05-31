@@ -17,6 +17,7 @@ import { getReviewByOrder } from '../../services/reviewService';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../services/supabaseClient';
 import { subscribeUnique } from '../../utils/realtimeChannel';
+import { useAppForegroundRefresh } from '../../hooks/useAppForegroundRefresh';
 
 export default function OrdersScreen() {
   const router = useRouter();
@@ -85,6 +86,10 @@ export default function OrdersScreen() {
       }
     })();
   }, [orders, user?.id]);
+
+  // H-6: refetch on AppState→active so the orders list reflects status
+  // changes that happened while the realtime socket was suspended.
+  useAppForegroundRefresh(() => { void loadOrders(); });
 
   const loadOrders = async () => {
     try {

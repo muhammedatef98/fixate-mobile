@@ -95,7 +95,7 @@ export default function CustomerHomeScreen() {
           <TouchableOpacity
             style={[styles.activeOrderCard, SHADOWS.medium]}
             activeOpacity={0.9}
-            onPress={() => router.push(`/track/${activeOrder.id}`)}
+            onPress={() => router.push({ pathname: '/order-details', params: { id: activeOrder.id } })}
           >
             <View style={styles.orderStatusLine}>
               <View style={[styles.statusDot, { backgroundColor: isPending ? COLORS.warning : COLORS.success }]} />
@@ -189,7 +189,11 @@ export default function CustomerHomeScreen() {
             label={isRTL ? 'تتبّع الطلب' : 'Track Order'}
             color="#10B981"
             onPress={() =>
-              router.push(activeOrder ? `/track/${activeOrder.id}` : '/(customer)/orders')
+              router.push(
+                activeOrder
+                  ? { pathname: '/order-details', params: { id: activeOrder.id } }
+                  : '/(customer)/orders'
+              )
             }
           />
         </View>

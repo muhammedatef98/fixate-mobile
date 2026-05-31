@@ -22,6 +22,8 @@ import { translations } from '../../constants/translations';
 import * as orderService from '../../services/orderService';
 import { subscribeToPendingOrders } from '../../services/realtimeService';
 import { supabase } from '../../services/supabaseClient';
+import { resolveOrderMediaUrls } from '../../services/storageService';
+import { useAppForegroundRefresh } from '../../hooks/useAppForegroundRefresh';
 import { ISSUE_CATEGORIES, getIssueCategory } from '../../constants/issueCategories';
 import NeuCard from '../../components/NeuCard';
 import ErrorState from '../../components/ErrorState';
@@ -72,6 +74,9 @@ export default function AvailableOrdersScreen() {
   const styles = makeStyles(COLORS, isRTL, SHADOWS);
 
   const [orders, setOrders] = useState<orderService.Order[]>([]);
+  // B-5 Wave 4: signed-URL mirror for customer media thumbnails on each
+  // available-order card. Keyed by order.id. Falls back to stored URLs.
+  const [displayMediaByOrderId, setDisplayMediaByOrderId] = useState<Record<string, string[]>>({});
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState('all');
@@ -99,6 +104,31 @@ export default function AvailableOrdersScreen() {
     })();
     return () => { cancelled = true; };
   }, [user?.id]);
+
+  // Re-sign customer media for every order whenever the list changes.
+  // Batched into a single createSignedUrls round-trip then partitioned
+  // back by order.id, matching the resolver fall-back semantics.
+  useEffect(() => {
+    let cancelled = false;
+    const entries = orders
+      .map((o) => [o.id, Array.isArray((o as any).media_urls) ? ((o as any).media_urls as string[]) : []] as const)
+      .filter(([, arr]) => arr.length > 0);
+    if (entries.length === 0) { setDisplayMediaByOrderId({}); return; }
+    const flat: string[] = entries.flatMap(([, arr]) => arr);
+    resolveOrderMediaUrls(flat)
+      .then((resolved) => {
+        if (cancelled) return;
+        const next: Record<string, string[]> = {};
+        let cursor = 0;
+        entries.forEach(([k, arr]) => {
+          next[k] = arr.map((original, j) => resolved[cursor + j] ?? original);
+          cursor += arr.length;
+        });
+        setDisplayMediaByOrderId(next);
+      })
+      .catch(() => { /* keep stored URLs */ });
+    return () => { cancelled = true; };
+  }, [orders]);
 
   useEffect(() => {
     loadOrders();
@@ -130,6 +160,10 @@ export default function AvailableOrdersScreen() {
       setTechnicianLocation({ lat: 24.7136, lon: 46.6753 });
     }
   };
+
+  // H-6: refetch on foreground so jobs taken by other technicians while
+  // we were backgrounded disappear from the available list.
+  useAppForegroundRefresh(() => { void loadOrders(); });
 
   const loadOrders = async () => {
     try {
@@ -320,7 +354,7 @@ export default function AvailableOrdersScreen() {
             {order.media_urls.map((url: string, index: number) => (
               <Image
                 key={index}
-                source={{ uri: url }}
+                source={{ uri: displayMediaByOrderId[order.id]?.[index] ?? url }}
                 style={styles.mediaThumb}
               />
             ))}

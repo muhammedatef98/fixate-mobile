@@ -20,7 +20,12 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useApp } from '../contexts/AppContext';
 import { supabase } from '../lib/supabase';
 import { RTLIonicon } from '../components/RTLIcon';
-import { signUpWithPhoneOrEmail } from '../services/authService';
+import {
+  signUpWithPhoneOrEmail,
+  assertExpectedRole,
+  WRONG_ROLE_CUSTOMER,
+  EMAIL_ALREADY_EXISTS,
+} from '../services/authService';
 import { getFriendlyError } from '../utils/errorMessages';
 import { getColors } from '../constants/theme';
 
@@ -68,29 +73,11 @@ export default function TechnicianAuthScreen() {
         if (authError) throw authError;
 
         if (authData.user) {
-          // Verify role from users table (was incorrectly querying 'profiles' before)
-          const { data: profileData } = await supabase
-            .from('users')
-            .select('role')
-            .eq('id', authData.user.id)
-            .maybeSingle();
-
-          const userRole =
-            (profileData as any)?.role ||
-            authData.user.user_metadata?.role ||
-            'customer';
-
-          if (userRole !== 'technician') {
-            await supabase.auth.signOut();
-            Alert.alert(
-              isRTL ? 'تنبيه' : 'Access Denied',
-              isRTL
-                ? 'هذا الحساب غير مسجل كفني. يرجى الدخول من بوابة العملاء.'
-                : 'This account is not registered as a technician. Please login from the customer portal.'
-            );
-            return;
-          }
-
+          // Strict role separation: assertExpectedRole signs the user out
+          // and throws WRONG_ROLE_CUSTOMER if the email belongs to a
+          // customer. We catch that one code and show an OK-only alert
+          // matching the spec (no "go to customer portal" affordance).
+          await assertExpectedRole(authData.user.id, 'technician');
           router.replace('/(technician)');
         }
       } else {
@@ -111,6 +98,31 @@ export default function TechnicianAuthScreen() {
         router.replace('/technician-onboarding');
       }
     } catch (error: any) {
+      // Strict role-separation alert: shown when a customer account tried
+      // the technician path. OK-only per the spec.
+      if ((error as Error)?.message === WRONG_ROLE_CUSTOMER) {
+        Alert.alert(
+          isRTL ? 'حساب عميل' : 'Customer account',
+          isRTL
+            ? 'هذا البريد مرتبط بحساب عميل.'
+            : 'This email is linked to a customer account.',
+          [{ text: 'OK' }],
+        );
+        return;
+      }
+      // Mirror the customer-side affordance: if the email is already used
+      // (e.g. as a customer), tell the user instead of showing a confusing
+      // Supabase error.
+      if ((error as Error)?.message === EMAIL_ALREADY_EXISTS) {
+        Alert.alert(
+          isRTL ? 'البريد مسجَّل بالفعل' : 'Email already registered',
+          isRTL
+            ? 'هذا البريد مسجَّل بحساب آخر. الرجاء استخدام بريد مختلف.'
+            : 'This email is already registered with another account. Please use a different email.',
+          [{ text: 'OK' }],
+        );
+        return;
+      }
       Alert.alert(isRTL ? 'خطأ' : 'Error', error.message);
     } finally {
       setLoading(false);
@@ -269,9 +281,6 @@ export default function TechnicianAuthScreen() {
 
             {isLogin && (
               <View style={styles.altRow}>
-                <TouchableOpacity onPress={() => router.push('/login-otp')} accessibilityRole="button">
-                  <Text style={styles.altLink}>{isRTL ? 'الدخول بكود الجوال' : 'Login with phone code'}</Text>
-                </TouchableOpacity>
                 <TouchableOpacity onPress={() => router.push('/forgot-password')} accessibilityRole="button">
                   <Text style={styles.altLink}>{isRTL ? 'نسيت كلمة المرور؟' : 'Forgot password?'}</Text>
                 </TouchableOpacity>
@@ -436,7 +445,10 @@ const createStyles = (COLORS: any, isRTL: boolean) => StyleSheet.create({
   },
   altRow: {
     flexDirection: isRTL ? 'row-reverse' : 'row',
-    justifyContent: 'space-between',
+    // Only one secondary link remains (Forgot password). flex-end keeps
+    // it tucked at the end of the row in both LTR and RTL, matching the
+    // conventional "secondary action under the primary button" position.
+    justifyContent: 'flex-end',
     alignItems: 'center',
     marginTop: 12,
   },

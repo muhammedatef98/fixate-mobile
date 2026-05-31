@@ -20,6 +20,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { getColors, SPACING, BORDER_RADIUS } from '../constants/theme';
 import { RTLIonicon } from '../components/RTLIcon';
 import SkeletonLoader from '../components/SkeletonLoader';
+import { resolveOrderMediaUrls } from '../services/storageService';
 import {
   myListings,
   hideListing,
@@ -86,6 +87,8 @@ export default function MyListingsScreen() {
 
   const [segment, setSegment] = useState<Segment>('live');
   const [listings, setListings] = useState<MarketListing[]>([]);
+  // B-5 Wave 3: signed-URL mirror for grid cover images.
+  const [displayCovers, setDisplayCovers] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -102,6 +105,23 @@ export default function MyListingsScreen() {
   }, [user]);
 
   useEffect(() => { load(); }, [load]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const entries = listings
+      .map((l) => [l.id, l.images?.[0]] as const)
+      .filter((e): e is readonly [string, string] => !!e[1]);
+    if (entries.length === 0) { setDisplayCovers({}); return; }
+    resolveOrderMediaUrls(entries.map(([, v]) => v))
+      .then((resolved) => {
+        if (cancelled) return;
+        const next: Record<string, string> = {};
+        entries.forEach(([k, original], i) => { next[k] = resolved[i] ?? original; });
+        setDisplayCovers(next);
+      })
+      .catch(() => { /* keep stored URLs */ });
+    return () => { cancelled = true; };
+  }, [listings]);
 
   const counts = useMemo(() => {
     const c: Record<Segment, number> = { live: 0, pending: 0, hidden: 0, sold: 0, other: 0 };
@@ -208,7 +228,7 @@ export default function MyListingsScreen() {
           <View style={[styles.thumbWrap, dim && { opacity: 0.6 }]}>
             {l.images?.[0] ? (
               <Image
-                source={{ uri: l.images[0] }}
+                source={{ uri: displayCovers[l.id] ?? l.images[0] }}
                 style={styles.thumb}
                 contentFit="cover"
                 transition={200}

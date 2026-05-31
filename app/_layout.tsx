@@ -240,6 +240,7 @@ function RootLayoutContent() {
         <Stack.Screen name="settings" options={{ headerShown: false }} />
         <Stack.Screen name="technician-onboarding" options={{ headerShown: false }} />
         <Stack.Screen name="login-otp" options={{ headerShown: false }} />
+        <Stack.Screen name="email-auth" options={{ headerShown: false }} />
         <Stack.Screen name="forgot-password" options={{ headerShown: false }} />
         <Stack.Screen name="admin-verifications" options={{ headerShown: false }} />
         <Stack.Screen name="loyalty" options={{ headerShown: false }} />
@@ -249,7 +250,9 @@ function RootLayoutContent() {
         <Stack.Screen name="market-new" options={{ headerShown: false }} />
         <Stack.Screen name="market-detail" options={{ headerShown: false }} />
         <Stack.Screen name="market-chat" options={{ headerShown: false }} />
+        <Stack.Screen name="market-messages" options={{ headerShown: false }} />
         <Stack.Screen name="my-listings" options={{ headerShown: false }} />
+        <Stack.Screen name="admin-request-settings" options={{ headerShown: false }} />
         <Stack.Screen name="admin-broadcasts" options={{ headerShown: false }} />
         <Stack.Screen name="admin-reports" options={{ headerShown: false }} />
         <Stack.Screen name="admin-order-detail" options={{ headerShown: false }} />

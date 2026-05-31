@@ -18,7 +18,15 @@ import { uploadOrderMedia } from '../services/storageService';
 import { getFriendlyError } from '../utils/errorMessages';
 import { tapLight } from '../utils/haptics';
 import { formatPrice } from '../utils/pricing';
-import { getRegionTree, type RegionWithCities } from '../services/serviceAreasService';
+import {
+  getRegionTree,
+  subscribeServiceAreasChanges,
+  type RegionWithCities,
+} from '../services/serviceAreasService';
+import {
+  listRequestDeviceTypes,
+  subscribeRequestDeviceTypesChanges,
+} from '../services/requestDeviceTypesService';
 import {
   computeDeliveryFee,
   getCityCentroid,
@@ -82,17 +90,31 @@ const SERVICE_TYPES = [
   },
 ];
 
-const DEVICE_TYPES = [
-  { id: 'phone', name: 'جوال', nameEn: 'Phone', icon: 'cellphone', available: true },
-  { id: 'tablet', name: 'تابلت', nameEn: 'Tablet', icon: 'tablet', available: true },
-  { id: 'laptop', name: 'لابتوب', nameEn: 'Laptop', icon: 'laptop', available: true },
-  { id: 'watch', name: 'ساعة ذكية', nameEn: 'Smart Watch', icon: 'watch', available: true },
-  { id: 'gaming', name: 'أجهزة الألعاب', nameEn: 'Gaming Devices', icon: 'gamepad-variant', available: true },
-  { id: 'other', name: 'أجهزة أخرى', nameEn: 'Other Devices', icon: 'devices', available: true },
-  { id: 'printer', name: 'طابعة', nameEn: 'Printer', icon: 'printer', available: false },
-  { id: 'headphones', name: 'سماعات', nameEn: 'Headphones', icon: 'headphones', available: false },
-  { id: 'tv', name: 'شاشة/تلفاز', nameEn: 'TV/Monitor', icon: 'television', available: false },
-  { id: 'appliance', name: 'أجهزة منزلية', nameEn: 'Home Appliances', icon: 'home-outline', available: false },
+// Fallback device list — used when the DB-backed catalogue from
+// `request_device_types` is unavailable (migration not yet applied,
+// network failure, etc.) so the request flow never breaks. The
+// admin-managed catalogue is the long-term source of truth; this
+// shape mirrors the DB rows so the rendering code is uniform.
+type RequestDeviceTypeOption = {
+  id: string;
+  code: string;
+  name: string;
+  nameEn: string;
+  icon: string;
+  available: boolean;
+};
+
+const FALLBACK_DEVICE_TYPES: RequestDeviceTypeOption[] = [
+  { id: 'phone',      code: 'phone',      name: 'جوال',            nameEn: 'Phone',           icon: 'cellphone',       available: true },
+  { id: 'tablet',     code: 'tablet',     name: 'تابلت',           nameEn: 'Tablet',          icon: 'tablet',          available: true },
+  { id: 'laptop',     code: 'laptop',     name: 'لابتوب',          nameEn: 'Laptop',          icon: 'laptop',          available: true },
+  { id: 'watch',      code: 'watch',      name: 'ساعة ذكية',       nameEn: 'Smart Watch',     icon: 'watch',           available: true },
+  { id: 'gaming',     code: 'gaming',     name: 'أجهزة الألعاب',    nameEn: 'Gaming Devices',  icon: 'gamepad-variant', available: true },
+  { id: 'other',      code: 'other',      name: 'أجهزة أخرى',      nameEn: 'Other Devices',   icon: 'devices',         available: true },
+  { id: 'printer',    code: 'printer',    name: 'طابعة',           nameEn: 'Printer',         icon: 'printer',         available: false },
+  { id: 'headphones', code: 'headphones', name: 'سماعات',          nameEn: 'Headphones',      icon: 'headphones',      available: false },
+  { id: 'tv',         code: 'tv',         name: 'شاشة/تلفاز',      nameEn: 'TV/Monitor',      icon: 'television',      available: false },
+  { id: 'appliance',  code: 'appliance',  name: 'أجهزة منزلية',    nameEn: 'Home Appliances', icon: 'home-outline',    available: false },
 ];
 
 export default function RequestScreen() {
@@ -104,15 +126,56 @@ export default function RequestScreen() {
   const isRTL = language === 'ar';
 
   // Repair service areas — Saudi-wide, admin-controlled (service_area_*
-  // tables). Only enabled regions and cities are offered to the customer.
+  // tables). We deliberately load the FULL tree (enabled + disabled) so
+  // the pin-to-city auto-detect can reason about which actual city the
+  // pin sits in — not just the nearest enabled one. Whether a city is
+  // bookable is then decided by its `enabled` flag, gated by
+  // `selectedCityAvailable` below.
   const [regionTree, setRegionTree] = useState<RegionWithCities[]>([]);
   const [selectedCityId, setSelectedCityId] = useState<string | null>(null);
   useEffect(() => {
-    // Only currently-available regions/cities are offered. Coverage is
-    // admin-controlled — disabled areas simply do not appear.
-    getRegionTree(true)
+    getRegionTree(false)
       .then((tree) => setRegionTree(tree))
       .catch(() => undefined);
+    // Live updates: when an admin edits a region or city, refresh the
+    // tree so the in-flight request flow reflects the new coverage
+    // without waiting for the 5-minute TTL or a screen remount.
+    const unsub = subscribeServiceAreasChanges(() => {
+      getRegionTree(false)
+        .then((tree) => setRegionTree(tree))
+        .catch(() => undefined);
+    });
+    return unsub;
+  }, []);
+
+  // Device-type catalogue — admin-controlled, loaded from
+  // `request_device_types`. Falls back to the hardcoded list when the DB
+  // returns empty so the chooser is never blank in a half-configured
+  // environment. Disabled rows render with a "Coming soon" pill,
+  // matching the legacy hardcoded behaviour.
+  const [deviceTypeOptions, setDeviceTypeOptions] = useState<RequestDeviceTypeOption[]>(FALLBACK_DEVICE_TYPES);
+  useEffect(() => {
+    const loadDeviceTypes = () => {
+      listRequestDeviceTypes()
+        .then((rows) => {
+          if (!rows || rows.length === 0) return;
+          setDeviceTypeOptions(rows.map((r) => ({
+            id: r.code,
+            code: r.code,
+            name: r.name_ar,
+            nameEn: r.name_en,
+            icon: r.icon,
+            available: r.enabled,
+          })));
+        })
+        .catch(() => undefined);
+    };
+    loadDeviceTypes();
+    // Live updates so a customer mid-flow sees a newly enabled device
+    // type (or a soft-disabled one falling out of the chooser) without
+    // a screen remount.
+    const unsub = subscribeRequestDeviceTypesChanges(loadDeviceTypes);
+    return unsub;
   }, []);
   const [address, setAddress] = useState('');
   
@@ -230,34 +293,100 @@ export default function RequestScreen() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [mapReady, setMapReady] = useState(false);
 
-  // Auto-detect serviceable city from the dropped pin. We compute the
-  // closest enabled-city centroid (using the same lookup the delivery
-  // fee uses) and select it when the pin sits within a generous radius
-  // (50 km — covers a city's outskirts but rejects a pin in the next
-  // governorate). When no city matches we clear the selection so the
-  // Submit button stays disabled and the customer sees the OOS message.
+  // Auto-detect the city the pin sits in, then resolve coverage along
+  // the parent_city_id chain. The matcher:
+  //   1. picks the absolute nearest centroid among all known cities
+  //      (enabled or not), bounded by SERVICE_RADIUS_KM;
+  //   2. walks the parent chain from that nearest city to find the
+  //      first ancestor whose city + region are both enabled;
+  //   3. returns the ANCESTOR's id when accepting via inheritance, so
+  //      delivery fee / order metadata follow the canonical service
+  //      area (Qatif), not the matched neighborhood (Saihat).
+  //
+  // Inheritance is one-way — only the explicit parent chain is walked,
+  // so unrelated nearby cities (Dammam, Khobar) can never inherit
+  // coverage from a neighbor.
   const SERVICE_RADIUS_KM = 50;
   const autoDetectedCityId = useMemo(() => {
     if (!location?.latitude || !location?.longitude) return null;
-    const enabledCities = regionTree
-      .filter((r) => r.enabled !== false)
-      .flatMap((r) => r.cities.filter((c) => c.enabled !== false));
-    if (enabledCities.length === 0) return null;
-    let bestId: string | null = null;
-    let bestKm = Infinity;
-    for (const c of enabledCities) {
-      const centroid = getCityCentroid(c.name_en, c.name_ar);
-      if (!centroid) continue;
-      const km = haversineKm(centroid, {
+    if (regionTree.length === 0) return null;
+
+    type Candidate = {
+      cityId: string;
+      parentCityId: string | null;
+      cityEnabled: boolean;
+      regionEnabled: boolean;
+      centroid: { lat: number; lng: number };
+    };
+
+    // Build a flat map of every city so the parent walk can resolve in
+    // O(depth). The map covers cities with AND without centroids — a
+    // child without a centroid still needs its parent looked up.
+    const cityById = new Map<string, Candidate>();
+    for (const r of regionTree) {
+      for (const c of r.cities) {
+        // Prefer the DB-stored centroid (long-term source of truth — works
+        // for any city the admin seeds without a code change). Fall back
+        // to the hardcoded CITY_CENTROIDS table for legacy rows that
+        // haven't been backfilled yet.
+        const dbLat = c.lat == null ? null : Number(c.lat);
+        const dbLng = c.lng == null ? null : Number(c.lng);
+        const centroid =
+          (dbLat != null && dbLng != null && Number.isFinite(dbLat) && Number.isFinite(dbLng))
+            ? { lat: dbLat, lng: dbLng }
+            : getCityCentroid(c.name_en, c.name_ar);
+        // We still record the city in the map even without a centroid,
+        // so parent lookups work when a chain reaches an un-geocoded
+        // node. The match step itself only considers cities with a
+        // centroid (see `candidates` below).
+        cityById.set(c.id, {
+          cityId: c.id,
+          parentCityId: c.parent_city_id ?? null,
+          cityEnabled: c.enabled !== false,
+          regionEnabled: r.enabled !== false,
+          centroid: centroid ?? { lat: NaN, lng: NaN },
+        });
+      }
+    }
+    if (cityById.size === 0) return null;
+
+    // Absolute nearest among cities that have a usable centroid.
+    let nearest: Candidate | null = null;
+    let nearestKm = Infinity;
+    for (const cand of cityById.values()) {
+      if (!Number.isFinite(cand.centroid.lat) || !Number.isFinite(cand.centroid.lng)) {
+        continue;
+      }
+      const km = haversineKm(cand.centroid, {
         lat: location.latitude,
         lng: location.longitude,
       });
-      if (km < bestKm) {
-        bestKm = km;
-        bestId = c.id;
+      if (km < nearestKm) {
+        nearestKm = km;
+        nearest = cand;
       }
     }
-    return bestKm <= SERVICE_RADIUS_KM ? bestId : null;
+    if (!nearest) return null;
+
+    // Sanity bound — a pin nowhere near any known city (deep desert,
+    // outside KSA) is rejected regardless of which centroid was closest.
+    if (nearestKm > SERVICE_RADIUS_KM) return null;
+
+    // Walk the parent chain looking for the first ancestor that's
+    // bookable. The matched neighborhood itself counts as ancestor #0.
+    // A visited-set guards against accidental cycles in the data.
+    const visited = new Set<string>();
+    let cursor: Candidate | undefined = nearest;
+    while (cursor && !visited.has(cursor.cityId)) {
+      visited.add(cursor.cityId);
+      if (cursor.cityEnabled && cursor.regionEnabled) {
+        return cursor.cityId;
+      }
+      cursor = cursor.parentCityId ? cityById.get(cursor.parentCityId) : undefined;
+    }
+    // Nearest city + every ancestor disabled → pin is genuinely outside
+    // current coverage.
+    return null;
   }, [location?.latitude, location?.longitude, regionTree]);
   useEffect(() => {
     // Sync the detected city into selection. When the pin moves outside
@@ -754,7 +883,7 @@ export default function RequestScreen() {
           <ScrollView>
             <Text style={styles.sectionTitle}>{isRTL ? 'اختر نوع الجهاز' : 'Select Device Type'}</Text>
             <View style={styles.deviceGrid}>
-              {DEVICE_TYPES.map((device) => (
+              {deviceTypeOptions.map((device) => (
                 <PressableScale
                   key={device.id}
                   to={0.97}

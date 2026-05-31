@@ -43,7 +43,81 @@ export interface UserProfile {
   created_at?: string;
 }
 
-export const signUpWithPhoneOrEmail = async (data: SignUpData) => {
+export interface SignUpResult {
+  user: import('@supabase/supabase-js').User | null;
+  session: import('@supabase/supabase-js').Session | null;
+  // true when Supabase requires email confirmation before signing the user
+  // in. Callers MUST check this and route the user to the OTP confirmation
+  // step instead of assuming they're signed in.
+  requiresConfirmation: boolean;
+}
+
+// Stable error code thrown by signUpWithPhoneOrEmail when the email is
+// already taken. Callers match on this exact message to offer the user a
+// "sign in instead" affordance — see app/email-auth.tsx.
+export const EMAIL_ALREADY_EXISTS = 'EMAIL_ALREADY_EXISTS';
+
+// Stable error codes for strict role separation between customers and
+// technicians. Thrown by assertExpectedRole below.
+//
+// WRONG_ROLE_TECHNICIAN  → a technician account hit a customer-only path
+// WRONG_ROLE_CUSTOMER    → a customer account hit a technician-only path
+export const WRONG_ROLE_TECHNICIAN = 'WRONG_ROLE_TECHNICIAN';
+export const WRONG_ROLE_CUSTOMER = 'WRONG_ROLE_CUSTOMER';
+
+/**
+ * Confirm the freshly-signed-in user holds the expected role, otherwise
+ * sign them out locally and throw a stable role-mismatch code. Canonical
+ * source is public.users.role (set once at signup via handle_new_user and
+ * locked from non-admin updates by the users_guard_role_columns trigger).
+ * auth user_metadata is the fall-back when the public row hasn't been
+ * fetched yet.
+ *
+ * Note: this is a routing concern, not a security boundary. The real
+ * security boundary is RLS plus the role-update trigger (B-1).
+ */
+export const assertExpectedRole = async (
+  userId: string,
+  expected: 'customer' | 'technician',
+): Promise<void> => {
+  let role: string | null = null;
+  try {
+    const { data } = await supabase
+      .from('users')
+      .select('role')
+      .eq('id', userId)
+      .maybeSingle();
+    role = ((data as any)?.role as string | null) ?? null;
+  } catch {
+    /* fall through to metadata */
+  }
+
+  if (!role) {
+    try {
+      const { data } = await supabase.auth.getUser();
+      role =
+        ((data.user?.user_metadata as any)?.role as string | null) ??
+        ((data.user?.app_metadata as any)?.role as string | null) ??
+        null;
+    } catch {
+      /* keep null */
+    }
+  }
+
+  if (role && role !== expected) {
+    // Drop the session locally so the UI can't accidentally route into
+    // the wrong app surface on the next render.
+    try { await supabase.auth.signOut({ scope: 'local' }); } catch {}
+    if (expected === 'customer' && role === 'technician') {
+      throw new Error(WRONG_ROLE_TECHNICIAN);
+    }
+    if (expected === 'technician' && role === 'customer') {
+      throw new Error(WRONG_ROLE_CUSTOMER);
+    }
+  }
+};
+
+export const signUpWithPhoneOrEmail = async (data: SignUpData): Promise<SignUpResult> => {
   assertValidSignUp(data);
   const normalizedPhone = data.phone ? normalizeSaudiPhone(data.phone) : undefined;
   const email = data.email.trim().toLowerCase();
@@ -51,42 +125,74 @@ export const signUpWithPhoneOrEmail = async (data: SignUpData) => {
   const role = data.role || 'customer';
 
   try {
-    // Route signup through the `signup` Edge Function. It uses the service
-    // role to admin.createUser({ email_confirm: true }) — bypassing the
-    // "Error sending confirmation email" failure when project SMTP isn't
-    // configured. The Edge Function also upserts the public.users row as
-    // a defence in depth in case the handle_new_user trigger is missing.
-    const { data: fnData, error: fnError } = await supabase.functions.invoke('signup', {
-      body: { email, password: data.password, name, phone: normalizedPhone, role },
-    });
-
-    if (fnError) {
-      // supabase.functions.invoke wraps non-2xx responses; pull the real
-      // server-side message out of context.body when present.
-      let serverMsg: string | undefined;
-      try {
-        const ctx: any = (fnError as any).context;
-        if (ctx?.body) {
-          const parsed = typeof ctx.body === 'string' ? JSON.parse(ctx.body) : ctx.body;
-          serverMsg = parsed?.error;
-        }
-      } catch {}
-      throw new Error(serverMsg || fnError.message || 'Sign up failed');
-    }
-    if (fnData?.error) throw new Error(fnData.error);
-
-    // Account created and confirmed — sign in immediately so the client has
-    // a session in hand without round-tripping through email verification.
-    const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+    // Use Supabase Auth's native signUp so the project's "Confirm email"
+    // setting + the "Confirm signup" template ({{ .Token }}) are honoured.
+    // When confirmation is required Supabase returns session=null and
+    // sends the OTP email; the caller routes the user to the OTP step.
+    //
+    // We deliberately do NOT use the legacy `signup` edge function here.
+    // That path called admin.createUser({ email_confirm: true }) which
+    // pre-confirms the email and bypasses verification entirely, then
+    // immediately signInWithPassword to mint a session — the customer
+    // never saw a confirmation code. The edge function is left in place
+    // for any other caller that explicitly needs the bypass.
+    //
+    // Role flows through user_metadata. handle_new_user (M-3 hardening)
+    // applies the ('customer','technician') whitelist server-side, so
+    // tampering with raw_user_meta_data.role still resolves to 'customer'.
+    const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
       email,
       password: data.password,
+      options: {
+        data: {
+          name,
+          role,
+          user_type: role,
+          phone: normalizedPhone ?? null,
+        },
+      },
     });
-    if (signInError) throw signInError;
 
-    return { user: signInData.user, session: signInData.session };
+    // Duplicate-email detection (the common case Supabase makes awkward):
+    // When "Confirm email" is ON, supabase.auth.signUp does NOT throw for
+    // an already-registered email. It silently returns a fake user object
+    // with an empty `identities` array and no real session, to avoid
+    // leaking which emails are taken. Detect that and surface a stable
+    // EMAIL_ALREADY_EXISTS code so the UI can offer "Sign in instead".
+    //
+    // When "Confirm email" is OFF, Supabase DOES throw "User already
+    // registered" — handled in the catch below.
+    if (!signUpError) {
+      const identities = (signUpData?.user as any)?.identities;
+      if (signUpData?.user && Array.isArray(identities) && identities.length === 0) {
+        throw new Error(EMAIL_ALREADY_EXISTS);
+      }
+    }
+
+    if (signUpError) throw signUpError;
+
+    return {
+      user: signUpData.user,
+      session: signUpData.session,
+      // session === null when "Confirm email" is enabled. Callers must
+      // not auto-route the user into the app in that case.
+      requiresConfirmation: signUpData.session === null,
+    };
   } catch (error: any) {
     // Duplicate email / weak password are user-correctable, not real errors.
     logger.warn('Sign up failed', error);
+    // Normalise the "Confirm email = OFF" Supabase error and the auth
+    // server's other phrasings into the same stable code the UI matches.
+    const raw = String(error?.message ?? '').toLowerCase();
+    if (
+      error?.message === EMAIL_ALREADY_EXISTS ||
+      raw.includes('already registered') ||
+      raw.includes('already exists') ||
+      raw.includes('user already') ||
+      error?.code === 'user_already_exists'
+    ) {
+      throw new Error(EMAIL_ALREADY_EXISTS);
+    }
     throw error;
   }
 };

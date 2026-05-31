@@ -291,14 +291,23 @@ export default function AddressesScreen() {
               <Text style={styles.cardAddress}>{a.address}</Text>
               {a.city ? <Text style={styles.cardCity}>{a.city}</Text> : null}
               {!isCityCovered(a.city) && (
-                <View style={styles.coverageWarn}>
+                <TouchableOpacity
+                  onPress={() => openEdit(a)}
+                  activeOpacity={0.7}
+                  style={styles.coverageWarn}
+                  accessibilityRole="button"
+                  accessibilityLabel={isRTL
+                    ? 'تعديل العنوان — خارج نطاق التغطية'
+                    : 'Edit address — outside coverage'}
+                >
                   <Ionicons name="information-circle-outline" size={13} color="#B45309" />
                   <Text style={styles.coverageWarnText}>
                     {isRTL
-                      ? 'هذا العنوان خارج نطاق التغطية حالياً'
-                      : 'This address is outside current service coverage'}
+                      ? 'خارج نطاق التغطية — اضغط للتعديل'
+                      : 'Outside service coverage — tap to edit'}
                   </Text>
-                </View>
+                  <RTLIonicon name="chevron-forward" size={11} color="#B45309" />
+                </TouchableOpacity>
               )}
               <View style={styles.cardActions}>
                 {!a.is_default && (

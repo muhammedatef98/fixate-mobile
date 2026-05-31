@@ -1,5 +1,6 @@
 import { supabase } from './supabaseClient';
 import { logger } from '../utils/logger';
+import { subscribeUnique } from '../utils/realtimeChannel';
 
 // In-memory cache for the full region tree. The customer-facing city
 // picker hits this on every modal open, so we cache for 5 minutes — long
@@ -30,6 +31,23 @@ export interface ServiceCity {
   enabled: boolean;
   delivery_fee: number;
   sort_order: number;
+  /**
+   * Centroid coordinates used by the request-flow pin-to-city auto-detect.
+   * Nullable: rows that haven't been backfilled yet fall back to the
+   * `CITY_CENTROIDS` table in `utils/deliveryPricing.ts`. Long-term source
+   * of truth is the DB so new cities are matchable without a code change.
+   */
+  lat?: number | null;
+  lng?: number | null;
+  /**
+   * Self-referencing FK. When set, this city is administratively a sub-
+   * area of `parent_city_id` and inherits its coverage state. Lets a
+   * neighborhood (e.g. Saihat) be matched as its own row by nearest-
+   * centroid yet still be treated as part of the canonical service area
+   * (Qatif) downstream. Inheritance is one-way and never extends to
+   * unrelated cities — only the explicit parent chain is followed.
+   */
+  parent_city_id?: string | null;
 }
 
 export interface RegionWithCities extends ServiceRegion {
@@ -96,9 +114,46 @@ export const updateRegion = async (
   invalidateServiceAreasCache();
 };
 
+/**
+ * Admin-only: insert a new city row into a region. RLS already restricts
+ * INSERT on `service_area_cities` to admins; no extra gate here. The row
+ * is created in a safe "draft" state: enabled defaults to false so a
+ * fresh row never goes live until the admin reviews centroid/parent/
+ * delivery_fee and flips it on. Sensible defaults come from the seed
+ * conventions (delivery_fee = 20, sort_order = max + 1 client-supplied).
+ */
+export const createCity = async (input: {
+  region_id: string;
+  name_ar: string;
+  name_en: string;
+  delivery_fee?: number;
+  sort_order?: number;
+  enabled?: boolean;
+}): Promise<ServiceCity> => {
+  const row = {
+    region_id: input.region_id,
+    name_ar: input.name_ar.trim(),
+    name_en: input.name_en.trim(),
+    enabled: input.enabled ?? false,
+    delivery_fee: input.delivery_fee ?? 20,
+    sort_order: input.sort_order ?? 100,
+  };
+  const { data, error } = await supabase
+    .from('service_area_cities')
+    .insert(row)
+    .select()
+    .single();
+  if (error) throw error;
+  invalidateServiceAreasCache();
+  return data as ServiceCity;
+};
+
 export const updateCity = async (
   id: string,
-  patch: Partial<Pick<ServiceCity, 'enabled' | 'delivery_fee' | 'sort_order'>>
+  patch: Partial<Pick<
+    ServiceCity,
+    'enabled' | 'delivery_fee' | 'sort_order' | 'lat' | 'lng' | 'parent_city_id'
+  >>
 ): Promise<void> => {
   const { error } = await supabase.from('service_area_cities').update(patch).eq('id', id);
   if (error) throw error;
@@ -117,3 +172,50 @@ export const setRegionCitiesEnabled = async (
   if (error) throw error;
   invalidateServiceAreasCache();
 };
+
+// ---------------------------------------------------------------------------
+// Realtime propagation. Customer apps that are foregrounded when an admin
+// edits a region or city refresh within seconds via a Postgres changes
+// subscription. Idle apps (no consumer subscribed) hold zero channels;
+// channels are torn down once the last consumer unmounts.
+//
+// `subscribeUnique` from utils/realtimeChannel sidesteps the re-mount
+// race where a stale channel would still be in the registry while a new
+// one tries to subscribe. Each consumer's effect gets its own channel
+// scoped to a unique topic suffix.
+//
+// Behavior on event: bust the local cache so the next read hits the DB,
+// then notify the consumer. The consumer's own callback decides what to
+// reload — usually a re-fetch of the region tree.
+// ---------------------------------------------------------------------------
+
+type ServiceAreasListener = () => void;
+
+/**
+ * Subscribe to INSERT/UPDATE/DELETE on `service_area_regions` and
+ * `service_area_cities`. The callback fires once per Postgres change
+ * event. Returns a synchronous unsubscribe suitable for a `useEffect`
+ * cleanup return.
+ */
+export const subscribeServiceAreasChanges = (
+  onChange: ServiceAreasListener
+): (() => void) =>
+  subscribeUnique('service-areas-changes', (ch) =>
+    ch
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'service_area_regions' },
+        () => {
+          invalidateServiceAreasCache();
+          try { onChange(); } catch (e) { logger.warn('serviceAreas onChange threw', e); }
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'service_area_cities' },
+        () => {
+          invalidateServiceAreasCache();
+          try { onChange(); } catch (e) { logger.warn('serviceAreas onChange threw', e); }
+        }
+      )
+  );

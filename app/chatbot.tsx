@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useMemo, useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
   Platform,
   SafeAreaView,
   StatusBar,
+  ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -17,6 +18,34 @@ import { useApp } from '../contexts/AppContext';
 import { getColors, SPACING, BORDER_RADIUS } from '../constants/theme';
 import { RTLIonicon } from '../components/RTLIcon';
 import { safeBack } from '../utils/navigation';
+import {
+  listRequestFaqs,
+  subscribeRequestFaqsChanges,
+} from '../services/requestFaqsService';
+
+/**
+ * Fixate Assistant — strictly app-scoped FAQ chatbot.
+ *
+ * Design notes
+ * ────────────
+ *  • Deterministic keyword matcher (no external LLM, no remote calls).
+ *    This keeps the assistant honest: it can only answer from the
+ *    curated FAQ set, so it physically cannot drift off-topic or
+ *    hallucinate facts about the product. Anything outside the set is
+ *    routed to human support.
+ *  • Score-based matching — every keyword that appears in the user's
+ *    question contributes to a score; the highest-scoring FAQ above a
+ *    confidence floor wins. Fixes the previous first-match bug where
+ *    a generic keyword in an early FAQ could hijack a more-specific
+ *    question.
+ *  • Follow-ups: each FAQ declares a small set of related ids. After
+ *    the assistant answers, those related questions surface as one-tap
+ *    chips so the user can chain questions in a single session.
+ *  • Off-topic guard: a tiny set of "obviously not about Fixate"
+ *    signals (jokes, weather, AI-meta, code requests, etc.) short-
+ *    circuits the matcher with a polite scope message + support
+ *    handoff. The bot never tries to answer them.
+ */
 
 interface Message {
   id: string;
@@ -24,31 +53,42 @@ interface Message {
   isBot: boolean;
   /** When set, the bubble shows a "talk to support" action. */
   offerHandoff?: boolean;
+  /** When set, the bubble shows tappable follow-up FAQ chips. */
+  followUpIds?: string[];
   timestamp: Date;
 }
 
-/**
- * Built-in knowledge base. Each entry is matched by keyword against free
- * text, and also surfaced as a tappable quick question. Answers are kept
- * short, plain and accurate to how the app actually works.
- */
 interface Faq {
   id: string;
   q_ar: string;
   q_en: string;
   a_ar: string;
   a_en: string;
+  /** Normalised tokens — substrings that count as a match in the user's
+   *  question. Each match scores `weight` points (default 1). */
   keywords: string[];
+  /** Stronger signal words. Score 3 each. Used for short or ambiguous
+   *  user input where a precise word is the deciding factor. */
+  strong?: string[];
+  /** FAQ ids surfaced as follow-up chips after this answer. */
+  related?: string[];
 }
 
-const FAQS: Faq[] = [
+// Hardcoded fallback catalogue. The customer-side chat loads the live
+// admin-managed catalogue from `request_faqs` on mount; this array is
+// used only when the DB returns an empty list (migration not applied,
+// network failure, etc.) so the chatbot never breaks. The seed for the
+// DB table is byte-for-byte identical to this list at migration time.
+const FALLBACK_FAQS: Faq[] = [
   {
     id: 'request',
     q_ar: 'كيف أطلب صيانة؟',
     q_en: 'How do I request a repair?',
     a_ar: 'من الصفحة الرئيسية اضغط «اطلب صيانة جديدة»، اختر جهازك ونوع العطل وطريقة الخدمة، ثم أكمل الطلب. سيصلك فني معتمد لفحص الجهاز.',
     a_en: 'On the home screen tap "Request a New Repair", choose your device, the issue and a service method, then submit. A verified technician will be assigned to inspect your device.',
-    keywords: ['request', 'repair', 'book', 'order', 'طلب', 'صيانة', 'احجز', 'اطلب'],
+    keywords: ['request', 'repair', 'book', 'order', 'fix', 'طلب', 'صيانة', 'احجز', 'اطلب', 'إصلاح', 'تصليح'],
+    strong: ['how do i request', 'how do i book', 'كيف أطلب', 'كيف احجز'],
+    related: ['price', 'time', 'pickup', 'area'],
   },
   {
     id: 'price',
@@ -56,7 +96,9 @@ const FAQS: Faq[] = [
     q_en: 'How is the price decided?',
     a_ar: 'الفحص مجاني. بعد فحص الفني لجهازك يرسل لك عرض سعر دقيق، وأنت تقرر قبوله أو رفضه قبل بدء أي إصلاح.',
     a_en: 'Inspection is free. After the technician inspects your device they send an accurate quote — you accept or reject it before any repair starts.',
-    keywords: ['price', 'cost', 'quote', 'how much', 'سعر', 'تكلفة', 'كم', 'عرض'],
+    keywords: ['price', 'cost', 'quote', 'how much', 'fee', 'expensive', 'cheap', 'سعر', 'تكلفة', 'كم', 'عرض', 'رسوم', 'كلفة'],
+    strong: ['how much', 'كم يكلف', 'كم السعر'],
+    related: ['payment', 'warranty', 'time'],
   },
   {
     id: 'time',
@@ -64,15 +106,19 @@ const FAQS: Faq[] = [
     q_en: 'How long does a repair take?',
     a_ar: 'يعتمد على نوع العطل، لكن معظم الإصلاحات تكتمل خلال ساعة إلى ٣ ساعات بعد موافقتك على عرض السعر.',
     a_en: 'It depends on the issue, but most repairs are completed within 1 to 3 hours after you approve the quote.',
-    keywords: ['time', 'long', 'duration', 'وقت', 'مدة', 'يستغرق', 'كم ساعة'],
+    keywords: ['time', 'long', 'duration', 'hours', 'wait', 'وقت', 'مدة', 'يستغرق', 'كم ساعة', 'متى', 'انتظار'],
+    strong: ['how long', 'كم يستغرق', 'كم وقت'],
+    related: ['track', 'request', 'pickup'],
   },
   {
     id: 'warranty',
     q_ar: 'ما هو الضمان؟',
     q_en: 'What warranty do I get?',
-    a_ar: 'كل إصلاح يشمل ضمان ٦ أشهر على العمل والقطع المستبدلة.',
-    a_en: 'Every repair includes a 6-month warranty covering the work and any replaced parts.',
-    keywords: ['warranty', 'guarantee', 'ضمان', 'كفالة'],
+    a_ar: 'كل إصلاح يشمل ضمان ٦ أشهر على العمل والقطع المستبدلة. إذا عاد العطل خلال الفترة، نُصلحه مجاناً.',
+    a_en: 'Every repair includes a 6-month warranty covering the work and any replaced parts. If the issue returns during that window we fix it for free.',
+    keywords: ['warranty', 'guarantee', 'cover', 'broken again', 'ضمان', 'كفالة', 'يرجع', 'عاد'],
+    strong: ['warranty', 'ضمان'],
+    related: ['refund', 'cancel', 'price'],
   },
   {
     id: 'payment',
@@ -80,23 +126,29 @@ const FAQS: Faq[] = [
     q_en: 'What payment methods are available?',
     a_ar: 'يمكنك الدفع نقداً عند الإتمام أو بالبطاقة. يتم الدفع فقط بعد موافقتك على عرض السعر — لا تدفع شيئاً مقابل الفحص.',
     a_en: 'You can pay cash on completion or by card. Payment happens only after you approve the quote — you pay nothing for the inspection.',
-    keywords: ['payment', 'pay', 'cash', 'card', 'دفع', 'نقد', 'بطاقة'],
+    keywords: ['payment', 'pay', 'cash', 'card', 'visa', 'mada', 'apple pay', 'دفع', 'نقد', 'بطاقة', 'فيزا', 'مدى'],
+    strong: ['how do i pay', 'كيف أدفع', 'طرق الدفع'],
+    related: ['price', 'refund', 'loyalty'],
   },
   {
     id: 'area',
     q_ar: 'ما المناطق المغطاة؟',
     q_en: 'Which areas do you cover?',
-    a_ar: 'الخدمة متاحة حالياً في القطيف بالمنطقة الشرقية، ونعمل على توسيع التغطية قريباً.',
-    a_en: 'Service is currently available in Al Qatif, Eastern Province. We are expanding coverage soon.',
-    keywords: ['area', 'location', 'city', 'cover', 'qatif', 'منطقة', 'مدينة', 'موقع', 'القطيف', 'تغطية'],
+    a_ar: 'الخدمة متاحة حالياً في القطيف والمناطق التابعة لها (مثل سيهات وصفوى وتاروت)، ونعمل على توسيع التغطية لباقي المنطقة الشرقية قريباً.',
+    a_en: 'Service is currently available in Al Qatif and the areas administratively under it (Saihat, Safwa, Tarout). We are expanding coverage across the Eastern Province soon.',
+    keywords: ['area', 'location', 'city', 'cover', 'coverage', 'qatif', 'dammam', 'khobar', 'منطقة', 'مدينة', 'موقع', 'القطيف', 'تغطية', 'سيهات', 'الدمام', 'الخبر'],
+    strong: ['where do you', 'do you cover', 'هل تغطون', 'متى توسع'],
+    related: ['request', 'pickup', 'time'],
   },
   {
     id: 'pickup',
     q_ar: 'هل يوجد استلام وتوصيل؟',
     q_en: 'Do you offer pickup & delivery?',
-    a_ar: 'نعم. يمكنك اختيار استلام وتوصيل الجهاز، أو زيارة فني متنقل، أو تسليم الجهاز بنفسك في مركز الخدمة.',
+    a_ar: 'نعم. يمكنك اختيار الاستلام والتوصيل، أو زيارة فني متنقل، أو تسليم الجهاز بنفسك في مركز الخدمة.',
     a_en: 'Yes. You can choose pickup & delivery, an on-site technician visit, or drop the device off yourself at our service center.',
-    keywords: ['pickup', 'delivery', 'collect', 'استلام', 'توصيل', 'تسليم'],
+    keywords: ['pickup', 'delivery', 'collect', 'come to me', 'mobile', 'استلام', 'توصيل', 'تسليم', 'يجي', 'متنقل'],
+    strong: ['pickup and delivery', 'استلام وتوصيل'],
+    related: ['area', 'request', 'time'],
   },
   {
     id: 'track',
@@ -104,7 +156,29 @@ const FAQS: Faq[] = [
     q_en: 'How do I track my order?',
     a_ar: 'افتح «طلباتي» من الصفحة الرئيسية لرؤية حالة كل طلب وتفاصيله لحظة بلحظة.',
     a_en: 'Open "My Requests" from the home screen to see the live status and details of every order.',
-    keywords: ['track', 'status', 'my order', 'تتبع', 'حالة', 'طلباتي', 'متابعة'],
+    keywords: ['track', 'status', 'my order', 'where is', 'progress', 'تتبع', 'حالة', 'طلباتي', 'متابعة', 'وين طلبي'],
+    strong: ['track my order', 'where is my', 'أين طلبي'],
+    related: ['cancel', 'time', 'request'],
+  },
+  {
+    id: 'cancel',
+    q_ar: 'هل أستطيع إلغاء الطلب؟',
+    q_en: 'Can I cancel my order?',
+    a_ar: 'نعم. يمكنك إلغاء الطلب قبل بدء الفني بالعمل بدون أي رسوم. بعد بدء الإصلاح قد تُطبَّق رسوم تشخيص بسيطة.',
+    a_en: 'Yes. You can cancel the order any time before the technician begins work — free of charge. Once the repair starts a small inspection fee may apply.',
+    keywords: ['cancel', 'stop', 'abort', 'remove order', 'إلغاء', 'الغي', 'وقف'],
+    strong: ['cancel my order', 'إلغاء الطلب'],
+    related: ['refund', 'track', 'warranty'],
+  },
+  {
+    id: 'refund',
+    q_ar: 'كيف يتم استرداد المبلغ؟',
+    q_en: 'How do refunds work?',
+    a_ar: 'إذا كنت دفعت مقدماً وأُلغي الطلب أو لم يتم الإصلاح، يُعاد المبلغ إلى نفس وسيلة الدفع خلال ٣ إلى ٧ أيام عمل.',
+    a_en: 'If you paid up front and the order was cancelled or the repair could not be completed, the amount is returned to your original payment method within 3 to 7 business days.',
+    keywords: ['refund', 'money back', 'reimburse', 'استرداد', 'استرجاع', 'فلوس', 'ارجاع المبلغ'],
+    strong: ['get my money back', 'استرداد المبلغ'],
+    related: ['cancel', 'payment', 'warranty'],
   },
   {
     id: 'market',
@@ -112,7 +186,9 @@ const FAQS: Faq[] = [
     q_en: 'How do I sell a device in the marketplace?',
     a_ar: 'افتح «السوق» ثم «إعلان جديد»، أضف الصور والتفاصيل والسعر. يظهر الإعلان بعد مراجعته من الفريق.',
     a_en: 'Open "Marketplace", tap "New listing", add photos, details and a price. Your listing goes live after the team reviews it.',
-    keywords: ['sell', 'marketplace', 'listing', 'market', 'سوق', 'بيع', 'إعلان'],
+    keywords: ['sell', 'marketplace', 'listing', 'market', 'post listing', 'سوق', 'بيع', 'إعلان', 'انشر إعلان'],
+    strong: ['sell my', 'post a listing', 'بيع جهاز'],
+    related: ['account', 'support', 'price'],
   },
   {
     id: 'technician',
@@ -120,43 +196,173 @@ const FAQS: Faq[] = [
     q_en: 'How do I become a technician?',
     a_ar: 'سجّل كفني من شاشة اختيار الدور، أكمل بياناتك ووثائقك، وبعد اعتماد الفريق ستبدأ باستقبال الطلبات.',
     a_en: 'Sign up as a technician from the role-selection screen, complete your details and documents, and once the team approves you, you can start receiving jobs.',
-    keywords: ['technician', 'join', 'work', 'apply', 'فني', 'انضمام', 'توظيف', 'اعمل'],
+    keywords: ['technician', 'join', 'work', 'apply', 'become', 'فني', 'انضمام', 'توظيف', 'اعمل', 'وظيفة'],
+    strong: ['become a technician', 'انضم كفني'],
+    related: ['support', 'account'],
+  },
+  {
+    id: 'loyalty',
+    q_ar: 'كيف يعمل برنامج الولاء؟',
+    q_en: 'How does the loyalty program work?',
+    a_ar: 'تكسب نقاطاً مع كل طلب مكتمل، ويمكنك استبدالها بخصم على إصلاح أو إكسسوار. تابع رصيد نقاطك من شاشة «الولاء».',
+    a_en: 'You earn points on every completed order and can redeem them for a discount on a future repair or accessory. Check your balance from the "Loyalty" screen.',
+    keywords: ['loyalty', 'points', 'reward', 'redeem', 'ولاء', 'نقاط', 'مكافأة', 'استبدال'],
+    strong: ['loyalty', 'reward points', 'برنامج الولاء'],
+    related: ['payment', 'price'],
+  },
+  {
+    id: 'account',
+    q_ar: 'كيف أعدّل حسابي وعنواني؟',
+    q_en: 'How do I edit my profile and address?',
+    a_ar: 'افتح «حسابي» من القائمة، ثم «تعديل الملف الشخصي» للاسم والصورة، و«عناويني» لإضافة أو تعديل عنوان.',
+    a_en: 'Open "Profile" from the menu, then "Edit Profile" for name and photo, or "Addresses" to add or edit an address.',
+    keywords: ['profile', 'account', 'edit', 'name', 'photo', 'address', 'phone', 'حساب', 'ملف', 'تعديل', 'الاسم', 'صورة', 'عنوان', 'رقم'],
+    strong: ['edit my profile', 'change my address', 'تعديل ملفي'],
+    related: ['market', 'support'],
+  },
+  {
+    id: 'support',
+    q_ar: 'كيف أتواصل مع الدعم؟',
+    q_en: 'How do I contact support?',
+    a_ar: 'اضغط على «تواصل مع الدعم» أعلى الشاشة في أي وقت — فريقنا متاح ٧ أيام في الأسبوع للرد على أسئلتك.',
+    a_en: 'Tap "Talk to support" at the top of this screen any time — our team is available 7 days a week to answer your questions.',
+    keywords: ['support', 'help', 'contact', 'human', 'representative', 'agent', 'دعم', 'مساعدة', 'تواصل', 'موظف', 'خدمة العملاء'],
+    strong: ['talk to support', 'human', 'تكلم مع', 'محتاج دعم'],
+    related: [],
   },
 ];
 
+// Map RequestFaq DB rows to the in-memory Faq shape the matcher uses.
+// `id` in the matcher is intentionally the FAQ's `code` so `related`
+// references survive row reordering / soft renames.
+const dbRowToFaq = (r: import('../services/requestFaqsService').RequestFaq): Faq => ({
+  id: r.code,
+  q_ar: r.q_ar,
+  q_en: r.q_en,
+  a_ar: r.a_ar,
+  a_en: r.a_en,
+  keywords: r.keywords ?? [],
+  strong: r.strong ?? [],
+  related: r.related ?? [],
+});
+
+/** Explicit handoff intent — fast-path before scoring. */
 const HANDOFF_KEYWORDS = [
-  'human', 'agent', 'support', 'representative', 'person', 'help me',
-  'موظف', 'دعم', 'خدمة العملاء', 'شخص', 'مساعدة',
+  'talk to human', 'talk to agent', 'real person', 'representative', 'support team',
+  'موظف', 'إنسان', 'شخص حقيقي', 'تكلم مع', 'تحدث مع',
 ];
+
+/** Off-topic signals — if the question is obviously not about the app,
+ *  refuse politely instead of guessing. Kept small and conservative so
+ *  legitimate edge cases aren't blocked. */
+const OFF_TOPIC_PATTERNS: RegExp[] = [
+  /\b(weather|news|stock|crypto|football|movie|recipe|joke|riddle|chatgpt|gpt|openai|claude|gemini)\b/i,
+  /\b(write code|generate code|code for|debug|sql|python|javascript)\b/i,
+  /(الطقس|الأخبار|أسعار العملات|نكتة|نكت|اكتب لي كود|اكتب كود)/,
+];
+
+/** Score a single FAQ against a normalised question. Higher is better. */
+function scoreFaq(faq: Faq, qLower: string): number {
+  let score = 0;
+  for (const k of faq.keywords) {
+    if (qLower.includes(k.toLowerCase())) score += 1;
+  }
+  for (const s of faq.strong ?? []) {
+    if (qLower.includes(s.toLowerCase())) score += 3;
+  }
+  return score;
+}
+
+/** Minimum score the winning FAQ must reach for us to return its answer.
+ *  Below this we treat the question as "out of scope" and offer support. */
+const CONFIDENCE_FLOOR = 1;
 
 export default function ChatbotScreen() {
   const router = useRouter();
   const { language, isDark } = useApp();
   const COLORS = getColors(isDark);
   const isRTL = language === 'ar';
-  const styles = makeStyles(COLORS, isRTL);
+  const styles = useMemo(() => makeStyles(COLORS, isRTL), [COLORS, isRTL]);
   const scrollViewRef = useRef<ScrollView>(null);
 
   const [messages, setMessages] = useState<Message[]>([
     {
       id: 'welcome',
       text: isRTL
-        ? 'مرحباً! أنا مساعد Fixate الذكي. اسألني عن الأسعار، الضمان، التوصيل أو أي شيء آخر — أو اطلب التحدث مع فريق الدعم.'
-        : "Hi! I'm the Fixate assistant. Ask me about pricing, warranty, delivery or anything else — or ask to talk to our support team.",
+        ? 'مرحباً! أنا مساعد Fixate المخصّص للأسئلة عن التطبيق. اسألني عن الأسعار، الضمان، التوصيل، أو أي شيء داخل التطبيق — أو اطلب التحدث مع فريق الدعم.'
+        : "Hi! I'm the Fixate in-app assistant. Ask me about pricing, warranty, delivery, or anything inside the app — or ask to talk to our support team.",
       isBot: true,
+      followUpIds: ['request', 'price', 'warranty', 'area'],
       timestamp: new Date(),
     },
   ]);
   const [inputText, setInputText] = useState('');
+  const [thinking, setThinking] = useState(false);
+  const [allFaqsOpen, setAllFaqsOpen] = useState(false);
+
+  // Live FAQ catalogue. Starts on the hardcoded fallback so the chat is
+  // usable on cold open; replaced by the admin-managed DB rows as soon
+  // as they load. Disabled rows are filtered out here so the matcher
+  // and the suggestion drawer never see them.
+  const [faqs, setFaqs] = useState<Faq[]>(FALLBACK_FAQS);
+  useEffect(() => {
+    const loadFaqs = () => {
+      listRequestFaqs()
+        .then((rows) => {
+          const enabledMapped = rows.filter((r) => r.enabled).map(dbRowToFaq);
+          if (enabledMapped.length > 0) setFaqs(enabledMapped);
+        })
+        .catch(() => undefined);
+    };
+    loadFaqs();
+    // Live updates so admin FAQ edits show up in an open chat session
+    // without a screen remount or cache TTL wait.
+    const unsub = subscribeRequestFaqsChanges(loadFaqs);
+    return unsub;
+  }, []);
+  const faqById = useMemo(
+    () => Object.fromEntries(faqs.map((f) => [f.id, f])) as Record<string, Faq>,
+    [faqs]
+  );
+
+  // Resolve the welcome bubble's starter chips. Prefer the hardcoded
+  // four; if an admin has disabled or renamed those codes, fall back to
+  // whatever enabled FAQs the live catalogue starts with so the bubble
+  // never lands with zero starting points.
+  const PREFERRED_STARTERS = ['request', 'price', 'warranty', 'area'];
+  const starterFollowUps = useMemo(() => {
+    const present = PREFERRED_STARTERS.filter((code) => faqById[code]);
+    if (present.length > 0) return present;
+    return faqs.slice(0, 4).map((f) => f.id);
+  }, [faqs, faqById]);
+  // Keep the most-recent welcome bubble in sync with the resolved
+  // starters whenever the catalogue loads / changes.
+  useEffect(() => {
+    setMessages((prev) => {
+      if (prev.length === 0 || prev[0].id !== 'welcome') return prev;
+      const same =
+        (prev[0].followUpIds ?? []).length === starterFollowUps.length &&
+        (prev[0].followUpIds ?? []).every((c, i) => c === starterFollowUps[i]);
+      if (same) return prev;
+      const next = [...prev];
+      next[0] = { ...next[0], followUpIds: starterFollowUps };
+      return next;
+    });
+  }, [starterFollowUps]);
 
   useEffect(() => {
     const t = setTimeout(() => scrollViewRef.current?.scrollToEnd({ animated: true }), 120);
     return () => clearTimeout(t);
-  }, [messages]);
+  }, [messages, thinking]);
 
-  const findAnswer = (raw: string): { text: string; offerHandoff: boolean } => {
-    const msg = raw.toLowerCase().trim();
-    if (HANDOFF_KEYWORDS.some((k) => msg.includes(k))) {
+  const findAnswer = (raw: string): { text: string; offerHandoff: boolean; followUpIds?: string[] } => {
+    const q = raw.toLowerCase().trim();
+    if (!q) {
+      return { text: '', offerHandoff: false };
+    }
+
+    // Fast-path 1: explicit support handoff request.
+    if (HANDOFF_KEYWORDS.some((k) => q.includes(k.toLowerCase()))) {
       return {
         text: isRTL
           ? 'بالتأكيد — يمكنني تحويلك إلى فريق الدعم للرد عليك مباشرة.'
@@ -164,42 +370,84 @@ export default function ChatbotScreen() {
         offerHandoff: true,
       };
     }
-    const hit = FAQS.find((f) => f.keywords.some((k) => msg.includes(k.toLowerCase())));
-    if (hit) {
-      return { text: isRTL ? hit.a_ar : hit.a_en, offerHandoff: false };
+
+    // Fast-path 2: off-topic refusal. The assistant is strictly app-scoped;
+    // we never attempt to answer questions about the world at large.
+    if (OFF_TOPIC_PATTERNS.some((re) => re.test(q))) {
+      return {
+        text: isRTL
+          ? 'أنا متخصّص فقط في أسئلة تطبيق Fixate (الإصلاح، الأسعار، الضمان، التوصيل، السوق، الحساب). لأي سؤال خارج هذا، يمكنك التواصل مع فريق الدعم مباشرة.'
+          : "I'm scoped strictly to Fixate app questions (repairs, pricing, warranty, delivery, marketplace, your account). For anything outside that, our support team can help directly.",
+        offerHandoff: true,
+        followUpIds: ['request', 'price', 'support'],
+      };
     }
+
+    // Score every FAQ and pick the highest. Tie-break by FAQ position
+    // (earlier = more important).
+    let best: Faq | null = null;
+    let bestScore = 0;
+    for (const f of faqs) {
+      const s = scoreFaq(f, q);
+      if (s > bestScore) {
+        bestScore = s;
+        best = f;
+      }
+    }
+
+    if (best && bestScore >= CONFIDENCE_FLOOR) {
+      return {
+        text: isRTL ? best.a_ar : best.a_en,
+        offerHandoff: false,
+        followUpIds: best.related,
+      };
+    }
+
+    // No FAQ matched confidently — be honest, offer support, and surface
+    // a few common starting points so the session doesn't dead-end.
     return {
       text: isRTL
-        ? 'لم أتمكن من فهم سؤالك تماماً. يمكنك إعادة صياغته، أو التحدث مباشرة مع فريق الدعم.'
-        : "I couldn't quite answer that. Try rephrasing, or talk directly with our support team.",
+        ? 'لم أتمكن من فهم سؤالك تماماً. جرّب صياغته بشكل آخر أو اختر من الأسئلة الشائعة بالأسفل — وإذا احتجت، يمكنني تحويلك إلى فريق الدعم.'
+        : "I couldn't quite match that to a topic I know. Try rephrasing, pick one of the common questions below, or I can hand you off to support.",
       offerHandoff: true,
+      followUpIds: ['request', 'price', 'warranty', 'support'],
     };
   };
 
-  const pushBot = (text: string, offerHandoff: boolean) => {
+  const pushBot = (text: string, offerHandoff: boolean, followUpIds?: string[]) => {
     setMessages((prev) => [
       ...prev,
-      { id: `${Date.now()}-bot`, text, isBot: true, offerHandoff, timestamp: new Date() },
+      {
+        id: `${Date.now()}-bot`,
+        text,
+        isBot: true,
+        offerHandoff,
+        followUpIds,
+        timestamp: new Date(),
+      },
     ]);
   };
 
   const sendMessage = (text: string) => {
     const trimmed = text.trim();
-    if (!trimmed) return;
+    if (!trimmed || thinking) return;
     setMessages((prev) => [
       ...prev,
       { id: `${Date.now()}-user`, text: trimmed, isBot: false, timestamp: new Date() },
     ]);
     setInputText('');
+    setAllFaqsOpen(false);
+    setThinking(true);
+    // Short artificial delay so the conversation reads naturally and
+    // the "thinking" indicator has time to render.
     setTimeout(() => {
-      const { text: answer, offerHandoff } = findAnswer(trimmed);
-      pushBot(answer, offerHandoff);
-    }, 600);
+      const { text: answer, offerHandoff, followUpIds } = findAnswer(trimmed);
+      pushBot(answer, offerHandoff, followUpIds);
+      setThinking(false);
+    }, 450);
   };
 
   const goToSupport = () => router.push('/support-chat');
-
-  const showQuickQuestions = messages.length <= 2;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -231,39 +479,60 @@ export default function ChatbotScreen() {
         <ScrollView
           ref={scrollViewRef}
           style={styles.messages}
-          contentContainerStyle={{ padding: SPACING.md }}
+          contentContainerStyle={{ padding: SPACING.md, paddingBottom: 12 }}
           keyboardShouldPersistTaps="handled"
         >
-          {messages.map((m) => (
-            <View key={m.id} style={{ width: '100%' }}>
-              <View
-                style={[
-                  styles.bubble,
-                  m.isBot ? styles.botBubble : styles.userBubble,
-                ]}
-              >
-                <Text style={[styles.bubbleText, { color: m.isBot ? COLORS.text : '#fff' }]}>
-                  {m.text}
-                </Text>
-              </View>
-              {m.offerHandoff && (
-                <TouchableOpacity style={styles.handoffBtn} onPress={goToSupport} activeOpacity={0.85}>
-                  <Ionicons name="headset" size={16} color="#fff" />
-                  <Text style={styles.handoffBtnText}>
-                    {isRTL ? 'التحدث مع فريق الدعم' : 'Talk to the support team'}
+          {messages.map((m, idx) => {
+            // Only the most recent bot message shows follow-up chips —
+            // keeps the scroll clean and the chips contextual.
+            const isLatestBot = m.isBot && idx === messages.length - 1;
+            return (
+              <View key={m.id} style={{ width: '100%' }}>
+                <View style={[styles.bubble, m.isBot ? styles.botBubble : styles.userBubble]}>
+                  <Text style={[styles.bubbleText, { color: m.isBot ? COLORS.text : '#fff' }]}>
+                    {m.text}
                   </Text>
-                </TouchableOpacity>
-              )}
-            </View>
-          ))}
+                </View>
+                {m.offerHandoff && (
+                  <TouchableOpacity style={styles.handoffBtn} onPress={goToSupport} activeOpacity={0.85}>
+                    <Ionicons name="headset" size={16} color="#fff" />
+                    <Text style={styles.handoffBtnText}>
+                      {isRTL ? 'التحدث مع فريق الدعم' : 'Talk to the support team'}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+                {isLatestBot && m.followUpIds && m.followUpIds.length > 0 && (
+                  <FollowUpChips
+                    ids={m.followUpIds}
+                    faqById={faqById}
+                    onPick={(id) => {
+                      const target = faqById[id];
+                      if (!target) return;
+                      sendMessage(isRTL ? target.q_ar : target.q_en);
+                    }}
+                    isRTL={isRTL}
+                    COLORS={COLORS}
+                  />
+                )}
+              </View>
+            );
+          })}
 
-          {/* Quick questions */}
-          {showQuickQuestions && (
-            <View style={styles.quickWrap}>
-              <Text style={styles.quickHint}>
-                {isRTL ? 'أسئلة شائعة:' : 'Common questions:'}
+          {thinking && (
+            <View style={[styles.bubble, styles.botBubble, styles.thinkingBubble]}>
+              <ActivityIndicator size="small" color={COLORS.primary} />
+              <Text style={[styles.bubbleText, { color: COLORS.textSecondary, marginStart: 8 }]}>
+                {isRTL ? 'جارٍ التفكير…' : 'Thinking…'}
               </Text>
-              {FAQS.map((f) => (
+            </View>
+          )}
+
+          {/* "All common questions" inline drawer — always reachable, not
+              locked to the first two messages like before. */}
+          {allFaqsOpen && (
+            <View style={styles.allFaqsWrap}>
+              <Text style={styles.quickHint}>{isRTL ? 'الأسئلة الشائعة:' : 'Common questions:'}</Text>
+              {faqs.map((f) => (
                 <TouchableOpacity
                   key={f.id}
                   style={styles.quickChip}
@@ -278,14 +547,34 @@ export default function ChatbotScreen() {
           )}
         </ScrollView>
 
-        {/* Persistent transfer-to-support strip */}
-        <TouchableOpacity style={styles.supportStrip} onPress={goToSupport} activeOpacity={0.85}>
-          <Ionicons name="headset" size={16} color={COLORS.primary} />
-          <Text style={styles.supportStripText}>
-            {isRTL ? 'تحتاج مساعدة بشرية؟ تواصل مع الدعم' : 'Need a human? Contact support'}
-          </Text>
-          <RTLIonicon name="chevron-forward" size={16} color={COLORS.primary} />
-        </TouchableOpacity>
+        {/* Toolbar above the input — toggles the full FAQ list and routes
+            to support without forcing the user to scroll back up. */}
+        <View style={styles.toolbar}>
+          <TouchableOpacity
+            style={styles.toolbarBtn}
+            onPress={() => setAllFaqsOpen((v) => !v)}
+            activeOpacity={0.85}
+          >
+            <MaterialCommunityIcons
+              name={allFaqsOpen ? 'close-circle-outline' : 'help-circle-outline'}
+              size={16}
+              color={COLORS.primary}
+            />
+            <Text style={styles.toolbarBtnText}>
+              {allFaqsOpen
+                ? (isRTL ? 'إخفاء الأسئلة' : 'Hide questions')
+                : (isRTL ? 'كل الأسئلة الشائعة' : 'All common questions')}
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.toolbarBtn, { backgroundColor: COLORS.primary + '12' }]}
+            onPress={goToSupport}
+            activeOpacity={0.85}
+          >
+            <Ionicons name="headset" size={14} color={COLORS.primary} />
+            <Text style={styles.toolbarBtnText}>{isRTL ? 'الدعم' : 'Support'}</Text>
+          </TouchableOpacity>
+        </View>
 
         {/* Input */}
         <View style={styles.inputBar}>
@@ -297,17 +586,82 @@ export default function ChatbotScreen() {
             onChangeText={setInputText}
             multiline
             maxLength={500}
+            onSubmitEditing={() => sendMessage(inputText)}
+            blurOnSubmit={false}
           />
           <TouchableOpacity
-            style={[styles.sendBtn, { opacity: inputText.trim() ? 1 : 0.5 }]}
+            style={[styles.sendBtn, { opacity: inputText.trim() && !thinking ? 1 : 0.5 }]}
             onPress={() => sendMessage(inputText)}
-            disabled={!inputText.trim()}
+            disabled={!inputText.trim() || thinking}
           >
             <RTLIonicon name="send" size={18} color="#fff" />
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
+  );
+}
+
+/**
+ * Horizontal-scrolling follow-up chips. Always reflects the latest bot
+ * answer so multi-turn conversations have a clear next step without the
+ * user having to type or scroll back to the common-questions block.
+ */
+function FollowUpChips({
+  ids, faqById, onPick, isRTL, COLORS,
+}: {
+  ids: string[];
+  faqById: Record<string, Faq>;
+  onPick: (id: string) => void;
+  isRTL: boolean;
+  COLORS: any;
+}) {
+  const valid = ids.map((id) => faqById[id]).filter(Boolean);
+  if (valid.length === 0) return null;
+  return (
+    <View style={{ marginBottom: 14, marginTop: 2 }}>
+      <Text style={{
+        fontSize: 11,
+        fontWeight: '700',
+        color: COLORS.textSecondary,
+        marginBottom: 6,
+        textAlign: isRTL ? 'right' : 'left',
+      }}>
+        {isRTL ? 'أسئلة متابعة:' : 'Follow-up questions:'}
+      </Text>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={{
+          gap: 8,
+          flexDirection: isRTL ? 'row-reverse' : 'row',
+        }}
+      >
+        {valid.map((f) => (
+          <TouchableOpacity
+            key={f.id}
+            onPress={() => onPick(f.id)}
+            activeOpacity={0.8}
+            style={{
+              flexDirection: isRTL ? 'row-reverse' : 'row',
+              alignItems: 'center',
+              gap: 6,
+              paddingHorizontal: 12,
+              paddingVertical: 8,
+              borderRadius: 999,
+              borderWidth: 1,
+              borderColor: COLORS.primary + '40',
+              backgroundColor: COLORS.primary + '0E',
+            }}
+          >
+            <MaterialCommunityIcons name="arrow-right-circle-outline" size={14} color={COLORS.primary} />
+            <Text style={{ color: COLORS.primary, fontWeight: '700', fontSize: 12 }}>
+              {isRTL ? f.q_ar : f.q_en}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+    </View>
   );
 }
 
@@ -348,6 +702,11 @@ const makeStyles = (C: any, isRTL: boolean) =>
       borderBottomLeftRadius: isRTL ? 4 : 16,
     },
     bubbleText: { fontSize: 14, lineHeight: 21, textAlign: isRTL ? 'right' : 'left' },
+    thinkingBubble: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
+      paddingVertical: 10,
+    },
     handoffBtn: {
       flexDirection: isRTL ? 'row-reverse' : 'row',
       alignSelf: isRTL ? 'flex-end' : 'flex-start',
@@ -357,10 +716,16 @@ const makeStyles = (C: any, isRTL: boolean) =>
       paddingHorizontal: 14,
       paddingVertical: 9,
       borderRadius: 999,
-      marginBottom: 12,
+      marginBottom: 10,
     },
     handoffBtnText: { color: '#fff', fontWeight: '800', fontSize: 12 },
-    quickWrap: { marginTop: 8, gap: 8 },
+    allFaqsWrap: {
+      marginTop: 8,
+      gap: 8,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: C.border,
+      paddingTop: 12,
+    },
     quickHint: {
       fontSize: 12,
       fontWeight: '700',
@@ -386,21 +751,26 @@ const makeStyles = (C: any, isRTL: boolean) =>
       color: C.text,
       textAlign: isRTL ? 'right' : 'left',
     },
-    supportStrip: {
+    toolbar: {
       flexDirection: isRTL ? 'row-reverse' : 'row',
       alignItems: 'center',
       gap: 8,
+      paddingHorizontal: 10,
+      paddingVertical: 8,
+      backgroundColor: C.card,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: C.border,
+    },
+    toolbarBtn: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
+      gap: 6,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      borderRadius: 999,
       backgroundColor: C.primary + '12',
-      paddingHorizontal: SPACING.md,
-      paddingVertical: 10,
     },
-    supportStripText: {
-      flex: 1,
-      fontSize: 12,
-      fontWeight: '700',
-      color: C.primary,
-      textAlign: isRTL ? 'right' : 'left',
-    },
+    toolbarBtnText: { color: C.primary, fontWeight: '800', fontSize: 12 },
     inputBar: {
       flexDirection: isRTL ? 'row-reverse' : 'row',
       alignItems: 'flex-end',
