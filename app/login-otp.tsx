@@ -14,7 +14,7 @@ import {
   Animated,
   Easing,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useApp } from '../contexts/AppContext';
 import { getColors, SPACING, BORDER_RADIUS } from '../constants/theme';
@@ -45,6 +45,11 @@ import { supabase } from '../services/supabaseClient';
  */
 export default function LoginOtpScreen() {
   const router = useRouter();
+  // Shared screen, gated by actor. The technician-auth screen passes
+  // actor='technician' so the post-verify routing lands in /(technician)
+  // and rejects a customer account. Without the param the screen behaves
+  // exactly as before (customer-only).
+  const { actor } = useLocalSearchParams<{ actor?: string }>();
   const { language, isDark } = useApp();
   const COLORS = getColors(isDark);
   const isRTL = language === 'ar';
@@ -160,6 +165,28 @@ export default function LoginOtpScreen() {
             ((profile as any)?.role as string | null) ??
             ((user.user_metadata as any)?.role as string | null) ??
             null;
+
+          // Technician code-login: require role=technician, otherwise
+          // sign out + show OK-only alert per the strict role-separation
+          // spec. Skip the customer name-collection step entirely.
+          if (actor === 'technician') {
+            if (profileRole !== 'technician') {
+              try { await supabase.auth.signOut({ scope: 'local' }); } catch {}
+              Alert.alert(
+                isRTL ? 'حساب عميل' : 'Customer account',
+                isRTL
+                  ? 'هذا البريد مرتبط بحساب عميل.'
+                  : 'This email is linked to a customer account.',
+                [{ text: 'OK' }]
+              );
+              setCode('');
+              setLoading(false);
+              return;
+            }
+            router.replace('/(technician)');
+            return;
+          }
+
           if (profileRole === 'technician') {
             try { await supabase.auth.signOut({ scope: 'local' }); } catch {}
             Alert.alert(
