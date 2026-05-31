@@ -28,7 +28,18 @@ jobs:
 
       - name: Get pnpm store directory
         id: pnpm-cache
-        run: echo "store=$(pnpm store path)" >> $GITHUB_OUTPUT
+        shell: bash
+        # `pnpm store path` without --silent prints a deprecation warning
+        # to stdout on pnpm 9, which contaminated the GITHUB_OUTPUT value
+        # and left the cache step's `path:` empty — failing CI with
+        # "Input required and not supplied: path" and skipping typecheck
+        # + tests. --silent emits the path alone. `mkdir -p` guarantees the
+        # directory exists so actions/cache always has a valid target on
+        # cache miss.
+        run: |
+          STORE_PATH="$(pnpm store path --silent)"
+          mkdir -p "$STORE_PATH"
+          echo "store=$STORE_PATH" >> "$GITHUB_OUTPUT"
 
       - name: Cache pnpm store
         uses: actions/cache@v4
