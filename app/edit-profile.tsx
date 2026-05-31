@@ -145,10 +145,20 @@ export default function EditProfileScreen() {
       // the metadata sync. Supabase sends a confirmation link to the new
       // address; the actual auth.users.email value flips only after the
       // user clicks that link.
+      //
+      // emailRedirectTo points Supabase at our static landing page (see
+      // web/email-change-confirmation.html), which then auto-attempts to
+      // deep-link back into the app via fixatee:///auth/callback and offers
+      // a manual "Open Fixatee" button as a fallback. The URL itself comes
+      // from env so the same client can target different hosts (staging /
+      // prod) without code changes; if unset, Supabase falls back to the
+      // project's Site URL (today's broken behavior — same as before).
+      const emailRedirectTo = process.env.EXPO_PUBLIC_EMAIL_REDIRECT_URL;
       if (emailChanged) {
-        const { error: emailError } = await supabase.auth.updateUser({
-          email: trimmedEmail,
-        });
+        const { error: emailError } = await supabase.auth.updateUser(
+          { email: trimmedEmail },
+          emailRedirectTo ? { emailRedirectTo } : undefined
+        );
         if (emailError) {
           Alert.alert(
             isRTL ? 'خطأ' : 'Error',
