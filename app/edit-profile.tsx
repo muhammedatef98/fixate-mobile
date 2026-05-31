@@ -34,6 +34,7 @@ export default function EditProfileScreen() {
 
   const [name, setName] = useState(userProfile?.name ?? '');
   const [phone, setPhone] = useState(userProfile?.phone ?? '');
+  const [email, setEmail] = useState(user?.email ?? '');
   const [avatarUrl, setAvatarUrl] = useState<string | null>(
     userProfile?.avatar_url ?? null
   );
@@ -104,6 +105,20 @@ export default function EditProfileScreen() {
     }
     if (!user) return;
 
+    // Email is optional. If provided, validate format. If unchanged from
+    // the current auth email, we skip the Supabase email-change call so
+    // we don't trigger an unnecessary confirmation flow.
+    const trimmedEmail = email.trim();
+    const currentEmail = (user?.email ?? '').trim();
+    const emailChanged = !!trimmedEmail && trimmedEmail !== currentEmail;
+    if (trimmedEmail && !/^\S+@\S+\.\S+$/.test(trimmedEmail)) {
+      Alert.alert(
+        isRTL ? 'تنبيه' : 'Alert',
+        isRTL ? 'الرجاء إدخال بريد إلكتروني صحيح' : 'Please enter a valid email'
+      );
+      return;
+    }
+
     setSaving(true);
     try {
       // Persist to public.users — this is the row useAuth().userProfile reads,
@@ -125,11 +140,39 @@ export default function EditProfileScreen() {
         logger.warn('auth metadata sync failed (non-fatal)', e);
       }
 
+      // Email change is a separate auth call so errors (e.g. "email already
+      // in use") surface to the user instead of being swallowed alongside
+      // the metadata sync. Supabase sends a confirmation link to the new
+      // address; the actual auth.users.email value flips only after the
+      // user clicks that link.
+      if (emailChanged) {
+        const { error: emailError } = await supabase.auth.updateUser({
+          email: trimmedEmail,
+        });
+        if (emailError) {
+          Alert.alert(
+            isRTL ? 'خطأ' : 'Error',
+            emailError.message ||
+              (isRTL
+                ? 'فشل تحديث البريد الإلكتروني'
+                : 'Failed to update email')
+          );
+          setSaving(false);
+          return;
+        }
+      }
+
       await refreshUser();
 
       Alert.alert(
         isRTL ? 'نجح' : 'Success',
-        isRTL ? 'تم تحديث الملف الشخصي بنجاح' : 'Profile updated successfully',
+        emailChanged
+          ? isRTL
+            ? 'تم حفظ التغييرات. تم إرسال رابط لتأكيد البريد الإلكتروني الجديد.'
+            : 'Changes saved. A confirmation link has been sent to your new email.'
+          : isRTL
+            ? 'تم تحديث الملف الشخصي بنجاح'
+            : 'Profile updated successfully',
         [{ text: 'OK', onPress: () => safeBack() }]
       );
     } catch (e: any) {
@@ -205,6 +248,31 @@ export default function EditProfileScreen() {
               onChangeText={setName}
               placeholder={isRTL ? 'أدخل اسمك' : 'Enter your name'}
               placeholderTextColor={COLORS.textSecondary}
+              textAlign={isRTL ? 'right' : 'left'}
+            />
+          </View>
+        </View>
+
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>
+            {isRTL ? 'البريد الإلكتروني' : 'Email'}
+          </Text>
+          <View style={styles.inputWrapper}>
+            <Ionicons
+              name="mail-outline"
+              size={20}
+              color={COLORS.textSecondary}
+              style={styles.inputIcon}
+            />
+            <TextInput
+              style={styles.input}
+              value={email}
+              onChangeText={setEmail}
+              placeholder="example@email.com"
+              placeholderTextColor={COLORS.textSecondary}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoCorrect={false}
               textAlign={isRTL ? 'right' : 'left'}
             />
           </View>
