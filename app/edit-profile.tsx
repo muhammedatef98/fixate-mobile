@@ -147,17 +147,20 @@ export default function EditProfileScreen() {
       // user clicks that link.
       //
       // emailRedirectTo points Supabase at our static landing page (see
-      // web/email-change-confirmation.html), which then auto-attempts to
-      // deep-link back into the app via fixatee:///auth/callback and offers
-      // a manual "Open Fixatee" button as a fallback. The URL itself comes
-      // from env so the same client can target different hosts (staging /
-      // prod) without code changes; if unset, Supabase falls back to the
-      // project's Site URL (today's broken behavior — same as before).
-      const emailRedirectTo = process.env.EXPO_PUBLIC_EMAIL_REDIRECT_URL;
+      // docs/email-change-confirmation.html, served via GitHub Pages of
+      // this repo), which then auto-attempts to deep-link back into the
+      // app via fixatee:///auth/callback and offers a manual "Open Fixatee"
+      // button as a fallback. The URL must also be on Supabase's
+      // Additional Redirect URLs allow-list. Env override is available for
+      // staging builds; default is the live prod page so the call always
+      // has a real destination (never localhost).
+      const emailRedirectTo =
+        process.env.EXPO_PUBLIC_EMAIL_REDIRECT_URL ||
+        'https://muhammedatef98.github.io/fixatee-mobile/email-change-confirmation.html';
       if (emailChanged) {
         const { error: emailError } = await supabase.auth.updateUser(
           { email: trimmedEmail },
-          emailRedirectTo ? { emailRedirectTo } : undefined
+          { emailRedirectTo }
         );
         if (emailError) {
           Alert.alert(
