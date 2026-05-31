@@ -3,14 +3,14 @@ import { logger } from '../utils/logger';
 import { normalizeSaudiPhone } from '../utils/validation';
 import { ADMIN_PHONE } from '../constants/admin';
 
-// 4-digit phone OTP, 5-minute expiry, resend supported.
+// 6-digit phone OTP, 5-minute expiry, resend supported.
 //
 // Talks to two edge functions:
 //   - send-phone-otp   → generates code, dispatches SMS, stores hash in DB
 //   - verify-phone-otp → validates code and returns a magic-link token_hash
 //                        the mobile client converts into a Supabase session
 
-export const OTP_LENGTH = 4;
+export const OTP_LENGTH = 6;
 export const OTP_TTL_SECONDS = 5 * 60;
 export const RESEND_COOLDOWN_SECONDS = 30;
 
