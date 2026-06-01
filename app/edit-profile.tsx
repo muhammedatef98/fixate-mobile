@@ -43,11 +43,19 @@ export default function EditProfileScreen() {
   // in their inbox.
   const pendingNewEmail =
     (((user as any)?.new_email as string | undefined) ?? '').trim();
+  // Timestamp of the most recent email-change confirmation send. Used to
+  // initialise the resend cooldown so the screen reflects a real
+  // server-side cooldown if the user comes back to it.
+  const emailChangeSentAt = (user as any)?.email_change_sent_at as
+    | string
+    | undefined;
   const [avatarUrl, setAvatarUrl] = useState<string | null>(
     userProfile?.avatar_url ?? null
   );
   const [saving, setSaving] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [resending, setResending] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
 
   // Refresh the auth user on every focus. The email-change confirmation
   // completes server-side; without this, the locally cached JWT keeps the
@@ -68,6 +76,79 @@ export default function EditProfileScreen() {
   useEffect(() => {
     setEmail(user?.email ?? '');
   }, [user?.email]);
+
+  // Resend cooldown — 60s matches Supabase's default per-email rate limit
+  // for /auth/v1/resend. Computed off email_change_sent_at so the UI shows
+  // a truthful remaining window even if the user backgrounds and returns.
+  const RESEND_COOLDOWN_SECONDS = 60;
+  useEffect(() => {
+    if (!emailChangeSentAt) return;
+    const elapsedSec = Math.floor(
+      (Date.now() - new Date(emailChangeSentAt).getTime()) / 1000
+    );
+    const remaining = RESEND_COOLDOWN_SECONDS - elapsedSec;
+    if (remaining > 0) setResendCooldown(remaining);
+  }, [emailChangeSentAt]);
+
+  // Tick the cooldown down to zero. The effect re-runs only when the
+  // "is counting down" boolean transitions, so the interval is set up
+  // once per countdown and torn down when it hits zero.
+  const isCountingDown = resendCooldown > 0;
+  useEffect(() => {
+    if (!isCountingDown) return;
+    const id = setInterval(() => {
+      setResendCooldown((s) => Math.max(0, s - 1));
+    }, 1000);
+    return () => clearInterval(id);
+  }, [isCountingDown]);
+
+  const handleResendConfirmation = async () => {
+    if (!pendingNewEmail || resending || resendCooldown > 0) return;
+    setResending(true);
+    try {
+      // Use Supabase's supported resend path for email_change. Unlike a
+      // second updateUser({ email }) call, this honours the server's
+      // SMTP.MaxFrequency rate limit, doesn't re-validate the email
+      // address, and stamps a fresh email_change_sent_at. The previous
+      // link in the inbox becomes invalid (the server generates a fresh
+      // OTP), which is the standard "resend" contract — the new link
+      // supersedes the old.
+      const emailRedirectTo =
+        process.env.EXPO_PUBLIC_EMAIL_REDIRECT_URL ||
+        'https://muhammedatef98.github.io/fixatee-mobile/email-change-confirmation.html';
+      // For type=email_change, GoTrue uses `email` to look up the user
+      // via auth.users.email (the current email). The pending new email
+      // lives in auth.users.email_change and is read server-side from the
+      // row. Passing the new email here would silently 200-no-op because
+      // FindUserByEmailAndAudience wouldn't match anything.
+      const { error } = await supabase.auth.resend({
+        type: 'email_change',
+        email: user?.email ?? '',
+        options: { emailRedirectTo },
+      });
+      if (error) {
+        Alert.alert(
+          isRTL ? 'خطأ' : 'Error',
+          error.message ||
+            (isRTL
+              ? 'تعذّر إعادة إرسال رابط التأكيد'
+              : 'Could not resend the confirmation')
+        );
+        return;
+      }
+      setResendCooldown(RESEND_COOLDOWN_SECONDS);
+      Alert.alert(
+        isRTL ? 'تم الإرسال' : 'Sent',
+        isRTL
+          ? `تم إعادة إرسال رابط التأكيد إلى ${pendingNewEmail}.`
+          : `Confirmation link re-sent to ${pendingNewEmail}.`
+      );
+    } catch (e: any) {
+      Alert.alert(isRTL ? 'خطأ' : 'Error', e?.message ?? String(e));
+    } finally {
+      setResending(false);
+    }
+  };
 
   const pickAvatar = (fromCamera: boolean) => async () => {
     if (!user) return;
@@ -304,19 +385,47 @@ export default function EditProfileScreen() {
             {isRTL ? 'البريد الإلكتروني' : 'Email'}
           </Text>
           {pendingNewEmail ? (
-            <View style={styles.pendingBanner}>
-              <Ionicons
-                name="time-outline"
-                size={16}
-                color={COLORS.primary}
-                style={styles.pendingBannerIcon}
-              />
-              <Text style={styles.pendingBannerText}>
-                {isRTL
-                  ? `تم إرسال رابط التأكيد إلى ${pendingNewEmail}. افتح بريدك الجديد واضغط الرابط لإكمال التغيير. لا تضغط حفظ مرة أخرى حتى يكتمل.`
-                  : `Confirmation link sent to ${pendingNewEmail}. Open it and tap the link to complete the change. Don't tap Save again until it's confirmed.`}
-              </Text>
-            </View>
+            <>
+              <View style={styles.pendingBanner}>
+                <Ionicons
+                  name="time-outline"
+                  size={16}
+                  color={COLORS.primary}
+                  style={styles.pendingBannerIcon}
+                />
+                <Text style={styles.pendingBannerText}>
+                  {isRTL
+                    ? `تم إرسال رابط التأكيد إلى ${pendingNewEmail}. افتح بريدك الجديد واضغط الرابط لإكمال التغيير. لا تضغط حفظ مرة أخرى حتى يكتمل.`
+                    : `Confirmation link sent to ${pendingNewEmail}. Open it and tap the link to complete the change. Don't tap Save again until it's confirmed.`}
+                </Text>
+              </View>
+              <TouchableOpacity
+                onPress={handleResendConfirmation}
+                disabled={resending || resendCooldown > 0}
+                style={[
+                  styles.resendBtn,
+                  (resending || resendCooldown > 0) && { opacity: 0.5 },
+                ]}
+                accessibilityRole="button"
+                accessibilityLabel={
+                  isRTL ? 'إعادة إرسال رابط التأكيد' : 'Resend confirmation link'
+                }
+              >
+                {resending ? (
+                  <ActivityIndicator size="small" color={COLORS.primary} />
+                ) : (
+                  <Text style={styles.resendBtnText}>
+                    {resendCooldown > 0
+                      ? isRTL
+                        ? `إعادة الإرسال متاحة خلال ${resendCooldown} ثانية`
+                        : `Resend available in ${resendCooldown}s`
+                      : isRTL
+                        ? 'إعادة إرسال رابط التأكيد'
+                        : 'Resend confirmation link'}
+                  </Text>
+                )}
+              </TouchableOpacity>
+            </>
           ) : null}
           <View
             style={[
@@ -462,6 +571,25 @@ const createStyles = (C: ReturnType<typeof getColors>, isRTL: boolean) =>
       lineHeight: 19,
       color: C.text,
       textAlign: isRTL ? 'right' : 'left',
+      writingDirection: isRTL ? 'rtl' : 'ltr',
+    },
+    resendBtn: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      minHeight: 40,
+      paddingVertical: 10,
+      paddingHorizontal: 14,
+      marginBottom: 10,
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: C.primary,
+      backgroundColor: 'transparent',
+    },
+    resendBtnText: {
+      color: C.primary,
+      fontSize: 13,
+      fontWeight: '700',
+      textAlign: 'center',
       writingDirection: isRTL ? 'rtl' : 'ltr',
     },
     saveButton: {
