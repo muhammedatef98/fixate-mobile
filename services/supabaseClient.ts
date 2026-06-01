@@ -25,9 +25,30 @@ if (!supabaseUrl || !supabaseAnonKey) {
 //     gets `StorageUnknownError: Aborted` halfway through their submit.
 const fetchWithTimeout: typeof fetch = (input, init) => {
   const url = typeof input === 'string' ? input : (input as Request).url || '';
+  const method =
+    init?.method ??
+    (typeof input === 'string' ? 'GET' : (input as Request).method) ??
+    'GET';
   const isEdgeFunction = url.includes('/functions/v1/');
   const isStorage = url.includes('/storage/v1/');
-  const ms = isStorage ? 90000 : isEdgeFunction ? 45000 : 15000;
+  // Mutations against /auth/v1/user (email change, password change) trigger
+  // a synchronous SMTP dispatch on the server. That can legitimately take
+  // longer than the brisk 15s envelope used for quick auth reads
+  // (sign-in / sign-out / getUser / token refresh). On a slow network or
+  // Resend cold start it manifests as a client-side
+  // "TypeError: Network request failed" — the request had already reached
+  // Supabase and tokens were issued, but the client aborted before the
+  // SMTP send returned. Give these specific mutations the same envelope
+  // as edge functions; everything else on /auth/ stays at 15s.
+  const isAuthMutation =
+    url.includes('/auth/v1/user') && (method === 'PUT' || method === 'POST');
+  const ms = isStorage
+    ? 90000
+    : isEdgeFunction
+      ? 45000
+      : isAuthMutation
+        ? 45000
+        : 15000;
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), ms);
   return fetch(input as any, { ...(init || {}), signal: controller.signal }).finally(() => {
