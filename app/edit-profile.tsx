@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -52,7 +52,18 @@ export default function EditProfileScreen() {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(
     userProfile?.avatar_url ?? null
   );
+  // `saving` is no longer "request in flight" — handleSave returns
+  // immediately and fires the network ops in the background. We keep the
+  // flag as a brief (~1.2s) post-tap lock to prevent double-fires and to
+  // drive the "✓ Saved" flash on the button.
   const [saving, setSaving] = useState(false);
+  const [savedFlash, setSavedFlash] = useState(false);
+  // Monotonic counter bumped on every handleSave. Each background run
+  // captures its generation; when a late response arrives, we compare
+  // against the ref's current value. If it differs, a newer save has
+  // superseded us — we suppress rollback and the error Alert so the
+  // newer save owns the state machine.
+  const saveGenerationRef = useRef(0);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [resending, setResending] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
@@ -204,7 +215,12 @@ export default function EditProfileScreen() {
     );
   };
 
-  const handleSave = async () => {
+  // Optimistic save: validations run synchronously, the user sees an
+  // instant "✓ Saved" flash on the button, and the actual network
+  // round-trips happen in the background. If a specific server call
+  // fails, we roll back ONLY the part that failed and surface the error;
+  // every other field stays as the user left it.
+  const handleSave = () => {
     if (!name.trim()) {
       Alert.alert(
         isRTL ? 'تنبيه' : 'Alert',
@@ -233,83 +249,156 @@ export default function EditProfileScreen() {
       return;
     }
 
-    setSaving(true);
-    try {
-      // Persist to public.users — this is the row useAuth().userProfile reads,
-      // so updating it (then refreshing) is what makes the new name re-render
-      // everywhere in the app.
-      await updateUserProfile(user.id, {
-        name: name.trim(),
-        phone: phone.trim() || undefined,
-        avatar_url: avatarUrl || undefined,
-      });
+    // Snapshot last-known-good values for rollback. We capture from the
+    // server-cached userProfile / user.email rather than from the current
+    // input state — that way a failure restores the field to what was
+    // authoritative before this save attempt, not back to something else
+    // the user typed and abandoned.
+    const snapshot = {
+      name: userProfile?.name ?? '',
+      phone: userProfile?.phone ?? '',
+      avatarUrl: userProfile?.avatar_url ?? null,
+      email: currentEmail,
+    };
+    const payload = {
+      name: name.trim(),
+      phone: phone.trim(),
+      avatarUrl: avatarUrl || undefined,
+      email: trimmedEmail,
+      emailChanged,
+    };
 
-      // Keep auth user_metadata in sync — order creation reads phone/name
-      // from there.
+    // Instant feedback: brief "✓ Saved" flash on the button, button
+    // locked for ~1.2s to absorb accidental double-taps. Network ops are
+    // NOT awaited from here so the UI feels immediate.
+    setSaving(true);
+    setSavedFlash(true);
+    setTimeout(() => {
+      setSaving(false);
+      setSavedFlash(false);
+    }, 1200);
+
+    // Bump the generation counter and hand the captured value to the
+    // background run. Used downstream to detect when a newer save has
+    // started and the late response should defer.
+    const gen = ++saveGenerationRef.current;
+    void persistInBackground(gen, snapshot, payload);
+  };
+
+  const persistInBackground = async (
+    gen: number,
+    snapshot: {
+      name: string;
+      phone: string;
+      avatarUrl: string | null;
+      email: string;
+    },
+    payload: {
+      name: string;
+      phone: string;
+      avatarUrl: string | undefined;
+      email: string;
+      emailChanged: boolean;
+    }
+  ) => {
+    if (!user) return;
+
+    // Is this run still the latest save? Used to guard every rollback,
+    // every error Alert, and the final refreshUser. Late responses from
+    // a superseded save defer entirely to the newer one.
+    const isLatest = () => saveGenerationRef.current === gen;
+
+    // 1. public.users — the row useAuth().userProfile reads.
+    let profileSaved = true;
+    try {
+      await updateUserProfile(user.id, {
+        name: payload.name,
+        phone: payload.phone || undefined,
+        avatar_url: payload.avatarUrl,
+      });
+    } catch (e: any) {
+      profileSaved = false;
+      if (!isLatest()) {
+        // A newer save is now in flight; let it own the state and the
+        // error surface. Log only.
+        logger.warn('stale profile save error suppressed', e);
+      } else {
+        // Roll back only fields the user hasn't edited since this save
+        // fired. Functional setter form is atomic w.r.t. state updates:
+        // `current` is the latest React-internal value at the moment the
+        // updater runs, so a concurrent keystroke is preserved.
+        setName((current) =>
+          current === payload.name ? snapshot.name : current
+        );
+        setPhone((current) =>
+          current === payload.phone ? snapshot.phone : current
+        );
+        setAvatarUrl((current) => {
+          const savedAvatar = payload.avatarUrl ?? null;
+          return current === savedAvatar ? snapshot.avatarUrl : current;
+        });
+        Alert.alert(
+          isRTL ? 'خطأ' : 'Error',
+          e?.message ??
+            (isRTL ? 'فشل تحديث الملف الشخصي' : 'Failed to update profile')
+        );
+      }
+    }
+
+    // 2. Auth user_metadata sync — non-fatal, swallow on failure
+    //    (matches prior behaviour).
+    if (profileSaved) {
       try {
         await supabase.auth.updateUser({
-          data: { name: name.trim(), phone: phone.trim() },
+          data: { name: payload.name, phone: payload.phone },
         });
       } catch (e) {
         logger.warn('auth metadata sync failed (non-fatal)', e);
       }
+    }
 
-      // Email change is a separate auth call so errors (e.g. "email already
-      // in use") surface to the user instead of being swallowed alongside
-      // the metadata sync. Supabase sends a confirmation link to the new
-      // address; the actual auth.users.email value flips only after the
-      // user clicks that link.
-      //
-      // emailRedirectTo points Supabase at our static landing page (see
-      // docs/email-change-confirmation.html, served via GitHub Pages of
-      // this repo), which then auto-attempts to deep-link back into the
-      // app via fixatee:///auth/callback and offers a manual "Open Fixatee"
-      // button as a fallback. The URL must also be on Supabase's
-      // Additional Redirect URLs allow-list. Env override is available for
-      // staging builds; default is the live prod page so the call always
-      // has a real destination (never localhost).
+    // 3. Email change — separate auth call so errors surface. Same
+    //    isLatest + functional-setter guard so a stale failure can't
+    //    clobber a newer typed email.
+    //
+    //    emailRedirectTo points Supabase at our static landing page (see
+    //    docs/email-change-confirmation.html, served via GitHub Pages of
+    //    this repo). Env override available for staging.
+    if (payload.emailChanged && profileSaved) {
       const emailRedirectTo =
         process.env.EXPO_PUBLIC_EMAIL_REDIRECT_URL ||
         'https://muhammedatef98.github.io/fixatee-mobile/email-change-confirmation.html';
-      if (emailChanged) {
+      try {
         const { error: emailError } = await supabase.auth.updateUser(
-          { email: trimmedEmail },
+          { email: payload.email },
           { emailRedirectTo }
         );
-        if (emailError) {
+        if (emailError) throw emailError;
+      } catch (e: any) {
+        if (!isLatest()) {
+          logger.warn('stale email save error suppressed', e);
+        } else {
+          setEmail((current) =>
+            current === payload.email ? snapshot.email : current
+          );
           Alert.alert(
             isRTL ? 'خطأ' : 'Error',
-            emailError.message ||
+            e?.message ||
               (isRTL
                 ? 'فشل تحديث البريد الإلكتروني'
                 : 'Failed to update email')
           );
-          setSaving(false);
-          return;
         }
       }
+    }
 
-      await refreshUser();
-
-      Alert.alert(
-        isRTL ? 'نجح' : 'Success',
-        emailChanged
-          ? isRTL
-            ? 'تم حفظ التغييرات. تم إرسال رابط لتأكيد البريد الإلكتروني الجديد.'
-            : 'Changes saved. A confirmation link has been sent to your new email.'
-          : isRTL
-            ? 'تم تحديث الملف الشخصي بنجاح'
-            : 'Profile updated successfully',
-        [{ text: 'OK', onPress: () => safeBack() }]
-      );
-    } catch (e: any) {
-      Alert.alert(
-        isRTL ? 'خطأ' : 'Error',
-        e?.message ??
-          (isRTL ? 'فشل تحديث الملف الشخصي' : 'Failed to update profile')
-      );
-    } finally {
-      setSaving(false);
+    // 4. Pull fresh server state so the pending-email banner (PR #17),
+    //    canonical user.email, and userProfile fields all surface — but
+    //    only if we're still the latest save. A stale refresh would race
+    //    the newer save's own refresh and could write stale auth state
+    //    into context.
+    if (isLatest()) {
+      refreshUser().catch(() => undefined);
     }
   };
 
@@ -483,13 +572,15 @@ export default function EditProfileScreen() {
           onPress={handleSave}
           disabled={saving || uploadingAvatar}
         >
-          {saving ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.saveButtonText}>
-              {isRTL ? 'حفظ التغييرات' : 'Save Changes'}
-            </Text>
-          )}
+          <Text style={styles.saveButtonText}>
+            {savedFlash
+              ? isRTL
+                ? '✓ تم الحفظ'
+                : '✓ Saved'
+              : isRTL
+                ? 'حفظ التغييرات'
+                : 'Save Changes'}
+          </Text>
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
