@@ -35,6 +35,14 @@ export default function EditProfileScreen() {
   const [name, setName] = useState(userProfile?.name ?? '');
   const [phone, setPhone] = useState(userProfile?.phone ?? '');
   const [email, setEmail] = useState(user?.email ?? '');
+
+  // Supabase populates user.new_email while an email change is awaiting
+  // confirmation. When this is set, we lock the email field so the user
+  // can't fire another updateUser({ email }) — every fresh call rotates
+  // the change tokens and invalidates the confirmation link still sitting
+  // in their inbox.
+  const pendingNewEmail =
+    (((user as any)?.new_email as string | undefined) ?? '').trim();
   const [avatarUrl, setAvatarUrl] = useState<string | null>(
     userProfile?.avatar_url ?? null
   );
@@ -130,7 +138,12 @@ export default function EditProfileScreen() {
     // we don't trigger an unnecessary confirmation flow.
     const trimmedEmail = email.trim();
     const currentEmail = (user?.email ?? '').trim();
-    const emailChanged = !!trimmedEmail && trimmedEmail !== currentEmail;
+    // If a change is already pending server-side (user.new_email is set),
+    // do NOT fire another updateUser({ email }). Re-firing would rotate
+    // Supabase's confirmation tokens and invalidate the link the user
+    // received. Name / phone / avatar updates still proceed below.
+    const emailChanged =
+      !pendingNewEmail && !!trimmedEmail && trimmedEmail !== currentEmail;
     if (trimmedEmail && !/^\S+@\S+\.\S+$/.test(trimmedEmail)) {
       Alert.alert(
         isRTL ? 'تنبيه' : 'Alert',
@@ -290,7 +303,27 @@ export default function EditProfileScreen() {
           <Text style={styles.label}>
             {isRTL ? 'البريد الإلكتروني' : 'Email'}
           </Text>
-          <View style={styles.inputWrapper}>
+          {pendingNewEmail ? (
+            <View style={styles.pendingBanner}>
+              <Ionicons
+                name="time-outline"
+                size={16}
+                color={COLORS.primary}
+                style={styles.pendingBannerIcon}
+              />
+              <Text style={styles.pendingBannerText}>
+                {isRTL
+                  ? `تم إرسال رابط التأكيد إلى ${pendingNewEmail}. افتح بريدك الجديد واضغط الرابط لإكمال التغيير. لا تضغط حفظ مرة أخرى حتى يكتمل.`
+                  : `Confirmation link sent to ${pendingNewEmail}. Open it and tap the link to complete the change. Don't tap Save again until it's confirmed.`}
+              </Text>
+            </View>
+          ) : null}
+          <View
+            style={[
+              styles.inputWrapper,
+              pendingNewEmail ? { opacity: 0.6 } : null,
+            ]}
+          >
             <Ionicons
               name="mail-outline"
               size={20}
@@ -306,6 +339,7 @@ export default function EditProfileScreen() {
               keyboardType="email-address"
               autoCapitalize="none"
               autoCorrect={false}
+              editable={!pendingNewEmail}
               textAlign={isRTL ? 'right' : 'left'}
             />
           </View>
@@ -409,6 +443,27 @@ const createStyles = (C: ReturnType<typeof getColors>, isRTL: boolean) =>
     },
     inputIcon: { marginHorizontal: 6 },
     input: { flex: 1, height: 50, fontSize: 16, color: C.text },
+    pendingBanner: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'flex-start',
+      gap: 8,
+      backgroundColor: C.primary + '15',
+      borderWidth: 1,
+      borderColor: C.primary,
+      borderRadius: 10,
+      paddingVertical: 10,
+      paddingHorizontal: 12,
+      marginBottom: 10,
+    },
+    pendingBannerIcon: { marginTop: 2 },
+    pendingBannerText: {
+      flex: 1,
+      fontSize: 13,
+      lineHeight: 19,
+      color: C.text,
+      textAlign: isRTL ? 'right' : 'left',
+      writingDirection: isRTL ? 'rtl' : 'ltr',
+    },
     saveButton: {
       backgroundColor: C.primary,
       height: 55,
