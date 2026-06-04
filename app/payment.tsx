@@ -27,8 +27,8 @@ import {
  * The real payment page — reached after the customer accepts a repair quote.
  * Methods are admin-managed (payment_methods table). Cash on Delivery is the
  * only one that "really" settles here; card/Apple Pay record the choice and
- * mark the order paid (a real gateway can be wired in later); Tabby/Tamara
- * are shown as coming-soon.
+ * set payment_status = 'pending_payment' until a server-side gateway confirms
+ * the charge. Tabby/Tamara are shown as coming-soon.
  */
 // Brand accent colours for BNPL methods. The official Tabby/Tamara logo
 // assets can be dropped into assets/ and wired via payment_methods.icon later.
@@ -134,16 +134,17 @@ export default function PaymentScreen() {
 
     setSubmitting(true);
     try {
-      // COD settles on completion → payment_status stays 'unpaid'. Card /
-      // Apple Pay are recorded as 'paid' (no live gateway). For a repair
-      // payment the order continues as 'accepted'; for a delivery-fee
-      // payment the order was already cancelled (quote rejected) and stays so.
+      // COD settles on completion → payment_status stays 'unpaid'.
+      // Card / Apple Pay record the chosen method and set 'pending_payment'
+      // — NOT 'paid' — because no server-side gateway has confirmed the
+      // charge yet. A webhook / Edge Function must flip this to 'paid' once
+      // the gateway responds.
       const isCod = method.code === 'cod';
       const { error } = await supabase
         .from('orders')
         .update({
           payment_method: method.code,
-          payment_status: isCod ? 'unpaid' : 'paid',
+          payment_status: isCod ? 'unpaid' : 'pending_payment',
           status: isDeliveryFee ? 'cancelled' : 'accepted',
           updated_at: new Date().toISOString(),
         })
@@ -158,15 +159,15 @@ export default function PaymentScreen() {
               ? 'تم تأكيد رسوم التوصيل وستُحصّل نقداً. تم إغلاق الطلب.'
               : 'Delivery fee confirmed — it will be collected in cash. The request is closed.'
             : isRTL
-              ? 'تم دفع رسوم التوصيل بنجاح. تم إغلاق الطلب.'
-              : 'Delivery fee paid successfully. The request is now closed.'
+              ? 'تم حفظ طريقة الدفع. سيتم تحصيل رسوم التوصيل لاحقاً. تم إغلاق الطلب.'
+              : 'Payment method saved. The delivery fee will be charged later. The request is now closed.'
           : isCod
             ? isRTL
               ? 'تم تأكيد طلبك. سيتم تحصيل المبلغ نقداً عند إتمام الإصلاح.'
               : 'Your order is confirmed. The amount will be collected in cash on completion.'
             : isRTL
-              ? 'تم تأكيد الدفع. سيتابع الفني الإصلاح الآن.'
-              : 'Payment confirmed. The technician will now proceed with the repair.',
+              ? 'تم حفظ طريقة الدفع. سيتم تحصيل المبلغ عند إتمام الإصلاح.'
+              : 'Payment method saved. You will be charged once the repair is complete.',
         [{ text: 'OK', onPress: () => safeBack(`/order-details?id=${orderId}` as any) }]
       );
     } catch (e: any) {
