@@ -1,22 +1,18 @@
 // Supabase Edge Function: send-phone-otp
 //
-// Phone-only OTP login/registration:
+// Authentica-managed OTP flow:
 //   1. Client posts { phone } in E.164 format (+9665XXXXXXXX).
-//   2. We generate a 4-digit code, store its bcrypt hash in phone_otps with
-//      a 5-minute expiry, and dispatch the SMS via the configured provider.
-//   3. Client never sees the code; verify-phone-otp checks the hash later.
+//   2. We rate-limit (max 1 send per 30s per phone, tracked in otp_rate_limits).
+//   3. We POST to Authentica /send-otp; Authentica generates the code and sends
+//      the SMS. We never see or store the code — verify-phone-otp asks
+//      Authentica to validate it later.
 //
-// SMS provider abstraction: if SMS_PROVIDER_URL is configured we POST the
-// message to it; otherwise we log the code (dev mode) and return ok so the
-// app flow stays usable while the production provider is being onboarded.
-//
-// Required secrets: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY.
-// Optional secrets: SMS_PROVIDER_URL, SMS_PROVIDER_TOKEN, SMS_SENDER_ID.
+// Required secrets: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, AUTHENTICA_API_KEY.
+// Optional secrets: AUTHENTICA_BASE_URL (default https://api.authentica.sa/api/v2).
 // Deployed with verify_jwt = false (anonymous users must reach this).
 
 // @ts-nocheck — Deno runtime
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import * as bcrypt from 'https://deno.land/x/bcrypt@v0.4.1/mod.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -24,55 +20,67 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
-const OTP_TTL_MINUTES = 5;
+const OTP_TTL_SECONDS = 300;
 const RESEND_COOLDOWN_SECONDS = 30;
+
+const AUTHENTICA_API_KEY = Deno.env.get('AUTHENTICA_API_KEY') ?? '';
+const AUTHENTICA_BASE_URL_RAW = Deno.env.get('AUTHENTICA_BASE_URL') ?? 'https://api.authentica.sa/api/v2';
+const AUTHENTICA_BASE_URL = (() => {
+  const trimmed = AUTHENTICA_BASE_URL_RAW.replace(/\/+$/, '');
+  return /\/api\/v\d+$/.test(trimmed) ? trimmed : `${trimmed}/api/v2`;
+})();
+const AUTHENTICA_METHOD = Deno.env.get('AUTHENTICA_METHOD') ?? 'sms';
+const AUTHENTICA_TEMPLATE_ID = Deno.env.get('AUTHENTICA_TEMPLATE_ID') ?? '';
 
 const isE164Saudi = (s: string) => /^\+9665\d{8}$/.test(s);
 
-const generateCode = (): string => {
-  const buf = new Uint8Array(2);
-  crypto.getRandomValues(buf);
-  const n = (buf[0] << 8 | buf[1]) % 10000;
-  return String(n).padStart(4, '0');
-};
-
-const sendSms = async (phone: string, code: string, lang: 'ar' | 'en') => {
-  const providerUrl = Deno.env.get('SMS_PROVIDER_URL');
-  const providerToken = Deno.env.get('SMS_PROVIDER_TOKEN');
-  const senderId = Deno.env.get('SMS_SENDER_ID') ?? 'Fixate';
-
-  const message = lang === 'ar'
-    ? `رمز التحقق الخاص بك في Fixate: ${code}\nصالح لمدة ${OTP_TTL_MINUTES} دقائق.`
-    : `Your Fixate verification code: ${code}\nValid for ${OTP_TTL_MINUTES} minutes.`;
-
-  if (!providerUrl) {
-    // Dev mode: log the code so it can be retrieved from the function logs.
-    // In production set SMS_PROVIDER_URL so this branch is never hit.
-    console.log(`[send-phone-otp] DEV MODE — phone=${phone} code=${code}`);
-    return { delivered: false, dev: true };
+// Authentica-side send. They generate the code and dispatch the SMS.
+const callAuthenticaSend = async (phone: string) => {
+  if (!AUTHENTICA_API_KEY) {
+    console.log(`[send-phone-otp] DEV MODE — AUTHENTICA_API_KEY not set, phone=${phone}`);
+    return { ok: true, dev: true };
   }
 
-  const res = await fetch(providerUrl, {
+  const res = await fetch(`${AUTHENTICA_BASE_URL}/send-otp`, {
     method: 'POST',
     headers: {
+      'X-Authorization': AUTHENTICA_API_KEY,
       'Content-Type': 'application/json',
-      ...(providerToken ? { Authorization: `Bearer ${providerToken}` } : {}),
+      Accept: 'application/json',
     },
-    body: JSON.stringify({ to: phone, sender: senderId, body: message }),
+    body: JSON.stringify({
+      phone,
+      method: AUTHENTICA_METHOD,
+      ...(AUTHENTICA_TEMPLATE_ID ? { template_id: Number(AUTHENTICA_TEMPLATE_ID) || AUTHENTICA_TEMPLATE_ID } : {}),
+    }),
   });
 
-  if (!res.ok) {
-    const text = await res.text().catch(() => '');
-    throw new Error(`SMS provider failed (${res.status}): ${text.slice(0, 200)}`);
+  const payload = await res.json().catch(() => null);
+
+  // Treat any 2xx as success unless Authentica explicitly signals failure.
+  const explicitlyFailed =
+    payload &&
+    (
+      payload.status === false ||
+      payload.success === false ||
+      payload.error ||
+      payload.errors
+    );
+
+  if (!res.ok || explicitlyFailed) {
+    const preview = JSON.stringify(payload)?.slice(0, 300) ?? '';
+    console.error(`[send-phone-otp] Authentica send-otp failed (${res.status}): ${preview}`);
+    return { ok: false };
   }
-  return { delivered: true };
+
+  return { ok: true };
 };
 
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
   try {
-    const { phone, lang = 'ar' } = await req.json().catch(() => ({}));
+    const { phone } = await req.json().catch(() => ({}));
     if (!phone || !isE164Saudi(phone)) {
       return new Response(
         JSON.stringify({ error: 'invalid_phone' }),
@@ -85,53 +93,52 @@ Deno.serve(async (req: Request) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
     );
 
-    // Throttle: if a non-consumed OTP for this phone was created less than
-    // RESEND_COOLDOWN_SECONDS ago, reject so people can't spam SMS costs.
-    const cutoff = new Date(Date.now() - RESEND_COOLDOWN_SECONDS * 1000).toISOString();
-    const { data: recent } = await supabase
-      .from('phone_otps')
-      .select('id, created_at')
+    // Rate limit: max 1 send per RESEND_COOLDOWN_SECONDS per phone.
+    const nowIso = new Date().toISOString();
+    const { data: rateRow } = await supabase
+      .from('otp_rate_limits')
+      .select('phone, last_sent_at, send_attempts')
       .eq('phone', phone)
-      .is('consumed_at', null)
-      .gt('created_at', cutoff)
-      .order('created_at', { ascending: false })
-      .limit(1)
       .maybeSingle();
 
-    if (recent) {
+    if (rateRow?.last_sent_at) {
+      const last = new Date(rateRow.last_sent_at).getTime();
+      const elapsed = (Date.now() - last) / 1000;
+      if (elapsed < RESEND_COOLDOWN_SECONDS) {
+        return new Response(
+          JSON.stringify({
+            error: 'cooldown',
+            retry_after_seconds: Math.ceil(RESEND_COOLDOWN_SECONDS - elapsed),
+          }),
+          { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+
+    // Ask Authentica to generate + send the OTP.
+    const send = await callAuthenticaSend(phone);
+    if (!send.ok) {
       return new Response(
-        JSON.stringify({ error: 'cooldown', retry_after_seconds: RESEND_COOLDOWN_SECONDS }),
-        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ error: 'send_failed' }),
+        { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    const code = generateCode();
-    const codeHash = await bcrypt.hash(code);
-    const expiresAt = new Date(Date.now() + OTP_TTL_MINUTES * 60 * 1000).toISOString();
-
-    // Invalidate any prior live OTPs for this phone so only the latest is valid.
+    // Bump rate-limit row (upsert keyed on phone).
     await supabase
-      .from('phone_otps')
-      .update({ consumed_at: new Date().toISOString() })
-      .eq('phone', phone)
-      .is('consumed_at', null);
-
-    const { error: insErr } = await supabase
-      .from('phone_otps')
-      .insert({ phone, code_hash: codeHash, purpose: 'login', expires_at: expiresAt });
-
-    if (insErr) {
-      console.error('[send-phone-otp] insert error', insErr);
-      return new Response(
-        JSON.stringify({ error: 'storage_failed' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      .from('otp_rate_limits')
+      .upsert(
+        {
+          phone,
+          last_sent_at: nowIso,
+          send_attempts: (rateRow?.send_attempts ?? 0) + 1,
+          updated_at: nowIso,
+        },
+        { onConflict: 'phone' }
       );
-    }
-
-    const dispatch = await sendSms(phone, code, lang);
 
     return new Response(
-      JSON.stringify({ ok: true, expires_in: OTP_TTL_MINUTES * 60, ...dispatch }),
+      JSON.stringify({ ok: true, expires_in: OTP_TTL_SECONDS, ...(send.dev ? { dev: true } : {}) }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (e) {
