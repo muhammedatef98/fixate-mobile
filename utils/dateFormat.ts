@@ -28,3 +28,44 @@ export function fmtAdminDate(iso: string, isRTL = false): string {
 export function fmtDate(iso: string, isRTL = false): string {
   return fmtAdminDate(iso, isRTL);
 }
+
+/**
+ * Format a date+time string for admin screens.
+ * Forces the Gregorian calendar on Arabic locale (admin ops shouldn't see Hijri).
+ */
+export function fmtAdminDateTime(
+  v: string | number | Date | null | undefined,
+  isRTL = false,
+  opts?: Intl.DateTimeFormatOptions,
+): string {
+  if (v == null || v === '') return '—';
+  try {
+    const d = v instanceof Date ? v : new Date(v);
+    if (!Number.isFinite(d.getTime())) return '—';
+    const locale = isRTL ? 'ar-SA-u-ca-gregory' : 'en-GB';
+    return d.toLocaleString(locale, opts ?? {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  } catch {
+    return String(v);
+  }
+}
+
+/**
+ * Format a number for admin screens (counts, money). Arabic locale uses
+ * Arabic-Indic digits via 'ar-EG'.
+ */
+export function fmtAdminNumber(
+  n: number | string | null | undefined,
+  isRTL = false,
+  opts?: Intl.NumberFormatOptions,
+): string {
+  const num = Number(n ?? 0);
+  if (!Number.isFinite(num)) return '0';
+  const locale = isRTL ? 'ar-EG' : 'en-US';
+  return num.toLocaleString(locale, opts);
+}
