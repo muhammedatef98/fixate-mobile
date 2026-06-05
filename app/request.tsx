@@ -47,6 +47,11 @@ import {
   type DiscountCode,
 } from '../services/discountService';
 import { getPlatformSettings, type PlatformSettings } from '../services/platformSettingsService';
+import {
+  listActiveZonesForCity,
+  pickNeighborhoodForAddress,
+  type DeliveryZone,
+} from '../services/deliveryZonesService';
 import ServiceCenterCard from '../components/ServiceCenterCard';
 import {
   getRequestStepMethods,
@@ -147,6 +152,23 @@ export default function RequestScreen() {
     !!selectedCityRegion &&
     selectedCityRegion.enabled !== false &&
     selectedCity.enabled !== false;
+
+  const [cityDeliveryZones, setCityDeliveryZones] = useState<DeliveryZone[]>([]);
+
+  useEffect(() => {
+    if (!selectedCity) { setCityDeliveryZones([]); return; }
+    listActiveZonesForCity(selectedCity.name_en, selectedCity.name_ar)
+      .then(setCityDeliveryZones)
+      .catch(() => setCityDeliveryZones([]));
+  }, [selectedCity?.id]);
+
+  const matchedZone = useMemo(
+    () =>
+      address.trim().length > 2
+        ? pickNeighborhoodForAddress(cityDeliveryZones, address)
+        : undefined,
+    [cityDeliveryZones, address]
+  );
 
   const [selectedDeviceType, setSelectedDeviceType] = useState<string | null>(null);
   const [selectedBrand, setSelectedBrand] = useState<Brand | null>(null);
@@ -317,7 +339,7 @@ export default function RequestScreen() {
       : null,
     cityNameEn: selectedCity?.name_en ?? null,
     cityNameAr: selectedCity?.name_ar ?? null,
-    flatFee: selectedCity?.delivery_fee ?? null,
+    flatFee: matchedZone ? matchedZone.delivery_fee : (selectedCity?.delivery_fee ?? null),
     freeOverride:
       selectedServiceType === 'personal_handoff' ||
       adminFreeDelivery ||
