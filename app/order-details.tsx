@@ -29,6 +29,7 @@ import ImageViewer from '../components/ImageViewer';
 import ServiceCenterCard from '../components/ServiceCenterCard';
 import { getPlatformSettings } from '../services/platformSettingsService';
 import { computeCancellationFee } from '../constants/fees';
+import { useLoyalty } from '../contexts/LoyaltyContext';
 
 const ORDER_TIMELINE: { status: string; arLabel: string; enLabel: string; icon: string }[] = [
   { status: 'pending', arLabel: 'قيد الانتظار', enLabel: 'Pending', icon: 'clock-outline' },
@@ -52,6 +53,7 @@ export default function OrderDetailsScreen() {
   const COLORS = getColors(isDark);
   const SHADOWS = getShadows(isDark);
   const isRTL = language === 'ar';
+  const { enabled: loyaltyEnabled } = useLoyalty();
 
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
@@ -63,6 +65,7 @@ export default function OrderDetailsScreen() {
   const [ratingsEnabled, setRatingsEnabled] = useState(true);
   const [viewerOpen, setViewerOpen] = useState(false);
   const [viewerIndex, setViewerIndex] = useState(0);
+  const [resolvedUrls, setResolvedUrls] = useState<string[]>([]);
   const [respondingQuote, setRespondingQuote] = useState(false);
   const [feePreview, setFeePreview] = useState<{ total: number; inspection: number; return: number } | null>(null);
 
@@ -214,6 +217,31 @@ export default function OrderDetailsScreen() {
     try {
       const orderData = await requests.getById(id as string);
       setOrder(orderData);
+      // Resolve media_urls — entries may be either absolute http(s) URLs
+      // or private Storage paths (e.g. "order-media/<uuid>/photo.jpg").
+      // We sign the private ones so <Image /> can actually render them.
+      const rawUrls: string[] = ((orderData as any)?.media_urls ?? []) as string[];
+      if (rawUrls.length > 0) {
+        const signed = await Promise.all(
+          rawUrls.map(async (u) => {
+            if (!u) return '';
+            if (/^https?:\/\//i.test(u)) return u;
+            try {
+              const { data, error } = await supabase
+                .storage
+                .from('order-media')
+                .createSignedUrl(u, 3600);
+              if (error || !data?.signedUrl) return '';
+              return data.signedUrl;
+            } catch {
+              return '';
+            }
+          })
+        );
+        setResolvedUrls(signed.filter((s) => s));
+      } else {
+        setResolvedUrls([]);
+      }
     } catch (error) {
       logger.error('Error loading order:', error);
     } finally {
@@ -434,14 +462,14 @@ export default function OrderDetailsScreen() {
               </Text>
             </View>
 
-            {order.media_urls && order.media_urls.length > 0 && (
+            {resolvedUrls.length > 0 && (
               <>
                 <View style={[styles.divider, { backgroundColor: COLORS.border }]} />
                 <Text style={[styles.infoLabel, { color: COLORS.textSecondary, marginBottom: 8 }]}>
                   {isRTL ? 'الصور المرفقة' : 'Attached photos'}
                 </Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 4 }}>
-                  {order.media_urls.map((url, idx) => (
+                  {resolvedUrls.map((url, idx) => (
                     <TouchableOpacity
                       key={idx}
                       onPress={() => { setViewerIndex(idx); setViewerOpen(true); }}
@@ -697,7 +725,7 @@ export default function OrderDetailsScreen() {
               </View>
             )}
 
-            {!!(order as any).loyalty_points_earned && (order as any).loyalty_points_earned > 0 && (
+            {loyaltyEnabled && !!(order as any).loyalty_points_earned && (order as any).loyalty_points_earned > 0 && (
               <View style={styles.priceRow}>
                 <Text style={[styles.priceLabel, { color: COLORS.textSecondary }]}>
                   {isRTL ? 'نقاط الولاء المكتسبة' : 'Loyalty points earned'}
@@ -909,7 +937,7 @@ export default function OrderDetailsScreen() {
       </ScrollView>
       <ImageViewer
         visible={viewerOpen}
-        images={order?.media_urls ?? []}
+        images={resolvedUrls}
         initialIndex={viewerIndex}
         onClose={() => setViewerOpen(false)}
       />

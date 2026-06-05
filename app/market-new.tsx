@@ -27,7 +27,7 @@ import {
   type ContactPreference,
   type DeviceType,
 } from '../services/marketService';
-import { uploadOrderMedia } from '../services/storageService';
+import { uploadMarketMedia } from '../services/storageService';
 import SaudiCityPicker from '../components/SaudiCityPicker';
 import ImagePickerSheet from '../components/ImagePickerSheet';
 import SelectField from '../components/SelectField';
@@ -78,7 +78,10 @@ export default function MarketNewScreen() {
           );
           return;
         }
-        const result = await ImagePicker.launchCameraAsync({ quality: 0.7 });
+        // Pick at full quality — storageService.compressImage is the single
+        // compression stage. Picker-side re-encoding here would stack a second
+        // lossy JPEG pass on top, washing out card/hero images.
+        const result = await ImagePicker.launchCameraAsync({ quality: 1 });
         if (!result.canceled) {
           setImages((prev) => [...prev, ...result.assets.map((a) => a.uri)].slice(0, 8));
         }
@@ -94,7 +97,7 @@ export default function MarketNewScreen() {
         const result = await ImagePicker.launchImageLibraryAsync({
           mediaTypes: ['images'],
           allowsMultipleSelection: true,
-          quality: 0.7,
+          quality: 1,
         });
         if (!result.canceled) {
           setImages((prev) => [...prev, ...result.assets.map((a) => a.uri)].slice(0, 8));
@@ -132,7 +135,7 @@ export default function MarketNewScreen() {
       let uploaded: string[] = [];
       if (images.length > 0) {
         setSubmitStage('uploading');
-        uploaded = await uploadOrderMedia(user.id, images, `market/${user.id}/${Date.now()}`);
+        uploaded = await uploadMarketMedia(user.id, images);
       }
       const conditionLabel = CONDITIONS.find((c) => c.id === condition);
       const conditionLine = conditionLabel

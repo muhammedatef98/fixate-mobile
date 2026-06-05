@@ -22,7 +22,11 @@ import {
   IBMPlexSansArabic_700Bold,
 } from '@expo-google-fonts/ibm-plex-sans-arabic';
 import { applyAppFontToText } from '../utils/applyFont';
+import { initSentry } from '../services/sentryService';
+import { useOtaUpdates } from '../hooks/useOtaUpdates';
 import '../i18n';
+
+initSentry();
 
 function RootLayoutContent() {
   const { language } = useApp();
@@ -47,9 +51,27 @@ function RootLayoutContent() {
     // /(technician) without ever updating their password.
     const REDIRECT_AWAY_IF_LOGGED_IN = new Set([
       'login', 'signup', 'auth', 'technician-auth',
-      'login-otp', 'onboarding',
+      'login-otp', 'email-auth', 'onboarding',
     ]);
     const PROTECTED_GROUPS = new Set(['(customer)', '(technician)', 'request']);
+
+    // The user's CHOICE on role-selection determines which auth screen they
+    // landed on. That choice is the authoritative routing intent — it
+    // overrides the role stored on their profile from a previous session.
+    //
+    // Without this, a user who once signed up as a technician would always
+    // be funnelled back into /(technician) on subsequent customer logins,
+    // because `userProfile.role === 'technician'` would force the
+    // technician branch even when they explicitly tapped "Login as
+    // customer" and arrived via /login-otp.
+    //
+    // /technician-auth is the only explicit technician entry point in the
+    // app today; every other auth surface (login-otp, email-auth, auth,
+    // signup, login) is a customer-side entry point.
+    const TECHNICIAN_AUTH_SOURCES = new Set(['technician-auth']);
+    const CUSTOMER_AUTH_SOURCES = new Set([
+      'login', 'signup', 'auth', 'login-otp', 'email-auth',
+    ]);
 
     const first = segments[0] as string | undefined;
     const inAuthFlow = !!first && REDIRECT_AWAY_IF_LOGGED_IN.has(first);
@@ -62,20 +84,28 @@ function RootLayoutContent() {
       // whether they were a technician — that's the "I tap technician portal,
       // it sends me to customer portal" bug.
       if (userProfile === null) return;
-      // technician-auth is the technician's signup/login screen. If a logged-in
-      // user lands there explicitly, respect the intent and route to
-      // /(technician). The admin entry is reserved for the single admin
-      // phone (see constants/admin.ts) — no other account ever lands on
-      // /admin via auth-redirect.
-      const wantsTechnician = first === 'technician-auth';
+      const wantsTechnician = !!first && TECHNICIAN_AUTH_SOURCES.has(first);
+      const wantsCustomer = !!first && CUSTOMER_AUTH_SOURCES.has(first);
       const phone =
         (user as any)?.phone ?? (userProfile as any)?.phone ?? null;
       const adminByPhone = isAdminPhone(phone);
+
+      // Resolution order:
+      //   1. Admin phone → /admin (system-level, always wins).
+      //   2. Explicit customer auth source → /(customer) — honours the
+      //      user's choice even if their profile role is technician.
+      //   3. Explicit technician auth source → /(technician).
+      //   4. Fallback to profile-stored role for routes like /onboarding
+      //      where there's no role-binding auth source.
       const target = adminByPhone
         ? '/admin'
-        : wantsTechnician || (userProfile as any)?.role === 'technician'
-        ? '/(technician)'
-        : '/(customer)';
+        : wantsCustomer
+          ? '/(customer)'
+          : wantsTechnician
+            ? '/(technician)'
+            : (userProfile as any)?.role === 'technician'
+              ? '/(technician)'
+              : '/(customer)';
       router.replace(target as any);
       return;
     }
@@ -140,7 +170,8 @@ function RootLayoutContent() {
             fontWeight: 'bold',
           },
           headerBackTitle: language === 'ar' ? 'رجوع' : 'Back',
-          animation: 'none',
+          animation: language === 'ar' ? 'slide_from_left' : 'slide_from_right',
+          animationDuration: 250,
           gestureEnabled: true,
           gestureDirection: 'horizontal',
         }}
@@ -258,12 +289,28 @@ function RootLayoutContent() {
         <Stack.Screen name="admin-payment-gateway" options={{ headerShown: false }} />
         <Stack.Screen name="admin-otp-provider" options={{ headerShown: false }} />
         <Stack.Screen name="payment" options={{ headerShown: false }} />
+        {/* Screens with custom in-screen headers — hide the default green
+            navigator header so it doesn't appear duplicated above the
+            custom one. */}
+        <Stack.Screen name="notifications" options={{ headerShown: false }} />
+        <Stack.Screen name="admin" options={{ headerShown: false }} />
+        <Stack.Screen name="edit-profile" options={{ headerShown: false }} />
+        <Stack.Screen name="support-chat" options={{ headerShown: false }} />
+        <Stack.Screen name="admin-support" options={{ headerShown: false }} />
+        {/* These admin screens have their own in-screen headers; hiding the
+            native green Stack header eliminates the duplicated bar that
+            appeared above the custom one. */}
+        <Stack.Screen name="admin-orders" options={{ headerShown: false }} />
+        <Stack.Screen name="admin-ratings" options={{ headerShown: false }} />
+        <Stack.Screen name="admin-users" options={{ headerShown: false }} />
+        <Stack.Screen name="admin-platform-settings" options={{ headerShown: false }} />
       </Stack>
     </View>
   );
 }
 
 export default function RootLayout() {
+  useOtaUpdates();
   const [fontsLoaded] = useFonts({
     IBMPlexSansArabic_400Regular,
     IBMPlexSansArabic_500Medium,

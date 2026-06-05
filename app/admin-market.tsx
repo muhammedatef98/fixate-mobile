@@ -22,6 +22,7 @@ import { useApp } from '../contexts/AppContext';
 import { useIsAdmin } from '../hooks/useAdminGuard';
 import { getColors, SPACING, BORDER_RADIUS } from '../constants/theme';
 import { RTLIonicon } from '../components/RTLIcon';
+import { fmtAdminDate } from '../utils/dateFormat';
 import {
   adminListAll,
   adminApprove,
@@ -188,8 +189,7 @@ export default function AdminMarketScreen() {
     if (counts[l.status as ListingStatus] != null) counts[l.status as ListingStatus] += 1;
   }
   const filtered = listings.filter((l) => l.status === filter);
-  const fmtDate = (v?: string | null) =>
-    v ? new Date(v).toLocaleDateString(isRTL ? 'ar-SA' : 'en-GB') : '';
+  const fmtDate = (v?: string | null) => (v ? fmtAdminDate(v, isRTL) : '');
 
   const promptLabels = (() => {
     if (!prompt) return null;

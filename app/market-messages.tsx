@@ -26,6 +26,7 @@ import {
   type MarketThreadSummary,
 } from '../services/marketService';
 import { logger } from '../utils/logger';
+import MarketBottomTabs, { MARKET_TABS_HEIGHT } from '../components/MarketBottomTabs';
 
 /**
  * Marketplace inbox — every conversation the current user participates in
@@ -275,8 +276,8 @@ export default function MarketMessagesScreen() {
           renderItem={renderRow}
           contentContainerStyle={
             threads.length === 0
-              ? { flex: 1 }
-              : { paddingVertical: SPACING.sm }
+              ? { flexGrow: 1, paddingBottom: MARKET_TABS_HEIGHT + 24 }
+              : { paddingVertical: SPACING.sm, paddingBottom: MARKET_TABS_HEIGHT + 24 }
           }
           ItemSeparatorComponent={() => <View style={styles.sep} />}
           keyboardShouldPersistTaps="handled"
@@ -322,6 +323,8 @@ export default function MarketMessagesScreen() {
           }
         />
       )}
+
+      <MarketBottomTabs />
     </SafeAreaView>
   );
 }

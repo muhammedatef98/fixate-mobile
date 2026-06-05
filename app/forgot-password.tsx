@@ -11,6 +11,7 @@ import {
   Platform,
   ActivityIndicator,
   Alert,
+  ScrollView,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -203,6 +204,12 @@ export default function ForgotPasswordScreen() {
       </View>
 
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <ScrollView
+          contentContainerStyle={{ flexGrow: 1, paddingBottom: 40 }}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          showsVerticalScrollIndicator={false}
+        >
         <View style={styles.content}>
           {step === 'email' && (
             <>
@@ -246,7 +253,7 @@ export default function ForgotPasswordScreen() {
                 placeholder="------"
                 placeholderTextColor={COLORS.textSecondary}
                 keyboardType="number-pad"
-                style={[styles.otpInput, { color: COLORS.text, borderColor: COLORS.border }]}
+                style={[styles.otpInput, { color: COLORS.text, borderColor: COLORS.border, writingDirection: 'ltr' }]}
                 textAlign="center"
                 autoFocus
                 maxLength={10}
@@ -320,6 +327,7 @@ export default function ForgotPasswordScreen() {
             </>
           )}
         </View>
+        </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );

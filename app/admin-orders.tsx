@@ -20,6 +20,16 @@ import { getColors, SPACING, BORDER_RADIUS } from '../constants/theme';
 import { RTLIonicon } from '../components/RTLIcon';
 import { safeBack } from '../utils/navigation';
 import { supabase } from '../services/supabaseClient';
+import {
+  AdminScreenHeader,
+  AdminSearchBar,
+  AdminFilterChips,
+  AdminStatusPill,
+  AdminEmptyState,
+  orderStatusTone,
+  type AdminFilterChip,
+} from '../components/admin/AdminUI';
+import { fmtAdminDate } from '../utils/dateFormat';
 
 interface AdminOrder {
   id: string;
@@ -124,79 +134,63 @@ export default function AdminOrdersScreen() {
   if (!isAdmin) {
     return (
       <SafeAreaView style={styles.container}>
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => safeBack('/admin')}>
-            <RTLIonicon name="chevron-back" size={26} color={COLORS.text} />
-          </TouchableOpacity>
-          <Text style={styles.title}>{isRTL ? 'الطلبات' : 'Orders'}</Text>
-          <View style={{ width: 26 }} />
-        </View>
-        <View style={styles.empty}>
-          <MaterialCommunityIcons name="shield-alert-outline" size={64} color={COLORS.error} />
-          <Text style={{ color: COLORS.text, fontWeight: '700', marginTop: 12 }}>
-            {isRTL ? 'هذه الصفحة للأدمن فقط' : 'Admins only'}
-          </Text>
-        </View>
+        <AdminScreenHeader title={isRTL ? 'الطلبات' : 'Orders'} />
+        <AdminEmptyState
+          variant="error"
+          icon="shield-alert-outline"
+          title={isRTL ? 'غير مصرّح' : 'Unauthorized'}
+          body={isRTL ? 'هذه الصفحة للأدمن فقط' : 'Admins only'}
+        />
       </SafeAreaView>
     );
   }
 
-  const FILTERS: { key: FilterKey; ar: string; en: string }[] = [
-    { key: 'all', ar: 'الكل', en: 'All' },
-    { key: 'pending', ar: 'قيد الانتظار', en: 'Pending' },
-    { key: 'active', ar: 'قيد التنفيذ', en: 'In progress' },
-    { key: 'completed', ar: 'مكتملة', en: 'Completed' },
-    { key: 'cancelled', ar: 'ملغاة', en: 'Cancelled' },
+  // Pre-compute counts per status so the filter chips can show how many
+  // orders sit in each bucket — saves the admin from clicking each tab
+  // just to find where the work is.
+  const counts = orders.reduce(
+    (acc, o) => {
+      acc.all++;
+      if (o.status === 'pending') acc.pending++;
+      else if (o.status === 'completed') acc.completed++;
+      else if (o.status === 'cancelled') acc.cancelled++;
+      else acc.active++;
+      return acc;
+    },
+    { all: 0, pending: 0, active: 0, completed: 0, cancelled: 0 } as Record<FilterKey, number>,
+  );
+
+  const FILTERS: AdminFilterChip<FilterKey>[] = [
+    { key: 'all',       ar: 'الكل',         en: 'All',         count: counts.all },
+    { key: 'pending',   ar: 'قيد الانتظار', en: 'Pending',     count: counts.pending },
+    { key: 'active',    ar: 'قيد التنفيذ',  en: 'In progress', count: counts.active },
+    { key: 'completed', ar: 'مكتملة',       en: 'Completed',   count: counts.completed },
+    { key: 'cancelled', ar: 'ملغاة',        en: 'Cancelled',   count: counts.cancelled },
   ];
 
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => safeBack('/admin')} accessibilityRole="button">
-          <RTLIonicon name="chevron-back" size={26} color={COLORS.text} />
-        </TouchableOpacity>
-        <Text style={styles.title}>{isRTL ? 'إدارة الطلبات' : 'Orders Management'}</Text>
-        <View style={{ width: 26 }} />
-      </View>
+      <AdminScreenHeader
+        title={isRTL ? 'إدارة الطلبات' : 'Orders Management'}
+        subtitle={isRTL ? `${visible.length} من ${orders.length}` : `${visible.length} of ${orders.length}`}
+        rightIcon="refresh"
+        onRightPress={() => { setRefreshing(true); load(); }}
+        rightLabel={isRTL ? 'تحديث' : 'Refresh'}
+      />
 
-      <View style={styles.searchWrap}>
-        <MaterialCommunityIcons name="magnify" size={18} color={COLORS.textSecondary} />
-        <TextInput
-          value={search}
-          onChangeText={setSearch}
-          placeholder={isRTL ? 'ابحث برقم الطلب أو الجهاز أو الهاتف' : 'Search by request no., device or phone'}
-          placeholderTextColor={COLORS.textSecondary}
-          style={styles.searchInput}
-        />
-        {search.length > 0 && (
-          <TouchableOpacity onPress={() => setSearch('')}>
-            <MaterialCommunityIcons name="close-circle" size={18} color={COLORS.textSecondary} />
-          </TouchableOpacity>
-        )}
-      </View>
+      <AdminSearchBar
+        value={search}
+        onChangeText={setSearch}
+        placeholder={isRTL ? 'ابحث برقم الطلب أو الجهاز أو الهاتف' : 'Search by request no., device or phone'}
+        resultCount={search.trim() ? visible.length : undefined}
+      />
 
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.filterRow}
-        style={{ maxHeight: 52 }}
-      >
-        {FILTERS.map((f) => {
-          const active = filter === f.key;
-          return (
-            <TouchableOpacity
-              key={f.key}
-              onPress={() => setFilter(f.key)}
-              style={[styles.filterChip, active && { backgroundColor: COLORS.primary, borderColor: COLORS.primary }]}
-            >
-              <Text style={[styles.filterChipText, active && { color: '#fff' }]}>
-                {isRTL ? f.ar : f.en}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
-      </ScrollView>
+      <AdminFilterChips<FilterKey>
+        filters={FILTERS}
+        value={filter}
+        onChange={setFilter}
+      />
 
       <ScrollView
         contentContainerStyle={{ padding: SPACING.lg, paddingBottom: 40 }}
@@ -211,15 +205,29 @@ export default function AdminOrdersScreen() {
         {loading ? (
           <ActivityIndicator size="large" color={COLORS.primary} style={{ marginTop: 40 }} />
         ) : visible.length === 0 ? (
-          <View style={styles.empty}>
-            <MaterialCommunityIcons name="clipboard-text-outline" size={56} color={COLORS.textSecondary} />
-            <Text style={{ color: COLORS.text, fontWeight: '700', marginTop: 12 }}>
-              {isRTL ? 'لا توجد طلبات' : 'No orders'}
-            </Text>
-          </View>
+          <AdminEmptyState
+            icon="clipboard-text-outline"
+            title={
+              search.trim() || filter !== 'all'
+                ? (isRTL ? 'لا توجد نتائج مطابقة' : 'No matching results')
+                : (isRTL ? 'لا توجد طلبات بعد' : 'No orders yet')
+            }
+            body={
+              search.trim() || filter !== 'all'
+                ? (isRTL ? 'جرّب تعديل الفلتر أو البحث' : 'Try a different filter or search term')
+                : (isRTL ? 'ستظهر الطلبات هنا فور إنشائها' : 'Orders appear here as soon as they are created')
+            }
+            ctaLabel={
+              search.trim() || filter !== 'all'
+                ? (isRTL ? 'مسح الفلاتر' : 'Clear filters')
+                : undefined
+            }
+            onCtaPress={() => { setSearch(''); setFilter('all'); }}
+          />
         ) : (
           visible.map((o) => {
-            const status = STATUS_META(o.status, isRTL);
+            const meta = STATUS_META(o.status, isRTL);
+            const tone = orderStatusTone(o.status);
             const price = o.final_price ?? o.estimated_price ?? 0;
             return (
               <TouchableOpacity
@@ -235,7 +243,7 @@ export default function AdminOrdersScreen() {
                   </View>
                   {o.created_at && (
                     <Text style={styles.date}>
-                      {new Date(o.created_at).toLocaleDateString(isRTL ? 'ar-SA' : 'en-GB')}
+                      {fmtAdminDate(o.created_at, isRTL)}
                     </Text>
                   )}
                 </View>
@@ -243,9 +251,7 @@ export default function AdminOrdersScreen() {
                   <Text style={styles.device} numberOfLines={1}>
                     {[o.device_brand, o.device_model].filter(Boolean).join(' ') || (isRTL ? 'طلب' : 'Order')}
                   </Text>
-                  <View style={[styles.statusPill, { backgroundColor: status.color + '20' }]}>
-                    <Text style={[styles.statusPillText, { color: status.color }]}>{status.label}</Text>
-                  </View>
+                  <AdminStatusPill label={meta.label} tone={tone.tone} icon={tone.icon} />
                 </View>
                 <View style={styles.cardBottom}>
                   <Text style={styles.meta}>

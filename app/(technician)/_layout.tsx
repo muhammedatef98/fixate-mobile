@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { Stack, useRouter, usePathname } from 'expo-router';
+import { Stack, useRouter, useSegments } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useApp } from '../../contexts/AppContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -8,17 +8,28 @@ import { supabase } from '../../services/supabaseClient';
 import { getColors, SPACING, BORDER_RADIUS } from '../../constants/theme';
 import BottomNavTech from '../../components/BottomNavTech';
 
-// Main technician sections where the bottom tab bar stays persistently
-// visible. Detail/flow screens (manage-order, job, service-availability)
-// intentionally hide it so the technician can focus on the task.
-const PERSISTENT_NAV_ROUTES = [
-  '/(technician)',
-  '/(technician)/index',
-  '/(technician)/available-orders',
-  '/(technician)/earnings',
-  '/(technician)/my-orders',
-  '/(technician)/profile',
-];
+// Child route segments where the bottom tab bar stays persistently visible.
+// These map 1:1 to the four BottomNavTech entries (Home / Requests / Jobs /
+// Profile). Detail/flow screens (manage-order, job, service-availability,
+// earnings, notifications, delete-account) intentionally hide the bar so the
+// technician can focus on the task.
+//
+// IMPORTANT: we match the *child segment* (via useSegments), NOT pathname.
+// In expo-router 6, usePathname() strips the `(technician)` group prefix,
+// so a `pathname === '/(technician)/profile'` check NEVER matched and the
+// tab bar was silently never rendered. useSegments returns the raw segment
+// array including the group, which is unambiguous.
+const PERSISTENT_TAB_SEGMENTS = new Set<string>([
+  '',                  // /(technician)            → group root, i.e. index
+  'index',             // /(technician)/index      → some routers emit 'index'
+  'my-orders',         // Jobs tab
+  'chats',             // Customer Chats tab
+  'profile',           // Profile tab
+  // available-orders is no longer a tab but still reachable as a sub-route;
+  // we keep the bar visible there so the technician can return to Home/Jobs
+  // without a manual back navigation.
+  'available-orders',
+]);
 
 type GateState =
   | { kind: 'loading' }
@@ -31,7 +42,7 @@ export default function TechnicianLayout() {
   const { language, isDark } = useApp();
   const { user, loading: authLoading, signOut } = useAuth();
   const router = useRouter();
-  const pathname = usePathname();
+  const segments = useSegments();
   const COLORS = getColors(isDark);
   const isRTL = language === 'ar';
 
@@ -150,7 +161,13 @@ export default function TechnicianLayout() {
     );
   }
 
-  const showBottomNav = PERSISTENT_NAV_ROUTES.includes(pathname);
+  // segments[0] is the group ('(technician)'), segments[1] is the child
+  // route name or undefined for the group's index. Show the tab bar only
+  // when we're inside the technician group AND on one of the four tab
+  // destinations — never on detail screens like manage-order or job/[id].
+  const inTechGroup = (segments as string[])[0] === '(technician)';
+  const childSegment = ((segments as string[])[1] ?? '') as string;
+  const showBottomNav = inTechGroup && PERSISTENT_TAB_SEGMENTS.has(childSegment);
 
   return (
     <View style={{ flex: 1, backgroundColor: COLORS.background }}>
@@ -168,8 +185,16 @@ export default function TechnicianLayout() {
       >
         <Stack.Screen name="index" />
         <Stack.Screen name="my-orders" />
+        <Stack.Screen name="chats" />
         <Stack.Screen name="earnings" />
         <Stack.Screen name="available-orders" />
+        {/* Explicit registration — without this expo-router can fall through
+            to the root-level app/profile.tsx because both files compile to
+            the same /profile URL. Declaring it here pins resolution to the
+            technician group's profile screen. */}
+        <Stack.Screen name="profile" />
+        <Stack.Screen name="notifications" options={{ headerShown: false }} />
+        <Stack.Screen name="delete-account" options={{ headerShown: false }} />
         <Stack.Screen name="manage-order" options={{ headerShown: false }} />
         <Stack.Screen name="job/[id]" />
         <Stack.Screen name="service-availability" options={{ headerShown: false }} />

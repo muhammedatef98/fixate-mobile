@@ -21,6 +21,8 @@ import { RTLIonicon } from '../components/RTLIcon';
 import { safeBack } from '../utils/navigation';
 import { supabase } from '../services/supabaseClient';
 import ImageViewer from '../components/ImageViewer';
+import { fmtAdminDate, fmtAdminDateTime, fmtAdminNumber } from '../utils/dateFormat';
+import { logger } from '../utils/logger';
 
 const STATUS_META = (s: string, isRTL: boolean): { label: string; color: string } => {
   const map: Record<string, { ar: string; en: string; color: string }> = {
@@ -147,10 +149,9 @@ export default function AdminOrderDetailScreen() {
     );
   }
 
-  const fmt = (n: any) => Number(n ?? 0).toLocaleString(isRTL ? 'ar-SA' : 'en-US');
+  const fmt = (n: any) => fmtAdminNumber(n, isRTL);
   const sar = isRTL ? 'ر.س' : 'SAR';
-  const dt = (v: string | null | undefined) =>
-    v ? new Date(v).toLocaleString(isRTL ? 'ar-SA' : 'en-GB') : '—';
+  const dt = (v: string | null | undefined) => fmtAdminDateTime(v, isRTL);
 
   const status = order ? STATUS_META(order.status, isRTL) : null;
   const payStatus = order ? paymentStatusLabel(order.payment_status, isRTL) : null;
@@ -392,20 +393,65 @@ function PhoneRow({ k, phone, isRTL, styles, COLORS }: any) {
 }
 
 function PhotoSection({ title, photos, onOpen, COLORS, isRTL, styles }: any) {
+  // Tile-with-error-state: tracks per-image load failure so the admin sees
+  // a clear "couldn't load" placeholder instead of an empty grey box.
+  // Previously, ScrollView received a `flexDirection` on its `style` prop —
+  // RN ignores layout direction overrides on horizontal scrollers and the
+  // images sometimes failed to render. Moved spacing/direction onto the
+  // proper `contentContainerStyle` and made the whole tile a touch target.
   return (
     <Section title={title} icon="image-multiple-outline" COLORS={COLORS} isRTL={isRTL}>
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
-        style={{ flexDirection: isRTL ? 'row-reverse' : 'row' }}
+        contentContainerStyle={{
+          gap: 8,
+          paddingVertical: 4,
+          flexDirection: isRTL ? 'row-reverse' : 'row',
+        }}
       >
         {photos.map((url: string, i: number) => (
-          <TouchableOpacity key={i} onPress={() => onOpen(i)} activeOpacity={0.85}>
-            <Image source={{ uri: url }} style={styles.photo} />
-          </TouchableOpacity>
+          <PhotoTile
+            key={`${i}:${url}`}
+            url={url}
+            onPress={() => onOpen(i)}
+            styles={styles}
+            COLORS={COLORS}
+          />
         ))}
       </ScrollView>
     </Section>
+  );
+}
+
+function PhotoTile({ url, onPress, styles, COLORS }: any) {
+  const [failed, setFailed] = React.useState(false);
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      activeOpacity={0.85}
+      accessibilityRole="button"
+      accessibilityLabel="View photo"
+      style={styles.photoWrap}
+    >
+      {failed ? (
+        <View style={[styles.photo, styles.photoFallback]}>
+          <MaterialCommunityIcons name="image-broken-variant" size={24} color={COLORS.textSecondary} />
+        </View>
+      ) : (
+        <Image
+          source={{ uri: url }}
+          style={styles.photo}
+          onError={(e) => {
+            logger.warn('admin photo failed to load', { url, error: e.nativeEvent?.error });
+            setFailed(true);
+          }}
+        />
+      )}
+      <View style={styles.photoOverlay}>
+        <MaterialCommunityIcons name="magnify-plus-outline" size={14} color="#fff" />
+      </View>
+    </TouchableOpacity>
   );
 }
 
@@ -436,12 +482,34 @@ const createStyles = (C: any, isRTL: boolean) => {
     kvVal: { color: C.text, fontSize: 13, fontWeight: '700', flex: 1, textAlign: isRTL ? 'left' : 'right' },
     miniPill: { paddingHorizontal: 9, paddingVertical: 3, borderRadius: 999 },
     miniPillText: { fontSize: 11, fontWeight: '800' },
+    photoWrap: {
+      position: 'relative',
+      width: 96,
+      height: 96,
+      borderRadius: BORDER_RADIUS.md,
+      overflow: 'hidden',
+    },
     photo: {
       width: 96,
       height: 96,
       borderRadius: BORDER_RADIUS.md,
-      marginEnd: 8,
       backgroundColor: C.border,
+    },
+    photoFallback: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: C.cardAlt,
+    },
+    photoOverlay: {
+      position: 'absolute',
+      bottom: 6,
+      right: 6,
+      width: 22,
+      height: 22,
+      borderRadius: 11,
+      backgroundColor: 'rgba(0,0,0,0.55)',
+      alignItems: 'center',
+      justifyContent: 'center',
     },
   });
   return { ...s, _primary: C.primary } as typeof s & { _primary: string };

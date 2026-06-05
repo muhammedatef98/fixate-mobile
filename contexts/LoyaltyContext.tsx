@@ -10,6 +10,10 @@ interface LoyaltyContextType {
   settings: LoyaltySettings | null;
   loading: boolean;
   refresh: () => Promise<void>;
+  /** True only when the platform feature flag is explicitly enabled.
+   *  Defaults to `false` while settings load to avoid flashing loyalty
+   *  UI on an admin who has the flag turned off. */
+  enabled: boolean;
 }
 
 const EMPTY: LoyaltySummary = {
@@ -63,8 +67,15 @@ export function LoyaltyProvider({ children }: { children: React.ReactNode }) {
     refresh();
   }, [refresh]);
 
+  // `enabled` is the single source of truth for every loyalty-related
+  // surface in the app. UI checks this — not the summary — because the
+  // summary can be empty for a brand-new user who is *eligible* for
+  // loyalty. A null settings object means "still loading" and we treat
+  // that as disabled to avoid a flash of loyalty UI before the gate.
+  const enabled = settings?.enabled === true;
+
   return (
-    <LoyaltyContext.Provider value={{ summary, settings, loading, refresh }}>
+    <LoyaltyContext.Provider value={{ summary, settings, loading, refresh, enabled }}>
       {children}
     </LoyaltyContext.Provider>
   );

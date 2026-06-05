@@ -43,6 +43,14 @@ export default function RoleSelectionScreen() {
     // user into onboarding. So even when isLoggedIn, jumping straight in is
     // safe: an unverified or unregistered technician is funneled to the
     // right place rather than seeing the dashboard.
+    //
+    // Tear down any prior navigation frames before routing. Without this,
+    // a technician who switches to customer can leave (technician) layout
+    // frames buried in the stack, and a "back" gesture (or some routers'
+    // state restoration) can resurface them. dismissAll is a no-op when
+    // there's nothing to dismiss, so it's safe to call unconditionally.
+    try { (router as any).dismissAll?.(); } catch {}
+
     if (isLoggedIn) {
       router.replace(role === 'technician' ? '/(technician)' : '/(customer)');
       return;

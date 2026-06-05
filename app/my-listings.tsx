@@ -20,6 +20,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { getColors, SPACING, BORDER_RADIUS } from '../constants/theme';
 import { RTLIonicon } from '../components/RTLIcon';
 import SkeletonLoader from '../components/SkeletonLoader';
+import MarketBottomTabs, { MARKET_TABS_HEIGHT } from '../components/MarketBottomTabs';
 import {
   myListings,
   hideListing,
@@ -426,7 +427,7 @@ export default function MyListingsScreen() {
         </View>
       ) : (
         <ScrollView
-          contentContainerStyle={{ padding: SPACING.lg, gap: 12, paddingBottom: 40 }}
+          contentContainerStyle={{ padding: SPACING.lg, gap: 12, paddingBottom: MARKET_TABS_HEIGHT + 24 }}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -439,6 +440,8 @@ export default function MyListingsScreen() {
           {filtered.map(renderCard)}
         </ScrollView>
       )}
+
+      <MarketBottomTabs />
     </SafeAreaView>
   );
 }

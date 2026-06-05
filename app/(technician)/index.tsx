@@ -641,7 +641,7 @@ const createStyles = (COLORS: any, SHADOWS: any, isRTL: boolean) => StyleSheet.c
   },
   scrollContent: {
     padding: SPACING.lg,
-    paddingBottom: 100,
+    paddingBottom: 120,
   },
   orderCard: {
     backgroundColor: COLORS.card,

@@ -53,7 +53,7 @@ export default function AdminPaymentGatewayScreen() {
     try {
       const { data } = await supabase
         .from('payment_gateways')
-        .select('id, provider, display_name, is_enabled, test_mode, publishable_key, merchant_id, secret_key')
+        .select('id, provider, display_name, is_enabled, test_mode, publishable_key, merchant_id')
         .order('display_name');
       setGateways(
         ((data ?? []) as any[]).map((g) => ({
@@ -64,7 +64,7 @@ export default function AdminPaymentGatewayScreen() {
           test_mode: !!g.test_mode,
           publishable_key: g.publishable_key ?? '',
           merchant_id: g.merchant_id ?? '',
-          has_secret: !!g.secret_key,
+          has_secret: false,
           new_secret: '',
         }))
       );

@@ -6,6 +6,7 @@ import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { requests, auth } from '../../lib/supabase-api';
 import { useApp } from '../../contexts/AppContext';
 import { logger } from '../../utils/logger';
+import { safeBack } from '../../utils/navigation';
 
 const STATUS_TABS = [
   { id: 'accepted', labelAr: 'مقبولة', labelEn: 'Accepted', color: '#F59E0B' },
@@ -146,11 +147,11 @@ export default function MyOrdersScreen() {
     <SafeAreaView style={[styles.container, { backgroundColor: COLORS.background }]}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
+        <TouchableOpacity onPress={() => safeBack('/(technician)')}>
           <MaterialIcons name="arrow-back" size={24} color={COLORS.text} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: COLORS.text }]}>
-          {language === 'ar' ? 'طلباتي' : 'My Orders'}
+          {language === 'ar' ? 'أعمالي' : 'My Jobs'}
         </Text>
         <View style={{ width: 24 }} />
       </View>
@@ -181,6 +182,7 @@ export default function MyOrdersScreen() {
       {/* Orders List */}
       <ScrollView
         style={styles.scrollView}
+        contentContainerStyle={{ paddingBottom: 120 }}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />

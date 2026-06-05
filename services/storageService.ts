@@ -9,6 +9,10 @@ import { logger } from '../utils/logger';
 
 const ORDERS_BUCKET = 'orders';
 const AVATARS_BUCKET = 'avatars';
+// Marketplace listing photos live in a dedicated public bucket so they
+// can be served via getPublicUrl() without exposing the rest of the
+// orders bucket (orders/%, chat-%) which stays private.
+const MARKET_IMAGES_BUCKET = 'market-images';
 
 const isImage = (uri: string) => /\.(jpe?g|png|webp|heic|heif)(\?.*)?$/i.test(uri);
 
@@ -40,10 +44,14 @@ const withTimeout = <T>(p: PromiseLike<T>, ms: number, label: string): Promise<T
 
 /**
  * Compress a single image so the upload payload stays small.
- * - Resizes the longest edge to 1280 px (good detail for repair photos
- *   without uploading a 12 MP iPhone original).
- * - Re-encodes as JPEG at 0.6 quality (~70-80% size reduction vs source).
- * Typical iPhone shot (~3.5 MB) drops to ~250-400 KB.
+ * - Resizes the longest edge to 1600 px — enough resolution that the
+ *   marketplace detail page hero (full-screen on phones) still looks crisp,
+ *   without uploading a 12 MP iPhone original.
+ * - Re-encodes as JPEG at 0.82 quality. This is the *only* compression stage
+ *   in the pipeline: callers must pick at quality: 1 so we don't stack two
+ *   lossy JPEG passes (the earlier 0.7 picker + 0.6 manipulator combo was
+ *   what made ad cards look washed out / over-blurred).
+ * A typical iPhone shot still drops to ~400-700 KB.
  * Falls back to the original URI if compression fails.
  */
 const compressImage = async (uri: string): Promise<string> => {
@@ -51,8 +59,8 @@ const compressImage = async (uri: string): Promise<string> => {
   try {
     const result = await manipulateAsync(
       uri,
-      [{ resize: { width: 1280 } }],
-      { compress: 0.6, format: SaveFormat.JPEG }
+      [{ resize: { width: 1600 } }],
+      { compress: 0.82, format: SaveFormat.JPEG }
     );
     return result.uri;
   } catch (e) {
@@ -62,6 +70,7 @@ const compressImage = async (uri: string): Promise<string> => {
 };
 
 const uploadOne = async (
+  bucket: string,
   folder: string,
   uri: string,
   index: number
@@ -80,16 +89,16 @@ const uploadOne = async (
     const fileBytes = decode(base64);
 
     const { error } = await withTimeout(
-      supabase.storage.from(ORDERS_BUCKET).upload(path, fileBytes, { contentType, upsert: false }),
+      supabase.storage.from(bucket).upload(path, fileBytes, { contentType, upsert: false }),
       85000,
       `Upload ${path}`
     );
     if (error) throw error;
 
-    const { data: pub } = supabase.storage.from(ORDERS_BUCKET).getPublicUrl(path);
+    const { data: pub } = supabase.storage.from(bucket).getPublicUrl(path);
     return pub?.publicUrl ?? null;
   } catch (err) {
-    logger.error(`uploadOrderMedia failed for ${uri}`, err);
+    logger.error(`upload to ${bucket} failed for ${uri}`, err);
     throw err;
   }
 };
@@ -109,7 +118,38 @@ export const uploadOrderMedia = async (
   // allSettled — one bad photo (corrupt file, transient network) must not
   // discard the photos that uploaded fine. Only a total failure throws.
   const settled = await Promise.allSettled(
-    localUris.map((uri, i) => uploadOne(folder, uri, i))
+    localUris.map((uri, i) => uploadOne(ORDERS_BUCKET, folder, uri, i))
+  );
+  const urls = settled
+    .filter((r): r is PromiseFulfilledResult<string | null> => r.status === 'fulfilled')
+    .map((r) => r.value)
+    .filter((u): u is string => !!u);
+  if (urls.length === 0) {
+    const firstError = settled.find((r) => r.status === 'rejected') as
+      | PromiseRejectedResult
+      | undefined;
+    throw firstError?.reason instanceof Error
+      ? firstError.reason
+      : new Error('Image upload failed');
+  }
+  return urls;
+};
+
+/**
+ * Upload marketplace listing photos to the dedicated public
+ * `market-images` bucket. Storage RLS requires the first path segment
+ * to be the uploader's user id; the bucket is public so getPublicUrl()
+ * resolves to an anonymously-fetchable URL — which is what the listing
+ * cards and detail hero use.
+ */
+export const uploadMarketMedia = async (
+  userId: string,
+  localUris: string[]
+): Promise<string[]> => {
+  if (!localUris.length) return [];
+  const folder = `${userId}/${Date.now()}`;
+  const settled = await Promise.allSettled(
+    localUris.map((uri, i) => uploadOne(MARKET_IMAGES_BUCKET, folder, uri, i))
   );
   const urls = settled
     .filter((r): r is PromiseFulfilledResult<string | null> => r.status === 'fulfilled')

@@ -23,6 +23,7 @@ import { getColors, SPACING, BORDER_RADIUS } from '../constants/theme';
 import { RTLIonicon } from '../components/RTLIcon';
 import { safeBack } from '../utils/navigation';
 import { supabase } from '../services/supabaseClient';
+import { fmtAdminDate } from '../utils/dateFormat';
 import {
   listBroadcasts,
   sendBroadcast,
@@ -238,7 +239,7 @@ export default function AdminBroadcastsScreen() {
                 <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', justifyContent: 'space-between' }}>
                   <Text style={styles.itemTitle} numberOfLines={1}>{b.title}</Text>
                   <Text style={styles.itemDate}>
-                    {new Date(b.created_at).toLocaleDateString(isRTL ? 'ar-SA' : 'en-GB')}
+                    {fmtAdminDate(b.created_at, isRTL)}
                   </Text>
                 </View>
                 <Text style={styles.itemBody} numberOfLines={3}>{b.body}</Text>

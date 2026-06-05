@@ -13,6 +13,7 @@ import {
   Alert,
   Animated,
   Easing,
+  ScrollView,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -276,6 +277,12 @@ export default function LoginOtpScreen() {
       </View>
 
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <ScrollView
+          contentContainerStyle={{ flexGrow: 1, paddingBottom: 40 }}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          showsVerticalScrollIndicator={false}
+        >
         <Animated.View style={[styles.content, { opacity: fadeAnim, transform: [{ translateX: shake }] }]}>
           {step === 'phone' ? (
             <>
@@ -438,7 +445,7 @@ export default function LoginOtpScreen() {
                 value={code}
                 onChangeText={(v) => { setError(null); setCode(v.replace(/\D/g, '').slice(0, OTP_LENGTH)); }}
                 keyboardType="number-pad"
-                style={styles.hiddenInput}
+                style={[styles.hiddenInput, { textAlign: 'left', writingDirection: 'ltr' }]}
                 autoFocus
                 maxLength={OTP_LENGTH}
                 textContentType="oneTimeCode"
@@ -557,6 +564,7 @@ export default function LoginOtpScreen() {
             </>
           )}
         </Animated.View>
+        </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );

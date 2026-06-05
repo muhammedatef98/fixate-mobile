@@ -366,18 +366,38 @@ export default function ChatScreen() {
           </View>
         </View>
 
-        {otherPartyPhone ? (
-          <TouchableOpacity
-            onPress={() => Linking.openURL(`tel:${otherPartyPhone}`)}
-            style={[styles.callBtn, { backgroundColor: COLORS.primary + '15' }]}
-            accessibilityRole="button"
-            accessibilityLabel={isRTL ? 'اتصال' : 'Call'}
-          >
-            <Ionicons name="call" size={18} color={COLORS.primary} />
-          </TouchableOpacity>
-        ) : (
-          <View style={{ width: 36 }} />
-        )}
+        <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', gap: 8 }}>
+          {/* "View job" — routes to the order/job page so the technician (or
+              customer) can jump from the conversation back to the actual
+              work item without losing context. Route is role-aware: techs
+              land on manage-order (their actionable view), customers land
+              on the read-only order details. */}
+          {order?.id ? (
+            <TouchableOpacity
+              onPress={() => {
+                const target = isTechnician
+                  ? { pathname: '/(technician)/manage-order' as const, params: { id: order.id } }
+                  : { pathname: '/order-details' as const, params: { id: order.id } };
+                router.push(target as any);
+              }}
+              style={[styles.callBtn, { backgroundColor: COLORS.primary + '15' }]}
+              accessibilityRole="button"
+              accessibilityLabel={isRTL ? 'فتح الطلب' : 'View job'}
+            >
+              <MaterialCommunityIcons name="clipboard-text-outline" size={18} color={COLORS.primary} />
+            </TouchableOpacity>
+          ) : null}
+          {otherPartyPhone ? (
+            <TouchableOpacity
+              onPress={() => Linking.openURL(`tel:${otherPartyPhone}`)}
+              style={[styles.callBtn, { backgroundColor: COLORS.primary + '15' }]}
+              accessibilityRole="button"
+              accessibilityLabel={isRTL ? 'اتصال' : 'Call'}
+            >
+              <Ionicons name="call" size={18} color={COLORS.primary} />
+            </TouchableOpacity>
+          ) : null}
+        </View>
       </View>
 
       {/* KeyboardAvoidingView wraps list + quick replies + input so the

@@ -14,6 +14,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   RefreshControl,
+  Modal,
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useApp } from '../contexts/AppContext';
@@ -683,11 +684,91 @@ function ServiceAreasSection({
 }) {
   const [tree, setTree] = useState<RegionWithCities[] | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [coverageCity, setCoverageCity] = useState<{
+    regionId: string;
+    cityId: string;
+    name: string;
+    centerText: string;
+    radiusText: string;
+  } | null>(null);
   const styles = createStyles(COLORS, isRTL);
 
   useEffect(() => {
     getRegionTree(false).then(setTree).catch(() => setTree([]));
   }, []);
+
+  const setCityDeliveryFee = async (
+    region: RegionWithCities,
+    cityId: string,
+    value: number
+  ) => {
+    setTree((t) =>
+      t!.map((r) =>
+        r.id === region.id
+          ? { ...r, cities: r.cities.map((c) => (c.id === cityId ? { ...c, delivery_fee: value } : c)) }
+          : r
+      )
+    );
+    try {
+      await updateCity(cityId, { delivery_fee: value });
+    } catch (e) {
+      // reload on failure to surface real value
+      getRegionTree(false).then(setTree).catch(() => undefined);
+      fail(e);
+    }
+  };
+
+  const openCoverage = (region: RegionWithCities, city: typeof region.cities[number]) => {
+    const lat = city.center_lat;
+    const lng = city.center_lng;
+    setCoverageCity({
+      regionId: region.id,
+      cityId: city.id,
+      name: isRTL ? city.name_ar : city.name_en,
+      centerText:
+        typeof lat === 'number' && typeof lng === 'number' ? `${lat}, ${lng}` : '',
+      radiusText: typeof city.radius_km === 'number' ? String(city.radius_km) : '',
+    });
+  };
+
+  const saveCoverage = async () => {
+    if (!coverageCity) return;
+    const parts = coverageCity.centerText.split(',').map((s) => s.trim());
+    const lat = parts[0] ? Number(parts[0]) : NaN;
+    const lng = parts[1] ? Number(parts[1]) : NaN;
+    const radius = coverageCity.radiusText ? Number(coverageCity.radiusText) : NaN;
+    if (!Number.isFinite(lat) || !Number.isFinite(lng) || !Number.isFinite(radius)) {
+      Alert.alert(
+        isRTL ? 'مدخلات غير صالحة' : 'Invalid input',
+        isRTL ? 'أدخل إحداثيات صحيحة ونصف قطر بالكيلومتر.' : 'Enter valid coordinates and a radius in km.'
+      );
+      return;
+    }
+    try {
+      await updateCity(coverageCity.cityId, {
+        center_lat: lat,
+        center_lng: lng,
+        radius_km: radius,
+      });
+      setTree((t) =>
+        t!.map((r) =>
+          r.id === coverageCity.regionId
+            ? {
+                ...r,
+                cities: r.cities.map((c) =>
+                  c.id === coverageCity.cityId
+                    ? { ...c, center_lat: lat, center_lng: lng, radius_km: radius }
+                    : c
+                ),
+              }
+            : r
+        )
+      );
+      setCoverageCity(null);
+    } catch (e) {
+      fail(e);
+    }
+  };
 
   const fail = (e: any) =>
     Alert.alert(isRTL ? 'فشل الحفظ' : 'Save failed', getFriendlyError(e, language));
@@ -819,22 +900,102 @@ function ServiceAreasSection({
                     <View
                       key={city.id}
                       style={{
-                        flexDirection: isRTL ? 'row-reverse' : 'row',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        paddingVertical: 6,
-                        gap: 10,
+                        paddingVertical: 8,
+                        borderTopWidth: StyleSheet.hairlineWidth,
+                        borderTopColor: COLORS.border,
+                        gap: 6,
                       }}
                     >
-                      <Text style={{ color: COLORS.text, fontSize: 13, flex: 1, textAlign: isRTL ? 'right' : 'left' }}>
-                        {isRTL ? city.name_ar : city.name_en}
-                      </Text>
-                      <Switch
-                        value={city.enabled}
-                        onValueChange={(v) => toggleCity(region, city.id, v)}
-                        trackColor={{ false: COLORS.border, true: COLORS.primary }}
-                        thumbColor="#fff"
-                      />
+                      <View
+                        style={{
+                          flexDirection: isRTL ? 'row-reverse' : 'row',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          gap: 10,
+                        }}
+                      >
+                        <Text style={{ color: COLORS.text, fontSize: 13, flex: 1, textAlign: isRTL ? 'right' : 'left' }}>
+                          {isRTL ? city.name_ar : city.name_en}
+                        </Text>
+                        <TouchableOpacity
+                          onPress={() => openCoverage(region, city)}
+                          accessibilityLabel={isRTL ? 'تحديد منطقة التغطية' : 'Set coverage area'}
+                          style={{
+                            width: 32,
+                            height: 32,
+                            borderRadius: 16,
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            backgroundColor: COLORS.background,
+                            borderWidth: 1,
+                            borderColor: COLORS.border,
+                          }}
+                        >
+                          <Ionicons
+                            name={
+                              typeof city.center_lat === 'number' && typeof city.center_lng === 'number'
+                                ? 'location'
+                                : 'location-outline'
+                            }
+                            size={16}
+                            color={
+                              typeof city.center_lat === 'number' && typeof city.center_lng === 'number'
+                                ? COLORS.primary
+                                : COLORS.textSecondary
+                            }
+                          />
+                        </TouchableOpacity>
+                        <Switch
+                          value={city.enabled}
+                          onValueChange={(v) => toggleCity(region, city.id, v)}
+                          trackColor={{ false: COLORS.border, true: COLORS.primary }}
+                          thumbColor="#fff"
+                        />
+                      </View>
+                      <View
+                        style={{
+                          flexDirection: isRTL ? 'row-reverse' : 'row',
+                          alignItems: 'center',
+                          gap: 8,
+                        }}
+                      >
+                        <Text
+                          style={{
+                            color: COLORS.textSecondary,
+                            fontSize: 11,
+                            flex: 1,
+                            textAlign: isRTL ? 'right' : 'left',
+                          }}
+                        >
+                          {isRTL ? 'سعر التوصيل (ر.س)' : 'Delivery fee (SAR)'}
+                        </Text>
+                        <TextInput
+                          defaultValue={
+                            typeof city.delivery_fee === 'number' ? String(city.delivery_fee) : ''
+                          }
+                          keyboardType="numeric"
+                          placeholder="0"
+                          placeholderTextColor={COLORS.textSecondary}
+                          onEndEditing={(e) => {
+                            const raw = e.nativeEvent.text.trim();
+                            const n = raw === '' ? 0 : Number(raw);
+                            if (!Number.isFinite(n) || n < 0) return;
+                            if (n === city.delivery_fee) return;
+                            setCityDeliveryFee(region, city.id, n);
+                          }}
+                          style={{
+                            minWidth: 72,
+                            paddingVertical: 4,
+                            paddingHorizontal: 8,
+                            borderWidth: 1,
+                            borderColor: COLORS.border,
+                            borderRadius: BORDER_RADIUS.sm,
+                            color: COLORS.text,
+                            fontSize: 13,
+                            textAlign: isRTL ? 'right' : 'left',
+                          }}
+                        />
+                      </View>
                     </View>
                   ))}
                 </View>
@@ -843,6 +1004,127 @@ function ServiceAreasSection({
           );
         })
       )}
+
+      <Modal
+        visible={!!coverageCity}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setCoverageCity(null)}
+      >
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: '#00000088',
+            justifyContent: 'center',
+            paddingHorizontal: 20,
+          }}
+        >
+          <View
+            style={{
+              backgroundColor: COLORS.background,
+              borderRadius: BORDER_RADIUS.lg,
+              padding: 16,
+              gap: 10,
+            }}
+          >
+            <Text
+              style={{
+                color: COLORS.text,
+                fontSize: 15,
+                fontWeight: '800',
+                textAlign: isRTL ? 'right' : 'left',
+              }}
+            >
+              {isRTL ? 'منطقة التغطية' : 'Coverage area'}
+              {coverageCity ? ` — ${coverageCity.name}` : ''}
+            </Text>
+            <Text
+              style={{ color: COLORS.textSecondary, fontSize: 11, textAlign: isRTL ? 'right' : 'left' }}
+            >
+              {isRTL
+                ? 'أدخل إحداثيات المركز (lat, lng) ونصف القطر بالكيلومتر.'
+                : 'Enter the center coordinates (lat, lng) and the coverage radius in km.'}
+            </Text>
+            <Text
+              style={{ color: COLORS.textSecondary, fontSize: 11, textAlign: isRTL ? 'right' : 'left' }}
+            >
+              {isRTL ? 'المركز (lat, lng)' : 'Center (lat, lng)'}
+            </Text>
+            <TextInput
+              value={coverageCity?.centerText ?? ''}
+              onChangeText={(t) =>
+                setCoverageCity((c) => (c ? { ...c, centerText: t } : c))
+              }
+              placeholder="24.7136, 46.6753"
+              placeholderTextColor={COLORS.textSecondary}
+              keyboardType="numbers-and-punctuation"
+              autoCapitalize="none"
+              style={{
+                borderWidth: 1,
+                borderColor: COLORS.border,
+                borderRadius: BORDER_RADIUS.sm,
+                paddingHorizontal: 10,
+                paddingVertical: 8,
+                color: COLORS.text,
+                textAlign: isRTL ? 'right' : 'left',
+              }}
+            />
+            <Text
+              style={{ color: COLORS.textSecondary, fontSize: 11, textAlign: isRTL ? 'right' : 'left' }}
+            >
+              {isRTL ? 'نصف القطر (كم)' : 'Radius (km)'}
+            </Text>
+            <TextInput
+              value={coverageCity?.radiusText ?? ''}
+              onChangeText={(t) =>
+                setCoverageCity((c) => (c ? { ...c, radiusText: t } : c))
+              }
+              placeholder="15"
+              placeholderTextColor={COLORS.textSecondary}
+              keyboardType="numeric"
+              style={{
+                borderWidth: 1,
+                borderColor: COLORS.border,
+                borderRadius: BORDER_RADIUS.sm,
+                paddingHorizontal: 10,
+                paddingVertical: 8,
+                color: COLORS.text,
+                textAlign: isRTL ? 'right' : 'left',
+              }}
+            />
+            <View
+              style={{
+                flexDirection: isRTL ? 'row-reverse' : 'row',
+                justifyContent: 'flex-end',
+                gap: 10,
+                marginTop: 6,
+              }}
+            >
+              <TouchableOpacity
+                onPress={() => setCoverageCity(null)}
+                style={{ paddingVertical: 8, paddingHorizontal: 14 }}
+              >
+                <Text style={{ color: COLORS.textSecondary, fontWeight: '700' }}>
+                  {isRTL ? 'إلغاء' : 'Cancel'}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={saveCoverage}
+                style={{
+                  paddingVertical: 8,
+                  paddingHorizontal: 14,
+                  borderRadius: BORDER_RADIUS.sm,
+                  backgroundColor: COLORS.primary,
+                }}
+              >
+                <Text style={{ color: '#fff', fontWeight: '700' }}>
+                  {isRTL ? 'حفظ' : 'Save'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </CollapsibleSection>
   );
 }
