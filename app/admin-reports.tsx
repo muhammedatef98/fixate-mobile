@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -10,10 +10,18 @@ import {
   ActivityIndicator,
   RefreshControl,
   Alert,
+  Modal,
+  TextInput,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
+import {
+  exportReportXlsx,
+  type ExportOrderRow,
+  type ExportTechnicianRow,
+  type ExportMarketRow,
+} from '../services/reportExportService';
 import { useApp } from '../contexts/AppContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useIsAdmin } from '../hooks/useAdminGuard';
@@ -24,21 +32,40 @@ import { supabase } from '../services/supabaseClient';
 
 // Selectable reporting windows. Time-bound metrics (orders, revenue,
 // discounts) respect this; cumulative snapshots (users, technicians) do not.
-type RangeKey = '7d' | '30d' | 'month' | 'all';
+type RangeKey = '7d' | '30d' | 'month' | 'all' | 'custom';
 const RANGES: { key: RangeKey; ar: string; en: string }[] = [
   { key: '7d', ar: 'آخر ٧ أيام', en: 'Last 7 days' },
   { key: '30d', ar: 'آخر ٣٠ يوم', en: 'Last 30 days' },
   { key: 'month', ar: 'هذا الشهر', en: 'This month' },
   { key: 'all', ar: 'كل الوقت', en: 'All time' },
+  { key: 'custom', ar: 'مخصص', en: 'Custom' },
 ];
 
-const rangeSince = (key: RangeKey): string | null => {
+const rangeSince = (key: RangeKey, customFromIso?: string | null): string | null => {
   const now = new Date();
   if (key === '7d') return new Date(now.getTime() - 7 * 86400000).toISOString();
   if (key === '30d') return new Date(now.getTime() - 30 * 86400000).toISOString();
   if (key === 'month') return new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+  if (key === 'custom') return customFromIso ?? null;
   return null;
 };
+
+const rangeUntil = (key: RangeKey, customToIso?: string | null): string | null => {
+  if (key !== 'custom') return null;
+  return customToIso ?? null;
+};
+
+// Default custom range: last 30 days, end-of-today.
+const todayIso = (): string => new Date().toISOString().slice(0, 10);
+const daysAgoIso = (n: number): string =>
+  new Date(Date.now() - n * 86400000).toISOString().slice(0, 10);
+
+interface BreakdownRow {
+  key: string;
+  label: string;
+  count: number;
+  total: number;
+}
 
 interface ReportData {
   ordersByStatus: Record<string, number>;
@@ -54,6 +81,18 @@ interface ReportData {
   listingsByStatus: Record<string, number>;
   listingsTotal: number;
   discountCodes: { code: string; used: number; limit: number | null }[];
+  // New KPI extensions
+  avgOrderValue: number;
+  topTechnician: { name: string; count: number } | null;
+  // New breakdown tables
+  byCity: BreakdownRow[];
+  byCategory: BreakdownRow[];
+  byTechnician: BreakdownRow[];
+  // Raw orders kept in memory for Excel export — bounded by the date range.
+  rawOrders: any[];
+  rawListings: any[];
+  rangeFromIso: string;
+  rangeToIso: string;
 }
 
 const STATUS_ORDER = [
@@ -94,18 +133,31 @@ export default function AdminReportsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [range, setRange] = useState<RangeKey>('30d');
   const [exporting, setExporting] = useState(false);
+  const [customFrom, setCustomFrom] = useState<string>(daysAgoIso(30));
+  const [customTo, setCustomTo] = useState<string>(todayIso());
+  const [customModalOpen, setCustomModalOpen] = useState(false);
+  const [expandedBreakdown, setExpandedBreakdown] = useState<
+    'city' | 'category' | 'technician' | null
+  >('city');
 
   const profileLoaded = userProfile !== null;
   const { isAdmin } = useIsAdmin();
 
   const load = useCallback(async () => {
     try {
-      const since = rangeSince(range);
+      const since = rangeSince(range, customFrom ? `${customFrom}T00:00:00.000Z` : null);
+      const until = rangeUntil(range, customTo ? `${customTo}T23:59:59.999Z` : null);
+      // Full-row orders query — used both for aggregates and for the
+      // Excel export's Orders sheet. We `select('*')` because the orders
+      // schema isn't reflected in TS here and we'd rather pluck fields
+      // defensively than break on a missing column.
       let ordersQuery = supabase
         .from('orders')
-        .select('status, final_price, estimated_price, discount_amount')
-        .is('deleted_at', null);
+        .select('*')
+        .is('deleted_at', null)
+        .order('created_at', { ascending: false });
       if (since) ordersQuery = ordersQuery.gte('created_at', since);
+      if (until) ordersQuery = ordersQuery.lte('created_at', until);
       const [
         ordersRes,
         techRes,
@@ -115,13 +167,13 @@ export default function AdminReportsScreen() {
       ] = await Promise.all([
         ordersQuery,
         supabase.from('technicians')
-          .select('verification_status, technician_status')
+          .select('verification_status, technician_status, user_id')
           .is('deleted_at', null),
         supabase.from('users')
-          .select('role')
+          .select('id, name, phone, role')
           .is('deleted_at', null),
         supabase.from('market_listings')
-          .select('status'),
+          .select('status, category'),
         supabase.from('discount_codes')
           .select('code, used_count, usage_limit')
           .order('used_count', { ascending: false }),
@@ -131,13 +183,49 @@ export default function AdminReportsScreen() {
       const ordersByStatus: Record<string, number> = {};
       let revenueCompleted = 0;
       let discountGiven = 0;
+      let completedCount = 0;
+      // Breakdown accumulators keyed by the chosen grouping.
+      const byCityMap: Record<string, { count: number; total: number }> = {};
+      const byCategoryMap: Record<string, { count: number; total: number }> = {};
+      const byTechnicianMap: Record<string, { count: number; total: number }> = {};
+      const pickPrice = (o: any): number =>
+        Number(o.final_price ?? o.estimated_price ?? 0);
+      const pickCity = (o: any): string =>
+        (o.delivery_area ?? o.city ?? o.delivery_city ?? '—') as string;
+      const pickCategory = (o: any): string =>
+        (o.service_id ?? o.service_type ?? o.category ?? o.device_brand ?? '—') as string;
       for (const o of orders) {
         ordersByStatus[o.status] = (ordersByStatus[o.status] ?? 0) + 1;
+        const price = pickPrice(o);
         if (o.status === 'completed') {
-          revenueCompleted += Number(o.final_price ?? o.estimated_price ?? 0);
+          revenueCompleted += price;
+          completedCount += 1;
         }
         discountGiven += Number(o.discount_amount ?? 0);
+        // City
+        const cityKey = String(pickCity(o));
+        const cityRow = byCityMap[cityKey] ?? { count: 0, total: 0 };
+        cityRow.count += 1;
+        cityRow.total += price;
+        byCityMap[cityKey] = cityRow;
+        // Category
+        const catKey = String(pickCategory(o));
+        const catRow = byCategoryMap[catKey] ?? { count: 0, total: 0 };
+        catRow.count += 1;
+        catRow.total += price;
+        byCategoryMap[catKey] = catRow;
+        // Technician — count completed orders per technician + their earnings
+        if (o.technician_id) {
+          const tKey = String(o.technician_id);
+          const tRow = byTechnicianMap[tKey] ?? { count: 0, total: 0 };
+          if (o.status === 'completed') {
+            tRow.count += 1;
+            tRow.total += price;
+          }
+          byTechnicianMap[tKey] = tRow;
+        }
       }
+      const avgOrderValue = completedCount > 0 ? revenueCompleted / completedCount : 0;
 
       const techs = (techRes.data ?? []) as any[];
       const techApproved = techs.filter((t) => t.verification_status === 'approved').length;
@@ -149,6 +237,22 @@ export default function AdminReportsScreen() {
       const users = (usersRes.data ?? []) as any[];
       const usersTechnicians = users.filter((u) => u.role === 'technician').length;
       const usersCustomers = users.filter((u) => u.role !== 'technician').length;
+      const userById: Record<string, { name: string; phone: string }> = {};
+      for (const u of users) {
+        userById[u.id] = { name: u.name ?? '', phone: u.phone ?? '' };
+      }
+      // technicians.user_id -> users.name; some deployments use technician_id
+      // == users.id directly, so we fall back to that.
+      const techUserById: Record<string, string> = {};
+      for (const t of (techRes.data ?? []) as any[]) {
+        if (t.user_id && userById[t.user_id]) techUserById[t.user_id] = userById[t.user_id].name;
+      }
+      const resolveTechName = (technicianId: string): string => {
+        // Try direct user lookup (common case where technician_id == user id).
+        if (userById[technicianId]?.name) return userById[technicianId].name;
+        if (techUserById[technicianId]) return techUserById[technicianId];
+        return technicianId.slice(0, 8);
+      };
 
       const listings = (listingsRes.data ?? []) as any[];
       const listingsByStatus: Record<string, number> = {};
@@ -165,6 +269,23 @@ export default function AdminReportsScreen() {
         .filter((c) => c.used > 0)
         .slice(0, 12);
 
+      const toBreakdownRows = (
+        map: Record<string, { count: number; total: number }>,
+        label: (k: string) => string
+      ): BreakdownRow[] =>
+        Object.entries(map)
+          .map(([k, v]) => ({ key: k, label: label(k), count: v.count, total: v.total }))
+          .sort((a, b) => b.count - a.count);
+
+      const byCity = toBreakdownRows(byCityMap, (k) => k);
+      const byCategory = toBreakdownRows(byCategoryMap, (k) => k);
+      const byTechnician = toBreakdownRows(byTechnicianMap, (k) => resolveTechName(k));
+
+      const topTechnician =
+        byTechnician.length > 0
+          ? { name: byTechnician[0].label, count: byTechnician[0].count }
+          : null;
+
       setData({
         ordersByStatus,
         ordersTotal: orders.length,
@@ -179,6 +300,15 @@ export default function AdminReportsScreen() {
         listingsByStatus,
         listingsTotal: listings.length,
         discountCodes: codes,
+        avgOrderValue,
+        topTechnician,
+        byCity,
+        byCategory,
+        byTechnician,
+        rawOrders: orders,
+        rawListings: listings,
+        rangeFromIso: since ?? '',
+        rangeToIso: until ?? new Date().toISOString(),
       });
     } catch {
       // non-fatal
@@ -186,66 +316,56 @@ export default function AdminReportsScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [range]);
+  }, [range, customFrom, customTo]);
 
-  // Build a CSV of the current report and hand it to the OS share sheet.
-  // CSV opens directly in Excel / Numbers / Google Sheets.
-  const exportCsv = async () => {
+  // Build a multi-sheet Excel workbook and hand it to the OS share sheet.
+  const exportExcel = async () => {
     if (!data || exporting) return;
     setExporting(true);
     try {
-      const rangeLabel = RANGES.find((r) => r.key === range)?.en ?? range;
-      const rows: string[][] = [
-        ['Fixate — Operations Report'],
-        ['Range', rangeLabel],
-        ['Generated', new Date().toISOString()],
-        [],
-        ['Metric', 'Value'],
-        ['Revenue (completed)', String(data.revenueCompleted)],
-        ['Total orders', String(data.ordersTotal)],
-        ['Discount given', String(data.discountGiven)],
-        [],
-        ['Orders by status', 'Count'],
-        ...STATUS_ORDER
-          .filter((s) => (data.ordersByStatus[s] ?? 0) > 0)
-          .map((s) => [s, String(data.ordersByStatus[s] ?? 0)]),
-        [],
-        ['Technicians', 'Count'],
-        ['Approved', String(data.techApproved)],
-        ['Pending', String(data.techPending)],
-        ['Suspended', String(data.techSuspended)],
-        [],
-        ['Users', 'Count'],
-        ['Total', String(data.usersTotal)],
-        ['Customers', String(data.usersCustomers)],
-        ['Technicians', String(data.usersTechnicians)],
-        [],
-        ['Marketplace listings', 'Count'],
-        ['Total', String(data.listingsTotal)],
-        ...Object.entries(data.listingsByStatus).map(([k, v]) => [k, String(v)]),
-        [],
-        ['Discount code', 'Used'],
-        ...data.discountCodes.map((c) => [c.code, String(c.used)]),
-      ];
-      const csv = rows
-        .map((r) => r.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(','))
-        .join('\n');
-      const fileUri = `${FileSystem.documentDirectory}fixate-report-${range}-${Date.now()}.csv`;
-      await FileSystem.writeAsStringAsync(fileUri, csv, {
-        encoding: FileSystem.EncodingType.UTF8,
-      });
-      if (await Sharing.isAvailableAsync()) {
-        await Sharing.shareAsync(fileUri, {
-          mimeType: 'text/csv',
-          dialogTitle: isRTL ? 'تصدير التقرير' : 'Export report',
-          UTI: 'public.comma-separated-values-text',
-        });
-      } else {
-        Alert.alert(
-          isRTL ? 'غير متاح' : 'Unavailable',
-          isRTL ? 'المشاركة غير متاحة على هذا الجهاز.' : 'Sharing is not available on this device.'
-        );
+      // Map raw orders → flat rows for the Orders sheet, plucking fields
+      // defensively (schema isn't guaranteed across deployments).
+      const orderRows: ExportOrderRow[] = data.rawOrders.map((o: any) => ({
+        id: String(o.id ?? ''),
+        customer: String(o.customer_name ?? o.customer_id ?? ''),
+        device: [o.device_brand, o.device_model].filter(Boolean).join(' '),
+        issue: String(o.issue_description ?? o.issue ?? ''),
+        status: String(o.status ?? ''),
+        city: String(o.delivery_area ?? o.city ?? o.delivery_city ?? ''),
+        delivery_fee: Number(o.delivery_fee ?? 0),
+        estimated_price: Number(o.final_price ?? o.estimated_price ?? 0),
+        created_at: String(o.created_at ?? ''),
+      }));
+      const technicianRows: ExportTechnicianRow[] = data.byTechnician.map((t) => ({
+        name: t.label,
+        completed_orders: t.count,
+        total_earned: t.total,
+      }));
+      // Market sheet: cross category + status counts.
+      const marketCounts: Record<string, number> = {};
+      for (const l of data.rawListings as any[]) {
+        const key = `${l.category ?? '—'}||${l.status ?? '—'}`;
+        marketCounts[key] = (marketCounts[key] ?? 0) + 1;
       }
+      const marketRows: ExportMarketRow[] = Object.entries(marketCounts).map(([k, v]) => {
+        const [category, status] = k.split('||');
+        return { category, status, count: v };
+      });
+      await exportReportXlsx({
+        isRTL,
+        summary: {
+          rangeFromIso: data.rangeFromIso,
+          rangeToIso: data.rangeToIso,
+          revenueCompleted: data.revenueCompleted,
+          totalOrders: data.ordersTotal,
+          avgOrderValue: data.avgOrderValue,
+          topTechnicianName: data.topTechnician?.name ?? '',
+          topTechnicianCount: data.topTechnician?.count ?? 0,
+        },
+        orders: orderRows,
+        technicians: technicianRows,
+        market: marketRows,
+      });
     } catch (e: any) {
       Alert.alert(isRTL ? 'خطأ' : 'Error', e?.message ?? String(e));
     } finally {
@@ -295,7 +415,7 @@ export default function AdminReportsScreen() {
         </TouchableOpacity>
         <Text style={styles.title}>{isRTL ? 'التقارير' : 'Reports'}</Text>
         <TouchableOpacity
-          onPress={exportCsv}
+          onPress={exportExcel}
           disabled={!data || exporting}
           style={{ opacity: !data || exporting ? 0.4 : 1, padding: 4 }}
           accessibilityRole="button"
@@ -317,14 +437,18 @@ export default function AdminReportsScreen() {
       >
         {RANGES.map((r) => {
           const active = range === r.key;
+          const isCustom = r.key === 'custom';
           return (
             <TouchableOpacity
               key={r.key}
-              onPress={() => setRange(r.key)}
+              onPress={() => {
+                setRange(r.key);
+                if (isCustom) setCustomModalOpen(true);
+              }}
               style={[styles.rangeChip, active && { backgroundColor: COLORS.primary, borderColor: COLORS.primary }]}
             >
               <Text style={[styles.rangeChipText, active && { color: '#fff' }]}>
-                {isRTL ? r.ar : r.en}
+                {isCustom && range === 'custom' ? `${customFrom} → ${customTo}` : (isRTL ? r.ar : r.en)}
               </Text>
             </TouchableOpacity>
           );
@@ -349,17 +473,34 @@ export default function AdminReportsScreen() {
             />
           }
         >
-          {/* Headline financials */}
-          <View style={styles.kpiRow}>
-            <View style={[styles.kpiCard, { backgroundColor: COLORS.primary }]}>
-              <Text style={styles.kpiLabel}>{isRTL ? 'الإيرادات (مكتملة)' : 'Revenue (completed)'}</Text>
+          {/* Headline KPIs — horizontal scroller. */}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ gap: 12, paddingVertical: 2 }}
+          >
+            <View style={[styles.kpiCard, { backgroundColor: COLORS.primary, minWidth: 180 }]}>
+              <Text style={styles.kpiLabel}>{isRTL ? 'إجمالي الإيرادات' : 'Total Revenue'}</Text>
               <Text style={styles.kpiValue}>{fmt(data.revenueCompleted)} {sar}</Text>
             </View>
-            <View style={[styles.kpiCard, { backgroundColor: '#0EA5A4' }]}>
-              <Text style={styles.kpiLabel}>{isRTL ? 'إجمالي الطلبات' : 'Total orders'}</Text>
+            <View style={[styles.kpiCard, { backgroundColor: '#0EA5A4', minWidth: 160 }]}>
+              <Text style={styles.kpiLabel}>{isRTL ? 'إجمالي الطلبات' : 'Total Orders'}</Text>
               <Text style={styles.kpiValue}>{fmt(data.ordersTotal)}</Text>
             </View>
-          </View>
+            <View style={[styles.kpiCard, { backgroundColor: '#6366F1', minWidth: 180 }]}>
+              <Text style={styles.kpiLabel}>{isRTL ? 'متوسط قيمة الطلب' : 'Avg Order Value'}</Text>
+              <Text style={styles.kpiValue}>{fmt(Math.round(data.avgOrderValue))} {sar}</Text>
+            </View>
+            <View style={[styles.kpiCard, { backgroundColor: '#F59E0B', minWidth: 200 }]}>
+              <Text style={styles.kpiLabel}>{isRTL ? 'أفضل فني' : 'Top Technician'}</Text>
+              <Text style={[styles.kpiValue, { fontSize: 16 }]} numberOfLines={1}>
+                {data.topTechnician?.name ?? '—'}
+              </Text>
+              <Text style={[styles.kpiLabel, { marginTop: 2 }]}>
+                {data.topTechnician ? `${fmt(data.topTechnician.count)} ${isRTL ? 'طلب' : 'orders'}` : ''}
+              </Text>
+            </View>
+          </ScrollView>
 
           {/* Orders by status */}
           <SectionTitle icon="clipboard-list-outline" text={isRTL ? 'الطلبات حسب الحالة' : 'Orders by status'} COLORS={COLORS} isRTL={isRTL} />
@@ -420,6 +561,45 @@ export default function AdminReportsScreen() {
             )}
           </View>
 
+          {/* Breakdown tables — collapsible. Only one open at a time
+              keeps the screen short on small devices. */}
+          <SectionTitle icon="table" text={isRTL ? 'التفصيلات' : 'Breakdowns'} COLORS={COLORS} isRTL={isRTL} />
+          <BreakdownAccordion
+            label={isRTL ? 'بالمدينة' : 'By City'}
+            icon="map-marker-outline"
+            rows={data.byCity}
+            isOpen={expandedBreakdown === 'city'}
+            onToggle={() => setExpandedBreakdown((p) => (p === 'city' ? null : 'city'))}
+            COLORS={COLORS}
+            isRTL={isRTL}
+            showTotal
+            sar={sar}
+            fmt={fmt}
+          />
+          <BreakdownAccordion
+            label={isRTL ? 'بالفئة' : 'By Category'}
+            icon="shape-outline"
+            rows={data.byCategory}
+            isOpen={expandedBreakdown === 'category'}
+            onToggle={() => setExpandedBreakdown((p) => (p === 'category' ? null : 'category'))}
+            COLORS={COLORS}
+            isRTL={isRTL}
+            sar={sar}
+            fmt={fmt}
+          />
+          <BreakdownAccordion
+            label={isRTL ? 'بالفني' : 'By Technician'}
+            icon="account-wrench"
+            rows={data.byTechnician}
+            isOpen={expandedBreakdown === 'technician'}
+            onToggle={() => setExpandedBreakdown((p) => (p === 'technician' ? null : 'technician'))}
+            COLORS={COLORS}
+            isRTL={isRTL}
+            showTotal
+            sar={sar}
+            fmt={fmt}
+          />
+
           {/* Discounts */}
           <SectionTitle icon="ticket-percent-outline" text={isRTL ? 'استخدام الخصومات' : 'Discount usage'} COLORS={COLORS} isRTL={isRTL} />
           <View style={styles.card}>
@@ -444,7 +624,218 @@ export default function AdminReportsScreen() {
           </View>
         </ScrollView>
       )}
+
+      {/* Custom date range modal — used when the user picks the 'Custom'
+          chip. Plain text inputs in ISO format keep the bundle slim
+          (no native picker dep). */}
+      <Modal
+        visible={customModalOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setCustomModalOpen(false)}
+      >
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: '#00000088',
+            justifyContent: 'center',
+            paddingHorizontal: 20,
+          }}
+        >
+          <View
+            style={{
+              backgroundColor: COLORS.card,
+              borderRadius: BORDER_RADIUS.lg,
+              padding: 16,
+              gap: 10,
+            }}
+          >
+            <Text
+              style={{
+                color: COLORS.text,
+                fontSize: 15,
+                fontWeight: '800',
+                textAlign: isRTL ? 'right' : 'left',
+              }}
+            >
+              {isRTL ? 'فترة مخصصة' : 'Custom range'}
+            </Text>
+            <Text style={{ color: COLORS.textSecondary, fontSize: 12, textAlign: isRTL ? 'right' : 'left' }}>
+              {isRTL ? 'YYYY-MM-DD' : 'YYYY-MM-DD'}
+            </Text>
+            <Text style={{ color: COLORS.textSecondary, fontSize: 11, textAlign: isRTL ? 'right' : 'left' }}>
+              {isRTL ? 'من' : 'From'}
+            </Text>
+            <TextInput
+              value={customFrom}
+              onChangeText={setCustomFrom}
+              placeholder="2025-01-01"
+              placeholderTextColor={COLORS.textSecondary}
+              autoCapitalize="none"
+              style={{
+                borderWidth: 1,
+                borderColor: COLORS.border,
+                borderRadius: BORDER_RADIUS.sm,
+                paddingHorizontal: 10,
+                paddingVertical: 8,
+                color: COLORS.text,
+                textAlign: isRTL ? 'right' : 'left',
+              }}
+            />
+            <Text style={{ color: COLORS.textSecondary, fontSize: 11, textAlign: isRTL ? 'right' : 'left' }}>
+              {isRTL ? 'إلى' : 'To'}
+            </Text>
+            <TextInput
+              value={customTo}
+              onChangeText={setCustomTo}
+              placeholder={todayIso()}
+              placeholderTextColor={COLORS.textSecondary}
+              autoCapitalize="none"
+              style={{
+                borderWidth: 1,
+                borderColor: COLORS.border,
+                borderRadius: BORDER_RADIUS.sm,
+                paddingHorizontal: 10,
+                paddingVertical: 8,
+                color: COLORS.text,
+                textAlign: isRTL ? 'right' : 'left',
+              }}
+            />
+            <View
+              style={{
+                flexDirection: isRTL ? 'row-reverse' : 'row',
+                justifyContent: 'flex-end',
+                gap: 10,
+                marginTop: 6,
+              }}
+            >
+              <TouchableOpacity
+                onPress={() => setCustomModalOpen(false)}
+                style={{ paddingVertical: 8, paddingHorizontal: 14 }}
+              >
+                <Text style={{ color: COLORS.textSecondary, fontWeight: '700' }}>
+                  {isRTL ? 'إلغاء' : 'Cancel'}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => {
+                  setCustomModalOpen(false);
+                  load();
+                }}
+                style={{
+                  paddingVertical: 8,
+                  paddingHorizontal: 14,
+                  borderRadius: BORDER_RADIUS.sm,
+                  backgroundColor: COLORS.primary,
+                }}
+              >
+                <Text style={{ color: '#fff', fontWeight: '700' }}>
+                  {isRTL ? 'تطبيق' : 'Apply'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
+  );
+}
+
+function BreakdownAccordion({
+  label,
+  icon,
+  rows,
+  isOpen,
+  onToggle,
+  COLORS,
+  isRTL,
+  showTotal,
+  sar,
+  fmt,
+}: {
+  label: string;
+  icon: string;
+  rows: BreakdownRow[];
+  isOpen: boolean;
+  onToggle: () => void;
+  COLORS: any;
+  isRTL: boolean;
+  showTotal?: boolean;
+  sar: string;
+  fmt: (n: number) => string;
+}) {
+  return (
+    <View
+      style={{
+        borderWidth: 1,
+        borderColor: COLORS.border,
+        backgroundColor: COLORS.card,
+        borderRadius: BORDER_RADIUS.md,
+        marginTop: 10,
+        overflow: 'hidden',
+      }}
+    >
+      <TouchableOpacity
+        onPress={onToggle}
+        style={{
+          flexDirection: isRTL ? 'row-reverse' : 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: 12,
+          gap: 10,
+        }}
+      >
+        <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 8 }}>
+          <MaterialCommunityIcons name={icon as any} size={18} color={COLORS.primary} />
+          <Text style={{ color: COLORS.text, fontWeight: '800', fontSize: 14 }}>{label}</Text>
+          <Text style={{ color: COLORS.textSecondary, fontSize: 12 }}>· {rows.length}</Text>
+        </View>
+        <MaterialCommunityIcons
+          name={isOpen ? 'chevron-up' : 'chevron-down'}
+          size={20}
+          color={COLORS.textSecondary}
+        />
+      </TouchableOpacity>
+      {isOpen && (
+        <View style={{ paddingHorizontal: 12, paddingBottom: 10, gap: 6 }}>
+          {rows.length === 0 ? (
+            <Text style={{ color: COLORS.textSecondary, fontSize: 13, paddingVertical: 6 }}>
+              {isRTL ? 'لا توجد بيانات' : 'No data'}
+            </Text>
+          ) : (
+            rows.map((r) => (
+              <View
+                key={r.key}
+                style={{
+                  flexDirection: isRTL ? 'row-reverse' : 'row',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  paddingVertical: 6,
+                  borderTopWidth: StyleSheet.hairlineWidth,
+                  borderTopColor: COLORS.border,
+                  gap: 10,
+                }}
+              >
+                <Text
+                  style={{ color: COLORS.text, flex: 1, fontSize: 13, textAlign: isRTL ? 'right' : 'left' }}
+                  numberOfLines={1}
+                >
+                  {r.label}
+                </Text>
+                <Text style={{ color: COLORS.text, fontSize: 13, fontWeight: '800', minWidth: 36, textAlign: 'center' }}>
+                  {fmt(r.count)}
+                </Text>
+                {showTotal && (
+                  <Text style={{ color: COLORS.textSecondary, fontSize: 12, minWidth: 90, textAlign: isRTL ? 'left' : 'right' }}>
+                    {fmt(Math.round(r.total))} {sar}
+                  </Text>
+                )}
+              </View>
+            ))
+          )}
+        </View>
+      )}
+    </View>
   );
 }
 
