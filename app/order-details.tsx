@@ -30,6 +30,7 @@ import ServiceCenterCard from '../components/ServiceCenterCard';
 import { getPlatformSettings } from '../services/platformSettingsService';
 import { computeCancellationFee } from '../constants/fees';
 import { useLoyalty } from '../contexts/LoyaltyContext';
+import { resolveStorageUrls } from '../utils/resolveStorageUrls';
 
 const ORDER_TIMELINE: { status: string; arLabel: string; enLabel: string; icon: string }[] = [
   { status: 'pending', arLabel: 'قيد الانتظار', enLabel: 'Pending', icon: 'clock-outline' },
@@ -93,9 +94,6 @@ export default function OrderDetailsScreen() {
     try {
       await requests.respondToQuote(order.id as string, accept);
       if (!accept) {
-        // Quote rejected. Inspection is free — but for pickup & delivery
-        // and mobile / on-site visits the delivery (visit) fee is still
-        // owed, so the customer is sent to pay just that.
         const fulfillment = ((order as any).fulfillment_type ?? order.service_type) as string;
         const deliveryFee = Number((order as any).delivery_fee ?? 0);
         const needsDeliveryPayment =
@@ -131,8 +129,6 @@ export default function OrderDetailsScreen() {
           );
         }
       } else {
-        // Quote accepted → the order is payment-ready. Send the customer
-        // straight to the real payment page.
         const gross = Number((order as any).final_price ?? order.estimated_price ?? 0);
         const due = Math.max(0, gross - Number((order as any).discount_amount ?? 0));
         router.push({
@@ -192,13 +188,19 @@ export default function OrderDetailsScreen() {
     }
   };
 
+  const resolveAndSetUrls = async (orderData: any) => {
+    const rawUrls: string[] = (orderData?.media_urls ?? []) as string[];
+    const signed = await resolveStorageUrls(rawUrls);
+    setResolvedUrls(signed.filter((s) => !!s));
+  };
+
   useEffect(() => {
     checkUserType();
     loadOrderDetails();
 
-    // Subscribe to real-time updates for this specific order
-    const subscription = requests.subscribeToUpdates(id as string, (updatedOrder) => {
+    const subscription = requests.subscribeToUpdates(id as string, async (updatedOrder) => {
       setOrder(updatedOrder);
+      await resolveAndSetUrls(updatedOrder);
     });
 
     return () => {
@@ -217,31 +219,7 @@ export default function OrderDetailsScreen() {
     try {
       const orderData = await requests.getById(id as string);
       setOrder(orderData);
-      // Resolve media_urls — entries may be either absolute http(s) URLs
-      // or private Storage paths (e.g. "order-media/<uuid>/photo.jpg").
-      // We sign the private ones so <Image /> can actually render them.
-      const rawUrls: string[] = ((orderData as any)?.media_urls ?? []) as string[];
-      if (rawUrls.length > 0) {
-        const signed = await Promise.all(
-          rawUrls.map(async (u) => {
-            if (!u) return '';
-            if (/^https?:\/\//i.test(u)) return u;
-            try {
-              const { data, error } = await supabase
-                .storage
-                .from('order-media')
-                .createSignedUrl(u, 3600);
-              if (error || !data?.signedUrl) return '';
-              return data.signedUrl;
-            } catch {
-              return '';
-            }
-          })
-        );
-        setResolvedUrls(signed.filter((s) => s));
-      } else {
-        setResolvedUrls([]);
-      }
+      await resolveAndSetUrls(orderData);
     } catch (error) {
       logger.error('Error loading order:', error);
     } finally {
@@ -295,17 +273,11 @@ export default function OrderDetailsScreen() {
   const currentStepIndex = getCurrentStepIndex();
   const isCancelled = order.status === 'cancelled';
   const statusColor = getStatusColor(order.status);
-  // The repair price only exists once the technician submits a quote.
   const hasFinalPrice = !!(order as any).final_price && order.status !== 'quoted';
   const orderFulfillment = (order as any).fulfillment_type ?? order.service_type;
-  const usesServiceCenter =
-    orderFulfillment === 'personal_handoff';
-  // The discount the customer applied during request creation carries
-  // forward and reduces the final quote/payment amount after acceptance.
+  const usesServiceCenter = orderFulfillment === 'personal_handoff';
   const discountAmount = Number((order as any).discount_amount ?? 0);
   const grossAmount = Number((order as any).final_price ?? order.estimated_price ?? 0);
-  // Accessories + protection add-ons the customer picked at request time —
-  // their value carries into the quotation and the final payable amount.
   const orderAddons = [
     ...(Array.isArray((order as any).accessories) ? (order as any).accessories : []),
     ...(Array.isArray((order as any).protection_addons) ? (order as any).protection_addons : []),
@@ -356,8 +328,6 @@ export default function OrderDetailsScreen() {
           </Text>
         </View>
 
-        {/* Live technician tracking — pickup & delivery and mobile visits.
-            Drop-off / handoff has no technician travel, so it is skipped. */}
         {!isCancelled &&
           order.technician_id &&
           orderFulfillment !== 'personal_handoff' &&
@@ -377,7 +347,6 @@ export default function OrderDetailsScreen() {
             </View>
           )}
 
-        {/* Timeline Progress */}
         {!isCancelled && (
           <View style={[styles.timelineCard, { backgroundColor: COLORS.card }, SHADOWS.small]}>
             <View style={styles.timelineContainer}>
@@ -439,11 +408,6 @@ export default function OrderDetailsScreen() {
 
             <View style={[styles.divider, { backgroundColor: COLORS.border }]} />
 
-            {/* Stacked layout — the issue value is often multi-line; sitting
-                it on the same row as the label visibly collides in Arabic
-                because both sides hit the centre with no gutter. Stacking
-                gives the value its own line with proper breathing room and
-                consistent RTL alignment. */}
             <View style={styles.infoBlock}>
               <Text style={[styles.infoLabel, { color: COLORS.textSecondary, marginBottom: 6 }]}>
                 {isRTL ? 'المشكلة' : 'Issue'}
@@ -488,7 +452,7 @@ export default function OrderDetailsScreen() {
           </View>
         </View>
 
-        {/* Technician inspection quote — customer accepts or rejects */}
+        {/* Quote card */}
         {order.status === 'quoted' && (
           <View style={[styles.card, { backgroundColor: COLORS.card, borderWidth: 2, borderColor: '#F59E0B' }, SHADOWS.small]}>
             <View style={styles.cardHeader}>
@@ -599,7 +563,7 @@ export default function OrderDetailsScreen() {
           </View>
         )}
 
-        {/* Payment-ready: customer accepted the quote, must now pay. */}
+        {/* Awaiting payment */}
         {order.status === 'awaiting_payment' && (
           <View style={[styles.card, { backgroundColor: COLORS.card, borderWidth: 2, borderColor: COLORS.primary }, SHADOWS.small]}>
             <View style={styles.cardHeader}>
@@ -633,7 +597,7 @@ export default function OrderDetailsScreen() {
           </View>
         )}
 
-        {/* Price Information Card */}
+        {/* Price card */}
         <View style={[styles.card, { backgroundColor: COLORS.card }, SHADOWS.small]}>
           <View style={styles.cardHeader}>
             <MaterialIcons name="payments" size={24} color={COLORS.primary} />
@@ -738,7 +702,6 @@ export default function OrderDetailsScreen() {
           </View>
         </View>
 
-        {/* Service center — where to collect the device after completion. */}
         {order.status === 'completed' && usesServiceCenter && (
           <View style={{ marginHorizontal: 16, marginBottom: 12 }}>
             <ServiceCenterCard
@@ -753,7 +716,6 @@ export default function OrderDetailsScreen() {
           </View>
         )}
 
-        {/* Action Buttons */}
         <View style={styles.actionContainer}>
           {order.technician_id && order.status !== 'pending' && order.status !== 'completed' && order.status !== 'cancelled' && (
             <View style={styles.buttonRow}>
@@ -777,7 +739,6 @@ export default function OrderDetailsScreen() {
                 onPress={async () => {
                   let phone = order.technician_phone;
                   if (!phone) {
-                    // Fetch from technicians table as fallback
                     try {
                       const { data } = await import('../lib/supabase').then(m => m.supabase
                         .from('technicians').select('phone').eq('user_id', order.technician_id!).maybeSingle());
@@ -836,7 +797,6 @@ export default function OrderDetailsScreen() {
           )}
         </View>
 
-        {/* Completed Order Rating */}
         {userType === 'customer' && order.status === 'completed' && ratingsEnabled && (
           <View style={[styles.card, { backgroundColor: COLORS.card }, SHADOWS.small]}>
             <Text style={[styles.cardTitle, { color: COLORS.text, marginBottom: 6 }]}>
@@ -880,7 +840,7 @@ export default function OrderDetailsScreen() {
                   textAlign: isRTL ? 'right' : 'left',
                   writingDirection: isRTL ? 'rtl' : 'ltr',
                 }}>
-                  {`“${myComment}”`}
+                  {`"${myComment}"`}
                 </Text>
               ) : null
             ) : (
@@ -1053,8 +1013,6 @@ const makeStyles = (isRTL: boolean) => StyleSheet.create({
     alignItems: 'center',
     gap: 12,
   },
-  // Used for long-form fields (issue description, notes, address) where the
-  // value is multi-line and shouldn't be jammed next to the label.
   infoBlock: { width: '100%' },
   infoLabel: { fontSize: 13, fontWeight: '500', textAlign: isRTL ? 'right' : 'left' },
   infoValue: {
