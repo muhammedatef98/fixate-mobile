@@ -54,22 +54,6 @@ interface Stats {
   revenueThisMonth: number;
 }
 
-interface CityInsight {
-  city: string;
-  orders: number;
-  deliveryTotal: number;
-}
-
-interface TechLeaderRow {
-  name: string;
-  completed: number;
-}
-
-interface PlatformHealth {
-  avgCompletionHours: number | null;
-  cancellationRate: number | null;
-}
-
 type ActivityItem = {
   id: string;
   kind: 'order' | 'listing' | 'user' | 'technician';
@@ -114,12 +98,6 @@ export default function AdminDashboardScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
-  const [topCities, setTopCities] = useState<CityInsight[]>([]);
-  const [topTechs, setTopTechs] = useState<TechLeaderRow[]>([]);
-  const [health, setHealth] = useState<PlatformHealth>({
-    avgCompletionHours: null,
-    cancellationRate: null,
-  });
 
   const weekAgoIso = useMemo(() => new Date(Date.now() - WEEK_MS).toISOString(), []);
   const dayStartIso = useMemo(() => {
@@ -241,54 +219,6 @@ export default function AdminDashboardScreen() {
         techniciansOffline: offline,
         revenueThisMonth,
       });
-
-      // Operations insights
-      try {
-        const ninetyDaysAgoIso = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
-        const startOfMonthIso = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString();
-        const { data: opsOrders } = await supabase.from('orders').select('*').gte('created_at', ninetyDaysAgoIso);
-        const rows = (opsOrders ?? []) as any[];
-        const cityAgg: Record<string, { orders: number; deliveryTotal: number }> = {};
-        for (const o of rows) {
-          const city = String(o.delivery_area ?? o.city ?? o.delivery_city ?? '—');
-          if (!cityAgg[city]) cityAgg[city] = { orders: 0, deliveryTotal: 0 };
-          cityAgg[city].orders += 1;
-          cityAgg[city].deliveryTotal += Number(o.delivery_fee ?? 0);
-        }
-        const topCitiesArr = Object.entries(cityAgg)
-          .map(([city, v]) => ({ city, orders: v.orders, deliveryTotal: v.deliveryTotal }))
-          .sort((a, b) => b.orders - a.orders).slice(0, 3);
-        const techCount: Record<string, number> = {};
-        const techIdsThisMonth = new Set<string>();
-        for (const o of rows) {
-          if (o.status === 'completed' && o.technician_id && o.created_at && o.created_at >= startOfMonthIso) {
-            techCount[o.technician_id] = (techCount[o.technician_id] ?? 0) + 1;
-            techIdsThisMonth.add(o.technician_id);
-          }
-        }
-        let techNames: Record<string, string> = {};
-        if (techIdsThisMonth.size > 0) {
-          const { data: techUsers } = await supabase.from('users').select('id, name').in('id', Array.from(techIdsThisMonth));
-          for (const u of (techUsers ?? []) as any[]) techNames[u.id] = u.name ?? '';
-        }
-        const topTechsArr = Object.entries(techCount)
-          .map(([id, completed]) => ({ name: techNames[id] || id.slice(0, 8), completed }))
-          .sort((a, b) => b.completed - a.completed).slice(0, 3);
-        let completionMs = 0, completionCount = 0, cancelled = 0;
-        for (const o of rows) {
-          if (o.status === 'completed' && o.created_at && o.updated_at) {
-            const a = new Date(o.created_at).getTime(), b = new Date(o.updated_at).getTime();
-            if (Number.isFinite(a) && Number.isFinite(b) && b >= a) { completionMs += b - a; completionCount += 1; }
-          }
-          if (o.status === 'cancelled') cancelled += 1;
-        }
-        setTopCities(topCitiesArr);
-        setTopTechs(topTechsArr);
-        setHealth({
-          avgCompletionHours: completionCount > 0 ? completionMs / completionCount / (1000 * 60 * 60) : null,
-          cancellationRate: rows.length > 0 ? (cancelled / rows.length) * 100 : null,
-        });
-      } catch { /* non-fatal */ }
 
       const merged: ActivityItem[] = [
         ...((recentOrders ?? []) as any[]).map((o) => ({
@@ -579,20 +509,6 @@ export default function AdminDashboardScreen() {
         <AdminActionCard icon="chart-box-outline" iconColor="#0ea5a4" title={isRTL ? 'التقارير' : 'Reports'} subtitle={isRTL ? 'الإيرادات، الطلبات، الفنيون، السوق، الخصومات' : 'Revenue, orders, technicians, market, discounts'} onPress={() => router.push('/admin-reports' as any)} />
         <AdminActionCard icon="star-outline" iconColor="#f59e0b" title={isRTL ? 'التقييمات والتعليقات' : 'Ratings & Reviews'} subtitle={isRTL ? 'متابعة تقييمات العملاء للفنيين' : 'Review customer ratings of technicians'} onPress={() => router.push('/admin-ratings' as any)} />
 
-        {/* Insight cards */}
-        <InsightCard icon="map-marker-multiple-outline" iconColor="#0EA5A4" title={isRTL ? 'إيرادات بالمدينة' : 'Revenue by City'} subtitle={isRTL ? 'أفضل 3 مدن — آخر 90 يوم' : 'Top 3 cities — last 90 days'} onPress={() => router.push('/admin-reports' as any)} COLORS={COLORS} isRTL={isRTL}
-          rows={topCities.length === 0 ? [{ left: '—', mid: '', right: '' }] : topCities.map((c) => ({ left: c.city, mid: `${c.orders} ${isRTL ? 'طلب' : 'orders'}`, right: `${Math.round(c.deliveryTotal)} ${isRTL ? 'ر.س' : 'SAR'}` }))}
-        />
-        <InsightCard icon="trophy-outline" iconColor="#F59E0B" title={isRTL ? 'أفضل الفنيين' : 'Technician Leaderboard'} subtitle={isRTL ? 'أكثر الفنيين إنجازاً هذا الشهر' : 'Most completed orders this month'} onPress={() => router.push('/admin-users' as any)} COLORS={COLORS} isRTL={isRTL}
-          rows={topTechs.length === 0 ? [{ left: '—', mid: '', right: '' }] : topTechs.map((t, i) => ({ left: `${i + 1}.  ${t.name}`, mid: '', right: `${t.completed} ${isRTL ? 'مكتمل' : 'completed'}` }))}
-        />
-        <InsightCard icon="heart-pulse" iconColor="#EC4899" title={isRTL ? 'صحة المنصة' : 'Platform Health'} subtitle={isRTL ? 'نافذة 90 يوم' : '90-day window'} onPress={() => router.push('/admin-reports' as any)} COLORS={COLORS} isRTL={isRTL}
-          rows={[
-            { left: isRTL ? 'متوسط زمن الإنجاز' : 'Avg completion time', mid: '', right: health.avgCompletionHours == null ? '—' : `${health.avgCompletionHours.toFixed(1)} ${isRTL ? 'ساعة' : 'h'}` },
-            { left: isRTL ? 'معدل الإلغاء' : 'Cancellation rate', mid: '', right: health.cancellationRate == null ? '—' : `${health.cancellationRate.toFixed(1)}%` },
-          ]}
-        />
-
         {/* Communication */}
         <AdminSectionLabel icon="message-text-outline" text={isRTL ? 'التواصل' : 'Communication'} />
         <AdminActionCard icon="forum-outline" iconColor="#06b6d4" title={isRTL ? 'صندوق الدعم' : 'Support inbox'} subtitle={isRTL ? 'محادثات الدعم مع العملاء' : 'Support conversations with customers'} badge={stats.unreadThreads} onPress={() => router.push('/admin-support')} />
@@ -694,27 +610,3 @@ const styles = (C: any, isRTL: boolean) =>
     revenueSub: { color: 'rgba(255,255,255,0.78)', fontSize: 12, fontWeight: '700', marginTop: 4, textAlign: isRTL ? 'right' : 'left' },
   });
 
-function InsightCard({ icon, iconColor, title, subtitle, onPress, rows, COLORS, isRTL }: { icon: string; iconColor: string; title: string; subtitle: string; onPress: () => void; rows: { left: string; mid: string; right: string }[]; COLORS: any; isRTL: boolean }) {
-  return (
-    <TouchableOpacity onPress={onPress} activeOpacity={0.85} style={{ backgroundColor: COLORS.card, borderRadius: BORDER_RADIUS.md, padding: 14, marginBottom: 10, gap: 10, ...ADMIN_CARD_SHADOW }} accessibilityRole="button">
-      <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 12 }}>
-        <View style={{ width: 46, height: 46, borderRadius: 12, backgroundColor: iconColor + '20', alignItems: 'center', justifyContent: 'center' }}>
-          <MaterialCommunityIcons name={icon as any} size={22} color={iconColor} />
-        </View>
-        <View style={{ flex: 1 }}>
-          <Text style={{ color: COLORS.text, fontSize: 15, fontWeight: '700', textAlign: isRTL ? 'right' : 'left' }}>{title}</Text>
-          <Text style={{ color: COLORS.textSecondary, fontSize: 12, marginTop: 2, textAlign: isRTL ? 'right' : 'left' }}>{subtitle}</Text>
-        </View>
-      </View>
-      <View style={{ gap: 6 }}>
-        {rows.map((r, i) => (
-          <View key={i} style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', justifyContent: 'space-between', borderTopWidth: i === 0 ? 0 : StyleSheet.hairlineWidth, borderTopColor: COLORS.border, paddingTop: i === 0 ? 0 : 6, gap: 8 }}>
-            <Text style={{ color: COLORS.text, fontSize: 13, fontWeight: '600', flex: 1, textAlign: isRTL ? 'right' : 'left' }} numberOfLines={1}>{r.left}</Text>
-            {r.mid ? <Text style={{ color: COLORS.textSecondary, fontSize: 12 }}>{r.mid}</Text> : null}
-            <Text style={{ color: COLORS.text, fontSize: 13, fontWeight: '800' }}>{r.right}</Text>
-          </View>
-        ))}
-      </View>
-    </TouchableOpacity>
-  );
-}
