@@ -46,7 +46,7 @@ export default function ImageViewer({ visible, images, initialIndex = 0, onClose
   if (!images.length) return null;
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose} statusBarTranslucent>
+    <Modal visible={visible} animationType="fade" onRequestClose={onClose} statusBarTranslucent>
       <StatusBar barStyle="light-content" backgroundColor="#000" />
       <View style={styles.backdrop}>
         <ScrollView
@@ -67,14 +67,17 @@ export default function ImageViewer({ visible, images, initialIndex = 0, onClose
               showsVerticalScrollIndicator={false}
               showsHorizontalScrollIndicator={false}
               centerContent
-              contentContainerStyle={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}
-              style={{ width: SCREEN_W, height: SCREEN_H }}
+              contentContainerStyle={{ flexGrow: 1, alignItems: 'center', justifyContent: 'center' }}
+              style={{ width: SCREEN_W, height: SCREEN_H, flex: 1 }}
             >
               <TouchableWithoutFeedback onPress={onClose}>
-                <Image
-                  source={{ uri }}
-                  style={{ width: SCREEN_W, height: SCREEN_H, resizeMode: 'contain' }}
-                />
+                <View style={{ width: SCREEN_W, height: SCREEN_H }}>
+                  {__DEV__ && console.log('[ImageViewer] uri:', uri)}
+                  <Image
+                    source={{ uri: typeof uri === 'string' ? uri : (uri as any)?.url ?? (uri as any)?.uri }}
+                    style={{ width: SCREEN_W, height: SCREEN_H, resizeMode: 'contain' }}
+                  />
+                </View>
               </TouchableWithoutFeedback>
             </ScrollView>
           ))}

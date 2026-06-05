@@ -13,6 +13,7 @@ import {
   Alert,
   Animated,
   Easing,
+  ScrollView,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -294,6 +295,12 @@ export default function EmailAuthScreen() {
       </View>
 
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <ScrollView
+          contentContainerStyle={{ flexGrow: 1, paddingBottom: 40 }}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          showsVerticalScrollIndicator={false}
+        >
         <Animated.View style={[styles.content, { transform: [{ translateX: shake }] }]}>
           {/* Mode segmented selector — hidden on the OTP digit step. */}
           {codeStep === 'email' && (
@@ -384,7 +391,10 @@ export default function EmailAuthScreen() {
               </Text>
 
               <TouchableOpacity activeOpacity={1} onPress={() => hiddenOtpRef.current?.focus()}>
-                <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', justifyContent: 'center', gap: 8, marginTop: 6 }}>
+                {/* OTP digits always render left-to-right regardless of app locale.
+                    Numeric codes are entered LTR worldwide; row-reverse here caused
+                    Arabic users to see the boxes fill from the wrong side. */}
+                <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 8, marginTop: 6 }}>
                   {otpDigits.map((d, i) => {
                     const filled = d !== ' ';
                     const isCursor = i === code.length;
@@ -414,7 +424,7 @@ export default function EmailAuthScreen() {
                 value={code}
                 onChangeText={(v) => { setError(null); setCode(v.replace(/\D/g, '').slice(0, OTP_LENGTH)); }}
                 keyboardType="number-pad"
-                style={styles.hiddenInput}
+                style={[styles.hiddenInput, { textAlign: 'left', writingDirection: 'ltr' }]}
                 autoFocus
                 maxLength={OTP_LENGTH}
                 textContentType="oneTimeCode"
@@ -584,6 +594,7 @@ export default function EmailAuthScreen() {
             </>
           )}
         </Animated.View>
+        </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );

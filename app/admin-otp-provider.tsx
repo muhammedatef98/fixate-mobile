@@ -53,7 +53,7 @@ export default function AdminOtpProviderScreen() {
     try {
       const { data } = await supabase
         .from('otp_providers')
-        .select('id, provider, display_name, is_enabled, api_key, api_secret, sender_id, base_url')
+        .select('id, provider, display_name, is_enabled, api_key, sender_id, base_url')
         .order('display_name');
       setProviders(
         ((data ?? []) as any[]).map((p) => ({
@@ -64,7 +64,7 @@ export default function AdminOtpProviderScreen() {
           api_key: p.api_key ?? '',
           sender_id: p.sender_id ?? '',
           base_url: p.base_url ?? '',
-          has_secret: !!p.api_secret,
+          has_secret: false,
           new_secret: '',
         }))
       );

@@ -37,7 +37,7 @@ export default function ProfileScreen() {
   const router = useRouter();
   const { language, isDark } = useApp();
   const { user, userProfile, signOut } = useAuth();
-  const { summary: loyaltySummary } = useLoyalty();
+  const { summary: loyaltySummary, enabled: loyaltyEnabled } = useLoyalty();
   const isRTL = language === 'ar';
   const COLORS = getColors(isDark);
   const SHADOWS = getShadows(isDark);
@@ -87,9 +87,14 @@ export default function ProfileScreen() {
 
   const goto = (route: string) => router.push(route as any);
 
+  // Loyalty row is conditionally inserted — feature-flag gated through the
+  // LoyaltyContext so the menu item only shows when an admin has enabled
+  // the loyalty programme in platform settings.
   const accountRows: MenuRow[] = [
     { id: 'orders', icon: 'receipt-outline', labelAr: 'طلباتي', labelEn: 'My orders', hintAr: 'كل الطلبات والحالة', hintEn: 'All orders and status' },
-    { id: 'loyalty', icon: 'star-outline', iconColor: '#f59e0b', labelAr: 'نقاط الولاء', labelEn: 'Loyalty points', hintAr: `${loyaltySummary.balance} نقطة متاحة`, hintEn: `${loyaltySummary.balance} points available` },
+    ...(loyaltyEnabled
+      ? [{ id: 'loyalty', icon: 'star-outline', iconColor: '#f59e0b', labelAr: 'نقاط الولاء', labelEn: 'Loyalty points', hintAr: `${loyaltySummary.balance} نقطة متاحة`, hintEn: `${loyaltySummary.balance} points available` } as MenuRow]
+      : []),
     { id: 'wallet', icon: 'wallet-outline', labelAr: 'محفظتي', labelEn: 'Wallet', hintAr: 'سجل المدفوعات', hintEn: 'Payment history' },
     { id: 'addresses', icon: 'location-outline', labelAr: 'عناويني', labelEn: 'Addresses', hintAr: `${stats.addresses} ${isRTL ? 'عنوان محفوظ' : 'saved'}`, hintEn: `${stats.addresses} saved` },
     { id: 'edit', icon: 'person-circle-outline', labelAr: 'تعديل البيانات', labelEn: 'Edit profile', hintAr: 'الاسم، الجوال، الصورة', hintEn: 'Name, phone, photo' },

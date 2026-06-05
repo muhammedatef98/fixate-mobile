@@ -20,7 +20,6 @@ import { Image } from 'expo-image';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useApp } from '../contexts/AppContext';
-import { useIsAdmin } from '../hooks/useAdminGuard';
 import { getColors, SPACING, BORDER_RADIUS } from '../constants/theme';
 import { RTLIonicon } from '../components/RTLIcon';
 import {
@@ -33,6 +32,7 @@ import {
 } from '../services/marketService';
 import SaudiCityPicker from '../components/SaudiCityPicker';
 import SkeletonLoader from '../components/SkeletonLoader';
+import MarketBottomTabs, { MARKET_TABS_HEIGHT } from '../components/MarketBottomTabs';
 
 // Tiny SVG blurhash-equivalent placeholder used while the network image
 // streams in. expo-image fades the real image in over this, so cards never
@@ -99,7 +99,6 @@ const timeAgo = (iso: string | undefined, isRTL: boolean): string => {
 export default function MarketScreen() {
   const router = useRouter();
   const { language, isDark } = useApp();
-  const { isAdmin } = useIsAdmin();
   const COLORS = getColors(isDark);
   const isRTL = language === 'ar';
 
@@ -283,6 +282,7 @@ export default function MarketScreen() {
         contentContainerStyle={{
           paddingHorizontal: GRID_GUTTER,
           paddingVertical: GRID_GUTTER,
+          paddingBottom: MARKET_TABS_HEIGHT + 24,
           gap: GRID_GUTTER,
         }}
         showsVerticalScrollIndicator={false}
@@ -345,30 +345,11 @@ export default function MarketScreen() {
           <RTLIonicon name="chevron-back" size={26} color={COLORS.text} />
         </TouchableOpacity>
         <Text style={styles.title}>{isRTL ? 'سوق Fixate' : 'Fixate Market'}</Text>
-        {/* Header actions — Messages inbox is universal (admins still need
-            to see incoming chats about any listings they may own). My
-            Listings remains a seller affordance and is hidden from admins
-            so the admin browse context stays focused on moderation. */}
-        <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', gap: 8 }}>
-          <TouchableOpacity
-            onPress={() => router.push('/market-messages' as any)}
-            style={styles.headerActionBtn}
-            accessibilityLabel={isRTL ? 'الرسائل' : 'Messages'}
-            accessibilityRole="button"
-          >
-            <MaterialCommunityIcons name="message-text-outline" size={20} color={COLORS.text} />
-          </TouchableOpacity>
-          {!isAdmin && (
-            <TouchableOpacity
-              onPress={() => router.push('/my-listings' as any)}
-              style={styles.headerActionBtn}
-              accessibilityLabel={isRTL ? 'إعلاناتي' : 'My listings'}
-              accessibilityRole="button"
-            >
-              <MaterialCommunityIcons name="storefront-edit-outline" size={20} color={COLORS.text} />
-            </TouchableOpacity>
-          )}
-        </View>
+        {/* Messages + My Listings live in the Market bottom tab bar now; the
+            header stays minimal so the search row reads as the primary
+            interactive surface. A 28px spacer keeps the title visually
+            centered between the back button and the trailing edge. */}
+        <View style={{ width: 28 }} />
       </View>
 
       {/* Search + filter button */}
@@ -417,7 +398,7 @@ export default function MarketScreen() {
         horizontal
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.deviceStrip}
-        style={{ maxHeight: 56 }}
+        style={{ maxHeight: 64 }}
         onContentSizeChange={(w) => {
           if (isRTL && w > 0) {
             // Defer one frame so layout settles before we scroll.
@@ -447,10 +428,13 @@ export default function MarketScreen() {
             >
               <MaterialCommunityIcons
                 name={c.icon as any}
-                size={14}
+                size={15}
                 color={active ? COLORS.primary : COLORS.textSecondary}
               />
-              <Text style={[styles.deviceChipText, active && { color: COLORS.primary }]}>
+              <Text
+                style={[styles.deviceChipText, active && styles.deviceChipTextActive]}
+                numberOfLines={1}
+              >
                 {isRTL ? c.ar : c.en}
               </Text>
             </Pressable>
@@ -499,7 +483,13 @@ export default function MarketScreen() {
             renderItem={renderCard}
             numColumns={2}
             columnWrapperStyle={{ gap: GRID_GUTTER, paddingHorizontal: GRID_GUTTER }}
-            contentContainerStyle={{ gap: GRID_GUTTER, paddingVertical: GRID_GUTTER, paddingBottom: 40 }}
+            contentContainerStyle={{
+              gap: GRID_GUTTER,
+              paddingVertical: GRID_GUTTER,
+              // Leave room for the floating market tab bar + a bit of breathing
+              // space so the last row never sits flush against the bar.
+              paddingBottom: MARKET_TABS_HEIGHT + 24,
+            }}
             keyboardShouldPersistTaps="handled"
             keyboardDismissMode="on-drag"
             refreshControl={
@@ -530,6 +520,11 @@ export default function MarketScreen() {
         <Ionicons name="add" size={22} color="#fff" />
         <Text style={styles.fabText}>{isRTL ? 'إعلان' : 'Sell'}</Text>
       </TouchableOpacity>
+
+      {/* Module-level bottom tab bar — anchors the screen, replaces the
+          old in-header Messages / My Listings shortcuts, and gives the
+          Market section a navigation surface of its own. */}
+      <MarketBottomTabs />
 
       {/* Filter sheet */}
       <Modal visible={filtersOpen} animationType="slide" transparent onRequestClose={() => setFiltersOpen(false)}>
@@ -708,28 +703,46 @@ const createStyles = (C: any, isRTL: boolean) =>
     deviceStrip: {
       paddingHorizontal: SPACING.lg,
       gap: 8,
-      paddingVertical: 6,
+      paddingVertical: 10,
       flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
     },
+    // Chip geometry tuned for Arabic labels — taller pill (38) with
+    // generous horizontal padding so words like "لابتوب" / "تابلت" never
+    // clip and the icon+text never look squished. Single-line guarantee
+    // via numberOfLines={1} on the label.
     deviceChip: {
       flexDirection: isRTL ? 'row-reverse' : 'row',
       alignItems: 'center',
       gap: 6,
-      paddingHorizontal: 13,
-      paddingVertical: 8,
+      paddingHorizontal: 16,
+      height: 38,
       borderRadius: 999,
       borderWidth: 1,
       borderColor: C.border,
       backgroundColor: C.card,
     },
-    // Softer "active" treatment: tinted background + primary text/border
-    // instead of a hard solid pill — feels lighter and matches modern
-    // classifieds UI better than the previous full-fill chip.
+    // Active state: primary-tinted surface, primary 1.5px border, primary
+    // text. Reads decisively without the harshness of a fully solid pill —
+    // strong but elegant, as requested.
     deviceChipActive: {
-      backgroundColor: C.primary + '14',
+      backgroundColor: C.primarySoft,
       borderColor: C.primary,
+      borderWidth: 1.5,
+      // Soft lift so the selected chip visibly anchors the row.
+      shadowColor: C.primary,
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.18,
+      shadowRadius: 10,
+      elevation: 3,
     },
-    deviceChipText: { color: C.textSecondary, fontSize: 13, fontWeight: '700' },
+    deviceChipText: {
+      color: C.textSecondary,
+      fontSize: 13.5,
+      fontWeight: '700',
+      letterSpacing: -0.1,
+    },
+    deviceChipTextActive: { color: C.primary, fontWeight: '800' },
 
     // Result bar — small but high-value: tells the buyer "we found N
     // items, sorted by X" and gives them a one-tap shortcut to change
@@ -860,7 +873,14 @@ const createStyles = (C: any, isRTL: boolean) =>
     },
     verifyChipText: { color: C.primary, fontWeight: '700', fontSize: 10 },
 
-    center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32, gap: 6 },
+    center: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: 32,
+      paddingBottom: MARKET_TABS_HEIGHT,
+      gap: 6,
+    },
     emptyIconBubble: {
       width: 88, height: 88, borderRadius: 44, alignItems: 'center', justifyContent: 'center',
     },
@@ -872,7 +892,9 @@ const createStyles = (C: any, isRTL: boolean) =>
     // squarely in the natural thumb-reach zone for one-handed use.
     fab: {
       position: 'absolute',
-      bottom: 96,
+      // Sits just above the floating Market tab bar so it stays in the
+      // natural thumb zone without ever overlapping the tabs.
+      bottom: (Platform.OS === 'ios' ? 30 : 20) + 70 + 14,
       ...(isRTL ? { left: 18 } : { right: 18 }),
       flexDirection: isRTL ? 'row-reverse' : 'row',
       alignItems: 'center',

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -24,13 +24,27 @@ export default function LoyaltyScreen() {
   const router = useRouter();
   const { language, isDark } = useApp();
   const { user } = useAuth();
-  const { summary, loading, refresh } = useLoyalty();
+  const { summary, loading, refresh, enabled: loyaltyEnabled, settings } = useLoyalty();
   const isRTL = language === 'ar';
   const C = getColors(isDark);
   const SHADOWS = getShadows(isDark);
   const styles = makeStyles(C, isRTL, SHADOWS);
 
   const [redeeming, setRedeeming] = useState<string | null>(null);
+
+  // Feature flag — if the loyalty programme is disabled in platform
+  // settings, bounce back to the previous screen. We only redirect once
+  // settings have actually loaded (settings !== null) to avoid a flash
+  // during the initial mount.
+  useEffect(() => {
+    if (settings !== null && !loyaltyEnabled) {
+      router.replace('/(customer)' as any);
+    }
+  }, [settings, loyaltyEnabled, router]);
+
+  if (settings !== null && !loyaltyEnabled) {
+    return null;
+  }
 
   const handleRedeem = async (tierId: string) => {
     const tier = LOYALTY_CONFIG.tiers.find((t) => t.id === tierId);

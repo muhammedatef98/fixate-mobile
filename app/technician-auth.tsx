@@ -144,7 +144,12 @@ export default function TechnicianAuthScreen() {
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
-        <ScrollView contentContainerStyle={styles.scrollContent}>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          showsVerticalScrollIndicator={false}
+        >
           {/* Logo Section — dark asset on dark theme, colour asset on light */}
           <View style={styles.logoSection}>
             <View style={styles.logoCircle}>

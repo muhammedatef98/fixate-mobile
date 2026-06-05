@@ -10,6 +10,8 @@ import {
   ActivityIndicator,
   Alert,
   StatusBar,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -425,7 +427,16 @@ export default function EditProfileScreen() {
         <View style={{ width: 40 }} />
       </View>
 
-      <ScrollView contentContainerStyle={styles.content}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+      <ScrollView
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+        showsVerticalScrollIndicator={false}
+      >
         {/* Avatar */}
         <View style={styles.avatarSection}>
           <TouchableOpacity
@@ -583,6 +594,7 @@ export default function EditProfileScreen() {
           </Text>
         </TouchableOpacity>
       </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -602,7 +614,7 @@ const createStyles = (C: ReturnType<typeof getColors>, isRTL: boolean) =>
     },
     headerTitle: { fontSize: 18, fontWeight: 'bold', color: C.text },
     backButton: { padding: 8 },
-    content: { padding: 20 },
+    content: { padding: 20, paddingBottom: 80, flexGrow: 1 },
     avatarSection: { alignItems: 'center', marginBottom: 24 },
     avatarWrap: { position: 'relative' },
     cameraBadge: {

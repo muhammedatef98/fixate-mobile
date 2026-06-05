@@ -22,6 +22,7 @@ import { translations } from '../../constants/translations';
 import * as orderService from '../../services/orderService';
 import { subscribeToPendingOrders } from '../../services/realtimeService';
 import { supabase } from '../../services/supabaseClient';
+import { safeBack } from '../../utils/navigation';
 import { ISSUE_CATEGORIES, getIssueCategory } from '../../constants/issueCategories';
 import NeuCard from '../../components/NeuCard';
 import ErrorState from '../../components/ErrorState';
@@ -364,11 +365,11 @@ export default function AvailableOrdersScreen() {
       />
 
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
+        <TouchableOpacity onPress={() => safeBack('/(technician)')}>
           <MaterialIcons name="arrow-back" size={24} color={COLORS.text} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: COLORS.text }]}>
-          {language === 'ar' ? 'الطلبات المتاحة' : 'Available Orders'}
+          {language === 'ar' ? 'الطلبات المتاحة' : 'Available Requests'}
         </Text>
         <TouchableOpacity onPress={handleRefresh}>
           <MaterialIcons name="refresh" size={24} color={COLORS.text} />
@@ -411,6 +412,7 @@ export default function AvailableOrdersScreen() {
       ) : (
         <ScrollView
           style={styles.content}
+          contentContainerStyle={{ paddingBottom: 120 }}
           showsVerticalScrollIndicator={false}
           refreshControl={
             <RefreshControl

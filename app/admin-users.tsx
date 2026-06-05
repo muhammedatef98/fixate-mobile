@@ -31,6 +31,7 @@ import {
   type ModerationLog,
 } from '../services/moderationService';
 import { getFriendlyError } from '../utils/errorMessages';
+import { fmtAdminDate } from '../utils/dateFormat';
 
 interface AdminUser {
   id: string;
@@ -399,7 +400,7 @@ function UserDetailModal({
                     <Text style={styles.logText}>
                       {l.action}
                       {'  ·  '}
-                      {new Date(l.created_at).toLocaleDateString(isRTL ? 'ar-SA' : 'en-GB')}
+                      {fmtAdminDate(l.created_at, isRTL)}
                     </Text>
                   </View>
                 ))}

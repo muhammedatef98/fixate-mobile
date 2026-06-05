@@ -3,6 +3,7 @@ import { View, Text, StyleSheet } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { SPACING, BORDER_RADIUS } from '../constants/theme';
 import type { PricingBreakdown, InvoiceLine } from '../services/pricingService';
+import { useLoyalty } from '../contexts/LoyaltyContext';
 
 interface Props {
   breakdown: PricingBreakdown;
@@ -25,6 +26,10 @@ export default function InvoiceBreakdown({
   title,
 }: Props) {
   const styles = createStyles(COLORS, isRTL);
+  // Feature-flag gate — when loyalty is off in platform settings the row
+  // is hidden entirely even if the pricing service still calculates
+  // points for backwards compatibility with historical orders.
+  const { enabled: loyaltyEnabled } = useLoyalty();
 
   const lines = hideCommitment
     ? breakdown.lines.filter((l) => l.kind !== 'commitment')
@@ -85,7 +90,7 @@ export default function InvoiceBreakdown({
         </View>
       )}
 
-      {breakdown.pointsEarned > 0 && (
+      {loyaltyEnabled && breakdown.pointsEarned > 0 && (
         <View style={styles.loyaltyRow}>
           <MaterialCommunityIcons name="star-four-points" size={14} color={COLORS.primary} />
           <Text style={styles.loyaltyText}>

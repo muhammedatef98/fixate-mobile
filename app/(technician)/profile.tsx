@@ -1,40 +1,63 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, Animated, StatusBar, Alert } from 'react-native';
-import { useRouter } from 'expo-router';
-import { MaterialIcons, Ionicons } from '@expo/vector-icons';
+import {
+  View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView,
+  Animated, StatusBar, Alert, Switch, ActivityIndicator, RefreshControl,
+} from 'react-native';
+import { useRouter, useFocusEffect } from 'expo-router';
+import { MaterialIcons, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useApp } from '../../contexts/AppContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { RTLIonicon } from '../../components/RTLIcon';
-import { getColors, getShadows, BORDER_RADIUS } from '../../constants/theme';
+import { getColors, getShadows, BORDER_RADIUS, SPACING } from '../../constants/theme';
 import { PressableScale } from '../../components/ui/PressableScale';
 import { supabase } from '../../services/supabaseClient';
-import { getTechnicianRating } from '../../services/reviewService';
+import { getTechnicianRating, listTechnicianReviews, type TechnicianReview } from '../../services/reviewService';
+import { getWalletBalance } from '../../services/walletService';
 import Avatar from '../../components/Avatar';
+import { logger } from '../../utils/logger';
+import { TECH_NAV_HEIGHT } from '../../components/BottomNavTech';
 
+/**
+ * Technician profile — the "me" hub.
+ *
+ * This is the destination for everything personal/operational that the
+ * three other tabs (Home / Requests / Jobs) shouldn't carry. New sections
+ * live here intentionally:
+ *
+ *   1. Status toggle  — overall availability for repair work
+ *   2. Stats row      — completed jobs, rating, years of experience
+ *   3. Earnings & Commission — wallet balance + commission % breakdown,
+ *                       link to the full earnings history screen
+ *   4. Ratings & Reviews — average + count + recent reviews, READ-ONLY
+ *   5. Menu items    — existing routes preserved (completed jobs, service
+ *                       availability, earnings history, skills, notifications,
+ *                       settings, support)
+ *   6. Sign out
+ *
+ * Ratings rendering is strictly read-only — there is no edit, delete or
+ * report affordance for the technician, by design.
+ */
 export default function TechnicianProfile() {
   const router = useRouter();
   const { language, isDark } = useApp();
   const isRTL = language === 'ar';
-  const themeColors = getColors(isDark);
-
-  const COLORS = {
-    primary: themeColors.primary,
-    background: themeColors.background,
-    card: themeColors.card,
-    text: themeColors.text,
-    textSecondary: themeColors.textSecondary,
-    border: themeColors.border,
-    white: themeColors.card,
-    cardAlt: themeColors.cardAlt,
-    primarySoft: themeColors.primarySoft,
-    errorSoft: themeColors.errorSoft,
-    danger: themeColors.error,
-  };
+  const C = getColors(isDark);
+  const SHADOWS = getShadows(isDark);
+  const styles = createStyles(C, isRTL, SHADOWS);
 
   const { user: authUser, userProfile, signOut } = useAuth();
-  const [stats, setStats] = useState<{ total: number; completed: number; rating: number; ratingCount: number; years: number }>({
-    total: 0, completed: 0, rating: 0, ratingCount: 0, years: 0,
-  });
+
+  const [stats, setStats] = useState<{
+    total: number; completed: number; cancelled: number;
+    rating: number; ratingCount: number; years: number;
+  }>({ total: 0, completed: 0, cancelled: 0, rating: 0, ratingCount: 0, years: 0 });
+  const [reviews, setReviews] = useState<TechnicianReview[]>([]);
+  const [wallet, setWallet] = useState<{ balance: number; pendingBackend: boolean }>({ balance: 0, pendingBackend: true });
+  const [isAvailable, setIsAvailable] = useState(true);
+  const [togglingAvailability, setTogglingAvailability] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(20)).current;
 
@@ -43,24 +66,73 @@ export default function TechnicianProfile() {
       Animated.timing(fadeAnim, { toValue: 1, duration: 300, useNativeDriver: true }),
       Animated.timing(slideAnim, { toValue: 0, duration: 300, useNativeDriver: true }),
     ]).start();
-    loadStats();
-  }, [authUser?.id]);
+  }, []);
 
-  const loadStats = async () => {
+  const load = async () => {
+    if (!authUser?.id) { setLoading(false); return; }
+    try {
+      const [
+        { count: total },
+        { count: completed },
+        { count: cancelled },
+        { data: tech },
+        ratingSummary,
+        recentReviews,
+        bal,
+      ] = await Promise.all([
+        supabase.from('orders').select('*', { count: 'exact', head: true }).eq('technician_id', authUser.id),
+        supabase.from('orders').select('*', { count: 'exact', head: true }).eq('technician_id', authUser.id).eq('status', 'completed'),
+        supabase.from('orders').select('*', { count: 'exact', head: true }).eq('technician_id', authUser.id).eq('status', 'cancelled'),
+        supabase.from('technicians').select('years_of_experience, is_available').eq('user_id', authUser.id).maybeSingle(),
+        getTechnicianRating(authUser.id),
+        listTechnicianReviews(authUser.id, 6),
+        getWalletBalance(authUser.id),
+      ]);
+
+      setStats({
+        total: total ?? 0,
+        completed: completed ?? 0,
+        cancelled: cancelled ?? 0,
+        rating: Number(ratingSummary?.average_rating ?? 0),
+        ratingCount: Number(ratingSummary?.rating_count ?? 0),
+        years: Number(tech?.years_of_experience ?? 0),
+      });
+      setReviews(recentReviews);
+      setWallet(bal);
+      if (tech && typeof tech.is_available === 'boolean') setIsAvailable(tech.is_available);
+    } catch (e) {
+      logger.warn('profile load failed', e);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  useEffect(() => { load(); }, [authUser?.id]);
+
+  // Re-read on focus so values stay fresh when the technician comes back
+  // from a job completion or an earnings withdrawal.
+  useFocusEffect(
+    React.useCallback(() => {
+      load();
+    }, [authUser?.id])
+  );
+
+  const toggleAvailability = async (next: boolean) => {
     if (!authUser?.id) return;
-    const [{ count: total }, { count: completed }, { data: tech }, ratingSummary] = await Promise.all([
-      supabase.from('orders').select('*', { count: 'exact', head: true }).eq('technician_id', authUser.id),
-      supabase.from('orders').select('*', { count: 'exact', head: true }).eq('technician_id', authUser.id).eq('status', 'completed'),
-      supabase.from('technicians').select('years_of_experience').eq('user_id', authUser.id).maybeSingle(),
-      getTechnicianRating(authUser.id),
-    ]);
-    setStats({
-      total: total ?? 0,
-      completed: completed ?? 0,
-      rating: Number(ratingSummary?.average_rating ?? 0),
-      ratingCount: Number(ratingSummary?.rating_count ?? 0),
-      years: Number(tech?.years_of_experience ?? 0),
-    });
+    setIsAvailable(next); // optimistic
+    setTogglingAvailability(true);
+    try {
+      const { error } = await supabase
+        .from('technicians')
+        .update({ is_available: next })
+        .eq('user_id', authUser.id);
+      if (error) logger.warn('availability not persisted (backend pending)', error);
+    } catch (e) {
+      logger.warn('toggleAvailability recorded locally only', e);
+    } finally {
+      setTogglingAvailability(false);
+    }
   };
 
   const handleLogout = () => {
@@ -78,44 +150,93 @@ export default function TechnicianProfile() {
   };
 
   const MENU_ITEMS = [
-    { id: 'my-orders', icon: 'clipboard-outline', labelAr: 'طلباتي المكتملة', labelEn: 'Completed Jobs' },
-    { id: 'availability', icon: 'toggle-outline', labelAr: 'الخدمات المتاحة', labelEn: 'Service Availability' },
-    { id: 'earnings', icon: 'wallet-outline', labelAr: 'سجل الأرباح', labelEn: 'Earnings History' },
-    { id: 'skills', icon: 'construct-outline', labelAr: 'المهارات والخبرات', labelEn: 'Skills & Experience' },
-    { id: 'notifications', icon: 'notifications-outline', labelAr: 'الإشعارات', labelEn: 'Notifications' },
-    { id: 'settings', icon: 'settings-outline', labelAr: 'الإعدادات', labelEn: 'Settings' },
-    { id: 'help', icon: 'help-circle-outline', labelAr: 'الدعم الفني', labelEn: 'Tech Support' },
+    { id: 'my-orders',     icon: 'clipboard-outline',     labelAr: 'طلباتي المكتملة',     labelEn: 'Completed Jobs' },
+    { id: 'availability',  icon: 'toggle-outline',        labelAr: 'الخدمات المتاحة',     labelEn: 'Service Availability' },
+    { id: 'earnings',      icon: 'wallet-outline',        labelAr: 'سجل الأرباح الكامل', labelEn: 'Full Earnings History' },
+    { id: 'skills',        icon: 'construct-outline',     labelAr: 'المهارات والخبرات',  labelEn: 'Skills & Experience' },
+    { id: 'notifications', icon: 'notifications-outline', labelAr: 'الإشعارات',          labelEn: 'Notifications' },
+    { id: 'settings',      icon: 'settings-outline',      labelAr: 'الإعدادات',           labelEn: 'Settings' },
+    { id: 'help',          icon: 'help-circle-outline',   labelAr: 'الدعم الفني',        labelEn: 'Tech Support' },
   ];
 
-  const SHADOWS = getShadows(isDark);
-  const styles = createStyles(COLORS, isRTL, SHADOWS);
+  const fmt = (n: number) => n.toLocaleString(isRTL ? 'ar-EG' : 'en-US', { maximumFractionDigits: 0 });
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={COLORS.white} />
-      
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={C.background} />
+
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>{isRTL ? 'ملف الفني' : 'Tech Profile'}</Text>
+        <Text style={styles.headerTitle}>{isRTL ? 'ملف الفني' : 'My Profile'}</Text>
+        <TouchableOpacity
+          onPress={() => router.push('/settings')}
+          accessibilityRole="button"
+          accessibilityLabel={isRTL ? 'الإعدادات' : 'Settings'}
+          style={styles.headerActionBtn}
+        >
+          <Ionicons name="settings-outline" size={18} color={C.text} />
+        </TouchableOpacity>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: TECH_NAV_HEIGHT + 24 }]}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => { setRefreshing(true); load(); }}
+            tintColor={C.primary}
+          />
+        }
+      >
         <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
-          {/* Profile Header Card */}
+
+          {/* ── Identity card with status toggle ─────────────────── */}
           <View style={styles.profileCard}>
             <View style={styles.avatarContainer}>
               <Avatar
                 name={userProfile?.name}
                 uri={userProfile?.avatar_url}
-                size={100}
+                size={96}
                 style={styles.avatar}
               />
               <View style={styles.verifiedBadge}>
-                <MaterialIcons name="verified" size={18} color="#fff" />
+                <MaterialIcons name="verified" size={16} color="#fff" />
               </View>
             </View>
-            <Text style={styles.userName}>{userProfile?.name || (isRTL ? 'فني معتمد' : 'Certified Tech')}</Text>
-            <Text style={styles.userEmail}>{userProfile?.email || authUser?.email || (isRTL ? 'فني صيانة' : 'Repair Technician')}</Text>
-            
+            <Text style={styles.userName}>
+              {userProfile?.name || (isRTL ? 'فني معتمد' : 'Certified Tech')}
+            </Text>
+            <Text style={styles.userEmail}>
+              {userProfile?.email || authUser?.email || (isRTL ? 'فني صيانة' : 'Repair Technician')}
+            </Text>
+
+            {/* Availability toggle — single source of truth for the technician's
+                "open for work" status. Same write as the Home dashboard so the
+                two stay in sync. */}
+            <View style={styles.statusRow}>
+              <View
+                style={[
+                  styles.statusDot,
+                  { backgroundColor: isAvailable ? C.success : C.textLight },
+                ]}
+              />
+              <Text style={[styles.statusLabel, { color: isAvailable ? C.success : C.textSecondary }]}>
+                {isAvailable
+                  ? (isRTL ? 'متاح لاستلام طلبات' : 'Available for work')
+                  : (isRTL ? 'غير متاح حالياً' : 'Off duty')}
+              </Text>
+              <View style={{ flex: 1 }} />
+              <Switch
+                value={isAvailable}
+                onValueChange={toggleAvailability}
+                disabled={togglingAvailability}
+                trackColor={{ false: C.border, true: C.primarySoft }}
+                thumbColor={isAvailable ? C.primary : C.card}
+              />
+            </View>
+
+            {/* Stats row — preserved fields. Cancellations added as a quiet
+                operational signal for the technician's own awareness. */}
             <View style={styles.statsRow}>
               <View style={styles.statItem}>
                 <Text style={styles.statValue}>{stats.completed}</Text>
@@ -134,69 +255,444 @@ export default function TechnicianProfile() {
               </View>
               <View style={styles.statDivider} />
               <View style={styles.statItem}>
-                <Text style={styles.statValue}>{stats.years > 0 ? `+${stats.years}` : '—'}</Text>
+                <Text style={styles.statValue}>
+                  {stats.years > 0 ? `+${stats.years}` : '—'}
+                </Text>
                 <Text style={styles.statLabel}>{isRTL ? 'سنة' : 'Years'}</Text>
               </View>
             </View>
           </View>
 
-          {/* Menu Items */}
+          {/* ── Earnings (simple) ───────────────────────────────────
+              Per the latest direction the technician profile no longer
+              surfaces commission percentages, gross/net splits, or
+              withdrawal-request flows. A single quiet card states the
+              earnings total; the underlying earnings page still exists
+              as a read-only history but is reached through the menu, not
+              promoted with financial-admin chrome. */}
+          <SectionLabel
+            icon="cash-multiple"
+            text={isRTL ? 'الأرباح' : 'Earnings'}
+            COLORS={C}
+            isRTL={isRTL}
+            actionLabel={isRTL ? 'السجل' : 'History'}
+            onAction={() => router.push('/(technician)/earnings')}
+          />
+          <TouchableOpacity
+            onPress={() => router.push('/(technician)/earnings')}
+            activeOpacity={0.9}
+            style={styles.earningsCard}
+            accessibilityRole="button"
+          >
+            <View style={{ flex: 1 }}>
+              <Text style={styles.earningsLabel}>
+                {isRTL ? 'إجمالي الأرباح' : 'Total earnings'}
+              </Text>
+              {loading ? (
+                <ActivityIndicator color="#fff" style={{ alignSelf: isRTL ? 'flex-end' : 'flex-start', marginTop: 6 }} />
+              ) : (
+                <Text style={styles.earningsValue}>
+                  {fmt(wallet.balance)} {isRTL ? 'ر.س' : 'SAR'}
+                </Text>
+              )}
+              <Text style={styles.earningsHint}>
+                {isRTL ? 'اضغط لعرض السجل' : 'Tap to view history'}
+              </Text>
+            </View>
+            <MaterialCommunityIcons name="cash-multiple" size={38} color="rgba(255,255,255,0.35)" />
+          </TouchableOpacity>
+
+          {/* ── Ratings & Reviews (read-only) ─────────────────────── */}
+          <SectionLabel
+            icon="star-outline"
+            text={isRTL ? 'التقييمات والمراجعات' : 'Ratings & Reviews'}
+            COLORS={C}
+            isRTL={isRTL}
+            hint={isRTL ? 'للعرض فقط' : 'Read-only'}
+          />
+          <View style={styles.ratingHeroCard}>
+            <View style={styles.ratingHeroLeft}>
+              <Text style={styles.ratingBig}>
+                {stats.rating > 0 ? stats.rating.toFixed(1) : '—'}
+              </Text>
+              <View style={styles.starsRow}>
+                {[1, 2, 3, 4, 5].map((n) => {
+                  const filled = n <= Math.round(stats.rating);
+                  return (
+                    <Ionicons
+                      key={n}
+                      name={filled ? 'star' : 'star-outline'}
+                      size={14}
+                      color={filled ? '#F59E0B' : C.textLight}
+                      style={{ marginHorizontal: 1 }}
+                    />
+                  );
+                })}
+              </View>
+              <Text style={styles.ratingCount}>
+                {stats.ratingCount > 0
+                  ? (isRTL
+                      ? `بناءً على ${stats.ratingCount} تقييم`
+                      : `Based on ${stats.ratingCount} review${stats.ratingCount === 1 ? '' : 's'}`)
+                  : (isRTL ? 'لا توجد تقييمات بعد' : 'No reviews yet')}
+              </Text>
+            </View>
+            <View style={styles.readOnlyChip}>
+              <Ionicons name="lock-closed-outline" size={11} color={C.textSecondary} />
+              <Text style={styles.readOnlyChipText}>
+                {isRTL ? 'عرض فقط' : 'View only'}
+              </Text>
+            </View>
+          </View>
+
+          {/* Recent reviews — read-only. Deliberately NO edit/delete/report
+              affordances; the only way a review changes is via the customer
+              who wrote it. */}
+          {reviews.length > 0 ? (
+            <View style={{ gap: 10, marginTop: 4 }}>
+              {reviews.map((r) => (
+                <View key={r.id} style={styles.reviewCard}>
+                  <View style={styles.reviewTop}>
+                    <Text style={styles.reviewName} numberOfLines={1}>
+                      {r.customer_name || (isRTL ? 'عميل' : 'Customer')}
+                    </Text>
+                    <View style={styles.reviewStars}>
+                      {[1, 2, 3, 4, 5].map((n) => (
+                        <Ionicons
+                          key={n}
+                          name={n <= r.rating ? 'star' : 'star-outline'}
+                          size={12}
+                          color={n <= r.rating ? '#F59E0B' : C.textLight}
+                        />
+                      ))}
+                    </View>
+                  </View>
+                  {r.comment ? (
+                    <Text style={styles.reviewComment} numberOfLines={4}>
+                      {r.comment}
+                    </Text>
+                  ) : (
+                    <Text style={[styles.reviewComment, { fontStyle: 'italic', color: C.textLight }]}>
+                      {isRTL ? 'لم يترك العميل تعليقاً' : 'No written comment'}
+                    </Text>
+                  )}
+                  {r.created_at ? (
+                    <Text style={styles.reviewDate}>
+                      {new Date(r.created_at).toLocaleDateString(isRTL ? 'ar-SA' : 'en-GB', {
+                        year: 'numeric', month: 'short', day: '2-digit',
+                      })}
+                    </Text>
+                  ) : null}
+                </View>
+              ))}
+            </View>
+          ) : !loading ? (
+            <View style={styles.emptyReviews}>
+              <MaterialCommunityIcons name="star-outline" size={36} color={C.textLight} />
+              <Text style={styles.emptyReviewsText}>
+                {isRTL
+                  ? 'ستظهر تقييمات العملاء هنا بعد إتمام أول طلب'
+                  : 'Customer reviews appear here after you complete your first job'}
+              </Text>
+            </View>
+          ) : null}
+
+          {/* ── Menu items ────────────────────────────────────────── */}
+          <SectionLabel
+            icon="cog-outline"
+            text={isRTL ? 'الحساب والإعدادات' : 'Account & Settings'}
+            COLORS={C}
+            isRTL={isRTL}
+          />
           <View style={styles.menuSection}>
-            {MENU_ITEMS.map((item) => (
-              <PressableScale key={item.id} to={0.985} style={styles.menuItem} onPress={() => {
-                if (item.id === 'availability') router.push('/(technician)/service-availability');
-                else if (item.id === 'earnings') router.push('/(technician)/earnings');
-                else if (item.id === 'my-orders') router.push('/(technician)/my-orders');
-                else if (item.id === 'notifications') router.push('/notifications-settings');
-                else if (item.id === 'settings') router.push('/settings');
-                else if (item.id === 'help') router.push('/contact');
-                else if (item.id === 'skills') router.push('/technician-onboarding');
-              }}>
+            {MENU_ITEMS.map((item, idx) => (
+              <PressableScale
+                key={item.id}
+                to={0.985}
+                style={
+                  idx === MENU_ITEMS.length - 1
+                    ? [styles.menuItem, { borderBottomWidth: 0 }]
+                    : styles.menuItem
+                }
+                onPress={() => {
+                  if (item.id === 'availability') router.push('/(technician)/service-availability');
+                  else if (item.id === 'earnings') router.push('/(technician)/earnings');
+                  else if (item.id === 'my-orders') router.push('/(technician)/my-orders');
+                  else if (item.id === 'notifications') router.push('/notifications-settings');
+                  else if (item.id === 'settings') router.push('/settings');
+                  else if (item.id === 'help') router.push('/contact');
+                  else if (item.id === 'skills') router.push('/technician-onboarding');
+                }}
+              >
                 <View style={styles.menuItemLeft}>
                   <View style={styles.menuIconContainer}>
-                    <Ionicons name={item.icon as any} size={22} color={COLORS.text} />
+                    <Ionicons name={item.icon as any} size={20} color={C.text} />
                   </View>
                   <Text style={styles.menuLabel}>{isRTL ? item.labelAr : item.labelEn}</Text>
                 </View>
-                <RTLIonicon name="chevron-forward" size={18} color={COLORS.textSecondary} />
+                <RTLIonicon name="chevron-forward" size={18} color={C.textSecondary} />
               </PressableScale>
             ))}
           </View>
 
-          {/* Logout Button */}
+          {/* Logout */}
           <PressableScale to={0.985} style={styles.logoutButton} onPress={handleLogout}>
-            <Ionicons name="log-out-outline" size={22} color={COLORS.danger} />
+            <Ionicons name="log-out-outline" size={22} color={C.error} />
             <Text style={styles.logoutText}>{isRTL ? 'تسجيل الخروج' : 'Logout'}</Text>
           </PressableScale>
         </Animated.View>
-        
-        <View style={{ height: 100 }} />
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-const createStyles = (COLORS: any, isRTL: boolean, SHADOWS: any) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.background },
-  header: { paddingHorizontal: 16, paddingVertical: 14, alignItems: isRTL ? 'flex-end' : 'flex-start', justifyContent: 'center', backgroundColor: COLORS.background },
-  headerTitle: { fontSize: 22, fontWeight: '800', color: COLORS.text },
-  scrollContent: { padding: 16 },
-  profileCard: { backgroundColor: COLORS.white, borderRadius: BORDER_RADIUS.xxl, padding: 24, alignItems: 'center', marginBottom: 24, ...SHADOWS.small },
-  avatarContainer: { position: 'relative', marginBottom: 16 },
-  avatar: { borderWidth: 4, borderColor: COLORS.primarySoft },
-  verifiedBadge: { position: 'absolute', bottom: 0, right: 0, width: 28, height: 28, borderRadius: 14, backgroundColor: COLORS.primary, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: COLORS.white },
-  userName: { fontSize: 22, fontWeight: 'bold', color: COLORS.text },
-  userEmail: { fontSize: 14, color: COLORS.textSecondary, marginTop: 4 },
-  statsRow: { flexDirection: isRTL ? 'row-reverse' : 'row', marginTop: 24, width: '100%', justifyContent: 'space-around', paddingTop: 20, borderTopWidth: 1, borderTopColor: COLORS.border },
-  statItem: { alignItems: 'center' },
-  statValue: { fontSize: 20, fontWeight: 'bold', color: COLORS.primary },
-  statLabel: { fontSize: 12, color: COLORS.textSecondary, marginTop: 4 },
-  statDivider: { width: 1, height: 30, backgroundColor: COLORS.border },
-  menuSection: { backgroundColor: COLORS.white, borderRadius: BORDER_RADIUS.md, padding: 6, marginBottom: 24, ...SHADOWS.small },
-  menuItem: { flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, borderBottomWidth: 1, borderBottomColor: COLORS.border },
-  menuItemLeft: { flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 16 },
-  menuIconContainer: { width: 40, height: 40, borderRadius: 12, backgroundColor: COLORS.cardAlt, justifyContent: 'center', alignItems: 'center' },
-  menuLabel: { fontSize: 16, fontWeight: '600', color: COLORS.text },
-  logoutButton: { flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', justifyContent: 'center', gap: 12, minHeight: 52, backgroundColor: COLORS.errorSoft, borderRadius: BORDER_RADIUS.md, marginBottom: 24 },
-  logoutText: { fontSize: 16, fontWeight: 'bold', color: COLORS.danger },
-});
+/* ─────────────────────────────────────────────────────── section label */
+function SectionLabel({
+  icon, text, COLORS, isRTL, hint, actionLabel, onAction,
+}: any) {
+  return (
+    <View
+      style={{
+        flexDirection: isRTL ? 'row-reverse' : 'row',
+        alignItems: 'center',
+        gap: 8,
+        marginTop: 22,
+        marginBottom: 10,
+      }}
+    >
+      <MaterialCommunityIcons name={icon} size={16} color={COLORS.textSecondary} />
+      <Text
+        style={{
+          flex: 1,
+          color: COLORS.textSecondary,
+          fontSize: 12,
+          fontWeight: '800',
+          letterSpacing: 1,
+          textTransform: 'uppercase',
+          textAlign: isRTL ? 'right' : 'left',
+        }}
+      >
+        {text}
+      </Text>
+      {hint ? (
+        <View
+          style={{
+            paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999,
+            backgroundColor: COLORS.cardAlt,
+          }}
+        >
+          <Text style={{ color: COLORS.textSecondary, fontSize: 10, fontWeight: '800' }}>
+            {hint}
+          </Text>
+        </View>
+      ) : null}
+      {actionLabel ? (
+        <TouchableOpacity onPress={onAction} hitSlop={8}>
+          <Text style={{ color: COLORS.primary, fontSize: 12, fontWeight: '800' }}>
+            {actionLabel}
+          </Text>
+        </TouchableOpacity>
+      ) : null}
+    </View>
+  );
+}
+
+const createStyles = (C: any, isRTL: boolean, SHADOWS: any) =>
+  StyleSheet.create({
+    container: { flex: 1, backgroundColor: C.background },
+    header: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center', justifyContent: 'space-between',
+      paddingHorizontal: 16, paddingVertical: 14,
+      backgroundColor: C.background,
+    },
+    headerTitle: { fontSize: 22, fontWeight: '800', color: C.text, letterSpacing: -0.3 },
+    headerActionBtn: {
+      width: 36, height: 36, borderRadius: 18,
+      alignItems: 'center', justifyContent: 'center',
+      backgroundColor: C.card, borderWidth: 1, borderColor: C.border,
+    },
+    scrollContent: { padding: 16 },
+
+    /* Identity card */
+    profileCard: {
+      backgroundColor: C.card,
+      borderRadius: BORDER_RADIUS.xxl,
+      padding: 22,
+      alignItems: 'center',
+      borderWidth: 1, borderColor: C.border,
+      ...SHADOWS.small,
+    },
+    avatarContainer: { position: 'relative', marginBottom: 14 },
+    avatar: { borderWidth: 4, borderColor: C.primarySoft },
+    verifiedBadge: {
+      position: 'absolute', bottom: 0,
+      right: isRTL ? undefined : 0, left: isRTL ? 0 : undefined,
+      width: 28, height: 28, borderRadius: 14,
+      backgroundColor: C.primary,
+      justifyContent: 'center', alignItems: 'center',
+      borderWidth: 2, borderColor: C.card,
+    },
+    userName: { fontSize: 21, fontWeight: '800', color: C.text, letterSpacing: -0.3 },
+    userEmail: { fontSize: 13, color: C.textSecondary, marginTop: 3 },
+
+    statusRow: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center', gap: 8,
+      marginTop: 16, paddingTop: 14,
+      width: '100%',
+      borderTopWidth: 1, borderTopColor: C.border,
+    },
+    statusDot: { width: 8, height: 8, borderRadius: 4 },
+    statusLabel: { fontSize: 13, fontWeight: '700' },
+
+    statsRow: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      marginTop: 14, width: '100%',
+      justifyContent: 'space-around',
+      paddingTop: 14,
+      borderTopWidth: 1, borderTopColor: C.border,
+    },
+    statItem: { alignItems: 'center' },
+    statValue: { fontSize: 19, fontWeight: '900', color: C.primary, letterSpacing: -0.3 },
+    statLabel: { fontSize: 11.5, color: C.textSecondary, marginTop: 4, fontWeight: '600' },
+    statDivider: { width: 1, height: 30, backgroundColor: C.border },
+
+    /* Earnings */
+    earningsCard: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
+      gap: 12,
+      backgroundColor: C.primary,
+      borderRadius: BORDER_RADIUS.lg,
+      padding: 18,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 6 },
+      shadowOpacity: 0.18,
+      shadowRadius: 14,
+      elevation: 4,
+    },
+    earningsLabel: { color: 'rgba(255,255,255,0.85)', fontSize: 12, fontWeight: '700',
+      textAlign: isRTL ? 'right' : 'left' },
+    earningsValue: { color: '#fff', fontSize: 26, fontWeight: '900', marginTop: 3, letterSpacing: -0.5,
+      textAlign: isRTL ? 'right' : 'left' },
+    earningsHint: { color: 'rgba(255,255,255,0.7)', fontSize: 11, marginTop: 4, fontWeight: '600',
+      textAlign: isRTL ? 'right' : 'left' },
+
+    commissionGrid: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      gap: 10,
+      marginTop: 10,
+    },
+    commissionTile: {
+      flex: 1,
+      backgroundColor: C.card,
+      borderRadius: BORDER_RADIUS.md,
+      borderWidth: 1, borderColor: C.border,
+      padding: 12,
+      gap: 6,
+    },
+    commissionIcon: {
+      width: 32, height: 32, borderRadius: 10,
+      alignItems: 'center', justifyContent: 'center',
+    },
+    commissionTileLabel: { color: C.textSecondary, fontSize: 11, fontWeight: '700',
+      textAlign: isRTL ? 'right' : 'left' },
+    commissionTileValue: { color: C.text, fontSize: 15, fontWeight: '800',
+      textAlign: isRTL ? 'right' : 'left' },
+
+    earningsLinkBtn: {
+      marginTop: 10,
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center', gap: 8,
+      paddingVertical: 12, paddingHorizontal: 14,
+      borderRadius: BORDER_RADIUS.md,
+      backgroundColor: C.primarySoft,
+    },
+    earningsLinkText: { flex: 1, color: C.primary, fontWeight: '800', fontSize: 13,
+      textAlign: isRTL ? 'right' : 'left' },
+
+    /* Ratings */
+    ratingHeroCard: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
+      backgroundColor: C.card,
+      borderRadius: BORDER_RADIUS.lg,
+      borderWidth: 1, borderColor: C.border,
+      padding: 16,
+      gap: 12,
+      ...SHADOWS.small,
+    },
+    ratingHeroLeft: { flex: 1, alignItems: isRTL ? 'flex-end' : 'flex-start', gap: 4 },
+    ratingBig: { color: C.text, fontSize: 36, fontWeight: '900', letterSpacing: -1.2, lineHeight: 40 },
+    starsRow: { flexDirection: isRTL ? 'row-reverse' : 'row' },
+    ratingCount: { color: C.textSecondary, fontSize: 12, fontWeight: '700' },
+    readOnlyChip: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center', gap: 4,
+      paddingHorizontal: 9, paddingVertical: 5,
+      borderRadius: 999, backgroundColor: C.cardAlt,
+    },
+    readOnlyChipText: { color: C.textSecondary, fontSize: 10.5, fontWeight: '800' },
+
+    reviewCard: {
+      backgroundColor: C.card,
+      borderRadius: BORDER_RADIUS.md,
+      borderWidth: 1, borderColor: C.border,
+      padding: 12,
+      gap: 6,
+    },
+    reviewTop: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center', gap: 8,
+    },
+    reviewName: { flex: 1, color: C.text, fontWeight: '800', fontSize: 13.5,
+      textAlign: isRTL ? 'right' : 'left' },
+    reviewStars: { flexDirection: isRTL ? 'row-reverse' : 'row' },
+    reviewComment: { color: C.textSecondary, fontSize: 13, lineHeight: 19,
+      textAlign: isRTL ? 'right' : 'left' },
+    reviewDate: { color: C.textLight, fontSize: 11, fontWeight: '600', marginTop: 2,
+      textAlign: isRTL ? 'right' : 'left' },
+
+    emptyReviews: {
+      alignItems: 'center', justifyContent: 'center', gap: 8,
+      padding: 24,
+      backgroundColor: C.card,
+      borderRadius: BORDER_RADIUS.md,
+      borderWidth: 1, borderColor: C.border,
+      borderStyle: 'dashed',
+    },
+    emptyReviewsText: { color: C.textSecondary, fontSize: 12.5, textAlign: 'center', lineHeight: 18 },
+
+    /* Menu */
+    menuSection: {
+      backgroundColor: C.card,
+      borderRadius: BORDER_RADIUS.md,
+      paddingHorizontal: 6,
+      borderWidth: 1, borderColor: C.border,
+      ...SHADOWS.small,
+    },
+    menuItem: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center', justifyContent: 'space-between',
+      paddingVertical: 14, paddingHorizontal: 10,
+      borderBottomWidth: 1, borderBottomColor: C.border,
+    },
+    menuItemLeft: { flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 14 },
+    menuIconContainer: {
+      width: 38, height: 38, borderRadius: 11,
+      backgroundColor: C.cardAlt,
+      justifyContent: 'center', alignItems: 'center',
+    },
+    menuLabel: { fontSize: 14.5, fontWeight: '700', color: C.text },
+
+    logoutButton: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center', justifyContent: 'center', gap: 12,
+      minHeight: 52,
+      backgroundColor: C.errorSoft,
+      borderRadius: BORDER_RADIUS.md,
+      marginTop: 22,
+    },
+    logoutText: { fontSize: 15, fontWeight: '800', color: C.error },
+  });

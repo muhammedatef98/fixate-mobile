@@ -59,7 +59,13 @@ export default function ContactScreen() {
         <View style={{ width: 40 }} />
       </View>
 
-      <ScrollView style={styles.content}>
+      <ScrollView
+        style={styles.content}
+        contentContainerStyle={{ paddingBottom: 40 }}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+        showsVerticalScrollIndicator={false}
+      >
         {/* Live chat — primary CTA, opens support-chat with admin */}
         <TouchableOpacity
           onPress={() => router.push('/support-chat')}

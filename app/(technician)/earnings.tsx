@@ -205,24 +205,9 @@ export default function EarningsScreen() {
             </View>
             <MaterialCommunityIcons name="wallet-outline" size={36} color={COLORS.primary} />
           </View>
-          <TouchableOpacity
-            onPress={handleWithdraw}
-            disabled={withdrawing}
-            style={[localStyles.walletBtn, { backgroundColor: COLORS.primary, opacity: withdrawing ? 0.6 : 1 }]}
-            accessibilityRole="button"
-          >
-            <MaterialCommunityIcons name="bank-transfer-out" size={18} color="#fff" />
-            <Text style={localStyles.walletBtnText}>
-              {isRTL ? 'طلب سحب الأرباح' : 'Request payout'}
-            </Text>
-          </TouchableOpacity>
-          {wallet.pendingBackend && (
-            <Text style={[localStyles.walletNote, { color: COLORS.textSecondary }]}>
-              {isRTL
-                ? 'الرصيد مقدّر من الطلبات المكتملة. الربط الكامل بنظام المحفظة قيد التفعيل.'
-                : 'Balance is estimated from completed jobs. Full wallet pipeline is being wired up.'}
-            </Text>
-          )}
+          {/* Withdrawal / payout request flow removed per product direction —
+              the technician earnings surface is intentionally non-admin-style.
+              Payouts are handled out-of-band by the operations team. */}
         </View>
 
         {/* Total Earnings Card */}

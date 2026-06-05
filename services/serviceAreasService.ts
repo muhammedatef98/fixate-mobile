@@ -30,6 +30,15 @@ export interface ServiceCity {
   enabled: boolean;
   delivery_fee: number;
   sort_order: number;
+  // Coverage geometry — optional, populated via admin map editor.
+  // MIGRATION (run manually in Supabase, not auto-applied):
+  //   ALTER TABLE service_area_cities
+  //     ADD COLUMN IF NOT EXISTS center_lat  FLOAT,
+  //     ADD COLUMN IF NOT EXISTS center_lng  FLOAT,
+  //     ADD COLUMN IF NOT EXISTS radius_km   FLOAT;
+  center_lat?: number | null;
+  center_lng?: number | null;
+  radius_km?: number | null;
 }
 
 export interface RegionWithCities extends ServiceRegion {
@@ -98,7 +107,10 @@ export const updateRegion = async (
 
 export const updateCity = async (
   id: string,
-  patch: Partial<Pick<ServiceCity, 'enabled' | 'delivery_fee' | 'sort_order'>>
+  patch: Partial<Pick<
+    ServiceCity,
+    'enabled' | 'delivery_fee' | 'sort_order' | 'center_lat' | 'center_lng' | 'radius_km'
+  >>
 ): Promise<void> => {
   const { error } = await supabase.from('service_area_cities').update(patch).eq('id', id);
   if (error) throw error;

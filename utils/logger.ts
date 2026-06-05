@@ -3,6 +3,8 @@
  * Replaces console.log with environment-aware logging
  */
 
+import { reportError as sentryReportError } from '../services/sentryService';
+
 type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
 interface LogConfig {
@@ -112,9 +114,9 @@ class Logger {
    * Report error to external service (placeholder)
    */
   private reportError(message: string, error?: any): void {
-    // TODO: Implement error reporting service (Sentry, Firebase Crashlytics, etc.)
-    // Example:
-    // Sentry.captureException(error, { extra: { message } });
+    const err =
+      error instanceof Error ? error : new Error(message);
+    sentryReportError(err, { message, originalError: error });
   }
 
   /**
