@@ -23,6 +23,7 @@ import { supabase } from '../services/supabaseClient';
 import ImageViewer from '../components/ImageViewer';
 import { fmtAdminDate, fmtAdminDateTime, fmtAdminNumber } from '../utils/dateFormat';
 import { logger } from '../utils/logger';
+import { resolveStorageUrls } from '../utils/resolveStorageUrls';
 
 const STATUS_META = (s: string, isRTL: boolean): { label: string; color: string } => {
   const map: Record<string, { ar: string; en: string; color: string }> = {
@@ -89,6 +90,9 @@ export default function AdminOrderDetailScreen() {
   const [technicianName, setTechnicianName] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [viewer, setViewer] = useState<{ images: string[]; index: number } | null>(null);
+  const [resolvedMedia, setResolvedMedia] = useState<string[]>([]);
+  const [resolvedBefore, setResolvedBefore] = useState<string[]>([]);
+  const [resolvedAfter, setResolvedAfter] = useState<string[]>([]);
 
   const profileLoaded = userProfile !== null;
   const { isAdmin } = useIsAdmin();
@@ -118,6 +122,15 @@ export default function AdminOrderDetailScreen() {
           .maybeSingle();
         setTechnicianName((tech as any)?.full_name ?? '');
       }
+      // Resolve signed URLs for all photo arrays
+      const [signedMedia, signedBefore, signedAfter] = await Promise.all([
+        resolveStorageUrls(Array.isArray(o?.media_urls) ? o.media_urls : []),
+        resolveStorageUrls(Array.isArray(o?.before_photos) ? o.before_photos : []),
+        resolveStorageUrls(Array.isArray(o?.after_photos) ? o.after_photos : []),
+      ]);
+      setResolvedMedia(signedMedia.filter(Boolean));
+      setResolvedBefore(signedBefore.filter(Boolean));
+      setResolvedAfter(signedAfter.filter(Boolean));
     } catch {
       // non-fatal
     } finally {
@@ -155,9 +168,6 @@ export default function AdminOrderDetailScreen() {
 
   const status = order ? STATUS_META(order.status, isRTL) : null;
   const payStatus = order ? paymentStatusLabel(order.payment_status, isRTL) : null;
-  const beforePhotos: string[] = Array.isArray(order?.before_photos) ? order.before_photos : [];
-  const afterPhotos: string[] = Array.isArray(order?.after_photos) ? order.after_photos : [];
-  const mediaUrls: string[] = Array.isArray(order?.media_urls) ? order.media_urls : [];
 
   return (
     <SafeAreaView style={styles.container}>
@@ -268,7 +278,7 @@ export default function AdminOrderDetailScreen() {
             )}
           </Section>
 
-          {/* Quote / technician notes */}
+          {/* Technician notes */}
           {(!!order.quote_notes || !!order.technician_notes) && (
             <Section title={isRTL ? 'ملاحظات الفني' : 'Technician notes'} icon="note-text-outline" COLORS={COLORS} isRTL={isRTL}>
               {!!order.quote_notes && (
@@ -280,28 +290,28 @@ export default function AdminOrderDetailScreen() {
             </Section>
           )}
 
-          {/* Photos */}
-          {mediaUrls.length > 0 && (
+          {/* Photos — all using resolved signed URLs */}
+          {resolvedMedia.length > 0 && (
             <PhotoSection
               title={isRTL ? 'صور العميل' : 'Customer photos'}
-              photos={mediaUrls}
-              onOpen={(i: number) => setViewer({ images: mediaUrls, index: i })}
+              photos={resolvedMedia}
+              onOpen={(i: number) => setViewer({ images: resolvedMedia, index: i })}
               COLORS={COLORS} isRTL={isRTL} styles={styles}
             />
           )}
-          {beforePhotos.length > 0 && (
+          {resolvedBefore.length > 0 && (
             <PhotoSection
               title={isRTL ? 'صور قبل الإصلاح' : 'Before-repair photos'}
-              photos={beforePhotos}
-              onOpen={(i: number) => setViewer({ images: beforePhotos, index: i })}
+              photos={resolvedBefore}
+              onOpen={(i: number) => setViewer({ images: resolvedBefore, index: i })}
               COLORS={COLORS} isRTL={isRTL} styles={styles}
             />
           )}
-          {afterPhotos.length > 0 && (
+          {resolvedAfter.length > 0 && (
             <PhotoSection
               title={isRTL ? 'صور بعد الإصلاح' : 'After-repair photos'}
-              photos={afterPhotos}
-              onOpen={(i: number) => setViewer({ images: afterPhotos, index: i })}
+              photos={resolvedAfter}
+              onOpen={(i: number) => setViewer({ images: resolvedAfter, index: i })}
               COLORS={COLORS} isRTL={isRTL} styles={styles}
             />
           )}
@@ -393,12 +403,6 @@ function PhoneRow({ k, phone, isRTL, styles, COLORS }: any) {
 }
 
 function PhotoSection({ title, photos, onOpen, COLORS, isRTL, styles }: any) {
-  // Tile-with-error-state: tracks per-image load failure so the admin sees
-  // a clear "couldn't load" placeholder instead of an empty grey box.
-  // Previously, ScrollView received a `flexDirection` on its `style` prop —
-  // RN ignores layout direction overrides on horizontal scrollers and the
-  // images sometimes failed to render. Moved spacing/direction onto the
-  // proper `contentContainerStyle` and made the whole tile a touch target.
   return (
     <Section title={title} icon="image-multiple-outline" COLORS={COLORS} isRTL={isRTL}>
       <ScrollView
