@@ -31,6 +31,7 @@ import ImageViewer from '../../components/ImageViewer';
 import ImagePickerSheet from '../../components/ImagePickerSheet';
 import { supabase } from '../../services/supabaseClient';
 import { uploadOrderMedia } from '../../services/storageService';
+import { resolveStorageUrls } from '../../utils/resolveStorageUrls';
 import {
   startBroadcastingLocation,
   stopBroadcastingLocation,
@@ -71,6 +72,11 @@ export default function ManageOrderScreen() {
   const [savingNotes, setSavingNotes] = useState(false);
   const [beforePhotos, setBeforePhotos] = useState<string[]>([]);
   const [afterPhotos, setAfterPhotos] = useState<string[]>([]);
+  // Signed (display) versions of media / before / after. Raw arrays above
+  // stay as the DB values so upload + delete writes use the original paths.
+  const [resolvedMedia, setResolvedMedia] = useState<string[]>([]);
+  const [resolvedBefore, setResolvedBefore] = useState<string[]>([]);
+  const [resolvedAfter, setResolvedAfter] = useState<string[]>([]);
   const [photoSheetOpen, setPhotoSheetOpen] = useState(false);
   const [photoTarget, setPhotoTarget] = useState<'before' | 'after'>('before');
   const [uploadingPhotos, setUploadingPhotos] = useState(false);
@@ -136,8 +142,19 @@ export default function ManageOrderScreen() {
       }
       if (orderData) {
         setNotesDraft((orderData as any).technician_notes ?? '');
-        setBeforePhotos((orderData as any).before_photos ?? []);
-        setAfterPhotos((orderData as any).after_photos ?? []);
+        const beforeArr: string[] = (orderData as any).before_photos ?? [];
+        const afterArr: string[] = (orderData as any).after_photos ?? [];
+        const mediaArr: string[] = (orderData as any).media_urls ?? [];
+        setBeforePhotos(beforeArr);
+        setAfterPhotos(afterArr);
+        const [rm, rb, ra] = await Promise.all([
+          resolveStorageUrls(mediaArr),
+          resolveStorageUrls(beforeArr),
+          resolveStorageUrls(afterArr),
+        ]);
+        setResolvedMedia(rm);
+        setResolvedBefore(rb);
+        setResolvedAfter(ra);
       }
     } catch (error) {
       logger.error('Error loading order:', error);
@@ -248,6 +265,9 @@ export default function ManageOrderScreen() {
       if (error) throw error;
       if (photoTarget === 'before') setBeforePhotos(next);
       else setAfterPhotos(next);
+      const resolved = await resolveStorageUrls(next);
+      if (photoTarget === 'before') setResolvedBefore(resolved);
+      else setResolvedAfter(resolved);
     } catch (e: any) {
       Alert.alert(isRTL ? 'خطأ' : 'Error', e?.message ?? String(e));
     } finally {
@@ -262,15 +282,21 @@ export default function ManageOrderScreen() {
     // Optimistic — revert on failure.
     if (kind === 'before') setBeforePhotos(next);
     else setAfterPhotos(next);
+    const currentResolved = kind === 'before' ? resolvedBefore : resolvedAfter;
     try {
       const { error } = await supabase
         .from('orders')
         .update({ [column]: next })
         .eq('id', id as string);
       if (error) throw error;
+      const resolved = await resolveStorageUrls(next);
+      if (kind === 'before') setResolvedBefore(resolved);
+      else setResolvedAfter(resolved);
     } catch (e: any) {
       if (kind === 'before') setBeforePhotos(current);
       else setAfterPhotos(current);
+      if (kind === 'before') setResolvedBefore(currentResolved);
+      else setResolvedAfter(currentResolved);
       Alert.alert(isRTL ? 'خطأ' : 'Error', e?.message ?? String(e));
     }
   };
@@ -782,16 +808,16 @@ export default function ManageOrderScreen() {
         </View>
 
         {/* Media — tap any photo to open the in-app full-screen viewer */}
-        {order.media_urls && order.media_urls.length > 0 && (
+        {resolvedMedia.length > 0 && (
           <View style={[styles.card, { backgroundColor: COLORS.card }, SHADOWS.medium]}>
             <Text style={[styles.cardTitle, { color: COLORS.text }]}>
               {isRTL ? 'الصور المرفقة' : 'Attached photos'}
             </Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              {order.media_urls.map((url, index) => (
+              {resolvedMedia.map((url, index) => (
                 <TouchableOpacity
                   key={index}
-                  onPress={() => openPhotoViewer(order.media_urls ?? [], index)}
+                  onPress={() => openPhotoViewer(resolvedMedia, index)}
                   activeOpacity={0.85}
                   style={{ marginRight: 8 }}
                   accessibilityRole="button"
@@ -860,8 +886,8 @@ export default function ManageOrderScreen() {
             {isRTL ? 'صور قبل / بعد الإصلاح' : 'Before / After photos'}
           </Text>
           {([
-            { key: 'before' as const, label: isRTL ? 'قبل الإصلاح' : 'Before repair', photos: beforePhotos },
-            { key: 'after' as const, label: isRTL ? 'بعد الإصلاح' : 'After repair', photos: afterPhotos },
+            { key: 'before' as const, label: isRTL ? 'قبل الإصلاح' : 'Before repair', photos: resolvedBefore, rawPhotos: beforePhotos },
+            { key: 'after' as const, label: isRTL ? 'بعد الإصلاح' : 'After repair', photos: resolvedAfter, rawPhotos: afterPhotos },
           ]).map((group) => (
             <View key={group.key} style={{ marginTop: 12 }}>
               <Text style={{ color: COLORS.textSecondary, fontWeight: '700', fontSize: 13, marginBottom: 6, textAlign: isRTL ? 'right' : 'left' }}>
@@ -901,7 +927,7 @@ export default function ManageOrderScreen() {
                       />
                     </TouchableOpacity>
                     <TouchableOpacity
-                      onPress={() => removePhoto(group.key, url)}
+                      onPress={() => removePhoto(group.key, group.rawPhotos[i])}
                       style={{
                         position: 'absolute',
                         top: -7,
