@@ -1141,9 +1141,9 @@ const createStyles = (C: any, isRTL: boolean) =>
     // squarely in the natural thumb-reach zone for one-handed use.
     fab: {
       position: 'absolute',
-      // Tucked down so it overlaps the upper portion of the tab bar,
-      // visually anchoring with it instead of floating above.
-      bottom: (Platform.OS === 'ios' ? 30 : 20) + 70 - 16,
+      // Dropped deep into the tab bar's vertical zone so it visually
+      // sits ON the bar instead of floating above it.
+      bottom: (Platform.OS === 'ios' ? 30 : 20) + 28,
       ...(isRTL ? { left: 16 } : { right: 16 }),
       flexDirection: isRTL ? 'row-reverse' : 'row',
       alignItems: 'center',
