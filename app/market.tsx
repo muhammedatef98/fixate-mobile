@@ -654,8 +654,10 @@ export default function MarketScreen() {
         accessibilityLabel={isRTL ? 'إضافة إعلان' : 'Post a listing'}
         activeOpacity={0.88}
       >
-        <Ionicons name="add" size={22} color="#fff" />
-        <Text style={styles.fabText}>{isRTL ? 'إعلان' : 'Sell'}</Text>
+        <View style={styles.fabIconWrap}>
+          <Ionicons name="add" size={16} color="#fff" />
+        </View>
+        <Text style={styles.fabText}>{isRTL ? 'إعلان جديد' : 'Sell'}</Text>
       </AnimatedTouchable>
 
       {/* Module-level bottom tab bar — anchors the screen, replaces the
@@ -1139,23 +1141,34 @@ const createStyles = (C: any, isRTL: boolean) =>
     // squarely in the natural thumb-reach zone for one-handed use.
     fab: {
       position: 'absolute',
-      // Sits just above the floating Market tab bar so it stays in the
-      // natural thumb zone without ever overlapping the tabs.
-      bottom: (Platform.OS === 'ios' ? 30 : 20) + 70 + 4,
-      ...(isRTL ? { left: 18 } : { right: 18 }),
+      // Hugs the top edge of the floating tab bar with a 2px breathing
+      // gap — close enough to read as paired with the tabs, far enough
+      // not to visually crash into them.
+      bottom: (Platform.OS === 'ios' ? 30 : 20) + 70 - 22,
+      ...(isRTL ? { left: 16 } : { right: 16 }),
       flexDirection: isRTL ? 'row-reverse' : 'row',
       alignItems: 'center',
-      gap: 6,
+      gap: 7,
       paddingHorizontal: 16,
-      paddingVertical: 12,
+      paddingVertical: 11,
       borderRadius: 999,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 6 },
-      shadowOpacity: 0.18,
-      shadowRadius: 14,
-      elevation: 6,
+      borderWidth: 2,
+      borderColor: 'rgba(255,255,255,0.35)',
+      shadowColor: C.primary,
+      shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: 0.45,
+      shadowRadius: 16,
+      elevation: 10,
     },
-    fabText: { color: '#fff', fontWeight: '800', fontSize: 14, letterSpacing: 0.2 },
+    fabIconWrap: {
+      width: 22,
+      height: 22,
+      borderRadius: 11,
+      backgroundColor: 'rgba(255,255,255,0.22)',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    fabText: { color: '#fff', fontWeight: '900', fontSize: 13.5, letterSpacing: 0.3 },
 
     modalBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.4)' },
     sheet: {
