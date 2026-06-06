@@ -311,7 +311,7 @@ export default function CustomerHomeScreen() {
               >
                 <MaterialCommunityIcons name="repeat" size={16} color={COLORS.primary} />
                 <Text style={{ color: COLORS.primary, fontSize: 13, fontWeight: '700' }}>
-                  {isRTL ? 'اطلب نفس الإصلاح' : 'Repeat order'}
+                  {isRTL ? 'اطلب إصلاح آخر الآن' : 'Repeat order'}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -342,9 +342,6 @@ export default function CustomerHomeScreen() {
                 </View>
                 <Text style={[styles.deviceLabel, { color: COLORS.text }]}>
                   {isRTL ? cat.titleAr : cat.titleEn}
-                </Text>
-                <Text style={[styles.devicePrice, { color: COLORS.primary }]}>
-                  {isRTL ? `يبدأ من ${cat.fromPrice} ر.س` : `From ${cat.fromPrice} SAR`}
                 </Text>
               </PressableScale>
             ))}

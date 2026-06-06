@@ -1,127 +1,131 @@
-/**
- * MarketBottomTabs.tsx — Bottom navigation bar for the marketplace screens.
- * Rendered as a floating bar at the bottom of market-related screens so
- * users can jump between the main marketplace views without going back.
- */
 import React from 'react';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  Platform,
-} from 'react-native';
+import { View, TouchableOpacity, Text, StyleSheet, Platform } from 'react-native';
 import { useRouter, usePathname } from 'expo-router';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../contexts/AppContext';
 import { getColors } from '../constants/theme';
+import { selection } from '../utils/haptics';
 
-/** Height consumed by the tab bar — screens should pad their content by this. */
-export const MARKET_TABS_HEIGHT = 64;
+export const MARKET_TABS_HEIGHT = Platform.OS === 'ios' ? 100 : 90;
 
-interface Tab {
-  route: string;
-  iconActive: React.ReactNode;
-  iconInactive: React.ReactNode;
+interface MarketTab {
+  path: string;
+  icon: string;
+  activeIcon: string;
   labelAr: string;
   labelEn: string;
 }
+
+const MARKET_TABS: MarketTab[] = [
+  { path: '/market',          icon: 'storefront-outline',         activeIcon: 'storefront',         labelAr: 'السوق',     labelEn: 'Market' },
+  { path: '/market-messages', icon: 'chatbubble-ellipses-outline', activeIcon: 'chatbubble-ellipses', labelAr: 'الرسائل',   labelEn: 'Messages' },
+  { path: '/my-listings',     icon: 'list-outline',               activeIcon: 'list',               labelAr: 'إعلاناتي', labelEn: 'My Listings' },
+];
 
 export default function MarketBottomTabs() {
   const router = useRouter();
   const pathname = usePathname();
   const { language, isDark } = useApp();
-  const COLORS = getColors(isDark);
   const isRTL = language === 'ar';
+  const COLORS = getColors(isDark);
 
-  const tabs: Tab[] = [
-    {
-      route: '/market',
-      iconActive: <Ionicons name="storefront" size={22} color={COLORS.primary} />,
-      iconInactive: <Ionicons name="storefront-outline" size={22} color={COLORS.textSecondary} />,
-      labelAr: 'السوق',
-      labelEn: 'Market',
-    },
-    {
-      route: '/market-messages',
-      iconActive: <MaterialCommunityIcons name="message-text" size={22} color={COLORS.primary} />,
-      iconInactive: <MaterialCommunityIcons name="message-text-outline" size={22} color={COLORS.textSecondary} />,
-      labelAr: 'الرسائل',
-      labelEn: 'Messages',
-    },
-    {
-      route: '/my-listings',
-      iconActive: <Ionicons name="list" size={22} color={COLORS.primary} />,
-      iconInactive: <Ionicons name="list-outline" size={22} color={COLORS.textSecondary} />,
-      labelAr: 'إعلاناتي',
-      labelEn: 'My Listings',
-    },
-  ];
+  const tabs = isRTL ? [...MARKET_TABS].reverse() : MARKET_TABS;
+  const styles = makeStyles(COLORS, isDark);
 
   return (
-    <View
-      style={[
-        styles.bar,
-        {
-          backgroundColor: COLORS.card,
-          borderTopColor: COLORS.border,
-          flexDirection: isRTL ? 'row-reverse' : 'row',
-        },
-      ]}
-    >
-      {tabs.map((tab) => {
-        const active = pathname === tab.route || pathname.startsWith(tab.route + '/');
-        return (
-          <TouchableOpacity
-            key={tab.route}
-            style={styles.tab}
-            onPress={() => router.push(tab.route as any)}
-            accessibilityRole="tab"
-            accessibilityState={{ selected: active }}
-            accessibilityLabel={isRTL ? tab.labelAr : tab.labelEn}
-          >
-            {active ? tab.iconActive : tab.iconInactive}
-            <Text
-              style={[
-                styles.label,
-                { color: active ? COLORS.primary : COLORS.textSecondary },
-              ]}
+    <View style={styles.container}>
+      <View style={styles.floatingBar}>
+        {tabs.map((item) => {
+          const isActive = pathname === item.path;
+
+          return (
+            <TouchableOpacity
+              key={item.path}
+              style={styles.navItem}
+              onPress={() => { selection(); router.push(item.path as any); }}
+              activeOpacity={0.7}
+              accessibilityRole="tab"
+              accessibilityLabel={isRTL ? item.labelAr : item.labelEn}
+              accessibilityState={{ selected: isActive }}
+              accessibilityHint={isRTL ? 'انتقال إلى ' + item.labelAr : 'Navigate to ' + item.labelEn}
             >
-              {isRTL ? tab.labelAr : tab.labelEn}
-            </Text>
-          </TouchableOpacity>
-        );
-      })}
+              <View style={[styles.iconWrapper, isActive && styles.activeIconWrapper]}>
+                <Ionicons
+                  name={(isActive ? item.activeIcon : item.icon) as any}
+                  size={24}
+                  color={isActive ? COLORS.primary : COLORS.textSecondary}
+                />
+                {isActive && <View style={styles.activeDot} />}
+              </View>
+              <Text style={[styles.label, isActive && styles.activeLabel]}>
+                {isRTL ? item.labelAr : item.labelEn}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  bar: {
+const makeStyles = (C: any, isDark: boolean) => StyleSheet.create({
+  container: {
     position: 'absolute',
-    bottom: 0,
+    bottom: Platform.OS === 'ios' ? 30 : 20,
     left: 0,
     right: 0,
-    height: MARKET_TABS_HEIGHT,
-    borderTopWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'space-around',
-    paddingBottom: Platform.OS === 'ios' ? 8 : 0,
-    elevation: 8,
-    shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: -2 },
-  },
-  tab: {
-    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 3,
-    paddingVertical: 6,
+    paddingHorizontal: 20,
+  },
+  floatingBar: {
+    flexDirection: 'row',
+    backgroundColor: C.card,
+    width: '100%',
+    height: 70,
+    borderRadius: 35,
+    alignItems: 'center',
+    justifyContent: 'space-around',
+    paddingHorizontal: 10,
+    borderWidth: isDark ? 1 : 0,
+    borderColor: C.border,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: isDark ? 0.4 : 0.1,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  navItem: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    flex: 1,
+  },
+  iconWrapper: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 20,
+  },
+  activeIconWrapper: {
+    backgroundColor: C.primarySoft,
+  },
+  activeDot: {
+    position: 'absolute',
+    bottom: -2,
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: C.primary,
   },
   label: {
     fontSize: 10,
-    fontWeight: '700',
+    color: C.textSecondary,
+    marginTop: 2,
+    fontWeight: '500',
+  },
+  activeLabel: {
+    color: C.primary,
+    fontWeight: 'bold',
   },
 });

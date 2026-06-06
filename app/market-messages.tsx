@@ -151,11 +151,16 @@ export default function MarketMessagesScreen() {
     [isRTL]
   );
 
-  const renderRow = ({ item }: { item: MarketThreadSummary }) => {
+  const renderRow = ({ item, index }: { item: MarketThreadSummary; index: number }) => {
     const counterparty =
       item.counterparty_name?.trim() || (isRTL ? 'مستخدم' : 'User');
     const preview = item.last_message_preview?.trim() ||
       (isRTL ? 'ابدأ المحادثة' : 'Start the conversation');
+
+    const isOdd = index % 2 === 1;
+    const rowBg = isOdd
+      ? COLORS.card
+      : (isDark ? COLORS.card + '80' : COLORS.background);
 
     return (
       <TouchableOpacity
@@ -163,7 +168,14 @@ export default function MarketMessagesScreen() {
         onPress={() => openThread(item)}
         onLongPress={() => archiveRow(item)}
         delayLongPress={450}
-        style={styles.row}
+        style={[
+          styles.row,
+          {
+            backgroundColor: rowBg,
+            borderBottomWidth: 1,
+            borderBottomColor: COLORS.border,
+          },
+        ]}
         accessibilityRole="button"
         accessibilityLabel={`${counterparty} — ${preview}`}
       >

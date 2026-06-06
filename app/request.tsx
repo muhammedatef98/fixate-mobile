@@ -959,6 +959,25 @@ export default function RequestScreen() {
                 })}
               </View>
 
+              <Text style={[styles.sectionTitle, { marginTop: 24 }]}>{isRTL ? 'صور أو فيديو' : 'Photos or Video'}</Text>
+              <View style={styles.mediaContainer}>
+                <TouchableOpacity style={styles.addMediaButton} onPress={pickImage}>
+                  <Ionicons name="camera" size={32} color={COLORS.gray} />
+                  <Text style={styles.addMediaText}>{isRTL ? 'إضافة' : 'Add'}</Text>
+                </TouchableOpacity>
+                {mediaFiles.map((uri, index) => (
+                  <View key={index} style={styles.mediaWrapper}>
+                    <Image source={{ uri }} style={styles.mediaThumb} />
+                    <TouchableOpacity
+                      style={styles.removeMediaBtn}
+                      onPress={() => setMediaFiles(mediaFiles.filter((_, i) => i !== index))}
+                    >
+                      <Ionicons name="close-circle" size={20} color={COLORS.error} />
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </View>
+
               {/* Discount code: customer types & taps Apply; resolved against
                   the active estimated price. */}
               <Text style={[styles.sectionTitle, { marginTop: 24 }]}>
@@ -1105,24 +1124,6 @@ export default function RequestScreen() {
                 })}
               </View>
 
-              <Text style={[styles.sectionTitle, { marginTop: 24 }]}>{isRTL ? 'صور أو فيديو' : 'Photos or Video'}</Text>
-              <View style={styles.mediaContainer}>
-                <TouchableOpacity style={styles.addMediaButton} onPress={pickImage}>
-                  <Ionicons name="camera" size={32} color={COLORS.gray} />
-                  <Text style={styles.addMediaText}>{isRTL ? 'إضافة' : 'Add'}</Text>
-                </TouchableOpacity>
-                {mediaFiles.map((uri, index) => (
-                  <View key={index} style={styles.mediaWrapper}>
-                    <Image source={{ uri }} style={styles.mediaThumb} />
-                    <TouchableOpacity 
-                      style={styles.removeMediaBtn} 
-                      onPress={() => setMediaFiles(mediaFiles.filter((_, i) => i !== index))}
-                    >
-                      <Ionicons name="close-circle" size={20} color={COLORS.error} />
-                    </TouchableOpacity>
-                  </View>
-                ))}
-              </View>
             </ScrollView>
           </KeyboardAvoidingView>
         )}
