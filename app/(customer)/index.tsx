@@ -20,7 +20,7 @@ import Sidebar from '../../components/Sidebar';
 import { supabase } from '../../services/supabaseClient';
 import { logger } from '../../utils/logger';
 import { RTLIonicon, RTLMaterialIcon } from '../../components/RTLIcon';
-import { PressableScale } from '../../components/ui/PressableScale';
+import { PressableScale, AnimatedTouchable } from '../../components/ui/PressableScale';
 import { Skeleton } from '../../components/ui/Skeleton';
 
 const { width } = Dimensions.get('window');
@@ -147,34 +147,34 @@ export default function CustomerHomeScreen() {
 
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity
+        <AnimatedTouchable
           onPress={() => setSidebarVisible(true)}
           style={[styles.iconBtn, { backgroundColor: COLORS.card, borderColor: COLORS.border }]}
           accessibilityRole="button"
           accessibilityLabel={isRTL ? 'القائمة' : 'Menu'}
         >
           <Ionicons name="menu" size={20} color={COLORS.text} />
-        </TouchableOpacity>
+        </AnimatedTouchable>
 
         <Text style={[styles.logo, { color: COLORS.primary }]}>Fixate</Text>
 
         <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', gap: 8 }}>
-          <TouchableOpacity
+          <AnimatedTouchable
             onPress={() => setLanguage(language === 'ar' ? 'en' : 'ar')}
             style={[styles.iconBtn, { backgroundColor: COLORS.card, borderColor: COLORS.border }]}
             accessibilityRole="button"
             accessibilityLabel={isRTL ? 'تبديل اللغة' : 'Toggle language'}
           >
             <Ionicons name="language" size={18} color={COLORS.text} />
-          </TouchableOpacity>
-          <TouchableOpacity
+          </AnimatedTouchable>
+          <AnimatedTouchable
             onPress={() => router.push('/notifications')}
             style={[styles.iconBtn, { backgroundColor: COLORS.card, borderColor: COLORS.border }]}
             accessibilityRole="button"
             accessibilityLabel={isRTL ? 'الإشعارات' : 'Notifications'}
           >
             <Ionicons name="notifications-outline" size={18} color={COLORS.text} />
-          </TouchableOpacity>
+          </AnimatedTouchable>
         </View>
       </View>
 
@@ -190,7 +190,7 @@ export default function CustomerHomeScreen() {
           </Text>
 
           {/* Primary CTA — the green action box under the welcome section */}
-          <TouchableOpacity
+          <AnimatedTouchable
             onPress={() => router.push('/request')}
             style={[styles.cta, { backgroundColor: COLORS.primary }]}
             activeOpacity={0.92}
@@ -220,7 +220,7 @@ export default function CustomerHomeScreen() {
             <View style={styles.ctaArrowWrap}>
               <RTLIonicon name="arrow-forward" size={24} color={COLORS.primary} />
             </View>
-          </TouchableOpacity>
+          </AnimatedTouchable>
 
           {/* First-load skeleton (replaces blank flash before data lands) */}
           {loading && !activeOrder && !recentOrder && (
@@ -235,7 +235,7 @@ export default function CustomerHomeScreen() {
 
           {/* Active order banner */}
           {activeOrder && (
-            <TouchableOpacity
+            <AnimatedTouchable
               onPress={() => router.push(`/order-details?id=${activeOrder.id}`)}
               style={[styles.activeOrder, { backgroundColor: COLORS.card, borderColor: COLORS.primary + '30' }]}
               activeOpacity={0.85}
@@ -260,11 +260,11 @@ export default function CustomerHomeScreen() {
                 </Text>
                 <RTLIonicon name="chevron-forward" size={13} color={COLORS.primary} />
               </View>
-            </TouchableOpacity>
+            </AnimatedTouchable>
           )}
 
           {/* My Orders — prominent, always-visible access to all orders */}
-          <TouchableOpacity
+          <AnimatedTouchable
             onPress={() => router.push('/(customer)/orders')}
             style={[styles.myOrdersCard, { backgroundColor: COLORS.card, borderColor: COLORS.border }]}
             activeOpacity={0.85}
@@ -283,7 +283,7 @@ export default function CustomerHomeScreen() {
               </Text>
             </View>
             <RTLIonicon name="chevron-forward" size={20} color={COLORS.primary} />
-          </TouchableOpacity>
+          </AnimatedTouchable>
 
           {/* Recent order — one-tap repeat for returning customers */}
           {recentOrder && (
@@ -304,7 +304,7 @@ export default function CustomerHomeScreen() {
                   {recentOrder.issue_description}
                 </Text>
               )}
-              <TouchableOpacity
+              <AnimatedTouchable
                 onPress={() => router.push('/request')}
                 style={[styles.recentBtn, { backgroundColor: COLORS.primary + '15' }]}
                 accessibilityRole="button"
@@ -313,7 +313,7 @@ export default function CustomerHomeScreen() {
                 <Text style={{ color: COLORS.primary, fontSize: 13, fontWeight: '700' }}>
                   {isRTL ? 'اطلب إصلاح آخر الآن' : 'Repeat order'}
                 </Text>
-              </TouchableOpacity>
+              </AnimatedTouchable>
             </View>
           )}
 
@@ -322,11 +322,11 @@ export default function CustomerHomeScreen() {
             <Text style={[styles.sectionTitle, { color: COLORS.text }]}>
               {isRTL ? 'اختر جهازك' : 'Choose device'}
             </Text>
-            <TouchableOpacity onPress={() => router.push('/(customer)/services')}>
+            <AnimatedTouchable onPress={() => router.push('/(customer)/services')}>
               <Text style={{ color: COLORS.primary, fontSize: 13, fontWeight: '700' }}>
                 {isRTL ? 'كل الخدمات' : 'See all'}
               </Text>
-            </TouchableOpacity>
+            </AnimatedTouchable>
           </View>
 
           <View style={styles.deviceGrid}>
@@ -397,7 +397,7 @@ export default function CustomerHomeScreen() {
           </View>
 
           {/* AI assistant card — instant answers, can hand off to support */}
-          <TouchableOpacity
+          <AnimatedTouchable
             onPress={() => router.push('/chatbot')}
             style={[styles.supportCard, { backgroundColor: COLORS.card, borderColor: COLORS.border, marginBottom: 12 }]}
             activeOpacity={0.85}
@@ -416,10 +416,10 @@ export default function CustomerHomeScreen() {
               </Text>
             </View>
             <RTLMaterialIcon name="chevron-right" size={20} color={COLORS.primary} />
-          </TouchableOpacity>
+          </AnimatedTouchable>
 
           {/* Support card */}
-          <TouchableOpacity
+          <AnimatedTouchable
             onPress={() => router.push('/support-chat')}
             style={[styles.supportCard, { backgroundColor: COLORS.primary + '10', borderColor: COLORS.primary + '30' }]}
             activeOpacity={0.85}
@@ -437,7 +437,7 @@ export default function CustomerHomeScreen() {
               </Text>
             </View>
             <RTLMaterialIcon name="chevron-right" size={20} color={COLORS.primary} />
-          </TouchableOpacity>
+          </AnimatedTouchable>
         </Animated.View>
       </ScrollView>
 

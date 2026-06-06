@@ -33,6 +33,7 @@ import {
 import SaudiCityPicker from '../components/SaudiCityPicker';
 import SkeletonLoader from '../components/SkeletonLoader';
 import MarketBottomTabs, { MARKET_TABS_HEIGHT } from '../components/MarketBottomTabs';
+import { AnimatedTouchable } from '../components/ui/PressableScale';
 
 // Tiny SVG blurhash-equivalent placeholder used while the network image
 // streams in. expo-image fades the real image in over this, so cards never
@@ -186,7 +187,7 @@ export default function MarketScreen() {
     // Admin-approved listings only — accepts the legacy `active` alias too.
     const isVerified = item.status === 'live' || (item.status as any) === 'active';
     return (
-      <TouchableOpacity
+      <AnimatedTouchable
         style={styles.card}
         activeOpacity={0.85}
         onPress={() => router.push({ pathname: '/market-detail', params: { id: item.id } } as any)}
@@ -269,7 +270,7 @@ export default function MarketScreen() {
             </View>
           )}
         </View>
-      </TouchableOpacity>
+      </AnimatedTouchable>
     );
   };
 
@@ -316,9 +317,9 @@ export default function MarketScreen() {
       <SafeAreaView style={styles.container}>
         <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} accessibilityRole="button">
+          <AnimatedTouchable onPress={() => router.back()} accessibilityRole="button">
             <RTLIonicon name="chevron-back" size={26} color={COLORS.text} />
-          </TouchableOpacity>
+          </AnimatedTouchable>
           <Text style={styles.title}>{isRTL ? 'سوق Fixate' : 'Fixate Market'}</Text>
           <View style={{ width: 28 }} />
         </View>
@@ -341,9 +342,9 @@ export default function MarketScreen() {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} accessibilityRole="button">
+        <AnimatedTouchable onPress={() => router.back()} accessibilityRole="button">
           <RTLIonicon name="chevron-back" size={26} color={COLORS.text} />
-        </TouchableOpacity>
+        </AnimatedTouchable>
         <Text style={styles.title}>{isRTL ? 'سوق Fixate' : 'Fixate Market'}</Text>
         {/* Messages + My Listings live in the Market bottom tab bar now; the
             header stays minimal so the search row reads as the primary
@@ -365,12 +366,12 @@ export default function MarketScreen() {
             returnKeyType="search"
           />
           {search.length > 0 && (
-            <TouchableOpacity onPress={() => setSearch('')}>
+            <AnimatedTouchable onPress={() => setSearch('')}>
               <Ionicons name="close-circle" size={18} color={COLORS.textSecondary} />
-            </TouchableOpacity>
+            </AnimatedTouchable>
           )}
         </View>
-        <TouchableOpacity
+        <AnimatedTouchable
           onPress={() => setFiltersOpen(true)}
           style={[styles.filterBtn, activeFilterCount > 0 && { borderColor: COLORS.primary }]}
           accessibilityRole="button"
@@ -382,7 +383,7 @@ export default function MarketScreen() {
               <Text style={styles.filterBadgeText}>{activeFilterCount}</Text>
             </View>
           )}
-        </TouchableOpacity>
+        </AnimatedTouchable>
       </View>
 
       {/* Device-type chips.
@@ -465,7 +466,7 @@ export default function MarketScreen() {
                 ? `${listings.length.toLocaleString('ar-SA')} نتيجة`
                 : `${listings.length} ${listings.length === 1 ? 'result' : 'results'}`}
             </Text>
-            <TouchableOpacity
+            <AnimatedTouchable
               onPress={() => setFiltersOpen(true)}
               style={styles.sortChip}
               accessibilityRole="button"
@@ -475,7 +476,7 @@ export default function MarketScreen() {
                 {(SORT_OPTS.find((s) => s.id === sort) ?? SORT_OPTS[0])[isRTL ? 'ar' : 'en']}
               </Text>
               <Ionicons name="chevron-down" size={12} color={COLORS.primary} />
-            </TouchableOpacity>
+            </AnimatedTouchable>
           </View>
           <FlatList
             data={listings}
@@ -510,7 +511,7 @@ export default function MarketScreen() {
       {/* Floating "post a listing" action. Always visible while browsing —
           conversion-critical, so it sits above the grid on the trailing
           side without competing with the scroll content. */}
-      <TouchableOpacity
+      <AnimatedTouchable
         style={[styles.fab, { backgroundColor: COLORS.primary }]}
         onPress={() => router.push('/market-new')}
         accessibilityRole="button"
@@ -519,7 +520,7 @@ export default function MarketScreen() {
       >
         <Ionicons name="add" size={22} color="#fff" />
         <Text style={styles.fabText}>{isRTL ? 'إعلان' : 'Sell'}</Text>
-      </TouchableOpacity>
+      </AnimatedTouchable>
 
       {/* Module-level bottom tab bar — anchors the screen, replaces the
           old in-header Messages / My Listings shortcuts, and gives the
@@ -529,23 +530,23 @@ export default function MarketScreen() {
       {/* Filter sheet */}
       <Modal visible={filtersOpen} animationType="slide" transparent onRequestClose={() => setFiltersOpen(false)}>
         <View style={styles.modalBackdrop}>
-          <TouchableOpacity style={StyleSheet.absoluteFill} onPress={() => setFiltersOpen(false)} />
+          <AnimatedTouchable style={StyleSheet.absoluteFill} onPress={() => setFiltersOpen(false)} />
           <View style={[styles.sheet, { backgroundColor: COLORS.card }]}>
             <View style={[styles.sheetHandle, { backgroundColor: COLORS.border }]} />
             <Text style={styles.sheetTitle}>{isRTL ? 'تصفية النتائج' : 'Refine results'}</Text>
 
             <Text style={styles.sheetLabel}>{isRTL ? 'الحالة' : 'Condition'}</Text>
             <View style={styles.sheetChips}>
-              <TouchableOpacity
+              <AnimatedTouchable
                 onPress={() => setCondition(null)}
                 style={[styles.sheetChip, !condition && { backgroundColor: COLORS.primary, borderColor: COLORS.primary }]}
               >
                 <Text style={[styles.sheetChipText, !condition && { color: '#fff' }]}>{isRTL ? 'الكل' : 'Any'}</Text>
-              </TouchableOpacity>
+              </AnimatedTouchable>
               {CONDITION_OPTS.map((c) => {
                 const active = condition === c.id;
                 return (
-                  <TouchableOpacity
+                  <AnimatedTouchable
                     key={c.id}
                     onPress={() => setCondition(c.id)}
                     style={[styles.sheetChip, active && { backgroundColor: COLORS.primary, borderColor: COLORS.primary }]}
@@ -553,7 +554,7 @@ export default function MarketScreen() {
                     <Text style={[styles.sheetChipText, active && { color: '#fff' }]}>
                       {isRTL ? c.ar : c.en}
                     </Text>
-                  </TouchableOpacity>
+                  </AnimatedTouchable>
                 );
               })}
             </View>
@@ -595,7 +596,7 @@ export default function MarketScreen() {
               {SORT_OPTS.map((s) => {
                 const active = sort === s.id;
                 return (
-                  <TouchableOpacity
+                  <AnimatedTouchable
                     key={s.id}
                     onPress={() => setSort(s.id)}
                     style={[styles.sheetChip, active && { backgroundColor: COLORS.primary, borderColor: COLORS.primary }]}
@@ -603,13 +604,13 @@ export default function MarketScreen() {
                     <Text style={[styles.sheetChipText, active && { color: '#fff' }]}>
                       {isRTL ? s.ar : s.en}
                     </Text>
-                  </TouchableOpacity>
+                  </AnimatedTouchable>
                 );
               })}
             </View>
 
             <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', gap: 10, marginTop: 18 }}>
-              <TouchableOpacity
+              <AnimatedTouchable
                 style={[styles.sheetSecondary, { borderColor: COLORS.border }]}
                 onPress={() => {
                   setCondition(null);
@@ -620,13 +621,13 @@ export default function MarketScreen() {
                 }}
               >
                 <Text style={[styles.sheetSecondaryText, { color: COLORS.text }]}>{isRTL ? 'مسح' : 'Reset'}</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
+              </AnimatedTouchable>
+              <AnimatedTouchable
                 style={[styles.sheetPrimary, { backgroundColor: COLORS.primary }]}
                 onPress={() => setFiltersOpen(false)}
               >
                 <Text style={styles.sheetPrimaryText}>{isRTL ? 'تطبيق' : 'Apply'}</Text>
-              </TouchableOpacity>
+              </AnimatedTouchable>
             </View>
           </View>
         </View>

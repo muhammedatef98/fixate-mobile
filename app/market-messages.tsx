@@ -27,6 +27,7 @@ import {
 } from '../services/marketService';
 import { logger } from '../utils/logger';
 import MarketBottomTabs, { MARKET_TABS_HEIGHT } from '../components/MarketBottomTabs';
+import { AnimatedTouchable } from '../components/ui/PressableScale';
 
 /**
  * Marketplace inbox — every conversation the current user participates in
@@ -163,7 +164,7 @@ export default function MarketMessagesScreen() {
       : (isDark ? COLORS.card + '80' : COLORS.background);
 
     return (
-      <TouchableOpacity
+      <AnimatedTouchable
         activeOpacity={0.7}
         onPress={() => openThread(item)}
         onLongPress={() => archiveRow(item)}
@@ -254,7 +255,7 @@ export default function MarketMessagesScreen() {
             {preview}
           </Text>
         </View>
-      </TouchableOpacity>
+      </AnimatedTouchable>
     );
   };
 
@@ -263,14 +264,14 @@ export default function MarketMessagesScreen() {
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
 
       <View style={styles.header}>
-        <TouchableOpacity
+        <AnimatedTouchable
           onPress={() => safeBack('/market')}
           style={styles.headerBtn}
           accessibilityRole="button"
           accessibilityLabel={isRTL ? 'رجوع' : 'Back'}
         >
           <RTLIonicon name="chevron-back" size={24} color={COLORS.text} />
-        </TouchableOpacity>
+        </AnimatedTouchable>
         <Text style={styles.title}>
           {isRTL ? 'الرسائل' : 'Messages'}
         </Text>
@@ -321,7 +322,7 @@ export default function MarketMessagesScreen() {
                   ? 'افتح إعلاناً في السوق وابدأ مراسلة البائع — وستظهر هنا.'
                   : 'Open a listing in the marketplace and message the seller — your chats will appear here.'}
               </Text>
-              <TouchableOpacity
+              <AnimatedTouchable
                 onPress={() => router.push('/market')}
                 style={styles.emptyCta}
                 accessibilityRole="button"
@@ -330,7 +331,7 @@ export default function MarketMessagesScreen() {
                 <Text style={styles.emptyCtaText}>
                   {isRTL ? 'تصفح السوق' : 'Browse the marketplace'}
                 </Text>
-              </TouchableOpacity>
+              </AnimatedTouchable>
             </View>
           }
         />

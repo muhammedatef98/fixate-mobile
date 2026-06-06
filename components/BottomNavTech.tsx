@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../contexts/AppContext';
 import { getColors } from '../constants/theme';
 import { selection } from '../utils/haptics';
+import { AnimatedTouchable } from './ui/PressableScale';
 
 /**
  * Technician bottom navigation — 4 tabs, deliberately small.
@@ -72,7 +73,7 @@ export default function BottomNavTech(_props: { currentRoute?: string } = {}) {
             (item.segment === '' && currentSegment === 'index');
 
           return (
-            <TouchableOpacity
+            <AnimatedTouchable
               key={item.path}
               style={styles.navItem}
               onPress={() => {
@@ -99,7 +100,7 @@ export default function BottomNavTech(_props: { currentRoute?: string } = {}) {
               >
                 {isRTL ? item.labelAr : item.labelEn}
               </Text>
-            </TouchableOpacity>
+            </AnimatedTouchable>
           );
         })}
       </View>

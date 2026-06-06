@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../contexts/AppContext';
 import { getColors } from '../constants/theme';
 import { selection } from '../utils/haptics';
+import { AnimatedTouchable } from './ui/PressableScale';
 
 const NAV_ITEMS = [
   { path: '/(customer)', icon: 'home-outline', activeIcon: 'home', labelAr: 'الرئيسية', labelEn: 'Home' },
@@ -30,7 +31,7 @@ export default function BottomNav(_props: { currentRoute?: string } = {}) {
           const isActive = pathname === item.path || (item.path === '/(customer)' && pathname === '/');
 
           return (
-            <TouchableOpacity
+            <AnimatedTouchable
               key={item.path}
               style={styles.navItem}
               onPress={() => { selection(); router.push(item.path as any); }}
@@ -51,7 +52,7 @@ export default function BottomNav(_props: { currentRoute?: string } = {}) {
               <Text style={[styles.label, isActive && styles.activeLabel]}>
                 {isRTL ? item.labelAr : item.labelEn}
               </Text>
-            </TouchableOpacity>
+            </AnimatedTouchable>
           );
         })}
       </View>

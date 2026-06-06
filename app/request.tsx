@@ -29,7 +29,7 @@ import { pointsForSpend } from '../constants/loyalty';
 import * as loyaltyService from '../services/loyaltyService';
 import { useLoyalty } from '../contexts/LoyaltyContext';
 import { supabase } from '../services/supabaseClient';
-import { PressableScale } from '../components/ui/PressableScale';
+import { PressableScale, AnimatedTouchable } from '../components/ui/PressableScale';
 import {
   SPARE_PART_LABELS,
   SPARE_PART_DESCRIPTIONS,
@@ -115,6 +115,8 @@ export default function RequestScreen() {
       .catch(() => undefined);
   }, []);
   const [address, setAddress] = useState('');
+  const [selectedNeighborhood, setSelectedNeighborhood] = useState('');
+  const [zoneDeliveryFee, setZoneDeliveryFee] = useState(0);
   
   const tc = getColors(isDark);
   const SHADOWS = getShadows(isDark);
@@ -323,8 +325,26 @@ export default function RequestScreen() {
       adminFreeDelivery ||
       promoFreeDelivery,
   });
-  const deliveryFee = deliveryQuote.fee;
+  const baseDeliveryFee = deliveryQuote.fee;
+  const deliveryFee = zoneDeliveryFee > 0 ? zoneDeliveryFee : baseDeliveryFee;
   const isFreeDelivery = deliveryQuote.source === 'free' || deliveryFee === 0;
+
+  useEffect(() => {
+    const name = selectedNeighborhood.trim();
+    setZoneDeliveryFee(0);
+    if (!name) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from('delivery_zones')
+        .select('delivery_fee')
+        .eq('is_active', true)
+        .or(`neighborhood_name_ar.ilike.${name},neighborhood_name_en.ilike.${name}`)
+        .maybeSingle();
+      if (!cancelled) setZoneDeliveryFee(Number(data?.delivery_fee ?? 0));
+    })();
+    return () => { cancelled = true; };
+  }, [selectedNeighborhood]);
   
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
@@ -433,6 +453,7 @@ export default function RequestScreen() {
             const addr = reverseGeocode[0];
             const composed = [addr.street, addr.district, addr.city].filter(Boolean).join(', ');
             if (composed) setAddress(composed);
+            setSelectedNeighborhood((addr.district ?? '').trim());
             const country = ((addr as any).isoCountryCode || addr.country || '').toString().toUpperCase();
             if (country && country !== 'SA' && country !== 'SAUDI ARABIA') {
               logger.warn('Reverse geocode country is not SA (allowed)', { country, latitude, longitude });
@@ -688,9 +709,9 @@ export default function RequestScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity accessibilityRole="button" accessibilityLabel={isRTL ? 'رجوع' : 'Back'} onPress={() => currentStep > 0 ? setCurrentStep(currentStep - 1) : router.back()} style={styles.backButton}>
+        <AnimatedTouchable accessibilityRole="button" accessibilityLabel={isRTL ? 'رجوع' : 'Back'} onPress={() => currentStep > 0 ? setCurrentStep(currentStep - 1) : router.back()} style={styles.backButton}>
           <RTLIonicon name="chevron-back" size={24} color={COLORS.text} />
-        </TouchableOpacity>
+        </AnimatedTouchable>
         <Text style={styles.headerTitle}>{isRTL ? 'طلب صيانة' : 'Repair Request'}</Text>
         <View style={{ width: 40 }} />
       </View>
@@ -930,7 +951,7 @@ export default function RequestScreen() {
                       ? { ar: 'موصى به', en: 'Recommended', color: '#3b82f6' }
                       : { ar: 'الأوفر', en: 'Best value', color: '#f59e0b' };
                   return (
-                    <TouchableOpacity
+                    <AnimatedTouchable
                       key={q}
                       onPress={() => setSparePartQuality(q)}
                       style={{
@@ -954,26 +975,26 @@ export default function RequestScreen() {
                       <Text style={{ color: COLORS.gray, fontSize: 12, marginTop: 6, lineHeight: 18, textAlign: isRTL ? 'right' : 'left' }}>
                         {isRTL ? SPARE_PART_DESCRIPTIONS[q].ar : SPARE_PART_DESCRIPTIONS[q].en}
                       </Text>
-                    </TouchableOpacity>
+                    </AnimatedTouchable>
                   );
                 })}
               </View>
 
               <Text style={[styles.sectionTitle, { marginTop: 24 }]}>{isRTL ? 'صور أو فيديو' : 'Photos or Video'}</Text>
               <View style={styles.mediaContainer}>
-                <TouchableOpacity style={styles.addMediaButton} onPress={pickImage}>
+                <AnimatedTouchable style={styles.addMediaButton} onPress={pickImage}>
                   <Ionicons name="camera" size={32} color={COLORS.gray} />
                   <Text style={styles.addMediaText}>{isRTL ? 'إضافة' : 'Add'}</Text>
-                </TouchableOpacity>
+                </AnimatedTouchable>
                 {mediaFiles.map((uri, index) => (
                   <View key={index} style={styles.mediaWrapper}>
                     <Image source={{ uri }} style={styles.mediaThumb} />
-                    <TouchableOpacity
+                    <AnimatedTouchable
                       style={styles.removeMediaBtn}
                       onPress={() => setMediaFiles(mediaFiles.filter((_, i) => i !== index))}
                     >
                       <Ionicons name="close-circle" size={20} color={COLORS.error} />
-                    </TouchableOpacity>
+                    </AnimatedTouchable>
                   </View>
                 ))}
               </View>
@@ -993,7 +1014,7 @@ export default function RequestScreen() {
                   editable={!appliedDiscount}
                   onChangeText={(v) => { setDiscountInput(v.toUpperCase()); setDiscountError(null); }}
                 />
-                <TouchableOpacity
+                <AnimatedTouchable
                   disabled={discountChecking || (!discountInput && !appliedDiscount)}
                   onPress={async () => {
                     if (appliedDiscount) {
@@ -1037,7 +1058,7 @@ export default function RequestScreen() {
                         : (isRTL ? 'تطبيق' : 'Apply')}
                     </Text>
                   )}
-                </TouchableOpacity>
+                </AnimatedTouchable>
               </View>
               {appliedDiscount && (
                 <View style={{ marginTop: 8, padding: 10, backgroundColor: COLORS.lightGreen, borderRadius: 10 }}>
@@ -1062,7 +1083,7 @@ export default function RequestScreen() {
                 {getAccessorySuggestions(selectedDeviceType).map((acc) => {
                   const selected = selectedAccessories.some((x) => x.id === acc.id);
                   return (
-                    <TouchableOpacity
+                    <AnimatedTouchable
                       key={acc.id}
                       onPress={() => toggleAddon(selectedAccessories, setSelectedAccessories, acc)}
                       style={{
@@ -1081,7 +1102,7 @@ export default function RequestScreen() {
                       <Text style={{ color: selected ? COLORS.primary : COLORS.text, fontWeight: '600', fontSize: 13 }}>
                         {isRTL ? acc.name_ar : acc.name_en}
                       </Text>
-                    </TouchableOpacity>
+                    </AnimatedTouchable>
                   );
                 })}
               </View>
@@ -1094,7 +1115,7 @@ export default function RequestScreen() {
                 {PROTECTION_ADDONS.map((p) => {
                   const selected = selectedProtection.some((x) => x.id === p.id);
                   return (
-                    <TouchableOpacity
+                    <AnimatedTouchable
                       key={p.id}
                       onPress={() => toggleAddon(selectedProtection, setSelectedProtection, p)}
                       style={{
@@ -1119,7 +1140,7 @@ export default function RequestScreen() {
                         </Text>
                       </View>
                       {/* Price intentionally omitted here — shown in the final invoice. */}
-                    </TouchableOpacity>
+                    </AnimatedTouchable>
                   );
                 })}
               </View>
@@ -1169,6 +1190,7 @@ export default function RequestScreen() {
                           const city = (p.city ?? '').trim();
                           const composed = [street, district, city].filter(Boolean).join(', ');
                           if (composed) setAddress(composed);
+                          setSelectedNeighborhood(district);
                         }
                       } catch {
                         // reverse geocode is best-effort
@@ -1207,7 +1229,7 @@ export default function RequestScreen() {
                 </View>
               )}
 
-              <TouchableOpacity 
+              <AnimatedTouchable 
                 style={styles.locationButton} 
                 onPress={handleLocationRequest}
                 disabled={isLocating}
@@ -1220,7 +1242,7 @@ export default function RequestScreen() {
                     <Text style={styles.locationButtonText}>{isRTL ? 'تحديد موقعي الحالي' : 'Use My Current Location'}</Text>
                   </>
                 )}
-              </TouchableOpacity>
+              </AnimatedTouchable>
             </View>
             {address ? (
               <View style={styles.addressContainer}>
@@ -1415,7 +1437,7 @@ export default function RequestScreen() {
               {requestPayMethods.map((pm) => {
                 const selected = prefMethod === pm.code;
                 return (
-                  <TouchableOpacity
+                  <AnimatedTouchable
                     key={pm.id}
                     activeOpacity={0.8}
                     disabled={pm.is_coming_soon}
@@ -1455,7 +1477,7 @@ export default function RequestScreen() {
                     ) : selected ? (
                       <Ionicons name="checkmark-circle" size={20} color={COLORS.primary} />
                     ) : null}
-                  </TouchableOpacity>
+                  </AnimatedTouchable>
                 );
               })}
             </View>
@@ -1464,7 +1486,7 @@ export default function RequestScreen() {
       </Animated.View>
 
       <View style={styles.footer}>
-        <TouchableOpacity
+        <AnimatedTouchable
           style={[styles.nextButton, (!canGoNext() || isSubmitting) && { opacity: 0.5 }]}
           onPress={() => {
             tapLight();
@@ -1487,7 +1509,7 @@ export default function RequestScreen() {
               {currentStep === STEPS.length - 1 ? (isRTL ? 'إرسال الطلب' : 'Submit Request') : (isRTL ? 'التالي' : 'Next')}
             </Text>
           )}
-        </TouchableOpacity>
+        </AnimatedTouchable>
       </View>
     </SafeAreaView>
   );

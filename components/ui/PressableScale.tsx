@@ -1,5 +1,12 @@
 import React, { useRef } from 'react';
-import { Animated, Pressable, ViewStyle, PressableProps } from 'react-native';
+import {
+  Animated,
+  Pressable,
+  TouchableOpacity,
+  TouchableOpacityProps,
+  ViewStyle,
+  PressableProps,
+} from 'react-native';
 
 interface Props extends PressableProps {
   children: React.ReactNode;
@@ -32,3 +39,33 @@ export const PressableScale: React.FC<Props> = ({ children, style, to = 0.97, ..
 };
 
 export default PressableScale;
+
+export const AnimatedTouchable: React.FC<TouchableOpacityProps> = ({
+  children,
+  onPressIn,
+  onPressOut,
+  style,
+  ...rest
+}) => {
+  const scale = useRef(new Animated.Value(1)).current;
+  const animate = (v: number) =>
+    Animated.spring(scale, {
+      toValue: v,
+      useNativeDriver: true,
+      friction: 7,
+      tension: 120,
+    }).start();
+
+  return (
+    <Animated.View style={{ transform: [{ scale }] }}>
+      <TouchableOpacity
+        onPressIn={(e) => { animate(0.96); onPressIn?.(e); }}
+        onPressOut={(e) => { animate(1); onPressOut?.(e); }}
+        style={style}
+        {...rest}
+      >
+        {children}
+      </TouchableOpacity>
+    </Animated.View>
+  );
+};
