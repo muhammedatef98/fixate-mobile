@@ -19,6 +19,7 @@ import {
 import { Image } from 'expo-image';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useApp } from '../contexts/AppContext';
 import { getColors, SPACING, BORDER_RADIUS } from '../constants/theme';
 import { RTLIonicon } from '../components/RTLIcon';
@@ -44,6 +45,28 @@ const IMG_BLURHASH = 'L6PZfSi_.AyE_3t7t7R**0o#DgR4';
 const { width: SCREEN_W } = Dimensions.get('window');
 const GRID_GUTTER = 12;
 const CARD_W = (SCREEN_W - GRID_GUTTER * 3) / 2;
+
+// Items posted within this window get a "🔥 Hot" badge — buyers scan
+// for it like Haraj users scan for "جديد اليوم". 24h keeps the badge
+// rare enough to be meaningful.
+const HOT_WINDOW_MS = 24 * 60 * 60 * 1000;
+
+const FAVORITES_KEY = 'fixate.market.favorites.v1';
+
+const loadFavorites = async (): Promise<Set<string>> => {
+  try {
+    const raw = await AsyncStorage.getItem(FAVORITES_KEY);
+    if (!raw) return new Set();
+    const parsed: unknown = JSON.parse(raw);
+    return Array.isArray(parsed) ? new Set(parsed.filter((v): v is string => typeof v === 'string')) : new Set();
+  } catch {
+    return new Set();
+  }
+};
+
+const persistFavorites = (next: Set<string>): void => {
+  AsyncStorage.setItem(FAVORITES_KEY, JSON.stringify([...next])).catch(() => undefined);
+};
 
 const DEVICE_CHIPS: { id: DeviceType | 'all'; ar: string; en: string; icon: string }[] = [
   { id: 'all', ar: 'الكل', en: 'All', icon: 'view-grid' },
@@ -128,7 +151,25 @@ export default function MarketScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [marketplaceEnabled, setMarketplaceEnabled] = useState(true);
+  const [favorites, setFavorites] = useState<Set<string>>(new Set());
+  const [savedOnly, setSavedOnly] = useState(false);
   const deviceStripRef = useRef<ScrollView>(null);
+
+  // Hydrate favorites once on mount. AsyncStorage is async so the heart
+  // icons fade in after the first paint — that's fine, users notice the
+  // listing image first.
+  useEffect(() => {
+    loadFavorites().then(setFavorites).catch(() => undefined);
+  }, []);
+
+  const toggleFavorite = useCallback((id: string) => {
+    setFavorites((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      persistFavorites(next);
+      return next;
+    });
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -154,6 +195,14 @@ export default function MarketScreen() {
     if (sort !== 'newest') n++;
     return n;
   }, [condition, city, minPrice, maxPrice, sort]);
+
+  // When "Saved only" is on, narrow the visible grid to favorited listings
+  // (the underlying `listings` array stays untouched so toggling is
+  // instant and doesn't trigger a refetch).
+  const displayedListings = useMemo(
+    () => (savedOnly ? listings.filter((l) => favorites.has(l.id)) : listings),
+    [listings, savedOnly, favorites]
+  );
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -184,12 +233,18 @@ export default function MarketScreen() {
 
   const renderCard = ({ item }: { item: MarketListing }) => {
     const posted = timeAgo(item.created_at, isRTL);
-    // Admin-approved listings only — accepts the legacy `active` alias too.
     const isVerified = item.status === 'live' || (item.status as any) === 'active';
+    const isFavorite = favorites.has(item.id);
+    const createdMs = item.created_at ? new Date(item.created_at).getTime() : 0;
+    const isHot = createdMs > 0 && Date.now() - createdMs < HOT_WINDOW_MS;
+    const condLabel = item.condition
+      ? CONDITION_OPTS.find((c) => c.id === item.condition)?.[isRTL ? 'ar' : 'en']
+      : null;
+
     return (
       <AnimatedTouchable
         style={styles.card}
-        activeOpacity={0.85}
+        activeOpacity={0.92}
         onPress={() => router.push({ pathname: '/market-detail', params: { id: item.id } } as any)}
       >
         <View style={styles.cardImageWrap}>
@@ -208,19 +263,43 @@ export default function MarketScreen() {
               <MaterialCommunityIcons name="image-off" size={28} color={COLORS.textSecondary} />
             </View>
           )}
+
+          {/* Top-left badge stack: HOT + verified */}
+          <View style={styles.cardTopBadges}>
+            {isHot && (
+              <View style={styles.hotBadge}>
+                <Text style={styles.hotBadgeText}>🔥 {isRTL ? 'جديد' : 'HOT'}</Text>
+              </View>
+            )}
+            {isVerified && (
+              <View style={styles.verifiedBadge}>
+                <Ionicons name="shield-checkmark" size={9} color="#fff" />
+                <Text style={styles.verifiedBadgeText}>{isRTL ? 'موثّق' : 'Verified'}</Text>
+              </View>
+            )}
+          </View>
+
+          {/* Favorite heart — top-right, large tap area */}
+          <AnimatedTouchable
+            onPress={() => toggleFavorite(item.id)}
+            style={styles.heartBtn}
+            accessibilityRole="button"
+            accessibilityLabel={isFavorite ? (isRTL ? 'إزالة من المفضلة' : 'Remove from saved') : (isRTL ? 'حفظ' : 'Save')}
+          >
+            <Ionicons
+              name={isFavorite ? 'heart' : 'heart-outline'}
+              size={16}
+              color={isFavorite ? '#ef4444' : '#fff'}
+            />
+          </AnimatedTouchable>
+
           {item.images && item.images.length > 1 && (
             <View style={styles.imageCountPill}>
               <Ionicons name="images" size={10} color="#fff" />
               <Text style={styles.imageCountText}>{item.images.length}</Text>
             </View>
           )}
-          {item.condition && (
-            <View style={styles.conditionPill}>
-              <Text style={styles.conditionText}>
-                {CONDITION_OPTS.find((c) => c.id === item.condition)?.[isRTL ? 'ar' : 'en']}
-              </Text>
-            </View>
-          )}
+
           {item.status === 'sold' && (
             <View style={styles.soldOverlay}>
               <View style={styles.soldBadge}>
@@ -230,19 +309,22 @@ export default function MarketScreen() {
             </View>
           )}
         </View>
+
         <View style={styles.cardBody}>
           <Text style={styles.cardTitle} numberOfLines={2}>{item.title}</Text>
 
-          {/* Price block — the single most important piece of info on a
-              listing card. Bold, larger, with a quiet currency suffix. */}
           <View style={styles.priceRow}>
             <Text style={styles.cardPrice}>
               {item.price.toLocaleString(isRTL ? 'ar-SA' : 'en-US')}
             </Text>
             <Text style={styles.cardCurrency}>{isRTL ? 'ر.س' : 'SAR'}</Text>
+            {condLabel ? (
+              <View style={styles.condInline}>
+                <Text style={styles.condInlineText} numberOfLines={1}>{condLabel}</Text>
+              </View>
+            ) : null}
           </View>
 
-          {/* Meta strip — city · time-ago · verified */}
           <View style={styles.cardMetaRow}>
             {item.city ? (
               <View style={styles.cardMeta}>
@@ -253,22 +335,11 @@ export default function MarketScreen() {
             {posted ? (
               <>
                 {item.city ? <Text style={styles.metaDot}>·</Text> : null}
+                <Ionicons name="time-outline" size={10} color={COLORS.textSecondary} />
                 <Text style={styles.cardMetaText} numberOfLines={1}>{posted}</Text>
               </>
             ) : null}
           </View>
-
-          {/* Trust signal — only on admin-approved listings */}
-          {isVerified && (
-            <View style={styles.trustRow}>
-              <View style={styles.verifyChip}>
-                <Ionicons name="shield-checkmark" size={10} color={COLORS.primary} />
-                <Text style={styles.verifyChipText}>
-                  {isRTL ? 'موثّق' : 'Verified'}
-                </Text>
-              </View>
-            </View>
-          )}
         </View>
       </AnimatedTouchable>
     );
@@ -342,15 +413,44 @@ export default function MarketScreen() {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
       <View style={styles.header}>
-        <AnimatedTouchable onPress={() => router.back()} accessibilityRole="button">
-          <RTLIonicon name="chevron-back" size={26} color={COLORS.text} />
+        <AnimatedTouchable
+          onPress={() => router.back()}
+          style={styles.headerIconBtn}
+          accessibilityRole="button"
+          accessibilityLabel={isRTL ? 'رجوع' : 'Back'}
+        >
+          <RTLIonicon name="chevron-back" size={20} color={COLORS.text} />
         </AnimatedTouchable>
-        <Text style={styles.title}>{isRTL ? 'سوق Fixate' : 'Fixate Market'}</Text>
-        {/* Messages + My Listings live in the Market bottom tab bar now; the
-            header stays minimal so the search row reads as the primary
-            interactive surface. A 28px spacer keeps the title visually
-            centered between the back button and the trailing edge. */}
-        <View style={{ width: 28 }} />
+        <View style={{ flex: 1, alignItems: 'center', paddingHorizontal: 8 }}>
+          <Text style={styles.title}>{isRTL ? 'سوق Fixate' : 'Fixate Market'}</Text>
+          {!loading && listings.length > 0 ? (
+            <Text style={styles.subtitle}>
+              {isRTL
+                ? `${listings.length.toLocaleString('ar-SA')} إعلان مباشر`
+                : `${listings.length.toLocaleString('en-US')} listings live`}
+            </Text>
+          ) : null}
+        </View>
+        <AnimatedTouchable
+          onPress={() => setSavedOnly((v) => !v)}
+          style={[
+            styles.headerIconBtn,
+            { backgroundColor: savedOnly ? '#ef444415' : COLORS.card },
+          ]}
+          accessibilityRole="button"
+          accessibilityLabel={isRTL ? 'المحفوظات' : 'Saved'}
+        >
+          <Ionicons
+            name={savedOnly ? 'heart' : 'heart-outline'}
+            size={18}
+            color={savedOnly ? '#ef4444' : COLORS.text}
+          />
+          {favorites.size > 0 && (
+            <View style={styles.headerBadge}>
+              <Text style={styles.headerBadgeText}>{favorites.size}</Text>
+            </View>
+          )}
+        </AnimatedTouchable>
       </View>
 
       {/* Search + filter button */}
@@ -429,7 +529,7 @@ export default function MarketScreen() {
             >
               <MaterialCommunityIcons
                 name={c.icon as any}
-                size={15}
+                size={17}
                 color={active ? COLORS.primary : COLORS.textSecondary}
               />
               <Text
@@ -446,15 +546,36 @@ export default function MarketScreen() {
       {/* Grid */}
       {loading && listings.length === 0 ? (
         renderSkeletonGrid()
-      ) : listings.length === 0 ? (
+      ) : displayedListings.length === 0 ? (
         <View style={styles.center}>
           <View style={[styles.emptyIconBubble, { backgroundColor: COLORS.primary + '15' }]}>
-            <MaterialCommunityIcons name="storefront-outline" size={48} color={COLORS.primary} />
+            <MaterialCommunityIcons
+              name={savedOnly ? 'heart-outline' : 'storefront-outline'}
+              size={48}
+              color={COLORS.primary}
+            />
           </View>
-          <Text style={styles.emptyTitle}>{isRTL ? 'لا توجد نتائج' : 'No results'}</Text>
-          <Text style={styles.emptySub}>
-            {isRTL ? 'جرّب تعديل الفلاتر أو البحث' : 'Try a different filter or search'}
+          <Text style={styles.emptyTitle}>
+            {savedOnly
+              ? (isRTL ? 'لا توجد محفوظات' : 'No saved listings yet')
+              : (isRTL ? 'لا توجد نتائج' : 'No results')}
           </Text>
+          <Text style={styles.emptySub}>
+            {savedOnly
+              ? (isRTL ? 'اضغط القلب على أي إعلان لحفظه هنا' : 'Tap the heart on any listing to save it')
+              : (isRTL ? 'جرّب تعديل الفلاتر أو البحث' : 'Try a different filter or search')}
+          </Text>
+          {!savedOnly && (
+            <AnimatedTouchable
+              onPress={() => router.push('/market-new')}
+              style={[styles.emptyCta, { backgroundColor: COLORS.primary }]}
+            >
+              <Ionicons name="add-circle" size={16} color="#fff" />
+              <Text style={styles.emptyCtaText}>
+                {isRTL ? 'انشر إعلانك الآن' : 'Post your listing'}
+              </Text>
+            </AnimatedTouchable>
+          )}
         </View>
       ) : (
         <>
@@ -462,9 +583,13 @@ export default function MarketScreen() {
               tells the buyer what they're looking at. */}
           <View style={styles.resultBar}>
             <Text style={styles.resultCount} numberOfLines={1}>
-              {isRTL
-                ? `${listings.length.toLocaleString('ar-SA')} نتيجة`
-                : `${listings.length} ${listings.length === 1 ? 'result' : 'results'}`}
+              {savedOnly
+                ? (isRTL
+                    ? `${displayedListings.length.toLocaleString('ar-SA')} محفوظ`
+                    : `${displayedListings.length} saved`)
+                : (isRTL
+                    ? `${displayedListings.length.toLocaleString('ar-SA')} نتيجة`
+                    : `${displayedListings.length} ${displayedListings.length === 1 ? 'result' : 'results'}`)}
             </Text>
             <AnimatedTouchable
               onPress={() => setFiltersOpen(true)}
@@ -479,9 +604,10 @@ export default function MarketScreen() {
             </AnimatedTouchable>
           </View>
           <FlatList
-            data={listings}
+            data={displayedListings}
             keyExtractor={(l) => l.id}
             renderItem={renderCard}
+            extraData={favorites}
             numColumns={2}
             columnWrapperStyle={{ gap: GRID_GUTTER, paddingHorizontal: GRID_GUTTER }}
             contentContainerStyle={{
@@ -643,11 +769,38 @@ const createStyles = (C: any, isRTL: boolean) =>
       flexDirection: isRTL ? 'row-reverse' : 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      paddingHorizontal: SPACING.lg,
+      paddingHorizontal: 12,
       paddingTop: SPACING.md,
       paddingBottom: SPACING.sm,
     },
-    title: { fontSize: 18, fontWeight: '800', color: C.text },
+    headerIconBtn: {
+      width: 38,
+      height: 38,
+      borderRadius: 12,
+      backgroundColor: C.card,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 1,
+      borderColor: C.border,
+      position: 'relative',
+    },
+    headerBadge: {
+      position: 'absolute',
+      top: -4,
+      [isRTL ? 'left' : 'right']: -4,
+      minWidth: 18,
+      height: 18,
+      borderRadius: 9,
+      paddingHorizontal: 4,
+      backgroundColor: '#ef4444',
+      borderWidth: 2,
+      borderColor: C.background,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    headerBadgeText: { color: '#fff', fontSize: 9, fontWeight: '800' },
+    title: { fontSize: 17, fontWeight: '800', color: C.text, letterSpacing: -0.2 },
+    subtitle: { fontSize: 11, color: C.textSecondary, fontWeight: '700', marginTop: 1 },
     headerActionBtn: {
       width: 36,
       height: 36,
@@ -669,24 +822,34 @@ const createStyles = (C: any, isRTL: boolean) =>
       flex: 1,
       flexDirection: isRTL ? 'row-reverse' : 'row',
       alignItems: 'center',
-      gap: 8,
-      paddingHorizontal: 12,
-      height: 44,
-      borderRadius: BORDER_RADIUS.md,
+      gap: 10,
+      paddingHorizontal: 14,
+      height: 48,
+      borderRadius: 16,
       backgroundColor: C.card,
       borderWidth: 1,
       borderColor: C.border,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.04,
+      shadowRadius: 6,
+      elevation: 1,
     },
-    searchInput: { flex: 1, fontSize: 14, paddingVertical: Platform.OS === 'ios' ? 0 : 4 },
+    searchInput: { flex: 1, fontSize: 14.5, paddingVertical: Platform.OS === 'ios' ? 0 : 4, fontWeight: '600' },
     filterBtn: {
-      width: 44,
-      height: 44,
-      borderRadius: BORDER_RADIUS.md,
+      width: 48,
+      height: 48,
+      borderRadius: 16,
       backgroundColor: C.card,
       borderWidth: 1,
       borderColor: C.border,
       alignItems: 'center',
       justifyContent: 'center',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.04,
+      shadowRadius: 6,
+      elevation: 1,
     },
     filterBadge: {
       position: 'absolute',
@@ -715,10 +878,10 @@ const createStyles = (C: any, isRTL: boolean) =>
     deviceChip: {
       flexDirection: isRTL ? 'row-reverse' : 'row',
       alignItems: 'center',
-      gap: 6,
-      paddingHorizontal: 16,
-      height: 38,
-      borderRadius: 999,
+      gap: 7,
+      paddingHorizontal: 14,
+      height: 40,
+      borderRadius: 14,
       borderWidth: 1,
       borderColor: C.border,
       backgroundColor: C.card,
@@ -771,19 +934,72 @@ const createStyles = (C: any, isRTL: boolean) =>
     card: {
       width: CARD_W,
       backgroundColor: C.card,
-      borderRadius: BORDER_RADIUS.lg,
+      borderRadius: 18,
       borderWidth: 1,
       borderColor: C.border,
       overflow: 'hidden',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.06,
+      shadowRadius: 10,
+      elevation: 2,
     },
     cardImageWrap: { position: 'relative' },
-    cardImage: { width: '100%', height: CARD_W, backgroundColor: C.background },
+    cardImage: { width: '100%', height: CARD_W + 16, backgroundColor: C.background },
+    cardTopBadges: {
+      position: 'absolute',
+      top: 8,
+      [isRTL ? 'right' : 'left']: 8,
+      flexDirection: 'column',
+      gap: 4,
+      alignItems: isRTL ? 'flex-end' : 'flex-start',
+    },
+    hotBadge: {
+      backgroundColor: '#F97316',
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+      borderRadius: 6,
+      shadowColor: '#F97316',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.4,
+      shadowRadius: 6,
+      elevation: 3,
+    },
+    hotBadgeText: { color: '#fff', fontSize: 10, fontWeight: '900', letterSpacing: 0.3 },
+    verifiedBadge: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
+      gap: 3,
+      backgroundColor: C.primary,
+      paddingHorizontal: 7,
+      paddingVertical: 3,
+      borderRadius: 6,
+    },
+    verifiedBadgeText: { color: '#fff', fontSize: 9.5, fontWeight: '800' },
+    heartBtn: {
+      position: 'absolute',
+      top: 8,
+      [isRTL ? 'left' : 'right']: 8,
+      width: 30,
+      height: 30,
+      borderRadius: 15,
+      backgroundColor: 'rgba(0,0,0,0.4)',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    condInline: {
+      backgroundColor: C.primarySoft,
+      paddingHorizontal: 7,
+      paddingVertical: 2,
+      borderRadius: 6,
+      marginStart: 4,
+    },
+    condInlineText: { color: C.primary, fontSize: 10, fontWeight: '800' },
     cardImagePlaceholder: { alignItems: 'center', justifyContent: 'center' },
     imageCountPill: {
       position: 'absolute',
-      top: 8,
-      left: isRTL ? 8 : undefined,
-      right: isRTL ? undefined : 8,
+      bottom: 8,
+      [isRTL ? 'left' : 'right']: 8,
       flexDirection: isRTL ? 'row-reverse' : 'row',
       alignItems: 'center',
       gap: 3,
@@ -886,7 +1102,22 @@ const createStyles = (C: any, isRTL: boolean) =>
       width: 88, height: 88, borderRadius: 44, alignItems: 'center', justifyContent: 'center',
     },
     emptyTitle: { color: C.text, fontWeight: '800', fontSize: 16, marginTop: 10 },
-    emptySub: { color: C.textSecondary, textAlign: 'center', fontSize: 13 },
+    emptySub: { color: C.textSecondary, textAlign: 'center', fontSize: 13, lineHeight: 19 },
+    emptyCta: {
+      marginTop: 18,
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
+      gap: 7,
+      paddingHorizontal: 18,
+      paddingVertical: 11,
+      borderRadius: 999,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.18,
+      shadowRadius: 10,
+      elevation: 3,
+    },
+    emptyCtaText: { color: '#fff', fontWeight: '800', fontSize: 13 },
 
     // Floating action button — soft elevation, sits above the grid.
     // The vertical offset clears tall-device home indicators and lands
