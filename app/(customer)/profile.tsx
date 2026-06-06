@@ -123,7 +123,15 @@ export default function ProfileScreen() {
 
   const styles = makeStyles(COLORS, isRTL, SHADOWS);
   const displayName = userProfile?.name?.trim() || user?.email?.split('@')[0] || (isRTL ? 'مرحبًا' : 'Welcome');
-  const displayEmail = userProfile?.email || user?.email || '';
+  // Prefer the auth email (canonical, kept fresh by Supabase) and only
+  // fall back to the profile row if the auth user has no email — which
+  // happens for phone-OTP-only accounts.
+  const displayEmail =
+    (user?.email?.trim() || '') ||
+    (userProfile?.email?.trim() || '');
+  const displayPhone =
+    ((userProfile as { phone?: string | null } | null)?.phone ?? '').trim() ||
+    ((user as { phone?: string | null } | null)?.phone ?? '').trim();
 
   return (
     <SafeAreaView style={styles.container}>
@@ -132,35 +140,97 @@ export default function ProfileScreen() {
       <View style={styles.header}>
         <Text style={styles.headerTitle}>{isRTL ? 'حسابي' : 'My account'}</Text>
         <TouchableOpacity onPress={() => goto('/settings')} style={styles.gearBtn} accessibilityRole="button">
-          <Ionicons name="settings-outline" size={20} color={COLORS.text} />
+          <Ionicons name="settings-outline" size={18} color={COLORS.text} />
         </TouchableOpacity>
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
         <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }], paddingHorizontal: SPACING.m, paddingTop: SPACING.m, paddingBottom: SPACING.l }}>
-          {/* Profile hero */}
+          {/* Profile hero — primary-tinted card with decorative orbs, an
+              online status dot, and contact details (email + phone) shown
+              as icon-prefixed rows so they read as data, not labels. */}
           <View style={[styles.hero, { backgroundColor: COLORS.primary }]}>
-            <Avatar
-              name={displayName}
-              uri={userProfile?.avatar_url}
-              size={76}
-              style={styles.avatar}
-            />
-            <Text style={styles.heroName} numberOfLines={1}>{displayName}</Text>
-            {!!displayEmail && <Text style={styles.heroEmail} numberOfLines={1}>{displayEmail}</Text>}
+            <View pointerEvents="none" style={[styles.heroOrb, styles.heroOrb1]} />
+            <View pointerEvents="none" style={[styles.heroOrb, styles.heroOrb2]} />
+
+            <View style={styles.heroAvatarRow}>
+              <View style={styles.heroAvatarWrap}>
+                <Avatar
+                  name={displayName}
+                  uri={userProfile?.avatar_url}
+                  size={72}
+                  style={styles.avatar}
+                />
+                <View style={[styles.heroAvatarDot, { borderColor: COLORS.primary }]} />
+              </View>
+              <View style={styles.heroNameWrap}>
+                <Text style={styles.heroName} numberOfLines={1}>{displayName}</Text>
+                <View style={styles.heroVerifyChip}>
+                  <Ionicons name="shield-checkmark" size={10} color="#fff" />
+                  <Text style={styles.heroVerifyText}>
+                    {isRTL ? 'حساب موثّق' : 'Verified account'}
+                  </Text>
+                </View>
+              </View>
+            </View>
+
+            {/* Contact rows */}
+            <View style={styles.heroContacts}>
+              {!!displayEmail && (
+                <View style={styles.heroContactRow}>
+                  <View style={styles.heroContactIcon}>
+                    <Ionicons name="mail-outline" size={13} color="#fff" />
+                  </View>
+                  <Text style={styles.heroContactText} numberOfLines={1}>
+                    {displayEmail}
+                  </Text>
+                </View>
+              )}
+              {!!displayPhone && (
+                <View style={styles.heroContactRow}>
+                  <View style={styles.heroContactIcon}>
+                    <Ionicons name="call-outline" size={13} color="#fff" />
+                  </View>
+                  <Text style={styles.heroContactText} numberOfLines={1}>
+                    {displayPhone}
+                  </Text>
+                </View>
+              )}
+            </View>
+
             <TouchableOpacity onPress={() => goto('/edit-profile')} style={styles.editPill}>
               <Ionicons name="pencil-outline" size={13} color="#fff" />
               <Text style={styles.editPillText}>{isRTL ? 'تعديل البيانات' : 'Edit profile'}</Text>
             </TouchableOpacity>
           </View>
 
-          {/* Stat tiles */}
-          <View style={styles.statsRow}>
-            <Stat label={isRTL ? 'الطلبات' : 'Orders'} value={stats.total} COLORS={COLORS} />
-            <View style={[styles.statSeparator, { backgroundColor: COLORS.border }]} />
-            <Stat label={isRTL ? 'مكتملة' : 'Completed'} value={stats.completed} COLORS={COLORS} accent />
-            <View style={[styles.statSeparator, { backgroundColor: COLORS.border }]} />
-            <Stat label={isRTL ? 'العناوين' : 'Addresses'} value={stats.addresses} COLORS={COLORS} />
+          {/* Stat tiles — three independent cards instead of one fused row
+              so each metric reads as its own glanceable card. */}
+          <View style={styles.statsGrid}>
+            <StatCard
+              icon="receipt-outline"
+              color="#3b82f6"
+              label={isRTL ? 'الطلبات' : 'Orders'}
+              value={stats.total}
+              COLORS={COLORS}
+              SHADOWS={SHADOWS}
+            />
+            <StatCard
+              icon="checkmark-done-circle-outline"
+              color="#10b981"
+              label={isRTL ? 'مكتملة' : 'Completed'}
+              value={stats.completed}
+              COLORS={COLORS}
+              SHADOWS={SHADOWS}
+            />
+            <StatCard
+              icon="location-outline"
+              color="#f59e0b"
+              label={isRTL ? 'العناوين' : 'Addresses'}
+              value={stats.addresses}
+              COLORS={COLORS}
+              SHADOWS={SHADOWS}
+            />
           </View>
 
           {/* Account section */}
@@ -194,13 +264,45 @@ export default function ProfileScreen() {
   );
 }
 
-function Stat({ label, value, COLORS, accent }: any) {
+interface StatCardProps {
+  icon: keyof typeof Ionicons.glyphMap;
+  color: string;
+  label: string;
+  value: number;
+  COLORS: ReturnType<typeof getColors>;
+  SHADOWS: ReturnType<typeof getShadows>;
+}
+
+function StatCard({ icon, color, label, value, COLORS, SHADOWS }: StatCardProps) {
   return (
-    <View style={{ flex: 1, alignItems: 'center' }}>
-      <Text style={{ color: accent ? COLORS.primary : COLORS.text, fontSize: 22, fontWeight: '800' }}>
+    <View
+      style={{
+        flex: 1,
+        backgroundColor: COLORS.card,
+        borderRadius: BORDER_RADIUS.md,
+        padding: 12,
+        gap: 8,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+        ...SHADOWS.small,
+      }}
+    >
+      <View
+        style={{
+          width: 32,
+          height: 32,
+          borderRadius: 10,
+          backgroundColor: color + '18',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <Ionicons name={icon} size={17} color={color} />
+      </View>
+      <Text style={{ color: COLORS.text, fontSize: 18, fontWeight: '900', letterSpacing: -0.3 }}>
         {value}
       </Text>
-      <Text style={{ color: COLORS.textSecondary, fontSize: 11, marginTop: 2, fontWeight: '500' }}>
+      <Text style={{ color: COLORS.textSecondary, fontSize: 10.5, fontWeight: '700' }}>
         {label}
       </Text>
     </View>
@@ -257,65 +359,148 @@ const makeStyles = (C: any, isRTL: boolean, SHADOWS: any) =>
       paddingVertical: 10,
       backgroundColor: C.background,
     },
-    headerTitle: { fontSize: 22, fontWeight: '800', color: C.text },
+    headerTitle: { fontSize: 21, fontWeight: '900', color: C.text, letterSpacing: -0.3 },
     gearBtn: {
-      width: 38, height: 38, borderRadius: 19,
+      width: 38, height: 38, borderRadius: 12,
       backgroundColor: C.card, alignItems: 'center', justifyContent: 'center',
       borderWidth: 1, borderColor: C.border,
     },
 
     hero: {
       borderRadius: 24,
-      padding: 22,
-      alignItems: 'center',
-      marginBottom: 16,
+      padding: 20,
+      marginBottom: 18,
+      overflow: 'hidden',
+      position: 'relative',
       shadowColor: C.primary,
-      shadowOpacity: 0.25,
-      shadowOffset: { width: 0, height: 8 },
-      shadowRadius: 16,
-      elevation: 6,
+      shadowOpacity: 0.30,
+      shadowOffset: { width: 0, height: 10 },
+      shadowRadius: 20,
+      elevation: 8,
     },
+    heroOrb: {
+      position: 'absolute',
+      borderRadius: 999,
+      backgroundColor: 'rgba(255,255,255,0.10)',
+    },
+    heroOrb1: {
+      width: 160,
+      height: 160,
+      top: -60,
+      [isRTL ? 'left' : 'right']: -50,
+    },
+    heroOrb2: {
+      width: 90,
+      height: 90,
+      bottom: -30,
+      [isRTL ? 'right' : 'left']: -20,
+      backgroundColor: 'rgba(255,255,255,0.06)',
+    },
+    heroAvatarRow: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
+      gap: 14,
+    },
+    heroAvatarWrap: { position: 'relative' },
+    heroAvatarDot: {
+      position: 'absolute',
+      [isRTL ? 'left' : 'right']: 2,
+      bottom: 2,
+      width: 16,
+      height: 16,
+      borderRadius: 8,
+      backgroundColor: '#22c55e',
+      borderWidth: 3,
+    },
+    heroNameWrap: { flex: 1 },
     avatar: {
-      borderWidth: 3, borderColor: '#ffffff40',
+      borderWidth: 3, borderColor: 'rgba(255,255,255,0.30)',
     },
-    heroName: { color: '#fff', fontSize: 18, fontWeight: '800', marginTop: 12, maxWidth: '90%' },
-    heroEmail: { color: '#ffffffcc', fontSize: 12, marginTop: 4, maxWidth: '90%' },
+    heroName: {
+      color: '#fff',
+      fontSize: 20,
+      fontWeight: '900',
+      letterSpacing: -0.3,
+      textAlign: isRTL ? 'right' : 'left',
+    },
+    heroVerifyChip: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
+      gap: 4,
+      backgroundColor: 'rgba(255,255,255,0.22)',
+      paddingHorizontal: 9,
+      paddingVertical: 4,
+      borderRadius: 999,
+      alignSelf: isRTL ? 'flex-end' : 'flex-start',
+      marginTop: 6,
+    },
+    heroVerifyText: { color: '#fff', fontSize: 10.5, fontWeight: '800', letterSpacing: 0.3 },
+
+    heroContacts: {
+      marginTop: 16,
+      gap: 8,
+    },
+    heroContactRow: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
+      gap: 9,
+      backgroundColor: 'rgba(255,255,255,0.14)',
+      paddingHorizontal: 12,
+      paddingVertical: 9,
+      borderRadius: 12,
+    },
+    heroContactIcon: {
+      width: 22,
+      height: 22,
+      borderRadius: 7,
+      backgroundColor: 'rgba(255,255,255,0.22)',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    heroContactText: {
+      flex: 1,
+      color: '#fff',
+      fontSize: 13,
+      fontWeight: '700',
+      textAlign: isRTL ? 'right' : 'left',
+    },
+
     editPill: {
       flexDirection: isRTL ? 'row-reverse' : 'row',
       alignItems: 'center',
+      justifyContent: 'center',
       gap: 6,
-      backgroundColor: '#ffffff25',
+      backgroundColor: '#fff',
       paddingHorizontal: 14,
-      paddingVertical: 7,
+      paddingVertical: 10,
       borderRadius: 999,
       marginTop: 14,
+      alignSelf: isRTL ? 'flex-end' : 'flex-start',
     },
-    editPillText: { color: '#fff', fontSize: 12, fontWeight: '700' },
+    editPillText: { color: C.primary, fontSize: 12.5, fontWeight: '800' },
 
-    statsRow: {
+    statsGrid: {
       flexDirection: isRTL ? 'row-reverse' : 'row',
-      backgroundColor: C.card,
-      borderRadius: BORDER_RADIUS.md,
-      paddingVertical: 18,
-      marginBottom: 24,
-      ...SHADOWS.small,
+      gap: 10,
+      marginBottom: 22,
     },
-    statSeparator: { width: StyleSheet.hairlineWidth, marginVertical: 4 },
 
     sectionLabel: {
-      fontSize: 11,
+      fontSize: 10.5,
       fontWeight: '800',
       color: C.textSecondary,
-      letterSpacing: 1.4,
+      letterSpacing: 1.3,
       marginBottom: 8,
       paddingHorizontal: 4,
       textAlign: isRTL ? 'right' : 'left',
     },
     menuCard: {
       backgroundColor: C.card,
-      borderRadius: BORDER_RADIUS.md,
-      marginBottom: 24,
+      borderRadius: BORDER_RADIUS.lg,
+      marginBottom: 22,
       overflow: 'hidden',
+      borderWidth: 1,
+      borderColor: C.border,
       ...SHADOWS.small,
     },
 
@@ -323,8 +508,8 @@ const makeStyles = (C: any, isRTL: boolean, SHADOWS: any) =>
       flexDirection: isRTL ? 'row-reverse' : 'row',
       alignItems: 'center',
       justifyContent: 'center',
-      gap: 10,
-      paddingVertical: 14,
+      gap: 8,
+      paddingVertical: 13,
       borderRadius: BORDER_RADIUS.lg,
       backgroundColor: '#ef444412',
       borderWidth: 1,
@@ -332,5 +517,8 @@ const makeStyles = (C: any, isRTL: boolean, SHADOWS: any) =>
     },
     logoutText: { color: '#ef4444', fontWeight: '800', fontSize: 14 },
 
-    versionText: { textAlign: 'center', color: C.textSecondary, fontSize: 11, marginTop: 18 },
+    versionText: {
+      textAlign: 'center', color: C.textSecondary, fontSize: 10.5,
+      fontWeight: '700', letterSpacing: 0.6, marginTop: 18, opacity: 0.6,
+    },
   });
