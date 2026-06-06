@@ -1126,7 +1126,7 @@ const createStyles = (C: any, isRTL: boolean) =>
       position: 'absolute',
       // Sits just above the floating Market tab bar so it stays in the
       // natural thumb zone without ever overlapping the tabs.
-      bottom: (Platform.OS === 'ios' ? 30 : 20) + 70 + 14,
+      bottom: (Platform.OS === 'ios' ? 30 : 20) + 70 + 4,
       ...(isRTL ? { left: 18 } : { right: 18 }),
       flexDirection: isRTL ? 'row-reverse' : 'row',
       alignItems: 'center',
