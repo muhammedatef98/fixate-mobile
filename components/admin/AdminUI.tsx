@@ -103,25 +103,25 @@ export function AdminScreenHeader({
     >
       <TouchableOpacity
         onPress={() => safeBack('/admin')}
-        style={styles.headerBack}
+        style={[styles.headerBack, { backgroundColor: COLORS.background }]}
         accessibilityRole="button"
         accessibilityLabel={isRTL ? 'رجوع' : 'Back'}
       >
-        <RTLIonicon name="chevron-back" size={24} color={COLORS.text} />
+        <RTLIonicon name="chevron-back" size={20} color={COLORS.text} />
       </TouchableOpacity>
 
-      <View style={{ flex: 1, alignItems: 'center' }}>
+      <View style={{ flex: 1, alignItems: 'center', paddingHorizontal: 8 }}>
         <Text
-          style={[
-            styles.headerTitle,
-            { color: COLORS.text, textAlign: isRTL ? 'right' : 'left' },
-          ]}
+          style={[styles.headerTitle, { color: COLORS.text }]}
           numberOfLines={1}
         >
           {title}
         </Text>
         {!!subtitle && (
-          <Text style={[styles.headerSubtitle, { color: COLORS.textSecondary }]}>
+          <Text
+            style={[styles.headerSubtitle, { color: COLORS.textSecondary }]}
+            numberOfLines={1}
+          >
             {subtitle}
           </Text>
         )}
@@ -130,14 +130,14 @@ export function AdminScreenHeader({
       {rightIcon ? (
         <TouchableOpacity
           onPress={onRightPress}
-          style={styles.headerBack}
+          style={[styles.headerBack, { backgroundColor: COLORS.primary + '15' }]}
           accessibilityRole="button"
           accessibilityLabel={rightLabel}
         >
-          <Ionicons name={rightIcon} size={22} color={COLORS.primary} />
+          <Ionicons name={rightIcon} size={18} color={COLORS.primary} />
         </TouchableOpacity>
       ) : (
-        <View style={{ width: 40 }} />
+        <View style={{ width: 36 }} />
       )}
     </View>
   );
@@ -332,19 +332,19 @@ const styles = StyleSheet.create({
   headerWrap: {
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: SPACING.sm,
-    paddingVertical: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
     borderBottomWidth: 1,
   },
   headerBack: {
-    width: 40,
-    height: 40,
+    width: 36,
+    height: 36,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 20,
+    borderRadius: 12,
   },
-  headerTitle: { fontSize: 17, fontWeight: '800' },
-  headerSubtitle: { fontSize: 12, marginTop: 1 },
+  headerTitle: { fontSize: 17, fontWeight: '800', letterSpacing: -0.2 },
+  headerSubtitle: { fontSize: 11, marginTop: 2, fontWeight: '600' },
 
   // Search
   searchWrap: {

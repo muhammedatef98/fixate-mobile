@@ -1,12 +1,41 @@
-import React, { useRef } from 'react';
+import React, { useMemo, useRef } from 'react';
 import {
   Animated,
   Pressable,
+  StyleSheet,
   TouchableOpacity,
   TouchableOpacityProps,
   ViewStyle,
   PressableProps,
 } from 'react-native';
+
+// Layout props need to live on the outer Animated.View so the wrapped
+// element actually participates in its parent's flex layout. Visual
+// props (padding, background, border, flexDirection, gap…) stay on the
+// inner touchable so taps cover the full visual area exactly once.
+const LAYOUT_KEYS = [
+  'flex', 'flexGrow', 'flexShrink', 'flexBasis',
+  'alignSelf', 'width', 'height',
+  'minWidth', 'minHeight', 'maxWidth', 'maxHeight',
+  'margin', 'marginTop', 'marginRight', 'marginBottom', 'marginLeft',
+  'marginHorizontal', 'marginVertical', 'marginStart', 'marginEnd',
+  'position', 'top', 'right', 'bottom', 'left', 'start', 'end',
+  'zIndex',
+] as const;
+
+const splitLayoutStyle = (style: ViewStyle | ViewStyle[] | undefined): {
+  layout: ViewStyle;
+  rest: ViewStyle | ViewStyle[] | undefined;
+} => {
+  if (!style) return { layout: {}, rest: undefined };
+  const flat = StyleSheet.flatten(style) as ViewStyle;
+  const layout: ViewStyle = {};
+  for (const k of LAYOUT_KEYS) {
+    const v = (flat as Record<string, unknown>)[k];
+    if (v !== undefined) (layout as Record<string, unknown>)[k] = v;
+  }
+  return { layout, rest: style };
+};
 
 interface Props extends PressableProps {
   children: React.ReactNode;
@@ -56,12 +85,17 @@ export const AnimatedTouchable: React.FC<TouchableOpacityProps> = ({
       tension: 120,
     }).start();
 
+  const { layout, rest: innerStyle } = useMemo(
+    () => splitLayoutStyle(style as ViewStyle | ViewStyle[] | undefined),
+    [style]
+  );
+
   return (
-    <Animated.View style={{ transform: [{ scale }] }}>
+    <Animated.View style={[layout, { transform: [{ scale }] }]}>
       <TouchableOpacity
         onPressIn={(e) => { animate(0.96); onPressIn?.(e); }}
         onPressOut={(e) => { animate(1); onPressOut?.(e); }}
-        style={style}
+        style={innerStyle}
         {...rest}
       >
         {children}

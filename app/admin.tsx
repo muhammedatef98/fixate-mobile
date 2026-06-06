@@ -278,30 +278,41 @@ export default function AdminDashboardScreen() {
   return (
     <SafeAreaView style={s.container}>
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
-      <View style={s.header}>
-        <TouchableOpacity onPress={() => safeBack('/(customer)')} style={{ padding: 6 }}>
-          <RTLIonicon name="chevron-back" size={26} color={COLORS.text} />
+      <View style={[s.header, { borderBottomColor: COLORS.border, backgroundColor: COLORS.card }]}>
+        <TouchableOpacity
+          onPress={() => safeBack('/(customer)')}
+          style={[s.headerBtn, { backgroundColor: COLORS.background }]}
+          accessibilityLabel={isRTL ? 'رجوع' : 'Back'}
+        >
+          <RTLIonicon name="chevron-back" size={20} color={COLORS.text} />
         </TouchableOpacity>
-        <View style={{ flex: 1, alignItems: 'center' }}>
-          <Text style={[s.title, { color: COLORS.text }]}>{isRTL ? 'لوحة الإدارة' : 'Admin Panel'}</Text>
+        <View style={{ flex: 1, alignItems: 'center', paddingHorizontal: 8 }}>
+          <Text style={[s.title, { color: COLORS.text }]}>
+            {isRTL ? 'لوحة الإدارة' : 'Admin Panel'}
+          </Text>
+          {lastRefreshLabel ? (
+            <Text style={{ color: COLORS.textSecondary, fontSize: 11, fontWeight: '600', marginTop: 1 }}>
+              {lastRefreshLabel}
+            </Text>
+          ) : null}
         </View>
-        <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', gap: 4 }}>
+        <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', gap: 6 }}>
           <TouchableOpacity
             onPress={() => { setRefreshing(true); loadStats(); }}
-            style={{ padding: 6 }}
+            style={[s.headerBtn, { backgroundColor: COLORS.primary + '15' }]}
             accessibilityLabel={isRTL ? 'تحديث' : 'Refresh'}
           >
-            <Ionicons name="refresh" size={20} color={COLORS.text} />
+            <Ionicons name="refresh" size={18} color={COLORS.primary} />
           </TouchableOpacity>
           <TouchableOpacity
             onPress={async () => {
               try { await signOut(); } catch {}
               router.replace('/role-selection');
             }}
-            style={{ padding: 6 }}
+            style={[s.headerBtn, { backgroundColor: '#ef444415' }]}
             accessibilityLabel={isRTL ? 'تسجيل الخروج' : 'Sign out'}
           >
-            <Ionicons name="log-out-outline" size={22} color="#ef4444" />
+            <Ionicons name="log-out-outline" size={18} color="#ef4444" />
           </TouchableOpacity>
         </View>
       </View>
@@ -317,8 +328,13 @@ export default function AdminDashboardScreen() {
           />
         }
       >
-        {/* ── Greeting hero — admin identity + last refresh stamp ──── */}
-        <View style={s.hero}>
+        {/* ── Greeting hero — admin identity + key today metrics ──── */}
+        <TouchableOpacity
+          onPress={() => router.push('/admin-reports' as any)}
+          activeOpacity={0.9}
+          style={s.hero}
+        >
+          <View style={[s.heroAccent, { backgroundColor: COLORS.primary }]} />
           <View style={{ flex: 1 }}>
             <Text style={s.heroEyebrow}>
               {isRTL ? `أهلاً يا ${greetingName}` : `Welcome, ${greetingName}`}
@@ -326,22 +342,25 @@ export default function AdminDashboardScreen() {
             <Text style={s.heroTitle}>
               {isRTL ? 'مركز التحكم اليومي' : 'Daily control center'}
             </Text>
-            <Text style={s.heroBody} numberOfLines={2}>
-              {isRTL
-                ? `${stats.ordersToday} طلب اليوم · ${stats.revenueToday.toLocaleString('ar-SA')} ر.س`
-                : `${stats.ordersToday} orders today · ${stats.revenueToday.toLocaleString('en-US')} SAR`}
-            </Text>
-            {lastRefreshLabel ? (
-              <View style={s.heroStamp}>
-                <Ionicons name="time-outline" size={11} color={COLORS.textLight} />
-                <Text style={s.heroStampText}>{lastRefreshLabel}</Text>
+
+            <View style={s.heroMetrics}>
+              <View style={s.heroMetric}>
+                <Text style={s.heroMetricValue}>{stats.ordersToday}</Text>
+                <Text style={s.heroMetricLabel}>{isRTL ? 'طلبات اليوم' : 'Orders today'}</Text>
               </View>
-            ) : null}
+              <View style={[s.heroDivider, { backgroundColor: COLORS.border }]} />
+              <View style={s.heroMetric}>
+                <Text style={s.heroMetricValue}>
+                  {stats.revenueToday.toLocaleString(isRTL ? 'ar-SA' : 'en-US')}
+                </Text>
+                <Text style={s.heroMetricLabel}>{isRTL ? 'إيرادات اليوم (ر.س)' : "Today's revenue (SAR)"}</Text>
+              </View>
+            </View>
           </View>
           <View style={s.heroBadge}>
-            <MaterialCommunityIcons name="shield-crown-outline" size={28} color={COLORS.primary} />
+            <MaterialCommunityIcons name="shield-crown-outline" size={26} color={COLORS.primary} />
           </View>
-        </View>
+        </TouchableOpacity>
 
         {/* ── Needs attention alert ───────────────────────────────── */}
         <AdminAttentionBar
@@ -448,17 +467,34 @@ export default function AdminDashboardScreen() {
           />
         </View>
 
-        {/* Revenue card — preserved verbatim, slightly elevated visually */}
-        <View style={[s.revenueCard, { backgroundColor: COLORS.primary }]}>
+        {/* Revenue card — tappable, drills into reports */}
+        <TouchableOpacity
+          onPress={() => router.push('/admin-reports' as any)}
+          activeOpacity={0.9}
+          style={[s.revenueCard, { backgroundColor: COLORS.primary }]}
+        >
           <View style={{ flex: 1 }}>
-            <Text style={s.revenueLabel}>
-              {isRTL ? 'إجمالي الإيرادات (طلبات مكتملة)' : 'Total revenue (completed orders)'}
-            </Text>
+            <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 6 }}>
+              <Text style={s.revenueLabel}>
+                {isRTL ? 'إجمالي الإيرادات' : 'Total revenue'}
+              </Text>
+              <View style={s.revenueChip}>
+                <Text style={s.revenueChipText}>
+                  {isRTL ? 'مكتملة' : 'Completed'}
+                </Text>
+              </View>
+            </View>
             {loading ? (
-              <ActivityIndicator color="#fff" style={{ alignSelf: isRTL ? 'flex-end' : 'flex-start', marginTop: 6 }} />
+              <ActivityIndicator
+                color="#fff"
+                style={{ alignSelf: isRTL ? 'flex-end' : 'flex-start', marginTop: 6 }}
+              />
             ) : (
               <Text style={s.revenueValue}>
-                {stats.revenue.toLocaleString(isRTL ? 'ar-SA' : 'en-US')} {isRTL ? 'ر.س' : 'SAR'}
+                {stats.revenue.toLocaleString(isRTL ? 'ar-SA' : 'en-US')}{' '}
+                <Text style={{ fontSize: 14, fontWeight: '700' }}>
+                  {isRTL ? 'ر.س' : 'SAR'}
+                </Text>
               </Text>
             )}
             {stats.revenueToday > 0 && !loading ? (
@@ -469,8 +505,10 @@ export default function AdminDashboardScreen() {
               </Text>
             ) : null}
           </View>
-          <MaterialCommunityIcons name="cash-multiple" size={42} color="rgba(255,255,255,0.35)" />
-        </View>
+          <View style={s.revenueIconWrap}>
+            <MaterialCommunityIcons name="cash-multiple" size={28} color="#fff" />
+          </View>
+        </TouchableOpacity>
 
         {/* ── Recent activity feed (new) ──────────────────────────── */}
         {activity.length > 0 ? (
@@ -592,11 +630,18 @@ const styles = (C: any, isRTL: boolean) =>
       flexDirection: isRTL ? 'row-reverse' : 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      paddingHorizontal: 16,
-      paddingVertical: 12,
-      backgroundColor: C.background,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+      borderBottomWidth: 1,
     },
-    title: { fontSize: 20, fontWeight: '800' },
+    headerBtn: {
+      width: 36,
+      height: 36,
+      borderRadius: 12,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    title: { fontSize: 17, fontWeight: '800', letterSpacing: -0.2 },
 
     hero: {
       flexDirection: isRTL ? 'row-reverse' : 'row',
@@ -608,29 +653,45 @@ const styles = (C: any, isRTL: boolean) =>
       marginBottom: 14,
       borderWidth: 1,
       borderColor: C.border,
+      overflow: 'hidden',
+      position: 'relative',
       ...ADMIN_CARD_SHADOW,
     },
+    heroAccent: {
+      position: 'absolute',
+      top: 0,
+      bottom: 0,
+      [isRTL ? 'right' : 'left']: 0,
+      width: 3,
+    },
     heroEyebrow: {
-      color: C.primary, fontSize: 12, fontWeight: '800',
+      color: C.primary, fontSize: 11, fontWeight: '800',
       letterSpacing: 0.4, textTransform: 'uppercase',
       textAlign: isRTL ? 'right' : 'left',
     },
     heroTitle: {
       color: C.text, fontSize: 20, fontWeight: '900',
-      marginTop: 4, letterSpacing: -0.3,
+      marginTop: 3, letterSpacing: -0.3,
       textAlign: isRTL ? 'right' : 'left',
     },
-    heroBody: {
-      color: C.textSecondary, fontSize: 13, marginTop: 4, fontWeight: '600',
-      textAlign: isRTL ? 'right' : 'left',
-    },
-    heroStamp: {
+    heroMetrics: {
       flexDirection: isRTL ? 'row-reverse' : 'row',
-      alignItems: 'center', gap: 4, marginTop: 10,
+      alignItems: 'center',
+      gap: 14,
+      marginTop: 12,
     },
-    heroStampText: { color: C.textLight, fontSize: 11, fontWeight: '700' },
+    heroMetric: { gap: 2 },
+    heroMetricValue: {
+      color: C.text, fontSize: 18, fontWeight: '900', letterSpacing: -0.3,
+      textAlign: isRTL ? 'right' : 'left',
+    },
+    heroMetricLabel: {
+      color: C.textSecondary, fontSize: 10.5, fontWeight: '700',
+      textAlign: isRTL ? 'right' : 'left',
+    },
+    heroDivider: { width: 1, height: 30 },
     heroBadge: {
-      width: 56, height: 56, borderRadius: 18,
+      width: 52, height: 52, borderRadius: 16,
       backgroundColor: C.primarySoft,
       alignItems: 'center', justifyContent: 'center',
     },
@@ -671,6 +732,18 @@ const styles = (C: any, isRTL: boolean) =>
     revenueSub: {
       color: 'rgba(255,255,255,0.78)', fontSize: 12, fontWeight: '700', marginTop: 4,
       textAlign: isRTL ? 'right' : 'left',
+    },
+    revenueChip: {
+      backgroundColor: 'rgba(255,255,255,0.18)',
+      paddingHorizontal: 8,
+      paddingVertical: 2,
+      borderRadius: 999,
+    },
+    revenueChipText: { color: '#fff', fontSize: 10, fontWeight: '800', letterSpacing: 0.3 },
+    revenueIconWrap: {
+      width: 52, height: 52, borderRadius: 16,
+      backgroundColor: 'rgba(255,255,255,0.18)',
+      alignItems: 'center', justifyContent: 'center',
     },
   });
 
