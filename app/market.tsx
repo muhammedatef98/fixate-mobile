@@ -1141,10 +1141,9 @@ const createStyles = (C: any, isRTL: boolean) =>
     // squarely in the natural thumb-reach zone for one-handed use.
     fab: {
       position: 'absolute',
-      // Hugs the top edge of the floating tab bar with a 2px breathing
-      // gap — close enough to read as paired with the tabs, far enough
-      // not to visually crash into them.
-      bottom: (Platform.OS === 'ios' ? 30 : 20) + 70 - 22,
+      // Sits flush on top of the floating tab bar — FAB bottom edge
+      // touches the tab bar top edge so the two feel paired.
+      bottom: (Platform.OS === 'ios' ? 30 : 20) + 70,
       ...(isRTL ? { left: 16 } : { right: 16 }),
       flexDirection: isRTL ? 'row-reverse' : 'row',
       alignItems: 'center',
