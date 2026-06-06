@@ -543,6 +543,12 @@ export default function AdminDashboardScreen() {
           subtitle={isRTL ? 'متابعة تقييمات العملاء للفنيين' : 'Review customer ratings of technicians'}
           onPress={() => router.push('/admin-ratings' as any)}
         />
+        <AdminActionCard
+          icon="map-marker-radius" iconColor="#06b6d4"
+          title={isRTL ? 'مناطق الخدمة' : 'Service Areas'}
+          subtitle={isRTL ? 'إدارة المناطق، المدن، الأحياء ورسوم التوصيل' : 'Manage regions, cities, neighborhoods & delivery fees'}
+          onPress={() => router.push('/admin-service-areas' as any)}
+        />
 
         {/* ── Communication ───────────────────────────────────────── */}
         <AdminSectionLabel icon="message-text-outline" text={isRTL ? 'التواصل' : 'Communication'} />
