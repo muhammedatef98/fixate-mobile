@@ -18,7 +18,11 @@ import { uploadOrderMedia } from '../services/storageService';
 import { getFriendlyError } from '../utils/errorMessages';
 import { tapLight } from '../utils/haptics';
 import { formatPrice } from '../utils/pricing';
-import { getRegionTree, type RegionWithCities } from '../services/serviceAreasService';
+import {
+  getRegionTree,
+  resolveDeliveryFee,
+  type RegionWithCities,
+} from '../services/serviceAreasService';
 import {
   computeDeliveryFee,
   getCityCentroid,
@@ -116,7 +120,6 @@ export default function RequestScreen() {
   }, []);
   const [address, setAddress] = useState('');
   const [selectedNeighborhood, setSelectedNeighborhood] = useState('');
-  const [zoneDeliveryFee, setZoneDeliveryFee] = useState(0);
   
   const tc = getColors(isDark);
   const SHADOWS = getShadows(isDark);
@@ -326,25 +329,13 @@ export default function RequestScreen() {
       promoFreeDelivery,
   });
   const baseDeliveryFee = deliveryQuote.fee;
+  // Region → City → Neighborhood resolution. The nested tree already
+  // carries every neighborhood for the selected city, so the lookup is
+  // synchronous: neighborhood fee (when matched + enabled) overrides the
+  // city default; otherwise the city's `delivery_fee` is used.
+  const zoneDeliveryFee = resolveDeliveryFee(selectedCity, selectedNeighborhood);
   const deliveryFee = zoneDeliveryFee > 0 ? zoneDeliveryFee : baseDeliveryFee;
   const isFreeDelivery = deliveryQuote.source === 'free' || deliveryFee === 0;
-
-  useEffect(() => {
-    const name = selectedNeighborhood.trim();
-    setZoneDeliveryFee(0);
-    if (!name) return;
-    let cancelled = false;
-    (async () => {
-      const { data } = await supabase
-        .from('delivery_zones')
-        .select('delivery_fee')
-        .eq('is_active', true)
-        .or(`neighborhood_name_ar.ilike.${name},neighborhood_name_en.ilike.${name}`)
-        .maybeSingle();
-      if (!cancelled) setZoneDeliveryFee(Number(data?.delivery_fee ?? 0));
-    })();
-    return () => { cancelled = true; };
-  }, [selectedNeighborhood]);
   
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;

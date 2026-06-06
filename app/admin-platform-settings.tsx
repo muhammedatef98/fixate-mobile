@@ -35,8 +35,11 @@ import {
   getRegionTree,
   updateRegion,
   updateCity,
+  updateNeighborhood,
   setRegionCitiesEnabled,
   type RegionWithCities,
+  type CityWithNeighborhoods,
+  type ServiceNeighborhood,
 } from '../services/serviceAreasService';
 import {
   listPaymentMethods,
@@ -809,6 +812,63 @@ function ServiceAreasSection({
     }
   };
 
+  const patchNeighborhoodInTree = (
+    regionId: string,
+    cityId: string,
+    neighborhoodId: string,
+    patch: Partial<ServiceNeighborhood>
+  ) => {
+    setTree((t) =>
+      t!.map((r) =>
+        r.id === regionId
+          ? {
+              ...r,
+              cities: r.cities.map((c) =>
+                c.id === cityId
+                  ? {
+                      ...c,
+                      neighborhoods: c.neighborhoods.map((n) =>
+                        n.id === neighborhoodId ? { ...n, ...patch } : n
+                      ),
+                    }
+                  : c
+              ),
+            }
+          : r
+      )
+    );
+  };
+
+  const toggleNeighborhood = async (
+    region: RegionWithCities,
+    city: CityWithNeighborhoods,
+    neighborhoodId: string,
+    enabled: boolean
+  ) => {
+    patchNeighborhoodInTree(region.id, city.id, neighborhoodId, { enabled });
+    try {
+      await updateNeighborhood(neighborhoodId, { enabled });
+    } catch (e) {
+      patchNeighborhoodInTree(region.id, city.id, neighborhoodId, { enabled: !enabled });
+      fail(e);
+    }
+  };
+
+  const setNeighborhoodDeliveryFee = async (
+    region: RegionWithCities,
+    city: CityWithNeighborhoods,
+    neighborhoodId: string,
+    value: number
+  ) => {
+    patchNeighborhoodInTree(region.id, city.id, neighborhoodId, { delivery_fee: value });
+    try {
+      await updateNeighborhood(neighborhoodId, { delivery_fee: value });
+    } catch (e) {
+      getRegionTree(false).then(setTree).catch(() => undefined);
+      fail(e);
+    }
+  };
+
   const setAllCities = async (region: RegionWithCities, enabled: boolean) => {
     setTree((t) =>
       t!.map((r) =>
@@ -996,6 +1056,89 @@ function ServiceAreasSection({
                           }}
                         />
                       </View>
+
+                      {city.neighborhoods.length > 0 && (
+                        <View
+                          style={{
+                            marginTop: 6,
+                            paddingTop: 6,
+                            paddingHorizontal: 10,
+                            borderTopWidth: StyleSheet.hairlineWidth,
+                            borderTopColor: COLORS.border,
+                            gap: 6,
+                          }}
+                        >
+                          <Text
+                            style={{
+                              color: COLORS.textSecondary,
+                              fontSize: 11,
+                              fontWeight: '700',
+                              textAlign: isRTL ? 'right' : 'left',
+                            }}
+                          >
+                            {isRTL ? 'الأحياء' : 'Neighborhoods'}
+                          </Text>
+                          {city.neighborhoods.map((nb) => (
+                            <View
+                              key={nb.id}
+                              style={{
+                                flexDirection: isRTL ? 'row-reverse' : 'row',
+                                alignItems: 'center',
+                                gap: 8,
+                                paddingVertical: 4,
+                              }}
+                            >
+                              <Text
+                                style={{
+                                  color: COLORS.text,
+                                  fontSize: 12,
+                                  flex: 1,
+                                  textAlign: isRTL ? 'right' : 'left',
+                                }}
+                                numberOfLines={1}
+                              >
+                                {isRTL ? nb.name_ar : nb.name_en}
+                              </Text>
+                              <TextInput
+                                defaultValue={
+                                  typeof nb.delivery_fee === 'number' ? String(nb.delivery_fee) : ''
+                                }
+                                keyboardType="numeric"
+                                placeholder={
+                                  typeof city.delivery_fee === 'number'
+                                    ? String(city.delivery_fee)
+                                    : '0'
+                                }
+                                placeholderTextColor={COLORS.textSecondary}
+                                onEndEditing={(e) => {
+                                  const raw = e.nativeEvent.text.trim();
+                                  const n = raw === '' ? 0 : Number(raw);
+                                  if (!Number.isFinite(n) || n < 0) return;
+                                  if (n === nb.delivery_fee) return;
+                                  setNeighborhoodDeliveryFee(region, city, nb.id, n);
+                                }}
+                                style={{
+                                  minWidth: 64,
+                                  paddingVertical: 3,
+                                  paddingHorizontal: 8,
+                                  borderWidth: 1,
+                                  borderColor: COLORS.border,
+                                  borderRadius: BORDER_RADIUS.sm,
+                                  color: COLORS.text,
+                                  fontSize: 12,
+                                  textAlign: isRTL ? 'right' : 'left',
+                                }}
+                              />
+                              <Switch
+                                value={nb.enabled}
+                                onValueChange={(v) => toggleNeighborhood(region, city, nb.id, v)}
+                                trackColor={{ false: COLORS.border, true: COLORS.primary }}
+                                thumbColor="#fff"
+                              />
+                            </View>
+                          ))}
+                        </View>
+                      )}
                     </View>
                   ))}
                 </View>
