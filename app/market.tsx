@@ -431,26 +431,36 @@ export default function MarketScreen() {
             </Text>
           ) : null}
         </View>
-        <AnimatedTouchable
-          onPress={() => setSavedOnly((v) => !v)}
-          style={[
-            styles.headerIconBtn,
-            { backgroundColor: savedOnly ? '#ef444415' : COLORS.card },
-          ]}
-          accessibilityRole="button"
-          accessibilityLabel={isRTL ? 'المحفوظات' : 'Saved'}
-        >
-          <Ionicons
-            name={savedOnly ? 'heart' : 'heart-outline'}
-            size={18}
-            color={savedOnly ? '#ef4444' : COLORS.text}
-          />
-          {favorites.size > 0 && (
-            <View style={styles.headerBadge}>
-              <Text style={styles.headerBadgeText}>{favorites.size}</Text>
-            </View>
-          )}
-        </AnimatedTouchable>
+        <View style={styles.headerActions}>
+          <AnimatedTouchable
+            onPress={() => router.replace('/(customer)' as never)}
+            style={[styles.headerIconBtn, { backgroundColor: COLORS.primary + '15', borderColor: COLORS.primary + '30' }]}
+            accessibilityRole="button"
+            accessibilityLabel={isRTL ? 'الرئيسية' : 'Home'}
+          >
+            <Ionicons name="home" size={17} color={COLORS.primary} />
+          </AnimatedTouchable>
+          <AnimatedTouchable
+            onPress={() => setSavedOnly((v) => !v)}
+            style={[
+              styles.headerIconBtn,
+              { backgroundColor: savedOnly ? '#ef444415' : COLORS.card },
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel={isRTL ? 'المحفوظات' : 'Saved'}
+          >
+            <Ionicons
+              name={savedOnly ? 'heart' : 'heart-outline'}
+              size={18}
+              color={savedOnly ? '#ef4444' : COLORS.text}
+            />
+            {favorites.size > 0 && (
+              <View style={styles.headerBadge}>
+                <Text style={styles.headerBadgeText}>{favorites.size}</Text>
+              </View>
+            )}
+          </AnimatedTouchable>
+        </View>
       </View>
 
       {/* Search + filter button */}
@@ -772,6 +782,11 @@ const createStyles = (C: any, isRTL: boolean) =>
       paddingHorizontal: 12,
       paddingTop: SPACING.md,
       paddingBottom: SPACING.sm,
+    },
+    headerActions: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
+      gap: 8,
     },
     headerIconBtn: {
       width: 38,
