@@ -235,23 +235,13 @@ export default function TechnicianProfile() {
               />
             </View>
 
-            {/* Stats row — preserved fields. Cancellations added as a quiet
-                operational signal for the technician's own awareness. */}
+            {/* Stats row — rating intentionally removed here. The single
+                source of truth for ratings is the dedicated "Ratings &
+                Reviews" section below to avoid showing the same number twice. */}
             <View style={styles.statsRow}>
               <View style={styles.statItem}>
                 <Text style={styles.statValue}>{stats.completed}</Text>
                 <Text style={styles.statLabel}>{isRTL ? 'مكتملة' : 'Completed'}</Text>
-              </View>
-              <View style={styles.statDivider} />
-              <View style={styles.statItem}>
-                <Text style={styles.statValue}>
-                  {stats.rating > 0 ? `${stats.rating.toFixed(1)}★` : '—'}
-                </Text>
-                <Text style={styles.statLabel}>
-                  {stats.ratingCount > 0
-                    ? `${stats.ratingCount} ${isRTL ? 'تقييم' : 'reviews'}`
-                    : (isRTL ? 'تقييم' : 'Rating')}
-                </Text>
               </View>
               <View style={styles.statDivider} />
               <View style={styles.statItem}>

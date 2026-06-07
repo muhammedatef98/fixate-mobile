@@ -25,10 +25,11 @@ export default function NeuCard({
 
   if (onPress) {
     return (
-      <TouchableOpacity 
-        style={cardStyles} 
+      <TouchableOpacity
+        style={cardStyles}
         onPress={onPress}
-        activeOpacity={0.95}
+        activeOpacity={0.92}
+        accessibilityRole="button"
       >
         {children}
       </TouchableOpacity>

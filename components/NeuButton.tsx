@@ -1,6 +1,7 @@
 import React from 'react';
-import { TouchableOpacity, Text, StyleSheet, ViewStyle, TextStyle, View } from 'react-native';
+import { TouchableOpacity, Text, StyleSheet, ViewStyle, TextStyle, View, ActivityIndicator } from 'react-native';
 import { COLORS, SPACING, BORDER_RADIUS, SHADOWS } from '../constants/theme';
+import { selection } from '../utils/haptics';
 
 interface NeuButtonProps {
   title?: string;
@@ -11,6 +12,11 @@ interface NeuButtonProps {
   style?: ViewStyle;
   textStyle?: TextStyle;
   disabled?: boolean;
+  loading?: boolean;
+  fullWidth?: boolean;
+  haptic?: boolean;
+  accessibilityLabel?: string;
+  accessibilityHint?: string;
 }
 
 export default function NeuButton({
@@ -22,7 +28,14 @@ export default function NeuButton({
   style,
   textStyle,
   disabled = false,
+  loading = false,
+  fullWidth = false,
+  haptic = true,
+  accessibilityLabel,
+  accessibilityHint,
 }: NeuButtonProps) {
+  const isInactive = disabled || loading;
+
   const buttonStyles = [
     styles.base,
     variant === 'primary' && [styles.primary, SHADOWS.primaryGlow],
@@ -31,7 +44,8 @@ export default function NeuButton({
     size === 'small' && styles.small,
     size === 'medium' && styles.medium,
     size === 'large' && styles.large,
-    disabled && styles.disabled,
+    fullWidth && styles.fullWidth,
+    isInactive && styles.disabled,
     style,
   ];
 
@@ -45,15 +59,33 @@ export default function NeuButton({
     textStyle,
   ];
 
+  const spinnerColor =
+    variant === 'primary' ? COLORS.white : COLORS.primary;
+
+  const handlePress = () => {
+    if (haptic) selection();
+    onPress();
+  };
+
   return (
     <TouchableOpacity
       style={buttonStyles}
-      onPress={onPress}
-      disabled={disabled}
+      onPress={handlePress}
+      disabled={isInactive}
       activeOpacity={0.8}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel ?? title}
+      accessibilityHint={accessibilityHint}
+      accessibilityState={{ disabled: isInactive, busy: loading }}
     >
-      {icon && <View style={styles.iconContainer}>{icon}</View>}
-      {title && <Text style={textStyles}>{title}</Text>}
+      {loading ? (
+        <ActivityIndicator size="small" color={spinnerColor} />
+      ) : (
+        <>
+          {icon && <View style={styles.iconContainer}>{icon}</View>}
+          {title && <Text style={textStyles}>{title}</Text>}
+        </>
+      )}
     </TouchableOpacity>
   );
 }
@@ -92,6 +124,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.xl,
     paddingVertical: SPACING.lg,
     minHeight: 56,
+  },
+  fullWidth: {
+    alignSelf: 'stretch',
   },
   disabled: {
     opacity: 0.5,
