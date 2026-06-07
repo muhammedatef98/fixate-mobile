@@ -104,46 +104,63 @@ export default function ProfileScreen() {
           <View style={{ width: 40 }} />
         </View>
 
-        {/* Profile Info */}
-        <View style={styles.profileInfo}>
+        {/* Profile Info — centered green card with avatar, name, edit button */}
+        <View style={styles.profileCard}>
+          <View style={styles.profileCardGlow} />
           <View style={styles.avatarContainer}>
-            <Image 
-              source={{ uri: 'https://ui-avatars.com/api/?name=Mohamed+Atef&background=10B981&color=fff&size=128' }} 
-              style={styles.avatar} 
+            <Image
+              source={{ uri: 'https://ui-avatars.com/api/?name=Mohamed+Atef&background=10B981&color=fff&size=128' }}
+              style={styles.avatar}
             />
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.editAvatarBtn}
               onPress={() => Alert.alert(isRTL ? 'تغيير الصورة' : 'Change Photo', isRTL ? 'سيتم إضافة هذه الميزة قريباً' : 'This feature will be added soon')}
             >
-              <MaterialIcons name="camera-alt" size={20} color="#FFF" />
+              <MaterialIcons name="camera-alt" size={18} color="#FFF" />
             </TouchableOpacity>
           </View>
           <Text style={styles.name}>{name}</Text>
+          <View style={styles.verifiedRow}>
+            <MaterialIcons name="verified" size={14} color="#FFF" />
+            <Text style={styles.verifiedText}>
+              {isRTL ? 'حساب موثّق' : 'Verified account'}
+            </Text>
+          </View>
           <TouchableOpacity
             accessibilityRole="button"
             style={styles.editProfileBtn}
+            activeOpacity={0.85}
             onPress={() => setEditModalVisible(true)}
           >
-            <MaterialIcons name="edit" size={14} color={COLORS.primary} />
+            <MaterialIcons name="edit" size={14} color="#FFF" />
             <Text style={styles.editProfileBtnText}>
               {isRTL ? 'تعديل الملف الشخصي' : 'Edit Profile'}
             </Text>
           </TouchableOpacity>
         </View>
 
-        {/* Stats */}
-        <View style={[styles.statsContainer, SHADOWS.neuSmall]}>
+        {/* Stats — centered card with icon-led stats */}
+        <View style={styles.statsContainer}>
           <View style={styles.statItem}>
+            <View style={[styles.statIconWrap, { backgroundColor: COLORS.primary + '18' }]}>
+              <MaterialIcons name="check-circle" size={16} color={COLORS.primary} />
+            </View>
             <Text style={styles.statValue}>12</Text>
             <Text style={styles.statLabel}>{isRTL ? 'طلب مكتمل' : 'Completed'}</Text>
           </View>
           <View style={styles.statDivider} />
           <View style={styles.statItem}>
+            <View style={[styles.statIconWrap, { backgroundColor: '#F59E0B22' }]}>
+              <MaterialIcons name="star" size={16} color="#F59E0B" />
+            </View>
             <Text style={styles.statValue}>4.9</Text>
             <Text style={styles.statLabel}>{isRTL ? 'التقييم' : 'Rating'}</Text>
           </View>
           <View style={styles.statDivider} />
           <View style={styles.statItem}>
+            <View style={[styles.statIconWrap, { backgroundColor: '#6366F122' }]}>
+              <MaterialIcons name="event" size={16} color="#6366F1" />
+            </View>
             <Text style={styles.statValue}>2</Text>
             <Text style={styles.statLabel}>{isRTL ? 'سنة انضمام' : 'Years'}</Text>
           </View>
@@ -411,40 +428,82 @@ const createStyles = (COLORS: any, SHADOWS: any, isRTL: boolean) => StyleSheet.c
     fontWeight: 'bold',
     color: COLORS.text,
   },
-  profileInfo: {
+  profileCard: {
+    alignSelf: 'center',
+    width: '88%',
     alignItems: 'center',
-    marginTop: SPACING.md,
-    marginBottom: SPACING.xl,
+    justifyContent: 'center',
+    marginTop: SPACING.sm,
+    marginBottom: SPACING.lg,
+    paddingVertical: 24,
+    paddingHorizontal: 20,
+    borderRadius: 28,
+    backgroundColor: COLORS.primary,
+    shadowColor: COLORS.primary,
+    shadowOpacity: 0.28,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 6,
+    overflow: 'hidden',
+  },
+  profileCardGlow: {
+    position: 'absolute',
+    top: -40,
+    right: -40,
+    width: 160,
+    height: 160,
+    borderRadius: 80,
+    backgroundColor: 'rgba(255,255,255,0.12)',
   },
   avatarContainer: {
     position: 'relative',
-    marginBottom: SPACING.md,
+    marginBottom: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   avatar: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    borderWidth: 4,
-    borderColor: COLORS.surface,
+    width: 92,
+    height: 92,
+    borderRadius: 46,
+    borderWidth: 3,
+    borderColor: 'rgba(255,255,255,0.7)',
   },
   editAvatarBtn: {
     position: 'absolute',
-    bottom: 0,
-    right: 0,
-    backgroundColor: COLORS.primary,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    bottom: -2,
+    right: -2,
+    backgroundColor: '#0B7A56',
+    width: 30,
+    height: 30,
+    borderRadius: 15,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: COLORS.surface,
+    borderColor: '#fff',
   },
   name: {
     fontSize: 22,
-    fontWeight: 'bold',
-    color: COLORS.text,
-    marginBottom: 4,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    marginBottom: 6,
+    textAlign: 'center',
+    letterSpacing: -0.3,
+  },
+  verifiedRow: {
+    flexDirection: isRTL ? 'row-reverse' : 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    marginBottom: 14,
+  },
+  verifiedText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '700',
   },
   phone: {
     fontSize: 16,
@@ -454,12 +513,15 @@ const createStyles = (COLORS: any, SHADOWS: any, isRTL: boolean) => StyleSheet.c
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginHorizontal: SPACING.xl,
+    alignSelf: 'center',
+    width: '88%',
     marginBottom: SPACING.xl,
-    paddingVertical: SPACING.md,
-    paddingHorizontal: SPACING.sm,
+    paddingVertical: 14,
+    paddingHorizontal: 8,
     backgroundColor: COLORS.surface,
     borderRadius: 24,
+    borderWidth: 1,
+    borderColor: COLORS.border,
     shadowColor: '#000',
     shadowOpacity: 0.06,
     shadowRadius: 10,
@@ -470,40 +532,51 @@ const createStyles = (COLORS: any, SHADOWS: any, isRTL: boolean) => StyleSheet.c
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 4,
+  },
+  statIconWrap: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 2,
   },
   statValue: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: COLORS.primary,
-    marginBottom: 2,
+    fontWeight: '800',
+    color: COLORS.text,
     textAlign: 'center',
+    letterSpacing: -0.2,
   },
   statLabel: {
     fontSize: 11,
     color: COLORS.textSecondary,
     textAlign: 'center',
+    fontWeight: '600',
   },
   statDivider: {
     width: 1,
-    height: 28,
+    height: 36,
     backgroundColor: COLORS.border,
   },
   editProfileBtn: {
     flexDirection: isRTL ? 'row-reverse' : 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 6,
-    marginTop: 8,
-    paddingHorizontal: 14,
-    paddingVertical: 7,
+    paddingHorizontal: 18,
+    paddingVertical: 9,
     borderRadius: 999,
-    backgroundColor: COLORS.primary + '15',
+    backgroundColor: 'rgba(255,255,255,0.22)',
     borderWidth: 1,
-    borderColor: COLORS.primary + '30',
+    borderColor: 'rgba(255,255,255,0.35)',
   },
   editProfileBtnText: {
-    color: COLORS.primary,
+    color: '#FFFFFF',
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '800',
+    letterSpacing: 0.2,
   },
   menuContainer: {
     paddingHorizontal: SPACING.lg,
