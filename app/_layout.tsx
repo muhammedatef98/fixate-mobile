@@ -28,6 +28,27 @@ import '../i18n';
 
 initSentry();
 
+// Reusable screen-transition presets. Keeping each one short (<220ms) so
+// nothing ever feels sluggish; variety comes from the *style* of motion,
+// not the duration.
+const SHEET_ANIM = {
+  animation: 'slide_from_bottom' as const,
+  animationDuration: 220,
+  gestureDirection: 'vertical' as const,
+};
+const FADE_ANIM = {
+  animation: 'fade' as const,
+  animationDuration: 180,
+};
+const FADE_UP_ANIM = {
+  animation: 'fade_from_bottom' as const,
+  animationDuration: 200,
+};
+const SNAP_ANIM = {
+  animation: 'simple_push' as const,
+  animationDuration: 160,
+};
+
 function RootLayoutContent() {
   const { language } = useApp();
   const { user, userProfile, loading } = useAuth();
@@ -170,141 +191,153 @@ function RootLayoutContent() {
             fontWeight: 'bold',
           },
           headerBackTitle: language === 'ar' ? 'رجوع' : 'Back',
+          // Per-screen overrides below pick the right transition style
+          // (horizontal slide for detail screens, slide-up for sheet-like
+          // screens, fade for hubs/auth). This default catches anything
+          // that doesn't opt in.
           animation: language === 'ar' ? 'slide_from_left' : 'slide_from_right',
-          animationDuration: 150,
+          animationDuration: 180,
           animationTypeForReplace: 'push',
           gestureEnabled: true,
           gestureDirection: 'horizontal',
         }}
       >
-        <Stack.Screen 
-          name="index" 
-          options={{ 
-            headerShown: false 
-          }} 
-        />
-        <Stack.Screen 
-          name="onboarding" 
-          options={{ 
-            headerShown: false 
-          }} 
-        />
-        <Stack.Screen 
-          name="role-selection" 
-          options={{ 
-            headerShown: false 
-          }} 
-        />
-        <Stack.Screen 
-          name="(customer)" 
-          options={{ 
-            headerShown: false 
-          }} 
-        />
-        <Stack.Screen 
-          name="(technician)" 
-          options={{ 
-            headerShown: false 
-          }} 
-        />
-        <Stack.Screen 
-          name="request" 
-          options={{ 
-            headerShown: false // Hide default header to use custom one
-          }} 
-        />
-        <Stack.Screen 
-          name="calculator" 
-          options={{ 
-            headerShown: false // Hide default header to use custom one
-          }} 
-        />
-        <Stack.Screen 
-          name="contact" 
-          options={{ 
-            headerShown: false 
-          }} 
-        />
-        <Stack.Screen 
-          name="chatbot" 
-          options={{ 
-            headerShown: false 
-          }} 
-        />
-        <Stack.Screen 
-          name="auth" 
-          options={{ 
-            headerShown: false 
-          }} 
-        />
-        <Stack.Screen 
-          name="track/[id]" 
-          options={{ title: 'تتبع الطلب' }} 
+        <Stack.Screen
+          name="index"
+          options={{ headerShown: false, ...FADE_ANIM }}
         />
         <Stack.Screen
-          name="profile"
-          options={{ title: 'الملف الشخصي' }}
+          name="onboarding"
+          options={{ headerShown: false, ...FADE_ANIM }}
         />
         <Stack.Screen
-          name="technician-auth"
-          options={{ 
-            title: language === 'ar' ? 'تسجيل دخول الفني' : 'Technician Login',
-            headerShown: false 
-          }} 
+          name="role-selection"
+          options={{ headerShown: false, ...FADE_ANIM }}
         />
+        <Stack.Screen
+          name="(customer)"
+          options={{ headerShown: false, ...FADE_ANIM }}
+        />
+        <Stack.Screen
+          name="(technician)"
+          options={{ headerShown: false, ...FADE_ANIM }}
+        />
+        <Stack.Screen
+          name="request"
+          options={{ headerShown: false, ...SHEET_ANIM }}
+        />
+        <Stack.Screen
+          name="calculator"
+          options={{ headerShown: false, ...SHEET_ANIM }}
+        />
+        <Stack.Screen
+          name="contact"
+          options={{ headerShown: false, ...FADE_UP_ANIM }}
+        />
+        <Stack.Screen
+          name="chatbot"
+          options={{ headerShown: false, ...SHEET_ANIM }}
+        />
+        <Stack.Screen
+          name="auth"
+          options={{ headerShown: false, ...FADE_ANIM }}
+        />
+        {/* Detail screens drilled into from a list — default horizontal slide */}
+        <Stack.Screen name="track/[id]" options={{ title: 'تتبع الطلب' }} />
         <Stack.Screen
           name="order-details"
           options={{
             title: language === 'ar' ? 'تفاصيل الطلب' : 'Order Details',
-            headerShown: false 
-          }} 
+            headerShown: false,
+          }}
         />
         <Stack.Screen
           name="chat/[id]"
           options={{
             title: language === 'ar' ? 'المحادثة' : 'Chat',
-            headerShown: true
+            headerShown: true,
           }}
         />
-        <Stack.Screen name="addresses" options={{ headerShown: false }} />
-        <Stack.Screen name="wallet" options={{ headerShown: false }} />
-        <Stack.Screen name="notifications-settings" options={{ headerShown: false }} />
-        <Stack.Screen name="settings" options={{ headerShown: false }} />
-        <Stack.Screen name="technician-onboarding" options={{ headerShown: false }} />
-        <Stack.Screen name="login-otp" options={{ headerShown: false }} />
-        <Stack.Screen name="email-auth" options={{ headerShown: false }} />
-        <Stack.Screen name="forgot-password" options={{ headerShown: false }} />
-        <Stack.Screen name="admin-verifications" options={{ headerShown: false }} />
-        <Stack.Screen name="loyalty" options={{ headerShown: false }} />
-        <Stack.Screen name="admin-discount-codes" options={{ headerShown: false }} />
-        <Stack.Screen name="admin-market" options={{ headerShown: false }} />
-        <Stack.Screen name="market" options={{ headerShown: false }} />
-        <Stack.Screen name="market-new" options={{ headerShown: false }} />
         <Stack.Screen name="market-detail" options={{ headerShown: false }} />
         <Stack.Screen name="market-chat" options={{ headerShown: false }} />
-        <Stack.Screen name="market-messages" options={{ headerShown: false }} />
-        <Stack.Screen name="my-listings" options={{ headerShown: false }} />
-        <Stack.Screen name="admin-broadcasts" options={{ headerShown: false }} />
-        <Stack.Screen name="admin-reports" options={{ headerShown: false }} />
         <Stack.Screen name="admin-order-detail" options={{ headerShown: false }} />
-        <Stack.Screen name="admin-payment-gateway" options={{ headerShown: false }} />
-        <Stack.Screen name="admin-otp-provider" options={{ headerShown: false }} />
-        <Stack.Screen name="payment" options={{ headerShown: false }} />
-        {/* Screens with custom in-screen headers — hide the default green
-            navigator header so it doesn't appear duplicated above the
-            custom one. */}
-        <Stack.Screen name="notifications" options={{ headerShown: false }} />
-        <Stack.Screen name="admin" options={{ headerShown: false }} />
-        <Stack.Screen name="edit-profile" options={{ headerShown: false }} />
+
+        {/* Sheet-like screens that come up from the bottom for a softer feel */}
+        <Stack.Screen
+          name="profile"
+          options={{ title: 'الملف الشخصي', ...SHEET_ANIM }}
+        />
+        <Stack.Screen
+          name="edit-profile"
+          options={{ headerShown: false, ...SHEET_ANIM }}
+        />
+        <Stack.Screen
+          name="addresses"
+          options={{ headerShown: false, ...SHEET_ANIM }}
+        />
+        <Stack.Screen
+          name="wallet"
+          options={{ headerShown: false, ...SHEET_ANIM }}
+        />
+        <Stack.Screen
+          name="settings"
+          options={{ headerShown: false, ...SHEET_ANIM }}
+        />
+        <Stack.Screen
+          name="notifications-settings"
+          options={{ headerShown: false, ...SHEET_ANIM }}
+        />
+        <Stack.Screen
+          name="notifications"
+          options={{ headerShown: false, ...SHEET_ANIM }}
+        />
+        <Stack.Screen
+          name="payment"
+          options={{ headerShown: false, ...SHEET_ANIM }}
+        />
+        <Stack.Screen
+          name="market-new"
+          options={{ headerShown: false, ...SHEET_ANIM }}
+        />
+        <Stack.Screen
+          name="loyalty"
+          options={{ headerShown: false, ...FADE_UP_ANIM }}
+        />
+
+        {/* Auth screens cross-fade — feels less stack-like during onboarding */}
+        <Stack.Screen
+          name="technician-auth"
+          options={{
+            title: language === 'ar' ? 'تسجيل دخول الفني' : 'Technician Login',
+            headerShown: false,
+            ...FADE_ANIM,
+          }}
+        />
+        <Stack.Screen name="technician-onboarding" options={{ headerShown: false, ...FADE_ANIM }} />
+        <Stack.Screen name="login-otp" options={{ headerShown: false, ...FADE_ANIM }} />
+        <Stack.Screen name="email-auth" options={{ headerShown: false, ...FADE_ANIM }} />
+        <Stack.Screen name="forgot-password" options={{ headerShown: false, ...FADE_ANIM }} />
+
+        {/* Admin hub fades in; admin lists keep the snappy horizontal slide */}
+        <Stack.Screen name="admin" options={{ headerShown: false, ...FADE_ANIM }} />
+        <Stack.Screen name="admin-orders" options={{ headerShown: false, ...SNAP_ANIM }} />
+        <Stack.Screen name="admin-users" options={{ headerShown: false, ...SNAP_ANIM }} />
+        <Stack.Screen name="admin-market" options={{ headerShown: false, ...SNAP_ANIM }} />
+        <Stack.Screen name="admin-verifications" options={{ headerShown: false, ...SNAP_ANIM }} />
+        <Stack.Screen name="admin-broadcasts" options={{ headerShown: false, ...SNAP_ANIM }} />
+        <Stack.Screen name="admin-reports" options={{ headerShown: false, ...FADE_UP_ANIM }} />
+        <Stack.Screen name="admin-ratings" options={{ headerShown: false, ...SNAP_ANIM }} />
+        <Stack.Screen name="admin-discount-codes" options={{ headerShown: false, ...SNAP_ANIM }} />
+        <Stack.Screen name="admin-platform-settings" options={{ headerShown: false, ...SHEET_ANIM }} />
+        <Stack.Screen name="admin-payment-gateway" options={{ headerShown: false, ...SHEET_ANIM }} />
+        <Stack.Screen name="admin-otp-provider" options={{ headerShown: false, ...SHEET_ANIM }} />
+        <Stack.Screen name="admin-support" options={{ headerShown: false, ...SNAP_ANIM }} />
         <Stack.Screen name="support-chat" options={{ headerShown: false }} />
-        <Stack.Screen name="admin-support" options={{ headerShown: false }} />
-        {/* These admin screens have their own in-screen headers; hiding the
-            native green Stack header eliminates the duplicated bar that
-            appeared above the custom one. */}
-        <Stack.Screen name="admin-orders" options={{ headerShown: false }} />
-        <Stack.Screen name="admin-ratings" options={{ headerShown: false }} />
-        <Stack.Screen name="admin-users" options={{ headerShown: false }} />
-        <Stack.Screen name="admin-platform-settings" options={{ headerShown: false }} />
+
+        {/* Customer-side browse screens */}
+        <Stack.Screen name="market" options={{ headerShown: false, ...FADE_UP_ANIM }} />
+        <Stack.Screen name="my-listings" options={{ headerShown: false, ...SNAP_ANIM }} />
+        <Stack.Screen name="market-messages" options={{ headerShown: false, ...SNAP_ANIM }} />
       </Stack>
     </View>
   );

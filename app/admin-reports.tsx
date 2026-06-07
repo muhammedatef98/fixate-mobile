@@ -12,7 +12,23 @@ import {
   Alert,
   Modal,
   TextInput,
+  LayoutAnimation,
+  Platform,
+  UIManager,
 } from 'react-native';
+
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
+
+// Quick, soft expand/collapse for accordions and section toggles. Spring-y
+// enough to feel alive but capped at ~180ms so it never blocks the next tap.
+const SOFT_LAYOUT = {
+  duration: 180,
+  create:  { type: 'easeInEaseOut' as const, property: 'opacity' as const },
+  update:  { type: 'spring' as const, springDamping: 0.85 },
+  delete:  { type: 'easeInEaseOut' as const, property: 'opacity' as const },
+};
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
@@ -594,7 +610,10 @@ export default function AdminReportsScreen() {
             icon="map-marker-outline"
             rows={data.byCity}
             isOpen={expandedBreakdown === 'city'}
-            onToggle={() => setExpandedBreakdown((p) => (p === 'city' ? null : 'city'))}
+            onToggle={() => {
+              LayoutAnimation.configureNext(SOFT_LAYOUT);
+              setExpandedBreakdown((p) => (p === 'city' ? null : 'city'));
+            }}
             COLORS={COLORS}
             isRTL={isRTL}
             showTotal
@@ -606,7 +625,10 @@ export default function AdminReportsScreen() {
             icon="shape-outline"
             rows={data.byCategory}
             isOpen={expandedBreakdown === 'category'}
-            onToggle={() => setExpandedBreakdown((p) => (p === 'category' ? null : 'category'))}
+            onToggle={() => {
+              LayoutAnimation.configureNext(SOFT_LAYOUT);
+              setExpandedBreakdown((p) => (p === 'category' ? null : 'category'));
+            }}
             COLORS={COLORS}
             isRTL={isRTL}
             sar={sar}
@@ -617,7 +639,10 @@ export default function AdminReportsScreen() {
             icon="account-wrench"
             rows={data.byTechnician}
             isOpen={expandedBreakdown === 'technician'}
-            onToggle={() => setExpandedBreakdown((p) => (p === 'technician' ? null : 'technician'))}
+            onToggle={() => {
+              LayoutAnimation.configureNext(SOFT_LAYOUT);
+              setExpandedBreakdown((p) => (p === 'technician' ? null : 'technician'));
+            }}
             COLORS={COLORS}
             isRTL={isRTL}
             showTotal
