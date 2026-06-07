@@ -76,7 +76,7 @@ export default function TechnicianChats() {
       ] = await Promise.all([
         supabase
           .from('orders')
-          .select('id, customer_id, service_type, status, created_at')
+          .select('id, user_id, service_type, status, created_at')
           .eq('technician_id', user.id)
           .order('created_at', { ascending: false })
           .limit(60),
@@ -105,7 +105,7 @@ export default function TechnicianChats() {
       if (extraIds.length > 0) {
         const { data: more, error: moreErr } = await supabase
           .from('orders')
-          .select('id, customer_id, service_type, status, created_at')
+          .select('id, user_id, service_type, status, created_at')
           .in('id', extraIds);
         if (moreErr) logger.warn('chats: extra orders query failed', moreErr);
         extraOrders = more ?? [];
@@ -115,7 +115,7 @@ export default function TechnicianChats() {
 
       const orderIds = list.map((o: any) => o.id);
       const customerIds = Array.from(
-        new Set(list.map((o: any) => o.customer_id).filter(Boolean))
+        new Set(list.map((o: any) => o.user_id).filter(Boolean))
       );
 
       const [{ data: messages }, { data: customers }, marketThreads] = await Promise.all([
@@ -150,7 +150,7 @@ export default function TechnicianChats() {
 
       const orderRows: ChatRow[] = list.map((o: any) => {
         const last = latestByOrder.get(o.id);
-        const cust = o.customer_id ? customersById.get(o.customer_id) : null;
+        const cust = o.user_id ? customersById.get(o.user_id) : null;
         return {
           key: `order:${o.id}`,
           kind: 'order',
