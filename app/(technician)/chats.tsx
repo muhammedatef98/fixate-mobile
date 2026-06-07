@@ -13,26 +13,19 @@ import Avatar from '../../components/Avatar';
 import { TECH_NAV_HEIGHT } from '../../components/BottomNavTech';
 import { logger } from '../../utils/logger';
 import { selection } from '../../utils/haptics';
-import { listMyMarketThreads } from '../../services/marketService';
 
 /**
- * Technician "Chats" tab — merges two inboxes the technician participates in:
- *   1. Order chats   — messages table keyed by order_id, opened at /chat/[id]
- *   2. Market chats  — DM threads about marketplace listings, opened at
- *                      /market-chat?threadId=...
- *
- * Sorted by most recent activity. Read-only listing; no chat creation here.
+ * Technician "Chats" tab — one row per order the technician is involved in,
+ * sorted by latest message activity. Tapping a row opens the existing per-order
+ * chat at /chat/[id]. Read-only listing; no chat creation happens here.
  */
 type ChatRow = {
-  /** Stable list key, prefixed to avoid id collisions across the two sources. */
-  key: string;
-  kind: 'order' | 'market';
-  /** Target route + params used when the row is tapped. */
-  route: string;
-  routeParams?: Record<string, string>;
-  peerName: string;
-  peerAvatar: string | null;
-  subtitle: string;
+  orderId: string;
+  customerId: string | null;
+  customerName: string;
+  customerAvatar: string | null;
+  orderTitle: string;
+  orderStatus: string;
   lastMessage: string | null;
   lastAt: string | null;
   unread: number;
@@ -55,14 +48,6 @@ export default function TechnicianChats() {
   const load = useCallback(async () => {
     if (!user?.id) { setLoading(false); return; }
     try {
-      // ── Market threads (DMs about a marketplace listing) ───────────────
-      // Fetched in parallel; failure here must not block the order chats
-      // from rendering.
-      const marketPromise = listMyMarketThreads({ limit: 50 }).catch((e) => {
-        logger.warn('chats: market threads fetch failed', e);
-        return [];
-      });
-
       // Pull two sources in parallel so a chat shows up even when the order
       // isn't (yet) formally assigned to this technician:
       //   1. Orders explicitly owned by the technician (technician_id = me)
@@ -113,26 +98,28 @@ export default function TechnicianChats() {
 
       const list = [...ownedList, ...extraOrders];
 
+      if (list.length === 0) {
+        setRows([]);
+        return;
+      }
+
       const orderIds = list.map((o: any) => o.id);
       const customerIds = Array.from(
         new Set(list.map((o: any) => o.user_id).filter(Boolean))
       );
 
-      const [{ data: messages }, { data: customers }, marketThreads] = await Promise.all([
-        orderIds.length > 0
-          ? supabase
-              .from('messages')
-              .select('order_id, content, created_at, sender_id, is_read')
-              .in('order_id', orderIds)
-              .order('created_at', { ascending: false })
-          : Promise.resolve({ data: [] as any[] }),
+      const [{ data: messages }, { data: customers }] = await Promise.all([
+        supabase
+          .from('messages')
+          .select('order_id, content, created_at, sender_id, is_read')
+          .in('order_id', orderIds)
+          .order('created_at', { ascending: false }),
         customerIds.length > 0
           ? supabase
               .from('users')
               .select('id, name, avatar_url')
               .in('id', customerIds)
           : Promise.resolve({ data: [] as any[] }),
-        marketPromise,
       ]);
 
       const customersById = new Map<string, any>(
@@ -148,39 +135,22 @@ export default function TechnicianChats() {
         }
       }
 
-      const orderRows: ChatRow[] = list.map((o: any) => {
+      const built: ChatRow[] = list.map((o: any) => {
         const last = latestByOrder.get(o.id);
         const cust = o.user_id ? customersById.get(o.user_id) : null;
         return {
-          key: `order:${o.id}`,
-          kind: 'order',
-          route: `/chat/${o.id}`,
-          peerName: cust?.name || (isRTL ? 'عميل' : 'Customer'),
-          peerAvatar: cust?.avatar_url ?? null,
-          subtitle: o.service_type || (isRTL ? 'طلب صيانة' : 'Repair order'),
+          orderId: o.id,
+          customerId: o.user_id ?? null,
+          customerName:
+            cust?.name || (isRTL ? 'عميل' : 'Customer'),
+          customerAvatar: cust?.avatar_url ?? null,
+          orderTitle: o.service_type || (isRTL ? 'طلب صيانة' : 'Repair order'),
+          orderStatus: o.status || 'pending',
           lastMessage: last?.content ?? null,
           lastAt: last?.created_at ?? o.created_at ?? null,
           unread: unreadByOrder.get(o.id) ?? 0,
         };
       });
-
-      const marketRows: ChatRow[] = (marketThreads ?? []).map((t: any) => ({
-        key: `market:${t.thread_id}`,
-        kind: 'market',
-        route: '/market-chat',
-        routeParams: { threadId: t.thread_id },
-        peerName: t.counterparty_name || (isRTL ? 'مستخدم' : 'User'),
-        peerAvatar: t.counterparty_avatar ?? null,
-        subtitle:
-          (t.listing_title
-            ? (isRTL ? `سوق · ${t.listing_title}` : `Market · ${t.listing_title}`)
-            : (isRTL ? 'سوق' : 'Market')),
-        lastMessage: t.last_message_preview ?? null,
-        lastAt: t.last_message_at ?? null,
-        unread: t.unread ? 1 : 0,
-      }));
-
-      const built = [...orderRows, ...marketRows];
 
       built.sort((a, b) => {
         const ta = a.lastAt ? new Date(a.lastAt).getTime() : 0;
@@ -203,11 +173,7 @@ export default function TechnicianChats() {
 
   const openChat = (row: ChatRow) => {
     selection();
-    if (row.routeParams && Object.keys(row.routeParams).length > 0) {
-      router.push({ pathname: row.route as any, params: row.routeParams });
-    } else {
-      router.push(row.route as any);
-    }
+    router.push(`/chat/${row.orderId}` as any);
   };
 
   const formatWhen = (iso: string | null) => {
@@ -231,12 +197,12 @@ export default function TechnicianChats() {
       onPress={() => openChat(item)}
       style={styles.row}
       accessibilityRole="button"
-      accessibilityLabel={`${item.peerName}, ${item.subtitle}`}
+      accessibilityLabel={`${item.customerName}, ${item.orderTitle}`}
     >
-      <Avatar name={item.peerName} uri={item.peerAvatar ?? undefined} size={50} />
+      <Avatar name={item.customerName} uri={item.customerAvatar ?? undefined} size={50} />
       <View style={styles.rowBody}>
         <View style={styles.rowTop}>
-          <Text style={styles.name} numberOfLines={1}>{item.peerName}</Text>
+          <Text style={styles.name} numberOfLines={1}>{item.customerName}</Text>
           <Text style={styles.when}>{formatWhen(item.lastAt)}</Text>
         </View>
         <Text style={styles.preview} numberOfLines={1}>
@@ -247,7 +213,7 @@ export default function TechnicianChats() {
         <View style={styles.metaRow}>
           <View style={styles.statusChip}>
             <Text style={styles.statusChipText} numberOfLines={1}>
-              {item.subtitle}
+              {item.orderTitle}
             </Text>
           </View>
           {item.unread > 0 ? (
@@ -291,7 +257,7 @@ export default function TechnicianChats() {
       ) : (
         <FlatList
           data={rows}
-          keyExtractor={(it) => it.key}
+          keyExtractor={(it) => it.orderId}
           renderItem={renderItem}
           contentContainerStyle={{
             padding: 16,
