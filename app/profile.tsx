@@ -120,12 +120,26 @@ export default function ProfileScreen() {
             </TouchableOpacity>
           </View>
           <Text style={styles.name}>{name}</Text>
-          <View style={styles.verifiedRow}>
-            <MaterialIcons name="verified" size={14} color="#FFF" />
-            <Text style={styles.verifiedText}>
-              {isRTL ? 'حساب موثّق' : 'Verified account'}
-            </Text>
-          </View>
+          {(userProfile as any)?.is_verified ? (
+            <View style={styles.verifiedRow}>
+              <MaterialIcons name="verified" size={14} color="#FFF" />
+              <Text style={styles.verifiedText}>
+                {isRTL ? 'حساب موثّق' : 'Verified account'}
+              </Text>
+            </View>
+          ) : (
+            <TouchableOpacity
+              accessibilityRole="button"
+              activeOpacity={0.85}
+              onPress={() => router.push('/verify-identity' as any)}
+              style={styles.verifyCta}
+            >
+              <MaterialIcons name="shield" size={14} color="#FFF" />
+              <Text style={styles.verifyCtaText}>
+                {isRTL ? 'احصل على علامة التوثيق' : 'Get verified'}
+              </Text>
+            </TouchableOpacity>
+          )}
           <TouchableOpacity
             accessibilityRole="button"
             style={styles.editProfileBtn}
@@ -504,6 +518,24 @@ const createStyles = (COLORS: any, SHADOWS: any, isRTL: boolean) => StyleSheet.c
     color: '#FFFFFF',
     fontSize: 11,
     fontWeight: '700',
+  },
+  verifyCta: {
+    flexDirection: isRTL ? 'row-reverse' : 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 999,
+    backgroundColor: 'rgba(255,255,255,0.22)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.4)',
+    marginBottom: 14,
+  },
+  verifyCtaText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '800',
   },
   phone: {
     fontSize: 16,

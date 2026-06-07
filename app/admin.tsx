@@ -560,6 +560,12 @@ export default function AdminDashboardScreen() {
           onPress={() => router.push('/admin-verifications')}
         />
         <AdminActionCard
+          icon="card-account-details-outline" iconColor="#0EA5A4"
+          title={isRTL ? 'توثيق المستخدمين' : 'User ID Verifications'}
+          subtitle={isRTL ? 'مراجعة طلبات توثيق الهوية / الإقامة' : 'Review Saudi ID / Iqama applications'}
+          onPress={() => router.push('/admin-user-verifications' as any)}
+        />
+        <AdminActionCard
           icon="clipboard-list-outline" iconColor="#3b82f6"
           title={isRTL ? 'إدارة الطلبات' : 'Orders Management'}
           subtitle={isRTL ? 'متابعة جميع طلبات الإصلاح وحالاتها' : 'Track all repair orders and their status'}

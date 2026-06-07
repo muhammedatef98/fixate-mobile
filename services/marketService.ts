@@ -240,15 +240,16 @@ export interface UserCard {
   id: string;
   name: string | null;
   avatar_url: string | null;
+  is_verified: boolean;
 }
 
-/** Read a user's public display card (name + avatar) via the
+/** Read a user's public display card (name + avatar + verified flag) via the
  *  `public_user_cards` view, which is readable regardless of the
  *  users-table RLS. */
 export const getUserCard = async (userId: string): Promise<UserCard | null> => {
   const { data, error } = await supabase
     .from('public_user_cards')
-    .select('id, name, avatar_url')
+    .select('id, name, avatar_url, is_verified')
     .eq('id', userId)
     .maybeSingle();
   if (error) {

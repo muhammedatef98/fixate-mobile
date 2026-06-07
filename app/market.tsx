@@ -32,6 +32,8 @@ import {
   MARKET_DEVICE_TYPES,
 } from '../services/marketService';
 import SaudiCityPicker from '../components/SaudiCityPicker';
+import VerifiedBadge from '../components/VerifiedBadge';
+import { supabase } from '../services/supabaseClient';
 import SkeletonLoader from '../components/SkeletonLoader';
 import MarketBottomTabs, { MARKET_TABS_HEIGHT } from '../components/MarketBottomTabs';
 import { AnimatedTouchable } from '../components/ui/PressableScale';
@@ -148,6 +150,9 @@ export default function MarketScreen() {
   const [filtersOpen, setFiltersOpen] = useState(false);
 
   const [listings, setListings] = useState<MarketListing[]>([]);
+  // Map<seller_id, is_verified> — populated alongside `listings` so cards
+  // can show the verified-seller badge without each card hitting the DB.
+  const [verifiedSellers, setVerifiedSellers] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [marketplaceEnabled, setMarketplaceEnabled] = useState(true);
@@ -221,6 +226,20 @@ export default function MarketScreen() {
       // shrink and re-expand on every filter change. The default React
       // re-render is the correct, stable behaviour.
       setListings(next);
+      // Batch-fetch verified status for the distinct sellers visible in
+      // this feed. One round-trip, no per-card lookups.
+      const sellerIds = Array.from(new Set(next.map((l) => l.seller_id).filter(Boolean)));
+      if (sellerIds.length > 0) {
+        const { data: cards } = await supabase
+          .from('public_user_cards')
+          .select('id, is_verified')
+          .in('id', sellerIds);
+        const map: Record<string, boolean> = {};
+        (cards ?? []).forEach((c: any) => { map[c.id] = !!c.is_verified; });
+        setVerifiedSellers(map);
+      } else {
+        setVerifiedSellers({});
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -233,7 +252,11 @@ export default function MarketScreen() {
 
   const renderCard = ({ item }: { item: MarketListing }) => {
     const posted = timeAgo(item.created_at, isRTL);
-    const isVerified = item.status === 'live' || (item.status as any) === 'active';
+    // "Verified" on the card now means the *seller's identity* was approved
+    // by an admin (Saudi ID / Iqama upload), not just that the listing is
+    // live. Falling back to the listing-status check would surface
+    // every listing as verified.
+    const isSellerVerified = !!verifiedSellers[item.seller_id];
     const isFavorite = favorites.has(item.id);
     const createdMs = item.created_at ? new Date(item.created_at).getTime() : 0;
     const isHot = createdMs > 0 && Date.now() - createdMs < HOT_WINDOW_MS;
@@ -271,11 +294,13 @@ export default function MarketScreen() {
                 <Text style={styles.hotBadgeText}>🔥 {isRTL ? 'جديد' : 'HOT'}</Text>
               </View>
             )}
-            {isVerified && (
-              <View style={styles.verifiedBadge}>
-                <Ionicons name="shield-checkmark" size={9} color="#fff" />
-                <Text style={styles.verifiedBadgeText}>{isRTL ? 'موثّق' : 'Verified'}</Text>
-              </View>
+            {isSellerVerified && (
+              <VerifiedBadge
+                size="sm"
+                label={isRTL ? 'بائع موثّق' : 'Verified seller'}
+                color="#fff"
+                backgroundColor="#10B981"
+              />
             )}
           </View>
 

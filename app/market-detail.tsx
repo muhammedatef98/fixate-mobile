@@ -27,6 +27,7 @@ import { getColors, SPACING, BORDER_RADIUS } from '../constants/theme';
 import { RTLIonicon } from '../components/RTLIcon';
 import ImageViewer from '../components/ImageViewer';
 import Avatar from '../components/Avatar';
+import VerifiedBadge from '../components/VerifiedBadge';
 import {
   getListing,
   listComments,
@@ -532,11 +533,16 @@ export default function MarketDetailScreen() {
                 <View style={styles.sellerRow}>
                   <Avatar name={sellerName} uri={seller?.avatar_url} size={46} />
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.sellerName} numberOfLines={1}>{sellerName}</Text>
+                    <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 4 }}>
+                      <Text style={styles.sellerName} numberOfLines={1}>{sellerName}</Text>
+                      {seller?.is_verified ? <VerifiedBadge size="md" /> : null}
+                    </View>
                     <Text style={styles.sellerMeta}>
                       {isOwner
                         ? (isRTL ? 'هذا إعلانك' : 'This is your listing')
-                        : (isRTL ? 'البائع' : 'Seller')}
+                        : seller?.is_verified
+                          ? (isRTL ? 'بائع موثّق' : 'Verified seller')
+                          : (isRTL ? 'البائع' : 'Seller')}
                     </Text>
                   </View>
                   {!isOwner && showPhone && (

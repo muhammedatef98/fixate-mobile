@@ -332,7 +332,9 @@ function RootLayoutContent() {
         <Stack.Screen name="admin-payment-gateway" options={{ headerShown: false, ...SHEET_ANIM }} />
         <Stack.Screen name="admin-otp-provider" options={{ headerShown: false, ...SHEET_ANIM }} />
         <Stack.Screen name="admin-support" options={{ headerShown: false, ...SNAP_ANIM }} />
+        <Stack.Screen name="admin-user-verifications" options={{ headerShown: false, ...SNAP_ANIM }} />
         <Stack.Screen name="support-chat" options={{ headerShown: false }} />
+        <Stack.Screen name="verify-identity" options={{ headerShown: false, ...SHEET_ANIM }} />
 
         {/* Customer-side browse screens */}
         <Stack.Screen name="market" options={{ headerShown: false, ...FADE_UP_ANIM }} />

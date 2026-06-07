@@ -11,6 +11,8 @@ export interface UserProfile {
   is_admin?: boolean;
   account_status?: 'active' | 'suspended' | 'blocked';
   admin_notes?: string | null;
+  is_verified?: boolean;
+  verified_at?: string | null;
   created_at?: string;
 }
 

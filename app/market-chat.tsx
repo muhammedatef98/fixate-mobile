@@ -20,6 +20,7 @@ import { useApp } from '../contexts/AppContext';
 import { useAuth } from '../contexts/AuthContext';
 import { getColors, SPACING, BORDER_RADIUS } from '../constants/theme';
 import { RTLIonicon } from '../components/RTLIcon';
+import VerifiedBadge from '../components/VerifiedBadge';
 import {
   getOrCreateMarketThread,
   listMarketMessages,
@@ -64,6 +65,7 @@ export default function MarketChatScreen() {
   const [loading, setLoading] = useState(true);
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
+  const [counterpartyVerified, setCounterpartyVerified] = useState<boolean>(false);
   const [headerCounterparty, setHeaderCounterparty] = useState<string>(
     params.counterpartyName ?? ''
   );
@@ -116,15 +118,16 @@ export default function MarketChatScreen() {
       // If the counterparty name wasn't passed in (mode 1 from listing
       // detail), resolve it from the public_user_cards view so the header
       // shows a real name instead of just "seller".
-      if (!headerCounterparty) {
-        const counterpartyId = t.buyer_id === user.id ? t.seller_id : t.buyer_id;
-        const { data: card } = await supabase
-          .from('public_user_cards')
-          .select('name')
-          .eq('id', counterpartyId)
-          .maybeSingle();
-        if (card?.name) setHeaderCounterparty(card.name);
-      }
+      // Always resolve the counterparty's verified status; the name only
+      // when it wasn't passed in from the listing detail.
+      const counterpartyId = t.buyer_id === user.id ? t.seller_id : t.buyer_id;
+      const { data: card } = await supabase
+        .from('public_user_cards')
+        .select('name, is_verified')
+        .eq('id', counterpartyId)
+        .maybeSingle();
+      if (card?.name && !headerCounterparty) setHeaderCounterparty(card.name);
+      if (card?.is_verified) setCounterpartyVerified(true);
 
       const msgs = await listMarketMessages(t.id);
       setMessages(msgs);
@@ -226,9 +229,12 @@ export default function MarketChatScreen() {
           accessibilityRole="button"
           accessibilityLabel={isRTL ? 'فتح صفحة الإعلان' : 'Open listing'}
         >
-          <Text numberOfLines={1} style={styles.title}>
-            {counterpartyLabel}
-          </Text>
+          <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 4 }}>
+            <Text numberOfLines={1} style={styles.title}>
+              {counterpartyLabel}
+            </Text>
+            {counterpartyVerified ? <VerifiedBadge size="md" /> : null}
+          </View>
           {!!params.listingTitle && (
             <Text numberOfLines={1} style={styles.subtitle}>
               {params.listingTitle}
