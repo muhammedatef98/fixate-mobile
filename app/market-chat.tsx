@@ -202,6 +202,11 @@ export default function MarketChatScreen() {
     headerCounterparty?.trim() ||
     (isRTL ? 'محادثة السوق' : 'Marketplace chat');
 
+  // Listing id we can route the header tap to. Prefer the param (sent by the
+  // entry point) and fall back to the thread row once it's loaded — covers
+  // the inbox-entry case where the caller only passes threadId.
+  const effectiveListingId = params.listingId || thread?.listing_id || '';
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
@@ -209,7 +214,18 @@ export default function MarketChatScreen() {
         <TouchableOpacity onPress={() => router.back()} style={styles.headerBtn}>
           <RTLIonicon name="chevron-back" size={24} color={COLORS.text} />
         </TouchableOpacity>
-        <View style={styles.headerCenter}>
+        <TouchableOpacity
+          style={styles.headerCenter}
+          activeOpacity={0.7}
+          disabled={!effectiveListingId}
+          onPress={() => {
+            if (effectiveListingId) {
+              router.push({ pathname: '/market-detail', params: { id: effectiveListingId } });
+            }
+          }}
+          accessibilityRole="button"
+          accessibilityLabel={isRTL ? 'فتح صفحة الإعلان' : 'Open listing'}
+        >
           <Text numberOfLines={1} style={styles.title}>
             {counterpartyLabel}
           </Text>
@@ -218,9 +234,21 @@ export default function MarketChatScreen() {
               {params.listingTitle}
             </Text>
           )}
-        </View>
+        </TouchableOpacity>
         {params.listingImage ? (
-          <Image source={{ uri: params.listingImage }} style={styles.headerThumb} />
+          <TouchableOpacity
+            activeOpacity={0.85}
+            disabled={!effectiveListingId}
+            onPress={() => {
+              if (effectiveListingId) {
+                router.push({ pathname: '/market-detail', params: { id: effectiveListingId } });
+              }
+            }}
+            accessibilityRole="button"
+            accessibilityLabel={isRTL ? 'فتح صفحة الإعلان' : 'Open listing'}
+          >
+            <Image source={{ uri: params.listingImage }} style={styles.headerThumb} />
+          </TouchableOpacity>
         ) : (
           <View style={{ width: 36 }} />
         )}

@@ -138,13 +138,22 @@ export default function TechnicianChats() {
       const built: ChatRow[] = list.map((o: any) => {
         const last = latestByOrder.get(o.id);
         const cust = o.user_id ? customersById.get(o.user_id) : null;
+        // Show "#xxxxxxxx" — short, stable, scannable. Matches the pattern
+        // used elsewhere (order-details falls back to order_number || #id8).
+        const shortId =
+          (o as any).order_number ||
+          (o.id ? `#${String(o.id).slice(0, 8)}` : (isRTL ? 'طلب' : 'Order'));
+        const customerName = cust?.name || (isRTL ? 'عميل' : 'Customer');
+        const service = o.service_type || (isRTL ? 'طلب صيانة' : 'Repair order');
         return {
           orderId: o.id,
           customerId: o.user_id ?? null,
-          customerName:
-            cust?.name || (isRTL ? 'عميل' : 'Customer'),
+          // Display the order number as the row title.
+          customerName: shortId,
           customerAvatar: cust?.avatar_url ?? null,
-          orderTitle: o.service_type || (isRTL ? 'طلب صيانة' : 'Repair order'),
+          // Subtitle now carries customer name + service type so the
+          // technician still sees who/what the chat is about.
+          orderTitle: `${customerName} · ${service}`,
           orderStatus: o.status || 'pending',
           lastMessage: last?.content ?? null,
           lastAt: last?.created_at ?? o.created_at ?? null,

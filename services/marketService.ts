@@ -773,15 +773,95 @@ export const subscribeMarketMessages = (
 export const listMyMarketThreads = async (
   opts?: { limit?: number; before?: string }
 ): Promise<MarketThreadSummary[]> => {
+  const limit = opts?.limit ?? 50;
   const { data, error } = await supabase.rpc('list_my_market_threads', {
-    p_limit: opts?.limit ?? 50,
+    p_limit: limit,
     p_before: opts?.before ?? null,
   });
-  if (error) {
-    logger.warn('listMyMarketThreads failed', error);
+  if (!error && data && (data as any[]).length > 0) {
+    return data as MarketThreadSummary[];
+  }
+  if (error) logger.warn('listMyMarketThreads RPC failed, falling back to direct query', error);
+
+  // Fallback: query market_threads directly + join listing/counterparty card.
+  // Used when the list_my_market_threads RPC is missing in the deployed DB
+  // or temporarily returns empty due to a server-side bug. Keeps the inbox
+  // visible instead of rendering an empty state forever.
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return [];
+
+  const cursorClause = opts?.before
+    ? { col: 'last_message_at', op: 'lt' as const, val: opts.before }
+    : null;
+
+  let q = supabase
+    .from('market_threads')
+    .select('*')
+    .or(`buyer_id.eq.${user.id},seller_id.eq.${user.id}`)
+    .order('last_message_at', { ascending: false })
+    .limit(limit);
+  if (cursorClause) q = q.lt(cursorClause.col, cursorClause.val);
+
+  const { data: threads, error: tErr } = await q;
+  if (tErr) {
+    logger.warn('listMyMarketThreads fallback failed', tErr);
     return [];
   }
-  return (data ?? []) as MarketThreadSummary[];
+  const list = (threads ?? []) as any[];
+  if (list.length === 0) return [];
+
+  const listingIds = Array.from(new Set(list.map((t) => t.listing_id).filter(Boolean)));
+  const counterpartyIds = Array.from(
+    new Set(
+      list
+        .map((t) => (t.buyer_id === user.id ? t.seller_id : t.buyer_id))
+        .filter(Boolean)
+    )
+  );
+
+  const [{ data: listings }, { data: cards }] = await Promise.all([
+    listingIds.length > 0
+      ? supabase
+          .from('market_listings')
+          .select('id, title, price, currency, images, status')
+          .in('id', listingIds)
+      : Promise.resolve({ data: [] as any[] }),
+    counterpartyIds.length > 0
+      ? supabase
+          .from('public_user_cards')
+          .select('id, name, avatar_url')
+          .in('id', counterpartyIds)
+      : Promise.resolve({ data: [] as any[] }),
+  ]);
+
+  const listingById = new Map((listings ?? []).map((l: any) => [l.id, l]));
+  const cardById = new Map((cards ?? []).map((c: any) => [c.id, c]));
+
+  return list.map((t) => {
+    const myRole: 'buyer' | 'seller' = t.buyer_id === user.id ? 'buyer' : 'seller';
+    const counterpartyId = myRole === 'buyer' ? t.seller_id : t.buyer_id;
+    const listing = listingById.get(t.listing_id);
+    const card = cardById.get(counterpartyId);
+    const unread = myRole === 'buyer' ? !!t.unread_for_buyer : !!t.unread_for_seller;
+    const archived = myRole === 'buyer' ? !!t.archived_for_buyer : !!t.archived_for_seller;
+    return {
+      thread_id: t.id,
+      listing_id: t.listing_id,
+      listing_title: listing?.title ?? null,
+      listing_price: listing?.price ?? null,
+      listing_currency: listing?.currency ?? null,
+      listing_image: Array.isArray(listing?.images) ? (listing!.images[0] ?? null) : null,
+      listing_status: listing?.status ?? null,
+      counterparty_id: counterpartyId,
+      counterparty_name: card?.name ?? null,
+      counterparty_avatar: card?.avatar_url ?? null,
+      my_role: myRole,
+      last_message_at: t.last_message_at,
+      last_message_preview: t.last_message_preview ?? null,
+      unread,
+      archived,
+    } as MarketThreadSummary;
+  });
 };
 
 /**
