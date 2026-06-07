@@ -60,6 +60,7 @@ export default function PaymentScreen() {
   // before the customer pays. Delivery-fee payments skip this entirely.
   const [repairPrice, setRepairPrice] = useState(0);
   const [discount, setDiscount] = useState(0);
+  const [deliveryFee, setDeliveryFee] = useState(0);
   const [accessories, setAccessories] = useState<any[]>([]);
   const [protection, setProtection] = useState<any[]>([]);
   const [removingId, setRemovingId] = useState<string | null>(null);
@@ -79,12 +80,13 @@ export default function PaymentScreen() {
     (async () => {
       const { data } = await supabase
         .from('orders')
-        .select('final_price, estimated_price, discount_amount, accessories, protection_addons')
+        .select('final_price, estimated_price, discount_amount, delivery_fee, accessories, protection_addons')
         .eq('id', orderId)
         .maybeSingle();
       if (!data) return;
       setRepairPrice(Number((data as any).final_price ?? (data as any).estimated_price ?? 0));
       setDiscount(Number((data as any).discount_amount ?? 0));
+      setDeliveryFee(Number((data as any).delivery_fee ?? 0));
       setAccessories(Array.isArray((data as any).accessories) ? (data as any).accessories : []);
       setProtection(Array.isArray((data as any).protection_addons) ? (data as any).protection_addons : []);
     })();
@@ -97,9 +99,12 @@ export default function PaymentScreen() {
   const addonsTotal = addonRows.reduce((s, a) => s + Number(a?.price ?? 0), 0);
   // The real amount the customer pays. For a delivery-fee payment we trust
   // the param; otherwise we compute it live so add-on removals are reflected.
+  // Repair payment total now includes the delivery fee on the order — the
+  // customer accepted the quote, so they owe repair + delivery (minus discount,
+  // plus any add-ons). Delivery-fee-only payments still trust the param.
   const amount = isDeliveryFee
     ? amountParam
-    : Math.max(0, repairPrice - discount + addonsTotal);
+    : Math.max(0, repairPrice - discount + addonsTotal + deliveryFee);
 
   const removeAddon = async (row: { id: string; kind: 'accessories' | 'protection_addons' }) => {
     setRemovingId(row.id);
@@ -220,7 +225,7 @@ export default function PaymentScreen() {
         )}
 
         {/* Price breakdown — add-ons are removable before paying */}
-        {!isDeliveryFee && (repairPrice > 0 || addonRows.length > 0) && (
+        {!isDeliveryFee && (repairPrice > 0 || addonRows.length > 0 || deliveryFee > 0) && (
           <View style={[styles.breakdownCard, { backgroundColor: COLORS.card, borderColor: COLORS.border }]}>
             <Text style={[styles.breakdownTitle, { color: COLORS.text }]}>
               {isRTL ? 'تفاصيل المبلغ' : 'Price breakdown'}
@@ -240,6 +245,16 @@ export default function PaymentScreen() {
                 </Text>
                 <Text style={[styles.bdValue, { color: COLORS.primary }]}>
                   -{discount.toLocaleString(isRTL ? 'ar-SA' : 'en-US')} {isRTL ? 'ر.س' : 'SAR'}
+                </Text>
+              </View>
+            )}
+            {deliveryFee > 0 && (
+              <View style={styles.bdRow}>
+                <Text style={[styles.bdLabel, { color: COLORS.textSecondary }]}>
+                  {isRTL ? 'رسوم التوصيل' : 'Delivery fee'}
+                </Text>
+                <Text style={[styles.bdValue, { color: COLORS.text }]}>
+                  +{deliveryFee.toLocaleString(isRTL ? 'ar-SA' : 'en-US')} {isRTL ? 'ر.س' : 'SAR'}
                 </Text>
               </View>
             )}
