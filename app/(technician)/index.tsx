@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -119,6 +119,59 @@ export default function TechnicianHomeScreen() {
     setRefreshing(false);
   };
 
+  // ── Computed dashboard metrics ─────────────────────────────────────────
+  // Today's earnings: sum of final/estimated price for the technician's
+  // jobs completed since midnight local time. Used to be hard-coded to 0,
+  // which made the card useless and discouraged the technician.
+  const todaysEarnings = useMemo(() => {
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+    return myOrders.reduce((sum, o) => {
+      if (o.status !== 'completed') return sum;
+      const ts = o.updated_at ?? o.created_at;
+      if (!ts) return sum;
+      const t = new Date(ts).getTime();
+      if (!Number.isFinite(t) || t < startOfDay.getTime()) return sum;
+      const amount = Number((o as any).final_price ?? (o as any).estimated_price ?? 0);
+      return sum + (Number.isFinite(amount) ? amount : 0);
+    }, 0);
+  }, [myOrders]);
+
+  // Time-aware greeting feels more personal than a static "Welcome".
+  const greeting = useMemo(() => {
+    const h = new Date().getHours();
+    if (isRTL) {
+      if (h < 12) return 'صباح الخير';
+      if (h < 18) return 'مساء النور';
+      return 'مساء الخير';
+    }
+    if (h < 12) return 'Good morning';
+    if (h < 18) return 'Good afternoon';
+    return 'Good evening';
+  }, [isRTL]);
+
+  // Format dates with Gregorian even on Arabic locale so technicians never
+  // see Hijri on their home cards.
+  const fmtOrderTime = (iso?: string): string => {
+    if (!iso) return '';
+    try {
+      const d = new Date(iso);
+      const locale = isRTL ? 'ar-SA-u-ca-gregory' : 'en-US';
+      return d.toLocaleString(locale, {
+        month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
+      });
+    } catch { return ''; }
+  };
+
+  // Orders posted within the last 30 minutes are flagged as "NEW" — gives
+  // the technician an obvious nudge to grab a fresh job before peers.
+  const FRESH_MS = 30 * 60 * 1000;
+  const isFreshOrder = (iso?: string): boolean => {
+    if (!iso) return false;
+    const t = new Date(iso).getTime();
+    return Number.isFinite(t) && (Date.now() - t) < FRESH_MS;
+  };
+
   const getStatusColor = (status: string) => {
     const colors: { [key: string]: string } = {
       pending: '#F59E0B',
@@ -176,10 +229,18 @@ export default function TechnicianHomeScreen() {
             </Text>
           </View>
         </View>
-        <View style={[styles.statusBadge, { backgroundColor: `${getStatusColor(order.status)}20` }]}>
-          <Text style={[styles.statusText, { color: getStatusColor(order.status) }]}>
-            {getStatusText(order.status)}
-          </Text>
+        <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 6 }}>
+          {isAvailable && isFreshOrder(order.created_at) && (
+            <View style={styles.newBadge}>
+              <View style={styles.newDot} />
+              <Text style={styles.newBadgeText}>{isRTL ? 'جديد' : 'NEW'}</Text>
+            </View>
+          )}
+          <View style={[styles.statusBadge, { backgroundColor: `${getStatusColor(order.status)}20` }]}>
+            <Text style={[styles.statusText, { color: getStatusColor(order.status) }]}>
+              {getStatusText(order.status)}
+            </Text>
+          </View>
         </View>
       </View>
 
@@ -196,12 +257,7 @@ export default function TechnicianHomeScreen() {
         <View style={styles.detailRow}>
           <Ionicons name="time-outline" size={16} color={COLORS.textSecondary} />
           <Text style={[styles.detailText, { color: COLORS.textSecondary }]}>
-            {new Date(order.created_at || '').toLocaleDateString(isRTL ? 'ar' : 'en-US', {
-              month: 'short',
-              day: 'numeric',
-              hour: '2-digit',
-              minute: '2-digit'
-            })}
+            {fmtOrderTime(order.created_at)}
           </Text>
         </View>
 
@@ -236,25 +292,66 @@ export default function TechnicianHomeScreen() {
     </TouchableOpacity>
   );
 
-  const renderEmptyState = () => (
-    <View style={styles.emptyState}>
-      <MaterialCommunityIcons 
-        name={activeTab === 'available' ? 'clipboard-search-outline' : 'clipboard-check-outline'} 
-        size={80} 
-        color={COLORS.border} 
-      />
-      <Text style={[styles.emptyTitle, { color: COLORS.text }]}>
-        {activeTab === 'available'
-          ? (isRTL ? 'لا توجد طلبات متاحة' : 'No Available Orders')
-          : (isRTL ? 'لا توجد طلبات حالية' : 'No Current Orders')}
-      </Text>
-      <Text style={[styles.emptySubtitle, { color: COLORS.textSecondary }]}>
-        {activeTab === 'available'
-          ? (isRTL ? 'سيظهر هنا الطلبات الجديدة من العملاء' : 'New customer orders will appear here')
-          : (isRTL ? 'الطلبات التي قبلتها ستظهر هنا' : 'Orders you accept will appear here')}
-      </Text>
-    </View>
-  );
+  const renderEmptyState = () => {
+    // Two distinct empty-state messages on the "Available" tab depending on
+    // whether the technician is off-duty (their own toggle) or simply has
+    // no inbound work right now. Off-duty surfaces a one-tap recovery.
+    const isAvailableTab = activeTab === 'available';
+    const offDuty = isAvailableTab && !isAvailable;
+    return (
+      <View style={styles.emptyState}>
+        <View style={[
+          styles.emptyIconWrap,
+          { backgroundColor: offDuty ? '#F59E0B22' : COLORS.primary + '14' },
+        ]}>
+          <MaterialCommunityIcons
+            name={offDuty
+              ? 'power-sleep'
+              : isAvailableTab ? 'clipboard-search-outline' : 'clipboard-check-outline'}
+            size={44}
+            color={offDuty ? '#F59E0B' : COLORS.primary}
+          />
+        </View>
+        <Text style={[styles.emptyTitle, { color: COLORS.text }]}>
+          {offDuty
+            ? (isRTL ? 'أنت في وضع عدم الإتاحة' : 'You are off duty')
+            : isAvailableTab
+              ? (isRTL ? 'لا توجد طلبات متاحة' : 'No available orders')
+              : (isRTL ? 'لا توجد طلبات حالية' : 'No current orders')}
+        </Text>
+        <Text style={[styles.emptySubtitle, { color: COLORS.textSecondary }]}>
+          {offDuty
+            ? (isRTL ? 'فعّل الإتاحة لاستقبال طلبات جديدة' : 'Toggle availability on to receive jobs')
+            : isAvailableTab
+              ? (isRTL ? 'سيظهر هنا الطلبات الجديدة من العملاء' : 'New customer orders will appear here')
+              : (isRTL ? 'الطلبات التي قبلتها ستظهر هنا' : 'Orders you accept will appear here')}
+        </Text>
+        {offDuty ? (
+          <TouchableOpacity
+            style={[styles.emptyCta, { backgroundColor: COLORS.primary }]}
+            onPress={() => toggleAvailability(true)}
+            activeOpacity={0.85}
+          >
+            <MaterialCommunityIcons name="power" size={16} color="#fff" />
+            <Text style={styles.emptyCtaText}>
+              {isRTL ? 'تفعيل الإتاحة' : 'Turn on availability'}
+            </Text>
+          </TouchableOpacity>
+        ) : isAvailableTab ? (
+          <TouchableOpacity
+            style={[styles.emptyCta, { backgroundColor: COLORS.primary + '18', borderWidth: 1, borderColor: COLORS.primary + '40' }]}
+            onPress={() => router.push('/(technician)/service-availability')}
+            activeOpacity={0.85}
+          >
+            <MaterialCommunityIcons name="tune-variant" size={16} color={COLORS.primary} />
+            <Text style={[styles.emptyCtaText, { color: COLORS.primary }]}>
+              {isRTL ? 'إدارة الخدمات' : 'Manage services'}
+            </Text>
+          </TouchableOpacity>
+        ) : null}
+      </View>
+    );
+  };
 
   const styles = createStyles(COLORS, SHADOWS, isRTL);
 
@@ -268,9 +365,9 @@ export default function TechnicianHomeScreen() {
           <MaterialCommunityIcons name="wrench" size={28} color={COLORS.primary} />
           <View style={styles.headerTextContainer}>
             <Text style={[styles.headerTitle, { color: COLORS.text }]}>
-              {isRTL ? 'مرحباً' : 'Welcome'}
+              {greeting}
             </Text>
-            <Text style={[styles.headerSubtitle, { color: COLORS.textSecondary }]}>
+            <Text style={[styles.headerSubtitle, { color: COLORS.textSecondary }]} numberOfLines={1}>
               {userProfile?.name || (isRTL ? 'فني معتمد' : 'Certified Tech')}
             </Text>
           </View>
@@ -323,8 +420,8 @@ export default function TechnicianHomeScreen() {
             <MaterialIcons name="attach-money" size={20} color="#10B981" />
           </View>
           <View style={styles.statInfo}>
-            <Text style={[styles.statValue, { color: COLORS.text }]}>
-              {isRTL ? '٠ ر.س' : '0 SAR'}
+            <Text style={[styles.statValue, { color: COLORS.text }]} numberOfLines={1} adjustsFontSizeToFit>
+              {todaysEarnings.toLocaleString(isRTL ? 'ar-EG' : 'en-US')} {isRTL ? 'ر.س' : 'SAR'}
             </Text>
             <Text style={[styles.statLabel, { color: COLORS.textSecondary }]}>
               {isRTL ? 'أرباح اليوم' : "Today's Earnings"}
@@ -544,9 +641,11 @@ const createStyles = (COLORS: any, SHADOWS: any, isRTL: boolean) => StyleSheet.c
     flexDirection: isRTL ? 'row-reverse' : 'row',
     alignItems: 'center',
     backgroundColor: COLORS.card,
-    padding: SPACING.sm,
-    borderRadius: BORDER_RADIUS.md,
+    padding: SPACING.sm + 2,
+    borderRadius: BORDER_RADIUS.lg,
     gap: SPACING.sm,
+    borderWidth: 1,
+    borderColor: COLORS.border,
   },
   statIconContainer: {
     width: 40,
@@ -560,12 +659,57 @@ const createStyles = (COLORS: any, SHADOWS: any, isRTL: boolean) => StyleSheet.c
     alignItems: isRTL ? 'flex-end' : 'flex-start',
   },
   statValue: {
-    fontSize: 18,
-    fontWeight: '700',
+    fontSize: 16,
+    fontWeight: '800',
+    letterSpacing: -0.2,
   },
   statLabel: {
     fontSize: 11,
     marginTop: 2,
+    fontWeight: '600',
+  },
+  newBadge: {
+    flexDirection: isRTL ? 'row-reverse' : 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 999,
+    backgroundColor: '#10B981',
+  },
+  newDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#fff',
+  },
+  newBadgeText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 0.4,
+  },
+  emptyIconWrap: {
+    width: 84,
+    height: 84,
+    borderRadius: 42,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 14,
+  },
+  emptyCta: {
+    flexDirection: isRTL ? 'row-reverse' : 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: 999,
+    marginTop: 18,
+  },
+  emptyCtaText: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '800',
   },
   availabilityCard: {
     backgroundColor: COLORS.card,
