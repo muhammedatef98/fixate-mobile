@@ -165,12 +165,26 @@ export default function ProfileScreen() {
               </View>
               <View style={styles.heroNameWrap}>
                 <Text style={styles.heroName} numberOfLines={1}>{displayName}</Text>
-                <View style={styles.heroVerifyChip}>
-                  <Ionicons name="shield-checkmark" size={10} color="#fff" />
-                  <Text style={styles.heroVerifyText}>
-                    {isRTL ? 'حساب موثّق' : 'Verified account'}
-                  </Text>
-                </View>
+                {(userProfile as any)?.is_verified ? (
+                  <View style={styles.heroVerifyChip}>
+                    <Ionicons name="shield-checkmark" size={10} color="#fff" />
+                    <Text style={styles.heroVerifyText}>
+                      {isRTL ? 'حساب موثّق' : 'Verified account'}
+                    </Text>
+                  </View>
+                ) : (
+                  <TouchableOpacity
+                    accessibilityRole="button"
+                    activeOpacity={0.85}
+                    onPress={() => router.push('/verify-identity' as any)}
+                    style={styles.heroVerifyChip}
+                  >
+                    <Ionicons name="shield-outline" size={10} color="#fff" />
+                    <Text style={styles.heroVerifyText}>
+                      {isRTL ? 'احصل على علامة التوثيق' : 'Get verified'}
+                    </Text>
+                  </TouchableOpacity>
+                )}
               </View>
             </View>
 

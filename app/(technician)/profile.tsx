@@ -199,9 +199,11 @@ export default function TechnicianProfile() {
                 size={96}
                 style={styles.avatar}
               />
-              <View style={styles.verifiedBadge}>
-                <MaterialIcons name="verified" size={16} color="#fff" />
-              </View>
+              {(userProfile as any)?.is_verified ? (
+                <View style={styles.verifiedBadge}>
+                  <MaterialIcons name="verified" size={16} color="#fff" />
+                </View>
+              ) : null}
             </View>
             <Text style={styles.userName}>
               {userProfile?.name || (isRTL ? 'فني معتمد' : 'Certified Tech')}
@@ -209,6 +211,31 @@ export default function TechnicianProfile() {
             <Text style={styles.userEmail}>
               {userProfile?.email || authUser?.email || (isRTL ? 'فني صيانة' : 'Repair Technician')}
             </Text>
+            {!(userProfile as any)?.is_verified ? (
+              <TouchableOpacity
+                accessibilityRole="button"
+                activeOpacity={0.85}
+                onPress={() => router.push('/verify-identity' as any)}
+                style={{
+                  flexDirection: isRTL ? 'row-reverse' : 'row',
+                  alignItems: 'center',
+                  alignSelf: 'center',
+                  gap: 6,
+                  marginTop: 10,
+                  paddingHorizontal: 14,
+                  paddingVertical: 7,
+                  borderRadius: 999,
+                  backgroundColor: C.primary + '18',
+                  borderWidth: 1,
+                  borderColor: C.primary + '40',
+                }}
+              >
+                <MaterialIcons name="shield" size={14} color={C.primary} />
+                <Text style={{ color: C.primary, fontSize: 12, fontWeight: '800' }}>
+                  {isRTL ? 'احصل على علامة التوثيق' : 'Get verified'}
+                </Text>
+              </TouchableOpacity>
+            ) : null}
 
             {/* Availability toggle — single source of truth for the technician's
                 "open for work" status. Same write as the Home dashboard so the
