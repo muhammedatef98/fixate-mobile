@@ -171,7 +171,8 @@ function RootLayoutContent() {
           },
           headerBackTitle: language === 'ar' ? 'رجوع' : 'Back',
           animation: language === 'ar' ? 'slide_from_left' : 'slide_from_right',
-          animationDuration: 250,
+          animationDuration: 150,
+          animationTypeForReplace: 'push',
           gestureEnabled: true,
           gestureDirection: 'horizontal',
         }}
