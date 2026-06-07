@@ -15,12 +15,15 @@ import {
   Modal,
   Dimensions,
   Platform,
+  Alert,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useApp } from '../contexts/AppContext';
+import { useAuth } from '../contexts/AuthContext';
+import { listMyFavoriteIds, addFavorite, removeFavorite } from '../services/marketFavoritesService';
 import { getColors, SPACING, BORDER_RADIUS } from '../constants/theme';
 import { RTLIonicon } from '../components/RTLIcon';
 import {
@@ -53,22 +56,12 @@ const CARD_W = (SCREEN_W - GRID_GUTTER * 3) / 2;
 // rare enough to be meaningful.
 const HOT_WINDOW_MS = 24 * 60 * 60 * 1000;
 
-const FAVORITES_KEY = 'fixate.market.favorites.v1';
-
-const loadFavorites = async (): Promise<Set<string>> => {
-  try {
-    const raw = await AsyncStorage.getItem(FAVORITES_KEY);
-    if (!raw) return new Set();
-    const parsed: unknown = JSON.parse(raw);
-    return Array.isArray(parsed) ? new Set(parsed.filter((v): v is string => typeof v === 'string')) : new Set();
-  } catch {
-    return new Set();
-  }
-};
-
-const persistFavorites = (next: Set<string>): void => {
-  AsyncStorage.setItem(FAVORITES_KEY, JSON.stringify([...next])).catch(() => undefined);
-};
+// Legacy AsyncStorage key — favorites used to be stored here under a single
+// global slot, which meant every account on the same device shared one set.
+// We purge it on first run so logged-in accounts start from their real,
+// per-user server-side list.
+const LEGACY_FAVORITES_KEY = 'fixate.market.favorites.v1';
+AsyncStorage.removeItem(LEGACY_FAVORITES_KEY).catch(() => undefined);
 
 const DEVICE_CHIPS: { id: DeviceType | 'all'; ar: string; en: string; icon: string }[] = [
   { id: 'all', ar: 'الكل', en: 'All', icon: 'view-grid' },
@@ -125,6 +118,7 @@ const timeAgo = (iso: string | undefined, isRTL: boolean): string => {
 export default function MarketScreen() {
   const router = useRouter();
   const { language, isDark } = useApp();
+  const { user } = useAuth();
   const COLORS = getColors(isDark);
   const isRTL = language === 'ar';
 
@@ -160,21 +154,51 @@ export default function MarketScreen() {
   const [savedOnly, setSavedOnly] = useState(false);
   const deviceStripRef = useRef<ScrollView>(null);
 
-  // Hydrate favorites once on mount. AsyncStorage is async so the heart
-  // icons fade in after the first paint — that's fine, users notice the
-  // listing image first.
+  // Favorites are now per-user, stored server-side in `market_favorites`
+  // with RLS gating reads/writes to the row owner. We reset the local set
+  // on every user change so account A's hearts never leak into account B
+  // on the same device (the previous AsyncStorage key was shared by every
+  // user on a device).
   useEffect(() => {
-    loadFavorites().then(setFavorites).catch(() => undefined);
-  }, []);
+    let cancelled = false;
+    if (!user?.id) {
+      setFavorites(new Set());
+      return;
+    }
+    listMyFavoriteIds(user.id)
+      .then((ids) => { if (!cancelled) setFavorites(new Set(ids)); })
+      .catch(() => undefined);
+    return () => { cancelled = true; };
+  }, [user?.id]);
 
   const toggleFavorite = useCallback((id: string) => {
+    // Guard: only authenticated users can favorite. The market is browsable
+    // logged-out but the heart needs an identity to attribute to.
+    if (!user?.id) {
+      Alert.alert(
+        isRTL ? 'تسجيل الدخول مطلوب' : 'Sign in required',
+        isRTL ? 'يرجى تسجيل الدخول لحفظ الإعلانات.' : 'Please sign in to save listings.',
+      );
+      return;
+    }
     setFavorites((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
-      persistFavorites(next);
+      const wasFav = next.has(id);
+      if (wasFav) next.delete(id); else next.add(id);
+      // Fire-and-forget; if the network call fails, revert.
+      const op = wasFav
+        ? removeFavorite(user.id, id)
+        : addFavorite(user.id, id);
+      op.catch(() => {
+        setFavorites((current) => {
+          const reverted = new Set(current);
+          if (wasFav) reverted.add(id); else reverted.delete(id);
+          return reverted;
+        });
+      });
       return next;
     });
-  }, []);
+  }, [user?.id, isRTL]);
 
   useEffect(() => {
     let cancelled = false;
