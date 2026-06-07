@@ -20,6 +20,7 @@ import { useApp } from '../../contexts/AppContext';
 import { getColors, SPACING, BORDER_RADIUS } from '../../constants/theme';
 import { RTLIonicon } from '../RTLIcon';
 import { safeBack } from '../../utils/navigation';
+import { AnimatedBackButton } from '../AnimatedBackButton';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -43,6 +44,7 @@ export function orderStatusTone(status: string): { tone: StatusTone; icon: strin
       return { tone: 'success', icon: 'checkmark-circle-outline' };
     case 'pending':
     case 'under_review':
+    case 'awaiting_payment':
       return { tone: 'warning', icon: 'time-outline' };
     case 'cancelled':
     case 'rejected':
@@ -101,14 +103,15 @@ export function AdminScreenHeader({
         },
       ]}
     >
-      <TouchableOpacity
+      <AnimatedBackButton
         onPress={() => safeBack('/admin')}
-        style={[styles.headerBack, { backgroundColor: COLORS.background }]}
-        accessibilityRole="button"
+        color={COLORS.text}
+        backgroundColor={COLORS.background}
+        size={42}
+        iconSize={22}
+        rtl
         accessibilityLabel={isRTL ? 'رجوع' : 'Back'}
-      >
-        <RTLIonicon name="chevron-back" size={20} color={COLORS.text} />
-      </TouchableOpacity>
+      />
 
       <View style={{ flex: 1, alignItems: 'center', paddingHorizontal: 8 }}>
         <Text
@@ -238,6 +241,7 @@ export function AdminFilterChips<T extends string>({
             accessibilityState={{ checked: active }}
           >
             <Text
+              numberOfLines={1}
               style={[
                 styles.chipText,
                 { color: active ? '#fff' : COLORS.text },
@@ -266,7 +270,7 @@ export function AdminStatusPill({ label, tone, icon }: AdminStatusPillProps) {
   return (
     <View style={[styles.pill, { backgroundColor: bg }]}>
       {!!icon && (
-        <MaterialCommunityIcons
+        <Ionicons
           name={icon as any}
           size={12}
           color={text}
@@ -372,8 +376,9 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 999,
     borderWidth: 1,
+    flexShrink: 0,
   },
-  chipText: { fontWeight: '700', fontSize: 13 },
+  chipText: { fontWeight: '700', fontSize: 13, includeFontPadding: false },
 
   // Status pill
   pill: {
@@ -443,8 +448,8 @@ export function AdminSectionLabel({ icon, text, hint }: AdminSectionLabelProps) 
   return (
     <View style={[sl.wrap, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
       <MaterialCommunityIcons name={icon as any} size={16} color={COLORS.primary} />
-      <Text style={[sl.text, { color: COLORS.text }]}>{text}</Text>
-      {hint ? <Text style={[sl.hint, { color: COLORS.textSecondary }]}>{hint}</Text> : null}
+      <Text style={[sl.text, { color: COLORS.text, textAlign: isRTL ? 'right' : 'left' }]}>{text}</Text>
+      {hint ? <Text style={[sl.hint, { color: COLORS.textSecondary, textAlign: isRTL ? 'right' : 'left' }]}>{hint}</Text> : null}
     </View>
   );
 }

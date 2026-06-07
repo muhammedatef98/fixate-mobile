@@ -10,7 +10,8 @@ export function fmtAdminDate(iso: string, isRTL = false): string {
   if (!iso) return '';
   try {
     const d = new Date(iso);
-    return d.toLocaleString(isRTL ? 'ar-SA' : 'en-US', {
+    // Force Gregorian on Arabic locale — admin screens must never show Hijri.
+    return d.toLocaleString(isRTL ? 'ar-SA-u-ca-gregory' : 'en-US', {
       year: 'numeric',
       month: 'short',
       day: 'numeric',

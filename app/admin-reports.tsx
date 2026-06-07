@@ -28,6 +28,7 @@ import { useIsAdmin } from '../hooks/useAdminGuard';
 import { getColors, SPACING, BORDER_RADIUS } from '../constants/theme';
 import { RTLIonicon } from '../components/RTLIcon';
 import { safeBack } from '../utils/navigation';
+import { AnimatedBackButton } from '../components/AnimatedBackButton';
 import { supabase } from '../services/supabaseClient';
 
 // Selectable reporting windows. Time-bound metrics (orders, revenue,
@@ -389,9 +390,15 @@ export default function AdminReportsScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => safeBack('/admin')}>
-            <RTLIonicon name="chevron-back" size={26} color={COLORS.text} />
-          </TouchableOpacity>
+          <AnimatedBackButton
+            onPress={() => safeBack('/admin')}
+            color={COLORS.text}
+            backgroundColor={COLORS.surface ?? COLORS.background}
+            size={42}
+            iconSize={22}
+            rtl
+            accessibilityLabel={isRTL ? 'رجوع' : 'Back'}
+          />
           <Text style={styles.title}>{isRTL ? 'التقارير' : 'Reports'}</Text>
           <View style={{ width: 26 }} />
         </View>
@@ -410,9 +417,15 @@ export default function AdminReportsScreen() {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => safeBack('/admin')} accessibilityRole="button">
-          <RTLIonicon name="chevron-back" size={26} color={COLORS.text} />
-        </TouchableOpacity>
+        <AnimatedBackButton
+          onPress={() => safeBack('/admin')}
+          color={COLORS.text}
+          backgroundColor={COLORS.surface ?? COLORS.background}
+          size={42}
+          iconSize={22}
+          rtl
+          accessibilityLabel={isRTL ? 'رجوع' : 'Back'}
+        />
         <Text style={styles.title}>{isRTL ? 'التقارير' : 'Reports'}</Text>
         <TouchableOpacity
           onPress={exportExcel}
@@ -479,21 +492,33 @@ export default function AdminReportsScreen() {
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={{ gap: 12, paddingVertical: 2 }}
           >
-            <View style={[styles.kpiCard, { backgroundColor: COLORS.primary, minWidth: 180 }]}>
+            <View style={[styles.kpiCard, { backgroundColor: COLORS.primary, minWidth: 200 }]}>
+              <View style={styles.kpiIconWrap}>
+                <MaterialCommunityIcons name="cash-multiple" size={22} color="#fff" />
+              </View>
               <Text style={styles.kpiLabel}>{isRTL ? 'إجمالي الإيرادات' : 'Total Revenue'}</Text>
               <Text style={styles.kpiValue}>{fmt(data.revenueCompleted)} {sar}</Text>
             </View>
-            <View style={[styles.kpiCard, { backgroundColor: '#0EA5A4', minWidth: 160 }]}>
+            <View style={[styles.kpiCard, { backgroundColor: '#0EA5A4', minWidth: 180 }]}>
+              <View style={styles.kpiIconWrap}>
+                <MaterialCommunityIcons name="clipboard-text-multiple-outline" size={22} color="#fff" />
+              </View>
               <Text style={styles.kpiLabel}>{isRTL ? 'إجمالي الطلبات' : 'Total Orders'}</Text>
               <Text style={styles.kpiValue}>{fmt(data.ordersTotal)}</Text>
             </View>
-            <View style={[styles.kpiCard, { backgroundColor: '#6366F1', minWidth: 180 }]}>
+            <View style={[styles.kpiCard, { backgroundColor: '#6366F1', minWidth: 200 }]}>
+              <View style={styles.kpiIconWrap}>
+                <MaterialCommunityIcons name="chart-line-variant" size={22} color="#fff" />
+              </View>
               <Text style={styles.kpiLabel}>{isRTL ? 'متوسط قيمة الطلب' : 'Avg Order Value'}</Text>
               <Text style={styles.kpiValue}>{fmt(Math.round(data.avgOrderValue))} {sar}</Text>
             </View>
-            <View style={[styles.kpiCard, { backgroundColor: '#F59E0B', minWidth: 200 }]}>
+            <View style={[styles.kpiCard, { backgroundColor: '#F59E0B', minWidth: 220 }]}>
+              <View style={styles.kpiIconWrap}>
+                <MaterialCommunityIcons name="trophy-outline" size={22} color="#fff" />
+              </View>
               <Text style={styles.kpiLabel}>{isRTL ? 'أفضل فني' : 'Top Technician'}</Text>
-              <Text style={[styles.kpiValue, { fontSize: 16 }]} numberOfLines={1}>
+              <Text style={[styles.kpiValue, { fontSize: 18 }]} numberOfLines={1}>
                 {data.topTechnician?.name ?? '—'}
               </Text>
               <Text style={[styles.kpiLabel, { marginTop: 2 }]}>
@@ -770,9 +795,14 @@ function BreakdownAccordion({
         borderWidth: 1,
         borderColor: COLORS.border,
         backgroundColor: COLORS.card,
-        borderRadius: BORDER_RADIUS.md,
+        borderRadius: 16,
         marginTop: 10,
         overflow: 'hidden',
+        shadowColor: '#000',
+        shadowOpacity: 0.04,
+        shadowRadius: 6,
+        shadowOffset: { width: 0, height: 2 },
+        elevation: 1,
       }}
     >
       <TouchableOpacity
@@ -781,8 +811,11 @@ function BreakdownAccordion({
           flexDirection: isRTL ? 'row-reverse' : 'row',
           alignItems: 'center',
           justifyContent: 'space-between',
-          padding: 12,
+          padding: 14,
           gap: 10,
+          backgroundColor: COLORS.surface ?? COLORS.background,
+          borderTopLeftRadius: 16,
+          borderTopRightRadius: 16,
         }}
       >
         <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 8 }}>
@@ -857,16 +890,21 @@ function SectionTitle({ icon, text, COLORS, isRTL }: any) {
       flexDirection: isRTL ? 'row-reverse' : 'row',
       alignItems: 'center',
       gap: 8,
-      marginTop: 22,
-      marginBottom: 10,
+      marginTop: 24,
+      marginBottom: 12,
+      paddingBottom: 8,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: COLORS.border,
     }}>
-      <MaterialCommunityIcons name={icon} size={18} color={COLORS.textSecondary} />
+      <MaterialCommunityIcons name={icon} size={18} color={COLORS.primary} />
       <Text style={{
-        color: COLORS.textSecondary,
-        fontSize: 12,
+        color: COLORS.text,
+        fontSize: 13,
         fontWeight: '800',
-        letterSpacing: 1,
+        letterSpacing: 0.8,
         textTransform: 'uppercase',
+        flex: 1,
+        textAlign: isRTL ? 'right' : 'left',
       }}>
         {text}
       </Text>
@@ -917,11 +955,38 @@ const createStyles = (C: any, isRTL: boolean) =>
     kpiRow: { flexDirection: isRTL ? 'row-reverse' : 'row', gap: 12 },
     kpiCard: {
       flex: 1,
-      borderRadius: BORDER_RADIUS.md,
-      padding: 16,
+      borderRadius: 20,
+      padding: 18,
+      shadowColor: '#000',
+      shadowOpacity: 0.12,
+      shadowRadius: 12,
+      shadowOffset: { width: 0, height: 6 },
+      elevation: 3,
     },
-    kpiLabel: { color: 'rgba(255,255,255,0.85)', fontSize: 11, fontWeight: '700' },
-    kpiValue: { color: '#fff', fontSize: 20, fontWeight: '900', marginTop: 6 },
+    kpiIconWrap: {
+      width: 38,
+      height: 38,
+      borderRadius: 12,
+      backgroundColor: 'rgba(255,255,255,0.22)',
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 10,
+      alignSelf: isRTL ? 'flex-end' : 'flex-start',
+    },
+    kpiLabel: {
+      color: 'rgba(255,255,255,0.9)',
+      fontSize: 12,
+      fontWeight: '700',
+      textAlign: isRTL ? 'right' : 'left',
+    },
+    kpiValue: {
+      color: '#fff',
+      fontSize: 26,
+      fontWeight: '900',
+      marginTop: 6,
+      letterSpacing: -0.4,
+      textAlign: isRTL ? 'right' : 'left',
+    },
     card: {
       backgroundColor: C.card,
       borderRadius: BORDER_RADIUS.md,

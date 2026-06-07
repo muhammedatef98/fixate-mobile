@@ -8,6 +8,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { translations } from '../constants/translations';
 import { RTLMaterialIcon } from '../components/RTLIcon';
 import { safeBack } from '../utils/navigation';
+import { AnimatedBackButton } from '../components/AnimatedBackButton';
 
 const MENU_ITEMS = [
   { id: 'account', title: 'تعديل الملف الشخصي', titleEn: 'Edit Profile', icon: 'person-outline' },
@@ -89,9 +90,16 @@ export default function ProfileScreen() {
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity accessibilityRole="button" accessibilityLabel={isRTL ? 'رجوع' : 'Back'} onPress={() => safeBack()} style={[styles.backBtn, SHADOWS.neuSmall]}>
-            <RTLMaterialIcon name="arrow-back" size={24} color={COLORS.text} />
-          </TouchableOpacity>
+          <AnimatedBackButton
+            onPress={() => safeBack()}
+            color={COLORS.text}
+            backgroundColor={COLORS.surface}
+            size={44}
+            iconSize={24}
+            iconName="arrow-back"
+            rtl
+            accessibilityLabel={isRTL ? 'رجوع' : 'Back'}
+          />
           <Text style={styles.headerTitle}>{isRTL ? 'الملف الشخصي' : 'Profile'}</Text>
           <View style={{ width: 40 }} />
         </View>
@@ -111,7 +119,16 @@ export default function ProfileScreen() {
             </TouchableOpacity>
           </View>
           <Text style={styles.name}>{name}</Text>
-          <Text style={styles.phone}>{phone}</Text>
+          <TouchableOpacity
+            accessibilityRole="button"
+            style={styles.editProfileBtn}
+            onPress={() => setEditModalVisible(true)}
+          >
+            <MaterialIcons name="edit" size={14} color={COLORS.primary} />
+            <Text style={styles.editProfileBtnText}>
+              {isRTL ? 'تعديل الملف الشخصي' : 'Edit Profile'}
+            </Text>
+          </TouchableOpacity>
         </View>
 
         {/* Stats */}
@@ -435,31 +452,58 @@ const createStyles = (COLORS: any, SHADOWS: any, isRTL: boolean) => StyleSheet.c
   },
   statsContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginHorizontal: SPACING.lg,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginHorizontal: SPACING.xl,
     marginBottom: SPACING.xl,
-    padding: SPACING.lg,
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.sm,
     backgroundColor: COLORS.surface,
-    borderRadius: 16,
+    borderRadius: 24,
+    shadowColor: '#000',
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 2,
   },
   statItem: {
     flex: 1,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   statValue: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: 'bold',
     color: COLORS.primary,
-    marginBottom: 4,
+    marginBottom: 2,
+    textAlign: 'center',
   },
   statLabel: {
-    fontSize: 12,
+    fontSize: 11,
     color: COLORS.textSecondary,
+    textAlign: 'center',
   },
   statDivider: {
     width: 1,
-    height: '80%',
+    height: 28,
     backgroundColor: COLORS.border,
+  },
+  editProfileBtn: {
+    flexDirection: isRTL ? 'row-reverse' : 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 999,
+    backgroundColor: COLORS.primary + '15',
+    borderWidth: 1,
+    borderColor: COLORS.primary + '30',
+  },
+  editProfileBtnText: {
+    color: COLORS.primary,
+    fontSize: 12,
+    fontWeight: '700',
   },
   menuContainer: {
     paddingHorizontal: SPACING.lg,

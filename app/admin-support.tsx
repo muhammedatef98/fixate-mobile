@@ -22,6 +22,7 @@ import { useIsAdmin } from '../hooks/useAdminGuard';
 import { getColors, SPACING, BORDER_RADIUS } from '../constants/theme';
 import { RTLIonicon } from '../components/RTLIcon';
 import { safeBack } from '../utils/navigation';
+import { AnimatedBackButton } from '../components/AnimatedBackButton';
 import * as support from '../services/supportService';
 import { supabase } from '../services/supabaseClient';
 import { useScrollToEndOnKeyboard } from '../hooks/useScrollToEndOnKeyboard';
@@ -168,9 +169,14 @@ export default function AdminSupportScreen() {
       <SafeAreaView style={styles.container}>
         <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => safeBack('/admin')} style={{ padding: 6 }}>
-            <RTLIonicon name="chevron-back" size={26} color={COLORS.text} />
-          </TouchableOpacity>
+          <AnimatedBackButton
+            onPress={() => safeBack('/admin')}
+            color={COLORS.text}
+            backgroundColor={COLORS.surface ?? COLORS.background}
+            size={42}
+            iconSize={22}
+            rtl
+          />
           <Text style={[styles.title, { color: COLORS.text }]}>
             {isRTL ? 'صندوق الدعم' : 'Support inbox'}
           </Text>
@@ -276,9 +282,14 @@ export default function AdminSupportScreen() {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
       <View style={styles.header}>
-        <TouchableOpacity onPress={leaveThread} style={{ padding: 6 }}>
-          <RTLIonicon name="chevron-back" size={26} color={COLORS.text} />
-        </TouchableOpacity>
+        <AnimatedBackButton
+          onPress={leaveThread}
+          color={COLORS.text}
+          backgroundColor={COLORS.surface ?? COLORS.background}
+          size={42}
+          iconSize={22}
+          rtl
+        />
         <View style={{ flex: 1, alignItems: 'center' }}>
           <Text style={[styles.title, { color: COLORS.text }]} numberOfLines={1}>
             {active.user_name || active.user_email || 'User'}

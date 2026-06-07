@@ -22,6 +22,7 @@ import { useApp } from '../contexts/AppContext';
 import { useIsAdmin } from '../hooks/useAdminGuard';
 import { getColors, SPACING, BORDER_RADIUS } from '../constants/theme';
 import { RTLIonicon } from '../components/RTLIcon';
+import { AnimatedBackButton } from '../components/AnimatedBackButton';
 import { fmtAdminDate } from '../utils/dateFormat';
 import {
   adminListAll,
@@ -237,9 +238,14 @@ export default function AdminMarketScreen() {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <RTLIonicon name="chevron-back" size={26} color={COLORS.text} />
-        </TouchableOpacity>
+        <AnimatedBackButton
+          onPress={() => router.back()}
+          color={COLORS.text}
+          backgroundColor={COLORS.surface ?? COLORS.background}
+          size={42}
+          iconSize={22}
+          rtl
+        />
         <Text style={styles.title}>{isRTL ? 'إدارة السوق' : 'Marketplace'}</Text>
         <TouchableOpacity onPress={() => { setRefreshing(true); load(); }}>
           <MaterialCommunityIcons name="refresh" size={22} color={COLORS.text} />

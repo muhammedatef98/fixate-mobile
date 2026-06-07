@@ -17,6 +17,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useIsAdmin } from '../hooks/useAdminGuard';
 import { getColors, SPACING, BORDER_RADIUS } from '../constants/theme';
 import { RTLIonicon } from '../components/RTLIcon';
+import { AnimatedBackButton } from '../components/AnimatedBackButton';
 import { adminListRatings } from '../services/reviewService';
 
 interface AdminRatingRow {
@@ -95,9 +96,14 @@ export default function AdminRatingsScreen() {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} accessibilityRole="button">
-          <RTLIonicon name="chevron-back" size={26} color={COLORS.text} />
-        </TouchableOpacity>
+        <AnimatedBackButton
+          onPress={() => router.back()}
+          color={COLORS.text}
+          backgroundColor={COLORS.surface ?? COLORS.background}
+          size={42}
+          iconSize={22}
+          rtl
+        />
         <Text style={styles.headerTitle}>
           {isRTL ? 'التقييمات والتعليقات' : 'Ratings & Reviews'}
         </Text>

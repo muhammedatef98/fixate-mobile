@@ -18,6 +18,7 @@ import { useIsAdmin } from '../hooks/useAdminGuard';
 import { getColors, SPACING, BORDER_RADIUS } from '../constants/theme';
 import { RTLIonicon } from '../components/RTLIcon';
 import { safeBack } from '../utils/navigation';
+import { AnimatedBackButton } from '../components/AnimatedBackButton';
 import { supabase } from '../services/supabaseClient';
 import {
   AdminSectionLabel,
@@ -235,9 +236,15 @@ export default function AdminDashboardScreen() {
     return (
       <SafeAreaView style={s.container}>
         <View style={s.header}>
-          <TouchableOpacity onPress={() => safeBack()} style={{ padding: 6 }}>
-            <RTLIonicon name="chevron-back" size={26} color={COLORS.text} />
-          </TouchableOpacity>
+          <AnimatedBackButton
+            onPress={() => safeBack()}
+            color={COLORS.text}
+            backgroundColor={COLORS.surface ?? COLORS.background}
+            size={42}
+            iconSize={22}
+            rtl
+            accessibilityLabel={isRTL ? 'رجوع' : 'Back'}
+          />
           <Text style={[s.title, { color: COLORS.text }]}>{isRTL ? 'الإدارة' : 'Admin'}</Text>
           <View style={{ width: 32 }} />
         </View>
@@ -271,7 +278,7 @@ export default function AdminDashboardScreen() {
 
   const lastRefreshLabel = lastRefresh
     ? (isRTL
-        ? `آخر تحديث ${lastRefresh.toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' })}`
+        ? `آخر تحديث ${lastRefresh.toLocaleTimeString('ar-SA-u-ca-gregory', { hour: '2-digit', minute: '2-digit' })}`
         : `Updated ${lastRefresh.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}`)
     : null;
 
@@ -279,13 +286,15 @@ export default function AdminDashboardScreen() {
     <SafeAreaView style={s.container}>
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
       <View style={[s.header, { borderBottomColor: COLORS.border, backgroundColor: COLORS.card }]}>
-        <TouchableOpacity
+        <AnimatedBackButton
           onPress={() => safeBack('/(customer)')}
-          style={[s.headerBtn, { backgroundColor: COLORS.background }]}
+          color={COLORS.text}
+          backgroundColor={COLORS.background}
+          size={42}
+          iconSize={22}
+          rtl
           accessibilityLabel={isRTL ? 'رجوع' : 'Back'}
-        >
-          <RTLIonicon name="chevron-back" size={20} color={COLORS.text} />
-        </TouchableOpacity>
+        />
         <View style={{ flex: 1, alignItems: 'center', paddingHorizontal: 8 }}>
           <Text style={[s.title, { color: COLORS.text }]}>
             {isRTL ? 'لوحة الإدارة' : 'Admin Panel'}

@@ -19,6 +19,7 @@ import { useIsAdmin } from '../hooks/useAdminGuard';
 import { getColors, SPACING, BORDER_RADIUS } from '../constants/theme';
 import { RTLIonicon } from '../components/RTLIcon';
 import { safeBack } from '../utils/navigation';
+import { AnimatedBackButton } from '../components/AnimatedBackButton';
 import { supabase } from '../services/supabaseClient';
 import ImageViewer from '../components/ImageViewer';
 import { fmtAdminDate, fmtAdminDateTime, fmtAdminNumber } from '../utils/dateFormat';
@@ -339,9 +340,14 @@ function Header({ isRTL, COLORS, title }: any) {
       paddingHorizontal: SPACING.m,
       paddingVertical: SPACING.m,
     }}>
-      <TouchableOpacity onPress={() => safeBack('/admin-orders')} accessibilityRole="button">
-        <RTLIonicon name="chevron-back" size={26} color={COLORS.text} />
-      </TouchableOpacity>
+      <AnimatedBackButton
+        onPress={() => safeBack('/admin-orders')}
+        color={COLORS.text}
+        backgroundColor={COLORS.surface ?? COLORS.background}
+        size={42}
+        iconSize={22}
+        rtl
+      />
       <Text style={{ fontSize: 20, fontWeight: '800', color: COLORS.text }}>{title}</Text>
       <View style={{ width: 26 }} />
     </View>

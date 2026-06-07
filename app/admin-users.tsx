@@ -21,6 +21,7 @@ import { useIsAdmin } from '../hooks/useAdminGuard';
 import { getColors, SPACING, BORDER_RADIUS } from '../constants/theme';
 import { RTLIonicon } from '../components/RTLIcon';
 import { safeBack } from '../utils/navigation';
+import { AnimatedBackButton } from '../components/AnimatedBackButton';
 import { supabase } from '../services/supabaseClient';
 import Avatar from '../components/Avatar';
 import {
@@ -135,9 +136,14 @@ export default function AdminUsersScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => safeBack('/admin')}>
-            <RTLIonicon name="chevron-back" size={26} color={COLORS.text} />
-          </TouchableOpacity>
+          <AnimatedBackButton
+            onPress={() => safeBack('/admin')}
+            color={COLORS.text}
+            backgroundColor={COLORS.surface ?? COLORS.background}
+            size={42}
+            iconSize={22}
+            rtl
+          />
           <Text style={styles.title}>{isRTL ? 'المستخدمون' : 'Users'}</Text>
           <View style={{ width: 26 }} />
         </View>
@@ -171,9 +177,14 @@ export default function AdminUsersScreen() {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => safeBack('/admin')} accessibilityRole="button">
-          <RTLIonicon name="chevron-back" size={26} color={COLORS.text} />
-        </TouchableOpacity>
+        <AnimatedBackButton
+          onPress={() => safeBack('/admin')}
+          color={COLORS.text}
+          backgroundColor={COLORS.surface ?? COLORS.background}
+          size={42}
+          iconSize={22}
+          rtl
+        />
         <Text style={styles.title}>{isRTL ? 'إدارة المستخدمين' : 'User Management'}</Text>
         <TouchableOpacity onPress={() => setSort(sort === 'newest' ? 'name' : 'newest')}>
           <Ionicons name="swap-vertical" size={20} color={COLORS.primary} />

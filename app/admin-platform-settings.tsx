@@ -22,6 +22,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { getColors, SPACING, BORDER_RADIUS } from '../constants/theme';
 import { RTLIonicon } from '../components/RTLIcon';
 import { safeBack } from '../utils/navigation';
+import { AnimatedBackButton } from '../components/AnimatedBackButton';
 import ErrorState from '../components/ErrorState';
 import { supabase } from '../services/supabaseClient';
 import {
@@ -877,9 +878,14 @@ function Header({
         borderBottomColor: COLORS.border,
       }}
     >
-      <TouchableOpacity onPress={onBack} style={{ padding: 4 }} accessibilityRole="button">
-        <RTLIonicon name="chevron-back" size={24} color={COLORS.text} />
-      </TouchableOpacity>
+      <AnimatedBackButton
+        onPress={onBack}
+        color={COLORS.text}
+        backgroundColor={COLORS.background}
+        size={42}
+        iconSize={22}
+        rtl
+      />
       <Text style={{ fontSize: 17, fontWeight: '800', color: COLORS.text }}>{title}</Text>
       <View style={{ width: 32, alignItems: 'flex-end' }}>{right}</View>
     </View>

@@ -22,6 +22,7 @@ import { useIsAdmin } from '../hooks/useAdminGuard';
 import { getColors, SPACING, BORDER_RADIUS } from '../constants/theme';
 import { RTLIonicon } from '../components/RTLIcon';
 import { safeBack } from '../utils/navigation';
+import { AnimatedBackButton } from '../components/AnimatedBackButton';
 import { supabase } from '../services/supabaseClient';
 import { fmtAdminDate } from '../utils/dateFormat';
 import {
@@ -136,9 +137,14 @@ export default function AdminBroadcastsScreen() {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => safeBack('/admin')} style={{ padding: 4 }}>
-          <RTLIonicon name="chevron-back" size={24} color={COLORS.text} />
-        </TouchableOpacity>
+        <AnimatedBackButton
+          onPress={() => safeBack('/admin')}
+          color={COLORS.text}
+          backgroundColor={COLORS.surface ?? COLORS.background}
+          size={42}
+          iconSize={22}
+          rtl
+        />
         <Text style={styles.title}>{isRTL ? 'الإشعارات والإعلانات' : 'Broadcasts'}</Text>
         <View style={{ width: 32 }} />
       </View>

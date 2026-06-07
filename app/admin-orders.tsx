@@ -57,6 +57,7 @@ const STATUS_META = (s: string, isRTL: boolean): { label: string; color: string 
     repairing:     { ar: 'جاري الإصلاح', en: 'Repairing',   color: '#6366F1' },
     testing:       { ar: 'اختبار',       en: 'Testing',     color: '#6366F1' },
     delivering:    { ar: 'جاري التوصيل', en: 'Delivering',  color: '#06B6D4' },
+    awaiting_payment: { ar: 'بانتظار الدفع', en: 'Awaiting payment', color: '#D97706' },
     completed:     { ar: 'مكتمل',        en: 'Completed',   color: '#16A34A' },
     cancelled:     { ar: 'ملغي',         en: 'Cancelled',   color: '#DC2626' },
   };
@@ -328,11 +329,19 @@ const createStyles = (C: any, isRTL: boolean) =>
     filterChipText: { color: C.text, fontWeight: '700', fontSize: 13 },
     card: {
       backgroundColor: C.card,
-      borderRadius: BORDER_RADIUS.md,
+      borderRadius: 18,
       borderWidth: 1,
       borderColor: C.border,
-      padding: 14,
-      marginBottom: 12,
+      ...(isRTL
+        ? { borderRightWidth: 4, borderRightColor: C.primary }
+        : { borderLeftWidth: 4, borderLeftColor: C.primary }),
+      padding: 16,
+      marginBottom: 14,
+      shadowColor: '#000',
+      shadowOpacity: 0.06,
+      shadowRadius: 10,
+      shadowOffset: { width: 0, height: 4 },
+      elevation: 2,
     },
     cardTop: {
       flexDirection: isRTL ? 'row-reverse' : 'row',

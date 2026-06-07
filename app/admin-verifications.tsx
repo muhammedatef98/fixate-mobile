@@ -23,6 +23,7 @@ import { supabase } from '../services/supabaseClient';
 import { getFriendlyError } from '../utils/errorMessages';
 import { success, warning } from '../utils/haptics';
 import { safeBack } from '../utils/navigation';
+import { AnimatedBackButton } from '../components/AnimatedBackButton';
 import {
   setTechnicianStatus,
   setTechnicianNotes,
@@ -196,9 +197,14 @@ export default function AdminTechniciansScreen() {
       <SafeAreaView style={styles.container}>
         <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => safeBack()} accessibilityRole="button">
-            <RTLIonicon name="chevron-back" size={26} color={COLORS.text} />
-          </TouchableOpacity>
+          <AnimatedBackButton
+            onPress={() => safeBack()}
+            color={COLORS.text}
+            backgroundColor={COLORS.surface ?? COLORS.background}
+            size={42}
+            iconSize={22}
+            rtl
+          />
           <Text style={styles.title}>{isRTL ? 'الإدارة' : 'Admin'}</Text>
           <View style={{ width: 26 }} />
         </View>
@@ -216,9 +222,14 @@ export default function AdminTechniciansScreen() {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => safeBack('/admin')} accessibilityRole="button">
-          <RTLIonicon name="chevron-back" size={26} color={COLORS.text} />
-        </TouchableOpacity>
+        <AnimatedBackButton
+          onPress={() => safeBack('/admin')}
+          color={COLORS.text}
+          backgroundColor={COLORS.surface ?? COLORS.background}
+          size={42}
+          iconSize={22}
+          rtl
+        />
         <Text style={styles.title}>{isRTL ? 'إدارة الفنيين' : 'Technician Management'}</Text>
         <View style={{ width: 26 }} />
       </View>
