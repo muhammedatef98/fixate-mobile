@@ -347,45 +347,62 @@ export default function OrderDetailsScreen() {
             </View>
           )}
 
-        {!isCancelled && (
-          <View style={[styles.timelineCard, { backgroundColor: COLORS.card }, SHADOWS.small]}>
-            <View style={styles.timelineContainer}>
-              {ORDER_TIMELINE.map((step, index) => {
-                const isCompleted = index <= currentStepIndex;
-                const isCurrent = index === currentStepIndex;
-
-                return (
-                  <View key={step.status} style={styles.timelineItem}>
-                    <View
-                      style={[
-                        styles.timelineCircle,
-                        {
-                          backgroundColor: isCompleted ? getStatusColor(step.status) : COLORS.border,
-                          borderColor: isCurrent ? getStatusColor(step.status) : 'transparent',
-                          borderWidth: isCurrent ? 3 : 0,
-                        },
-                      ]}
-                    >
-                      <MaterialCommunityIcons
-                        name={step.icon as any}
-                        size={16}
-                        color={isCompleted ? '#fff' : COLORS.textSecondary}
-                      />
-                    </View>
-                    {index < ORDER_TIMELINE.length - 1 && (
+        {!isCancelled && (() => {
+          // Drop the "cancelled" terminal state from the happy-path timeline
+          // so it doesn't show as a step every customer is heading toward.
+          const visibleSteps = ORDER_TIMELINE.filter((s) => s.status !== 'cancelled');
+          const visibleCurrent = Math.min(
+            visibleSteps.findIndex((s) => s.status === order.status),
+            visibleSteps.length - 1,
+          );
+          return (
+            <View style={[styles.timelineCard, { backgroundColor: COLORS.card }, SHADOWS.small]}>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={[
+                  styles.timelineScroll,
+                  { flexDirection: isRTL ? 'row-reverse' : 'row' },
+                ]}
+              >
+                {visibleSteps.map((step, index) => {
+                  const isCompleted = visibleCurrent >= 0 && index <= visibleCurrent;
+                  const isCurrent = index === visibleCurrent;
+                  const isLast = index === visibleSteps.length - 1;
+                  const lineFilled = visibleCurrent >= 0 && index < visibleCurrent;
+                  return (
+                    <View key={step.status} style={styles.timelineItem}>
                       <View
                         style={[
-                          styles.timelineLine,
-                          { backgroundColor: index < currentStepIndex ? getStatusColor(step.status) : COLORS.border },
+                          styles.timelineCircle,
+                          {
+                            backgroundColor: isCompleted ? getStatusColor(step.status) : COLORS.border,
+                            borderColor: isCurrent ? getStatusColor(step.status) : 'transparent',
+                            borderWidth: isCurrent ? 3 : 0,
+                          },
                         ]}
-                      />
-                    )}
-                  </View>
-                );
-              })}
+                      >
+                        <MaterialCommunityIcons
+                          name={step.icon as any}
+                          size={18}
+                          color={isCompleted ? '#fff' : COLORS.textSecondary}
+                        />
+                      </View>
+                      {!isLast && (
+                        <View
+                          style={[
+                            styles.timelineLine,
+                            { backgroundColor: lineFilled ? getStatusColor(step.status) : COLORS.border },
+                          ]}
+                        />
+                      )}
+                    </View>
+                  );
+                })}
+              </ScrollView>
             </View>
-          </View>
-        )}
+          );
+        })()}
 
         {/* Device Information Card */}
         <View style={[styles.card, { backgroundColor: COLORS.card }, SHADOWS.small]}>
@@ -966,29 +983,34 @@ const makeStyles = (isRTL: boolean) => StyleSheet.create({
   timelineCard: {
     marginHorizontal: 16,
     marginBottom: 16,
-    padding: 16,
+    paddingVertical: 18,
     borderRadius: BORDER_RADIUS.md,
+    overflow: 'hidden',
   },
-  timelineContainer: {
-    flexDirection: isRTL ? 'row-reverse' : 'row',
+  // Horizontal scroller — gives every step real breathing room instead of
+  // squashing 11 circles into ~32px each.
+  timelineScroll: {
     alignItems: 'center',
-    justifyContent: 'space-between',
+    paddingHorizontal: 18,
   },
   timelineItem: {
+    flexDirection: 'row',
     alignItems: 'center',
-    flex: 1,
   },
   timelineCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     justifyContent: 'center',
     alignItems: 'center',
   },
+  // Connector line lives between circles, not as a per-item flex child, so
+  // the spacing is a fixed visual gap regardless of how many steps render.
   timelineLine: {
     height: 2,
-    flex: 1,
-    marginHorizontal: 4,
+    width: 28,
+    marginHorizontal: 6,
+    borderRadius: 2,
   },
 
   card: {
