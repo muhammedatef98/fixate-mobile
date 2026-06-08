@@ -16,6 +16,7 @@ import OfflineBanner from '../components/OfflineBanner';
 import BlockedScreen from '../components/BlockedScreen';
 import {
   useFonts,
+  IBMPlexSansArabic_300Light,
   IBMPlexSansArabic_400Regular,
   IBMPlexSansArabic_500Medium,
   IBMPlexSansArabic_600SemiBold,
@@ -25,6 +26,14 @@ import { applyAppFontToText } from '../utils/applyFont';
 import { initSentry } from '../services/sentryService';
 import { useOtaUpdates } from '../hooks/useOtaUpdates';
 import '../i18n';
+
+// Install the global IBM Plex Sans Arabic override at module-load time.
+// This runs once when _layout.tsx is first evaluated, before any screen
+// component is imported, so every <Text> / <TextInput> in the app picks
+// up the font from its very first render — including the splash boot
+// before fonts even finish loading (Text without the right family loads
+// the next paint correctly once useFonts resolves).
+applyAppFontToText();
 
 initSentry();
 
@@ -352,7 +361,11 @@ function RootLayoutContent() {
 
 export default function RootLayout() {
   useOtaUpdates();
+  // Load every weight we map to in utils/applyFont.getAppFontFamily.
+  // Missing weights cause iOS to silently fall back to the system font when
+  // a Text uses fontWeight: '300'/'500'/'600' etc.
   const [fontsLoaded] = useFonts({
+    IBMPlexSansArabic_300Light,
     IBMPlexSansArabic_400Regular,
     IBMPlexSansArabic_500Medium,
     IBMPlexSansArabic_600SemiBold,
@@ -367,16 +380,10 @@ export default function RootLayout() {
     );
   }
 
-  // IBM Plex Sans Arabic globally — but on iOS/Android, custom fonts
-  // don't auto-map fontWeight: 'bold' to a bold variant; you must name
-  // the family explicitly. Without this override every "bold" Text on
-  // screen would render in the regular weight, which is exactly the
-  // "the font isn't really applied" symptom users report.
-  //
-  // We intercept Text/TextInput's render once and rewrite the resolved
-  // style so the right IBM Plex Sans Arabic variant is picked based
-  // on fontWeight.
-  applyAppFontToText();
+  // applyAppFontToText() already ran at module-load time at the top of
+  // this file. The helper is idempotent so an extra call here would be
+  // harmless, but doing it at module-load gives us the install before
+  // any screen module is even imported.
 
   return (
     <ErrorBoundary>

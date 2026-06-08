@@ -54,9 +54,24 @@ export function getAppFontFamily(fw?: string | number | null): string {
 
 // Install a global override on Text and TextInput so every text node in
 // the app renders with IBM Plex Sans Arabic by default — without forcing
-// every screen to import AppText. We wrap the components' render so we
-// can inject a default fontFamily under the user's style (so anything
-// they pass still wins). Idempotent — only runs once.
+// every screen to import AppText.
+//
+// RN 0.81 ships Text and TextInput as plain *function components* (not
+// React.forwardRef wrappers anymore), and React 19 removed defaultProps
+// support for function components. The previous render-patch / defaultProps
+// approaches both no-op silently on this stack — that's why every plain
+// <Text> was rendering with the system font even after the helper was
+// invoked at boot.
+//
+// What actually works on RN 0.81 + React 19: replace the Text / TextInput
+// property on the react-native module's exports object with a wrapper that
+// injects fontFamily and forwards to the original. Metro transpiles
+// `import { Text } from 'react-native'` to lazy property access on the
+// module (`_reactNative.Text`), so reassigning the property propagates to
+// every subsequent render call — both for screens imported before this
+// install runs and for screens imported afterwards.
+//
+// Idempotent — only runs once.
 let _installed = false;
 
 export function applyAppFontToText(): void {
@@ -65,31 +80,43 @@ export function applyAppFontToText(): void {
   try {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const RN = require('react-native');
-    const { Text, TextInput, StyleSheet } = RN;
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const React = require('react');
+    const { StyleSheet } = RN;
 
-    const patch = (Component: any): void => {
-      if (!Component || Component.__appFontPatched) return;
-      const originalRender = Component.render;
-      if (!originalRender) return;
-      Component.__appFontPatched = true;
-      Component.render = function (...args: unknown[]) {
-        const element = originalRender.apply(this, args as []);
-        if (!element || !element.props) return element;
-        const userStyle = element.props.style;
-        const flat = (StyleSheet.flatten(userStyle) || {}) as any;
+    const wrap = (key: 'Text' | 'TextInput'): void => {
+      const Original = RN[key];
+      if (!Original || (Original as any).__appFontWrapped) return;
+
+      const Wrapped: any = function FontWrapped(props: any) {
+        const flat = (StyleSheet.flatten(props?.style) || {}) as any;
         const family = flat.fontFamily ?? getAppFontFamily(flat.fontWeight);
-        return {
-          ...element,
-          props: {
-            ...element.props,
-            style: [{ fontFamily: family }, userStyle],
-          },
-        };
+        // Prepend the resolved family so the caller's style still wins.
+        const nextStyle = [{ fontFamily: family }, props?.style];
+        return React.createElement(Original, { ...props, style: nextStyle });
       };
+      Wrapped.displayName = `App${key}`;
+      Wrapped.__appFontWrapped = true;
+
+      // Try plain assignment first; fall back to defineProperty in case the
+      // module export was published with a strict descriptor.
+      try {
+        RN[key] = Wrapped;
+      } catch {
+        try {
+          Object.defineProperty(RN, key, {
+            value: Wrapped,
+            writable: true,
+            configurable: true,
+          });
+        } catch {
+          /* give up silently — AppText remains the explicit opt-in path */
+        }
+      }
     };
 
-    patch(Text);
-    patch(TextInput);
+    wrap('Text');
+    wrap('TextInput');
   } catch {
     // Best effort — if RN's internals change shape, AppText remains the
     // explicit opt-in path.
