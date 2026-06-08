@@ -47,9 +47,16 @@ export default function RoleSelectionScreen() {
     // Tear down any prior navigation frames before routing. Without this,
     // a technician who switches to customer can leave (technician) layout
     // frames buried in the stack, and a "back" gesture (or some routers'
-    // state restoration) can resurface them. dismissAll is a no-op when
-    // there's nothing to dismiss, so it's safe to call unconditionally.
-    try { (router as any).dismissAll?.(); } catch {}
+    // state restoration) can resurface them.
+    //
+    // We only dispatch dismissAll when there's actually something to
+    // dismiss. In newer expo-router versions calling it on an empty stack
+    // triggers a POP_TO_TOP action that the root navigator can't handle,
+    // logging "The action 'POP_TO_TOP' was not handled by any navigator"
+    // in dev. router.replace below already enforces a clean root anyway.
+    try {
+      if (router.canGoBack()) (router as any).dismissAll?.();
+    } catch {}
 
     if (isLoggedIn) {
       router.replace(role === 'technician' ? '/(technician)' : '/(customer)');
