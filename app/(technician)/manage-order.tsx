@@ -670,7 +670,9 @@ export default function ManageOrderScreen() {
               {isRTL ? 'الاسم' : 'Name'}
             </Text>
             <Text style={[styles.infoValue, { color: COLORS.text, textAlign: isRTL ? 'right' : 'left' }]}>
-              {(customer?.name && customer.name.trim()) || (isRTL ? 'غير متوفر' : 'Not available')}
+              {(customer?.name && customer.name.trim())
+                || ((order as any).customer_name && String((order as any).customer_name).trim())
+                || (isRTL ? 'غير متوفر' : 'Not available')}
             </Text>
           </View>
           <View style={styles.infoRow}>
@@ -709,15 +711,22 @@ export default function ManageOrderScreen() {
               {order.issue_description}
             </Text>
           </View>
-          <View style={styles.infoRow}>
-            <MaterialCommunityIcons name="cash" size={20} color={COLORS.textSecondary} />
-            <Text style={[styles.infoLabel, { color: COLORS.textSecondary }]}>
-              {(order as any).final_price ? (isRTL ? 'السعر النهائي' : 'Final price') : (isRTL ? 'عرض السعر' : 'Quotation')}
-            </Text>
-            <Text style={[styles.infoValue, { color: COLORS.primary, fontWeight: 'bold' }]}>
-              {(order as any).final_price ?? order.estimated_price} {isRTL ? 'ر.س' : 'SAR'}
-            </Text>
-          </View>
+          {/* Hide the price row until the technician has actually accepted the
+              order. Before acceptance (status === 'pending') seeing an estimate
+              biased technicians into cherry-picking high-paying jobs over the
+              fit of the work itself. We surface the final price later via the
+              quotation flow. */}
+          {order.status !== 'pending' && ((order as any).final_price || order.estimated_price) ? (
+            <View style={styles.infoRow}>
+              <MaterialCommunityIcons name="cash" size={20} color={COLORS.textSecondary} />
+              <Text style={[styles.infoLabel, { color: COLORS.textSecondary }]}>
+                {(order as any).final_price ? (isRTL ? 'السعر النهائي' : 'Final price') : (isRTL ? 'عرض السعر' : 'Quotation')}
+              </Text>
+              <Text style={[styles.infoValue, { color: COLORS.primary, fontWeight: 'bold' }]}>
+                {(order as any).final_price ?? order.estimated_price} {isRTL ? 'ر.س' : 'SAR'}
+              </Text>
+            </View>
+          ) : null}
         </View>
 
         {/* Location & Map */}

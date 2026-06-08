@@ -149,7 +149,12 @@ export default function TechnicianProfile() {
     );
   };
 
+  const ratingHint = stats.rating > 0
+    ? `★ ${stats.rating.toFixed(1)}${stats.ratingCount > 0 ? ` · ${stats.ratingCount}` : ''}`
+    : (isRTL ? 'لا يوجد' : 'None yet');
+
   const MENU_ITEMS = [
+    { id: 'ratings',       icon: 'star-outline',          labelAr: 'التقييمات والمراجعات', labelEn: 'Ratings & Reviews', hint: ratingHint },
     { id: 'my-orders',     icon: 'clipboard-outline',     labelAr: 'طلباتي المكتملة',     labelEn: 'Completed Jobs' },
     { id: 'availability',  icon: 'toggle-outline',        labelAr: 'الخدمات المتاحة',     labelEn: 'Service Availability' },
     { id: 'earnings',      icon: 'wallet-outline',        labelAr: 'سجل الأرباح الكامل', labelEn: 'Full Earnings History' },
@@ -319,101 +324,6 @@ export default function TechnicianProfile() {
             <MaterialCommunityIcons name="cash-multiple" size={38} color="rgba(255,255,255,0.35)" />
           </TouchableOpacity>
 
-          {/* ── Ratings & Reviews (read-only) ─────────────────────── */}
-          <SectionLabel
-            icon="star-outline"
-            text={isRTL ? 'التقييمات والمراجعات' : 'Ratings & Reviews'}
-            COLORS={C}
-            isRTL={isRTL}
-            hint={isRTL ? 'للعرض فقط' : 'Read-only'}
-          />
-          <View style={styles.ratingHeroCard}>
-            <View style={styles.ratingHeroLeft}>
-              <Text style={styles.ratingBig}>
-                {stats.rating > 0 ? stats.rating.toFixed(1) : '—'}
-              </Text>
-              <View style={styles.starsRow}>
-                {[1, 2, 3, 4, 5].map((n) => {
-                  const filled = n <= Math.round(stats.rating);
-                  return (
-                    <Ionicons
-                      key={n}
-                      name={filled ? 'star' : 'star-outline'}
-                      size={14}
-                      color={filled ? '#F59E0B' : C.textLight}
-                      style={{ marginHorizontal: 1 }}
-                    />
-                  );
-                })}
-              </View>
-              <Text style={styles.ratingCount}>
-                {stats.ratingCount > 0
-                  ? (isRTL
-                      ? `بناءً على ${stats.ratingCount} تقييم`
-                      : `Based on ${stats.ratingCount} review${stats.ratingCount === 1 ? '' : 's'}`)
-                  : (isRTL ? 'لا توجد تقييمات بعد' : 'No reviews yet')}
-              </Text>
-            </View>
-            <View style={styles.readOnlyChip}>
-              <Ionicons name="lock-closed-outline" size={11} color={C.textSecondary} />
-              <Text style={styles.readOnlyChipText}>
-                {isRTL ? 'عرض فقط' : 'View only'}
-              </Text>
-            </View>
-          </View>
-
-          {/* Recent reviews — read-only. Deliberately NO edit/delete/report
-              affordances; the only way a review changes is via the customer
-              who wrote it. */}
-          {reviews.length > 0 ? (
-            <View style={{ gap: 10, marginTop: 4 }}>
-              {reviews.map((r) => (
-                <View key={r.id} style={styles.reviewCard}>
-                  <View style={styles.reviewTop}>
-                    <Text style={styles.reviewName} numberOfLines={1}>
-                      {r.customer_name || (isRTL ? 'عميل' : 'Customer')}
-                    </Text>
-                    <View style={styles.reviewStars}>
-                      {[1, 2, 3, 4, 5].map((n) => (
-                        <Ionicons
-                          key={n}
-                          name={n <= r.rating ? 'star' : 'star-outline'}
-                          size={12}
-                          color={n <= r.rating ? '#F59E0B' : C.textLight}
-                        />
-                      ))}
-                    </View>
-                  </View>
-                  {r.comment ? (
-                    <Text style={styles.reviewComment} numberOfLines={4}>
-                      {r.comment}
-                    </Text>
-                  ) : (
-                    <Text style={[styles.reviewComment, { fontStyle: 'italic', color: C.textLight }]}>
-                      {isRTL ? 'لم يترك العميل تعليقاً' : 'No written comment'}
-                    </Text>
-                  )}
-                  {r.created_at ? (
-                    <Text style={styles.reviewDate}>
-                      {new Date(r.created_at).toLocaleDateString(isRTL ? 'ar-SA' : 'en-GB', {
-                        year: 'numeric', month: 'short', day: '2-digit',
-                      })}
-                    </Text>
-                  ) : null}
-                </View>
-              ))}
-            </View>
-          ) : !loading ? (
-            <View style={styles.emptyReviews}>
-              <MaterialCommunityIcons name="star-outline" size={36} color={C.textLight} />
-              <Text style={styles.emptyReviewsText}>
-                {isRTL
-                  ? 'ستظهر تقييمات العملاء هنا بعد إتمام أول طلب'
-                  : 'Customer reviews appear here after you complete your first job'}
-              </Text>
-            </View>
-          ) : null}
-
           {/* ── Menu items ────────────────────────────────────────── */}
           <SectionLabel
             icon="cog-outline"
@@ -432,7 +342,8 @@ export default function TechnicianProfile() {
                     : styles.menuItem
                 }
                 onPress={() => {
-                  if (item.id === 'availability') router.push('/(technician)/service-availability');
+                  if (item.id === 'ratings') router.push('/(technician)/ratings' as any);
+                  else if (item.id === 'availability') router.push('/(technician)/service-availability');
                   else if (item.id === 'earnings') router.push('/(technician)/earnings');
                   else if (item.id === 'my-orders') router.push('/(technician)/my-orders');
                   else if (item.id === 'notifications') router.push('/notifications-settings');
@@ -447,7 +358,14 @@ export default function TechnicianProfile() {
                   </View>
                   <Text style={styles.menuLabel}>{isRTL ? item.labelAr : item.labelEn}</Text>
                 </View>
-                <RTLIonicon name="chevron-forward" size={18} color={C.textSecondary} />
+                <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 8 }}>
+                  {(item as any).hint ? (
+                    <Text style={{ color: C.textSecondary, fontSize: 12, fontWeight: '700' }}>
+                      {(item as any).hint}
+                    </Text>
+                  ) : null}
+                  <RTLIonicon name="chevron-forward" size={18} color={C.textSecondary} />
+                </View>
               </PressableScale>
             ))}
           </View>
