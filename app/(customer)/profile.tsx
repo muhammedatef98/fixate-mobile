@@ -122,7 +122,17 @@ export default function ProfileScreen() {
   };
 
   const styles = makeStyles(COLORS, isRTL, SHADOWS);
-  const displayName = userProfile?.name?.trim() || user?.email?.split('@')[0] || (isRTL ? 'مرحبًا' : 'Welcome');
+  // Signup stamps name with the email-prefix as a placeholder until the user
+  // sets their real name. Treat that as "not set" and show a friendly
+  // greeting so the green card never reads as "muhammedatef998".
+  const rawName = userProfile?.name?.trim() ?? '';
+  const emailPrefix = (user?.email ?? '').split('@')[0]?.trim() ?? '';
+  const isPlaceholderName = !rawName
+    || rawName.includes('@')
+    || (!!emailPrefix && rawName.toLowerCase() === emailPrefix.toLowerCase());
+  const displayName = isPlaceholderName
+    ? (isRTL ? 'أهلاً بك' : 'Welcome')
+    : rawName;
   // Prefer the auth email (canonical, kept fresh by Supabase) and only
   // fall back to the profile row if the auth user has no email — which
   // happens for phone-OTP-only accounts.

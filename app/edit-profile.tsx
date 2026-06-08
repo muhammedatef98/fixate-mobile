@@ -90,6 +90,30 @@ export default function EditProfileScreen() {
     setEmail(user?.email ?? '');
   }, [user?.email]);
 
+  // Hydrate name / phone / avatar from userProfile once it arrives. The
+  // initial useState above runs before AuthContext finishes its first
+  // fetch, so without this effect the form stayed empty even when the DB
+  // had a real name and phone. We only seed when the user hasn't started
+  // editing yet (empty input == untouched) so we never clobber typing.
+  useEffect(() => {
+    if (!userProfile) return;
+    const dbName = (userProfile.name ?? '').trim();
+    const dbEmail = (user?.email ?? '').trim();
+    const emailPrefix = dbEmail.split('@')[0] ?? '';
+    // Signup defaults `name` to the email or its prefix. Treat that as
+    // not-yet-set so the input stays placeholder-empty and the user can
+    // type their real name without first deleting the email.
+    const isPlaceholder = !dbName
+      || dbName.includes('@')
+      || (!!emailPrefix && dbName.toLowerCase() === emailPrefix.toLowerCase());
+    setName((current) => {
+      if (current.trim()) return current;
+      return isPlaceholder ? '' : dbName;
+    });
+    setPhone((current) => (current.trim() ? current : (userProfile.phone ?? '')));
+    setAvatarUrl((current) => (current ? current : (userProfile.avatar_url ?? null)));
+  }, [userProfile, user?.email]);
+
   // Resend cooldown — 60s matches Supabase's default per-email rate limit
   // for /auth/v1/resend. Computed off email_change_sent_at so the UI shows
   // a truthful remaining window even if the user backgrounds and returns.
