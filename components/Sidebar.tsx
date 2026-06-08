@@ -97,13 +97,9 @@ export default function Sidebar({ visible, onClose }: SidebarProps) {
   const displayName = isPlaceholderName
     ? (isRTL ? 'أهلاً بك' : 'Welcome')
     : rawName;
-  // Prefer the auth email (kept fresh by Supabase). Falls back to the
-  // profile row only when the auth user has no email (phone-only accounts).
-  const displayEmail =
-    authEmail
-    || (((userProfile as { email?: string } | null)?.email ?? '').trim());
-  // Optional secondary line: a phone (helpful on phone-only sign-ups).
-  const displayPhone = ((userProfile as { phone?: string | null } | null)?.phone ?? '').trim();
+  // Email and phone are intentionally not rendered in the drawer — the
+  // hero card only shows the user's name (plus the verified check) so
+  // contact details stay tucked inside the profile screen.
   const isVerified = !!(userProfile as { is_verified?: boolean } | null)?.is_verified;
 
   // Keep the modal mounted long enough to play the exit animation.
@@ -269,12 +265,6 @@ export default function Sidebar({ visible, onClose }: SidebarProps) {
                   <MaterialCommunityIcons name="check-decagram" size={16} color="#fff" />
                 ) : null}
               </View>
-              {!!displayEmail && (
-                <Text style={s.heroEmail} numberOfLines={1}>{displayEmail}</Text>
-              )}
-              {!!displayPhone && (
-                <Text style={[s.heroEmail, { marginTop: 1 }]} numberOfLines={1}>{displayPhone}</Text>
-              )}
 
               {isAdmin && (
                 <View style={s.heroAdminPill}>
