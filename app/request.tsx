@@ -1005,51 +1005,82 @@ export default function RequestScreen() {
                   editable={!appliedDiscount}
                   onChangeText={(v) => { setDiscountInput(v.toUpperCase()); setDiscountError(null); }}
                 />
-                <AnimatedTouchable
-                  disabled={discountChecking || (!discountInput && !appliedDiscount)}
-                  onPress={async () => {
-                    if (appliedDiscount) {
-                      setAppliedDiscount(null);
-                      setDiscountInput('');
-                      setDiscountError(null);
-                      return;
-                    }
-                    if (!user) return;
-                    setDiscountChecking(true);
-                    setDiscountError(null);
-                    try {
-                      const base = selectedIssue?.estimatedPrice ?? 0;
-                      const total = Math.round(base * SPARE_PART_MULTIPLIERS[sparePartQuality]);
-                      const result = await validateDiscountCode(discountInput, total, user.id, language);
-                      if (!result.valid || !result.code) {
-                        setDiscountError(result.reason ?? (isRTL ? 'كود غير صالح' : 'Invalid code'));
-                      } else {
-                        setAppliedDiscount({ code: result.code, amount: result.amount_saved ?? 0 });
+                {(() => {
+                  // Trimmed value drives both the disabled state and the
+                  // network call so whitespace doesn't enable the button
+                  // (or get sent to the API as a "code").
+                  const trimmedCode = discountInput.trim();
+                  const canApply = !!appliedDiscount || trimmedCode.length > 0;
+                  const isDisabled = discountChecking || !canApply;
+                  return (
+                    <AnimatedTouchable
+                      disabled={isDisabled}
+                      accessibilityRole="button"
+                      accessibilityLabel={
+                        appliedDiscount
+                          ? (isRTL ? 'إزالة كود الخصم' : 'Remove discount code')
+                          : (isRTL ? 'تطبيق كود الخصم' : 'Apply discount code')
                       }
-                    } catch (e: any) {
-                      setDiscountError(e?.message ?? String(e));
-                    } finally {
-                      setDiscountChecking(false);
-                    }
-                  }}
-                  style={{
-                    backgroundColor: appliedDiscount ? COLORS.error : COLORS.primary,
-                    paddingHorizontal: 18,
-                    borderRadius: 12,
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                  }}
-                >
-                  {discountChecking ? (
-                    <ActivityIndicator color="#fff" />
-                  ) : (
-                    <Text style={{ color: '#fff', fontWeight: '700' }}>
-                      {appliedDiscount
-                        ? (isRTL ? 'إزالة' : 'Remove')
-                        : (isRTL ? 'تطبيق' : 'Apply')}
-                    </Text>
-                  )}
-                </AnimatedTouchable>
+                      accessibilityState={{ disabled: isDisabled, busy: discountChecking }}
+                      hitSlop={8}
+                      onPress={async () => {
+                        if (isDisabled) return;
+                        if (appliedDiscount) {
+                          setAppliedDiscount(null);
+                          setDiscountInput('');
+                          setDiscountError(null);
+                          return;
+                        }
+                        if (!user) {
+                          setDiscountError(
+                            isRTL ? 'الرجاء تسجيل الدخول أولاً' : 'Please sign in first',
+                          );
+                          return;
+                        }
+                        setDiscountChecking(true);
+                        setDiscountError(null);
+                        try {
+                          const base = selectedIssue?.estimatedPrice ?? 0;
+                          const total = Math.round(base * SPARE_PART_MULTIPLIERS[sparePartQuality]);
+                          const result = await validateDiscountCode(trimmedCode, total, user.id, language);
+                          if (!result.valid || !result.code) {
+                            setDiscountError(result.reason ?? (isRTL ? 'كود غير صالح' : 'Invalid code'));
+                          } else {
+                            setAppliedDiscount({ code: result.code, amount: result.amount_saved ?? 0 });
+                          }
+                        } catch (e: any) {
+                          setDiscountError(e?.message ?? String(e));
+                        } finally {
+                          setDiscountChecking(false);
+                        }
+                      }}
+                      style={{
+                        backgroundColor: appliedDiscount
+                          ? COLORS.error
+                          : isDisabled
+                            ? COLORS.gray
+                            : COLORS.primary,
+                        opacity: isDisabled && !discountChecking ? 0.6 : 1,
+                        height: 48,
+                        minWidth: 92,
+                        paddingHorizontal: 18,
+                        borderRadius: 12,
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                      }}
+                    >
+                      {discountChecking ? (
+                        <ActivityIndicator color="#fff" />
+                      ) : (
+                        <Text style={{ color: '#fff', fontWeight: '700' }}>
+                          {appliedDiscount
+                            ? (isRTL ? 'إزالة' : 'Remove')
+                            : (isRTL ? 'تطبيق' : 'Apply')}
+                        </Text>
+                      )}
+                    </AnimatedTouchable>
+                  );
+                })()}
               </View>
               {appliedDiscount && (
                 <View style={{ marginTop: 8, padding: 10, backgroundColor: COLORS.lightGreen, borderRadius: 10 }}>

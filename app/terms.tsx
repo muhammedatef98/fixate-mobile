@@ -291,6 +291,10 @@ const makeStyles = (isRTL: boolean) => StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.md,
+    // Subtle separator now that the duplicate green nav bar is gone — gives
+    // the title a visual base instead of floating against the content.
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: 'rgba(0,0,0,0.06)',
   },
   backButton: {
     width: 40,

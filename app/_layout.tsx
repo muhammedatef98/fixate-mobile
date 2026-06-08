@@ -333,6 +333,11 @@ function RootLayoutContent() {
         <Stack.Screen name="admin-otp-provider" options={{ headerShown: false, ...SHEET_ANIM }} />
         <Stack.Screen name="admin-support" options={{ headerShown: false, ...SNAP_ANIM }} />
         <Stack.Screen name="admin-user-verifications" options={{ headerShown: false, ...SNAP_ANIM }} />
+        {/* These two screens have their own in-screen header. Without
+            headerShown:false they inherit the default green Stack header
+            and render two stacked back bars. */}
+        <Stack.Screen name="admin-service-areas" options={{ headerShown: false, ...SNAP_ANIM }} />
+        <Stack.Screen name="terms" options={{ headerShown: false }} />
         <Stack.Screen name="support-chat" options={{ headerShown: false }} />
         <Stack.Screen name="verify-identity" options={{ headerShown: false, ...SHEET_ANIM }} />
 
