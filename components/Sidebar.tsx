@@ -77,20 +77,48 @@ interface Row {
 export default function Sidebar({ visible, onClose }: SidebarProps) {
   const router = useRouter();
   const { language, setLanguage, isDark, toggleTheme } = useApp();
-  const { user, userProfile, signOut } = useAuth();
+  const { user, userProfile, signOut, refreshUser } = useAuth();
   const COLORS = getColors(isDark);
   const isRTL = language === 'ar';
   const t = translations[language];
   const { isAdmin } = useIsAdmin();
 
-  const displayName =
-    userProfile?.name?.trim() || user?.email?.split('@')[0] || (isRTL ? 'ضيف' : 'Guest');
-  const displayEmail = userProfile?.email || user?.email || '';
+  // Mirror the same email-as-name detection used on the customer profile so
+  // the drawer never reads "muhammedatef998" as the user's display name.
+  // Anything that looks like an email (contains @) or matches the email's
+  // local part is treated as a placeholder and we fall back to the greeting.
+  const rawName = userProfile?.name?.trim() ?? '';
+  const authEmail = (user?.email ?? '').trim();
+  const emailLocalPart = authEmail.split('@')[0]?.trim() ?? '';
+  const isPlaceholderName =
+    !rawName
+    || rawName.includes('@')
+    || (!!emailLocalPart && rawName.toLowerCase() === emailLocalPart.toLowerCase());
+  const displayName = isPlaceholderName
+    ? (isRTL ? 'أهلاً بك' : 'Welcome')
+    : rawName;
+  // Prefer the auth email (kept fresh by Supabase). Falls back to the
+  // profile row only when the auth user has no email (phone-only accounts).
+  const displayEmail =
+    authEmail
+    || (((userProfile as { email?: string } | null)?.email ?? '').trim());
+  // Optional secondary line: a phone (helpful on phone-only sign-ups).
+  const displayPhone = ((userProfile as { phone?: string | null } | null)?.phone ?? '').trim();
+  const isVerified = !!(userProfile as { is_verified?: boolean } | null)?.is_verified;
 
   // Keep the modal mounted long enough to play the exit animation.
   const [mounted, setMounted] = useState(visible);
   const slide = useRef(new Animated.Value(visible ? 0 : 1)).current; // 0=open, 1=closed
   const fade = useRef(new Animated.Value(visible ? 1 : 0)).current;
+
+  // Pull a fresh userProfile every time the drawer opens so changes made
+  // in Edit Profile (name, phone, avatar) are reflected without forcing a
+  // full app reload.
+  useEffect(() => {
+    if (visible && typeof refreshUser === 'function') {
+      refreshUser().catch(() => undefined);
+    }
+  }, [visible, refreshUser]);
 
   useEffect(() => {
     if (visible) {
@@ -235,9 +263,17 @@ export default function Sidebar({ visible, onClose }: SidebarProps) {
                 </AnimatedTouchable>
               </View>
 
-              <Text style={s.heroName} numberOfLines={1}>{displayName}</Text>
+              <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 6 }}>
+                <Text style={s.heroName} numberOfLines={1}>{displayName}</Text>
+                {isVerified ? (
+                  <MaterialCommunityIcons name="check-decagram" size={16} color="#fff" />
+                ) : null}
+              </View>
               {!!displayEmail && (
                 <Text style={s.heroEmail} numberOfLines={1}>{displayEmail}</Text>
+              )}
+              {!!displayPhone && (
+                <Text style={[s.heroEmail, { marginTop: 1 }]} numberOfLines={1}>{displayPhone}</Text>
               )}
 
               {isAdmin && (

@@ -52,6 +52,46 @@ export function getAppFontFamily(fw?: string | number | null): string {
   }
 }
 
-// No-op kept for callers that still invoke an "apply at boot" hook.
-// Font application happens per-render via AppText / theme FONTS map.
-export function applyAppFontToText() {}
+// Install a global override on Text and TextInput so every text node in
+// the app renders with IBM Plex Sans Arabic by default — without forcing
+// every screen to import AppText. We wrap the components' render so we
+// can inject a default fontFamily under the user's style (so anything
+// they pass still wins). Idempotent — only runs once.
+let _installed = false;
+
+export function applyAppFontToText(): void {
+  if (_installed) return;
+  _installed = true;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const RN = require('react-native');
+    const { Text, TextInput, StyleSheet } = RN;
+
+    const patch = (Component: any): void => {
+      if (!Component || Component.__appFontPatched) return;
+      const originalRender = Component.render;
+      if (!originalRender) return;
+      Component.__appFontPatched = true;
+      Component.render = function (...args: unknown[]) {
+        const element = originalRender.apply(this, args as []);
+        if (!element || !element.props) return element;
+        const userStyle = element.props.style;
+        const flat = (StyleSheet.flatten(userStyle) || {}) as any;
+        const family = flat.fontFamily ?? getAppFontFamily(flat.fontWeight);
+        return {
+          ...element,
+          props: {
+            ...element.props,
+            style: [{ fontFamily: family }, userStyle],
+          },
+        };
+      };
+    };
+
+    patch(Text);
+    patch(TextInput);
+  } catch {
+    // Best effort — if RN's internals change shape, AppText remains the
+    // explicit opt-in path.
+  }
+}

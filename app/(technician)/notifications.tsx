@@ -27,17 +27,20 @@ import {
 } from '../../utils/notifications';
 
 type IconPack = 'ion' | 'mci';
+// Filled glyphs — same palette as the customer notifications screen so
+// both surfaces look consistent. Each type maps to an icon that reads as
+// the concrete action.
 const TYPE_META: Record<string, { icon: any; pack: IconPack; color: string }> = {
-  order:    { icon: 'cube-outline',                pack: 'ion', color: '#2563EB' },
-  listing:  { icon: 'pricetag-outline',            pack: 'ion', color: '#10B981' },
-  message:  { icon: 'chatbubble-ellipses-outline', pack: 'ion', color: '#8B5CF6' },
-  comment:  { icon: 'chatbox-ellipses-outline',    pack: 'ion', color: '#F59E0B' },
-  payment:  { icon: 'cash-multiple',               pack: 'mci', color: '#059669' },
-  rating:   { icon: 'star-outline',                pack: 'ion', color: '#EAB308' },
-  promo:    { icon: 'pricetags-outline',           pack: 'ion', color: '#DB2777' },
-  support:  { icon: 'lifebuoy',                    pack: 'mci', color: '#0EA5E9' },
-  warning:  { icon: 'alert-outline',               pack: 'ion', color: '#EF4444' },
-  general:  { icon: 'bell-outline',                pack: 'mci', color: '#64748B' },
+  order:    { icon: 'tools',                pack: 'mci', color: '#2563EB' },
+  listing:  { icon: 'storefront',           pack: 'mci', color: '#10B981' },
+  message:  { icon: 'chatbubble',           pack: 'ion', color: '#8B5CF6' },
+  comment:  { icon: 'message-text',         pack: 'mci', color: '#F59E0B' },
+  payment:  { icon: 'receipt-text-check',   pack: 'mci', color: '#059669' },
+  rating:   { icon: 'star',                 pack: 'ion', color: '#EAB308' },
+  promo:    { icon: 'sale',                 pack: 'mci', color: '#DB2777' },
+  support:  { icon: 'lifebuoy',             pack: 'mci', color: '#0EA5E9' },
+  warning:  { icon: 'alert',                pack: 'ion', color: '#EF4444' },
+  general:  { icon: 'bell',                 pack: 'mci', color: '#64748B' },
 };
 const FALLBACK_META = TYPE_META.general;
 
@@ -128,9 +131,9 @@ export default function TechnicianNotificationsScreen() {
       >
         <View style={[styles.iconContainer, { backgroundColor: meta.color + '20' }]}>
           {meta.pack === 'mci' ? (
-            <MaterialCommunityIcons name={meta.icon} size={22} color={meta.color} />
+            <MaterialCommunityIcons name={meta.icon} size={24} color={meta.color} />
           ) : (
-            <Ionicons name={meta.icon} size={22} color={meta.color} />
+            <Ionicons name={meta.icon} size={24} color={meta.color} />
           )}
         </View>
         <View style={styles.info}>
@@ -229,8 +232,15 @@ const makeStyles = (C: any, isRTL: boolean, SHADOWS: any) =>
       backgroundColor: C.primarySoft,
     },
     iconContainer: {
-      width: 46, height: 46, borderRadius: 14,
+      width: 48, height: 48, borderRadius: 16,
       justifyContent: 'center', alignItems: 'center',
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: 'rgba(0,0,0,0.05)',
+      shadowColor: '#000',
+      shadowOpacity: 0.05,
+      shadowRadius: 4,
+      shadowOffset: { width: 0, height: 2 },
+      elevation: 1,
     },
     info: { flex: 1 },
     title: {
