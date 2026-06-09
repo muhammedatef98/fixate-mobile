@@ -122,8 +122,7 @@
           "organization": "fixate",
           "project": "react-native"
         }
-      ],
-      "@sentry/react-native"
+      ]
     ],
     "updates": {
       "fallbackToCacheTimeout": 0,

@@ -26,6 +26,14 @@ import { applyAppFontToText } from '../utils/applyFont';
 import { initSentry } from '../services/sentryService';
 import { useOtaUpdates } from '../hooks/useOtaUpdates';
 import '../i18n';
+import * as Sentry from '@sentry/react-native';
+
+Sentry.init({
+  dsn: 'https://5a3e562f125bc31dc84d11938d9fba36@o4511510384672768.ingest.us.sentry.io/4511510403219456',
+  sendDefaultPii: true,
+  enableLogs: false,
+  environment: __DEV__ ? 'development' : 'production',
+});
 
 // Install the global IBM Plex Sans Arabic override at module-load time.
 // This runs once when _layout.tsx is first evaluated, before any screen
