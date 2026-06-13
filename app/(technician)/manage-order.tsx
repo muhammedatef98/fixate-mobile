@@ -24,7 +24,13 @@ import { requests, auth } from '../../lib/supabase-api';
 import type { Order } from '../../lib/supabase-api';
 import { getUserProfile } from '../../services/userService';
 import { logger } from '../../utils/logger';
-import { ORDER_STATUS_LABELS_AR, ORDER_STATUS_LABELS_EN } from '../../types/order';
+import {
+  ORDER_STATUS_LABELS_AR,
+  ORDER_STATUS_LABELS_EN,
+  SPARE_PART_LABELS,
+  type SparePartQuality,
+  type AddonItem,
+} from '../../types/order';
 import { safeBack } from '../../utils/navigation';
 import { RTLIonicon } from '../../components/RTLIcon';
 import ImageViewer from '../../components/ImageViewer';
@@ -36,6 +42,25 @@ import {
   startBroadcastingLocation,
   stopBroadcastingLocation,
 } from '../../services/locationTrackingService';
+
+// Human-readable label for how the customer wants the device serviced.
+// Mirrors fulfillmentLabel in available-orders.tsx.
+function fulfillmentLabel(type: string | null | undefined, ar: boolean): string {
+  switch (type) {
+    case 'mobile':
+    case 'on_site':
+      return ar ? 'خدمة في موقعك' : 'On-site service';
+    case 'pickup':
+    case 'pickup_delivery':
+      return ar ? 'استلام وتسليم' : 'Pickup & delivery';
+    case 'personal_handoff':
+    case 'handoff':
+    case 'drop_off':
+      return ar ? 'تسليم باليد' : 'Drop-off / handoff';
+    default:
+      return ar ? 'طريقة الخدمة غير محددة' : 'Service method not specified';
+  }
+}
 
 const STATUS_ACTIONS = [
   { status: 'accepted', arLabel: 'قبول الطلب', enLabel: 'Accept Order', icon: 'check-circle', color: '#10B981', description: 'تأكيد استلام الطلب والبدء في المعالجة' },
@@ -711,6 +736,70 @@ export default function ManageOrderScreen() {
               {order.issue_description}
             </Text>
           </View>
+          {/* Spare-part quality the customer chose — the technician must see
+              this BEFORE accepting so they bring the right parts. */}
+          {!!(order as any).spare_part_quality && SPARE_PART_LABELS[(order as any).spare_part_quality as SparePartQuality] && (
+            <View style={styles.infoRow}>
+              <MaterialCommunityIcons name="shield-check" size={20} color={COLORS.textSecondary} />
+              <Text style={[styles.infoLabel, { color: COLORS.textSecondary }]}>
+                {isRTL ? 'جودة قطعة الغيار' : 'Spare-part quality'}
+              </Text>
+              <Text style={[styles.infoValue, { color: COLORS.text }]}>
+                {SPARE_PART_LABELS[(order as any).spare_part_quality as SparePartQuality][isRTL ? 'ar' : 'en']}
+              </Text>
+            </View>
+          )}
+          {!!((order as any).fulfillment_type ?? order.service_type) && (
+            <View style={styles.infoRow}>
+              <MaterialCommunityIcons name="truck-fast-outline" size={20} color={COLORS.textSecondary} />
+              <Text style={[styles.infoLabel, { color: COLORS.textSecondary }]}>
+                {isRTL ? 'طريقة الخدمة' : 'Service method'}
+              </Text>
+              <Text style={[styles.infoValue, { color: COLORS.text }]}>
+                {fulfillmentLabel((order as any).fulfillment_type ?? order.service_type, isRTL)}
+              </Text>
+            </View>
+          )}
+          {Array.isArray((order as any).accessories) && (order as any).accessories.length > 0 && (
+            <View style={styles.infoRow}>
+              <MaterialCommunityIcons name="headphones" size={20} color={COLORS.textSecondary} />
+              <Text style={[styles.infoLabel, { color: COLORS.textSecondary }]}>
+                {isRTL ? 'إكسسوارات' : 'Accessories'}
+              </Text>
+              <Text style={[styles.infoValue, { color: COLORS.text }]}>
+                {((order as any).accessories as AddonItem[])
+                  .map((a) => (isRTL ? a.name_ar : a.name_en))
+                  .join(isRTL ? '، ' : ', ')}
+              </Text>
+            </View>
+          )}
+          {Array.isArray((order as any).protection_addons) && (order as any).protection_addons.length > 0 && (
+            <View style={styles.infoRow}>
+              <MaterialCommunityIcons name="shield-plus-outline" size={20} color={COLORS.textSecondary} />
+              <Text style={[styles.infoLabel, { color: COLORS.textSecondary }]}>
+                {isRTL ? 'إضافات الحماية' : 'Protection add-ons'}
+              </Text>
+              <Text style={[styles.infoValue, { color: COLORS.text }]}>
+                {((order as any).protection_addons as AddonItem[])
+                  .map((a) => (isRTL ? a.name_ar : a.name_en))
+                  .join(isRTL ? '، ' : ', ')}
+              </Text>
+            </View>
+          )}
+          {/* Customer notes — request.tsx folds them into issue_description
+              ("Issue: notes"), so only show separately when they differ. */}
+          {typeof (order as any).notes === 'string' && (order as any).notes.trim().length > 0 &&
+            !(order.issue_description ?? '').includes((order as any).notes.trim()) && (
+            <View style={styles.infoRow}>
+              <MaterialCommunityIcons name="note-text-outline" size={20} color={COLORS.textSecondary} />
+              <Text style={[styles.infoLabel, { color: COLORS.textSecondary }]}>
+                {isRTL ? 'ملاحظات العميل' : 'Customer notes'}
+              </Text>
+              <Text style={[styles.infoValue, { color: COLORS.text }]}>
+                {(order as any).notes}
+              </Text>
+            </View>
+          )}
           {/* Hide the price row until the technician has actually accepted the
               order. Before acceptance (status === 'pending') seeing an estimate
               biased technicians into cherry-picking high-paying jobs over the

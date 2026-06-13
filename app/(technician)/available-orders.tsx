@@ -24,6 +24,7 @@ import { subscribeToPendingOrders } from '../../services/realtimeService';
 import { supabase } from '../../services/supabaseClient';
 import { safeBack } from '../../utils/navigation';
 import { ISSUE_CATEGORIES, getIssueCategory } from '../../constants/issueCategories';
+import { SPARE_PART_LABELS, type SparePartQuality } from '../../types/order';
 import NeuCard from '../../components/NeuCard';
 import ErrorState from '../../components/ErrorState';
 import { SkeletonOrderCard } from '../../components/SkeletonLoader';
@@ -315,6 +316,17 @@ export default function AvailableOrdersScreen() {
             {fulfillmentLabel(order.fulfillment_type ?? order.service_type, language)}
           </Text>
         </View>
+        {/* Spare-part quality the customer chose — shown before acceptance so
+            the technician knows which parts the job calls for. */}
+        {!!order.spare_part_quality && SPARE_PART_LABELS[order.spare_part_quality as SparePartQuality] && (
+          <View style={styles.detailLine}>
+            <MaterialCommunityIcons name="shield-check" size={15} color={COLORS.textSecondary} />
+            <Text style={styles.detailLineText}>
+              {(language === 'ar' ? 'جودة قطعة الغيار: ' : 'Spare-part quality: ') +
+                SPARE_PART_LABELS[order.spare_part_quality as SparePartQuality][language === 'ar' ? 'ar' : 'en']}
+            </Text>
+          </View>
+        )}
 
         {order.media_urls && order.media_urls.length > 0 && (
           <ScrollView horizontal style={styles.mediaPreview} showsHorizontalScrollIndicator={false}>
