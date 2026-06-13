@@ -1,6 +1,6 @@
-# Contributing to Fixatee
+# Contributing to Fixate
 
-Thank you for your interest in contributing to Fixatee! This document provides guidelines and instructions for contributing.
+Thank you for your interest in contributing to Fixate! This document provides guidelines and instructions for contributing.
 
 ## Code of Conduct
 

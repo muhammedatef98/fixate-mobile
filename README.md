@@ -1,4 +1,4 @@
-# Fixatee 🔧
+# Fixate 🔧
 
 **Mobile device repair platform — connect Saudi customers with certified technicians.**
 
@@ -32,8 +32,8 @@
 ## Getting started
 
 ```bash
-git clone https://github.com/muhammedatef98/fixatee-mobile.git
-cd fixatee-mobile
+git clone https://github.com/muhammedatef98/fixate-mobile.git
+cd fixate-mobile
 pnpm install
 cp .env.example .env   # fill in EXPO_PUBLIC_SUPABASE_URL / _ANON_KEY
 pnpm start             # press i / a / scan the QR with Expo Go
@@ -83,13 +83,13 @@ MIT — see [LICENSE](LICENSE).
 
 - 📧 fixate01@gmail.com
 - 📱 +966 54 894 0042
-- 🌐 [github.com/muhammedatef98/fixatee-mobile](https://github.com/muhammedatef98/fixatee-mobile)
+- 🌐 [github.com/muhammedatef98/fixate-mobile](https://github.com/muhammedatef98/fixate-mobile)
 
 ---
 
 ## 🇸🇦 ملخّص بالعربية
 
-**Fixatee** — منصّة جوّال تربط عملاء السعودية بفنيين معتمدين لإصلاح الأجهزة الإلكترونية:
+**Fixate** — منصّة جوّال تربط عملاء السعودية بفنيين معتمدين لإصلاح الأجهزة الإلكترونية:
 - العميل يطلب صيانة خلال أقل من 60 ثانية، يتتبّع الفني على الخريطة، يدفع داخل التطبيق، ويقيّم الخدمة
 - الفني يستلم الطلبات القريبة، يبثّ موقعه، ويدير دورة حياة الإصلاح من القبول للتسليم
 - التحقّق من الفني وفق النظام السعودي (هوية وطنية / إقامة + IBAN + مستندات)

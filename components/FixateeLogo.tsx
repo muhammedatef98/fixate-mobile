@@ -1,12 +1,12 @@
 import React from 'react';
 import Svg, { Path, G } from 'react-native-svg';
 
-interface FixateeLogoProps {
+interface FixateLogoProps {
   size?: number;
   color?: string;
 }
 
-export default function FixateeLogo({ size = 100, color = '#5DBEAA' }: FixateeLogoProps) {
+export default function FixateLogo({ size = 100, color = '#5DBEAA' }: FixateLogoProps) {
   return (
     <Svg width={size} height={size} viewBox="0 0 200 200" fill="none">
       <G>

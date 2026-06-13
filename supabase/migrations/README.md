@@ -1,6 +1,6 @@
 # Supabase Migrations
 
-Database schema and policy migrations for the Fixatee project. Files are named
+Database schema and policy migrations for the Fixate project. Files are named
 `YYYYMMDDHHMMSS_short_description.sql` and are intended to be applied **in order**.
 
 > The single source of truth for the live database is [Supabase Studio](https://supabase.com/dashboard/project/gpucisjxecupcyosumgy).

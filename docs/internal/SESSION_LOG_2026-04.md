@@ -1,4 +1,4 @@
-# Fixatee — Session Log (April–May 2026)
+# Fixate — Session Log (April–May 2026)
 
 A condensed transcript of the full multi-day session with Claude that took the
 project from an exposed-keys MVP to a production-ready Saudi-market repair
@@ -241,9 +241,9 @@ UI offered 10 statuses (`pending`, `accepted`, `picking_up`, `diagnosing`,
 
 - Replaced `splash.png` / `icon.png` / `adaptive-icon.png` /
   `notification-icon.png` / `favicon.png` / `fixate-logo-main.png` /
-  `fixatee-logo.png` / `logo.png` with the new wrench-and-phone mark.
+  `fixate-logo.png` / `logo.png` with the new wrench-and-phone mark.
 - Updated GitHub repo description to the Arabic tagline:
-  "Fixatee — تطبيق صيانة الأجهزة الإلكترونية في السعودية…".
+  "Fixate — تطبيق صيانة الأجهزة الإلكترونية في السعودية…".
 
 ## 18. Test status
 
@@ -256,4 +256,4 @@ Type Check + Android EAS Build, both green on master.
 - Last commit reviewed in this log: `1e6836d` (chore: improve
   package.json scripts and metadata)
 - Working tree clean.
-- All work pushed to `https://github.com/muhammedatef98/fixatee-mobile`.
+- All work pushed to `https://github.com/muhammedatef98/fixate-mobile`.

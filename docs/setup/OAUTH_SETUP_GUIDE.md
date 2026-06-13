@@ -1,4 +1,4 @@
-# 🔐 دليل إعداد OAuth - Fixatee Mobile App
+# 🔐 دليل إعداد OAuth - Fixate Mobile App
 
 ## ✅ تم إنجازه
 
@@ -11,7 +11,7 @@
 ### 1️⃣ افتح Supabase Dashboard
 
 1. اذهب إلى: https://supabase.com/dashboard
-2. اختر مشروعك (Fixatee)
+2. اختر مشروعك (Fixate)
 3. من القائمة الجانبية، اختر **Authentication** → **Providers**
 
 ---
@@ -53,8 +53,8 @@
 4. اختر **App IDs** → اضغط **Continue**
 5. اختر **App** → اضغط **Continue**
 6. املأ البيانات:
-   - **Description**: Fixatee Mobile
-   - **Bundle ID**: com.fixatee.mobile (أو Bundle ID الخاص بك)
+   - **Description**: Fixate Mobile
+   - **Bundle ID**: com.fixate.mobile (أو Bundle ID الخاص بك)
 7. فعّل **Sign in with Apple**
 8. احفظ
 
@@ -63,8 +63,8 @@
 1. ارجع لـ **Identifiers** → اضغط **+**
 2. اختر **Services IDs** → اضغط **Continue**
 3. املأ البيانات:
-   - **Description**: Fixatee Mobile Auth
-   - **Identifier**: com.fixatee.mobile.auth
+   - **Description**: Fixate Mobile Auth
+   - **Identifier**: com.fixate.mobile.auth
 4. فعّل **Sign in with Apple**
 5. اضغط **Configure**
 6. أضف **Return URLs**:
@@ -77,7 +77,7 @@
 
 1. اذهب إلى **Keys** → اضغط **+**
 2. املأ:
-   - **Key Name**: Fixatee Auth Key
+   - **Key Name**: Fixate Auth Key
    - فعّل **Sign in with Apple**
 3. اضغط **Configure** → اختر **Primary App ID**
 4. احفظ واحفظ الـ **Key ID** و **Download** الملف `.p8`
@@ -88,7 +88,7 @@
 2. اضغط على **Apple**
 3. فعّل **Enable Sign in with Apple**
 4. املأ:
-   - **Services ID**: com.fixatee.mobile.auth
+   - **Services ID**: com.fixate.mobile.auth
    - **Team ID**: (من Apple Developer Account)
    - **Key ID**: (من الخطوة السابقة)
    - **Private Key**: (محتوى ملف .p8)
@@ -104,7 +104,7 @@
 2. اضغط **My Apps** → **Create App**
 3. اختر **Consumer** → اضغط **Next**
 4. املأ البيانات:
-   - **App Name**: Fixatee
+   - **App Name**: Fixate
    - **App Contact Email**: your-email@example.com
 5. اضغط **Create App**
 6. من Dashboard، اختر **Add Product** → **Facebook Login** → **Set Up**
@@ -132,7 +132,7 @@
 
 1. شغّل التطبيق:
    ```bash
-   cd fixatee-mobile
+   cd fixate-mobile
    pnpm start
    ```
 

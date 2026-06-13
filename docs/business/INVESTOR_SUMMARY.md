@@ -1,4 +1,4 @@
-# Fixatee — Investor Summary
+# Fixate — Investor Summary
 
 > Marketing, market-opportunity, and pitch material extracted from the original
 > README. The technical README at the repo root stays focused on contributors;
@@ -6,9 +6,9 @@
 
 ---
 
-## 🌟 About Fixatee
+## 🌟 About Fixate
 
-Fixatee is revolutionizing the device repair industry in Saudi Arabia by creating a
+Fixate is revolutionizing the device repair industry in Saudi Arabia by creating a
 seamless bridge between customers and certified repair technicians. Customers spend
 less time hunting for trustworthy technicians and stand-by repair slots; technicians
 spend less time finding leads. The platform handles location matching, dispatch,
@@ -86,7 +86,7 @@ and the courier returns it.
 
 - 📧 Email: fixate01@gmail.com
 - 📱 Phone: +966 54 894 0042
-- 🌐 GitHub: https://github.com/muhammedatef98/fixatee-mobile
+- 🌐 GitHub: https://github.com/muhammedatef98/fixate-mobile
 
 Available for pitch-deck presentations and product demos.
 
@@ -94,7 +94,7 @@ Available for pitch-deck presentations and product demos.
 
 ## 🇸🇦 النسخة العربية
 
-**Fixatee** يُحدث ثورة في صناعة إصلاح الأجهزة في المملكة العربية السعودية من خلال
+**Fixate** يُحدث ثورة في صناعة إصلاح الأجهزة في المملكة العربية السعودية من خلال
 ربط العملاء بالفنيين المعتمدين. التطبيق يتولّى المطابقة الجغرافية، التتبع المباشر،
 التسعير الشفّاف، والدفع — فيختصر على العميل وقت البحث وعلى الفني وقت اقتناص الفرص.
 

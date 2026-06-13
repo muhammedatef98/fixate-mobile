@@ -152,7 +152,7 @@ export default function EditProfileScreen() {
       // supersedes the old.
       const emailRedirectTo =
         process.env.EXPO_PUBLIC_EMAIL_REDIRECT_URL ||
-        'https://muhammedatef98.github.io/fixatee-mobile/email-change-confirmation.html';
+        'https://muhammedatef98.github.io/fixate-mobile/email-change-confirmation.html';
       // For type=email_change, GoTrue uses `email` to look up the user
       // via auth.users.email (the current email). The pending new email
       // lives in auth.users.email_change and is read server-side from the
@@ -393,7 +393,7 @@ export default function EditProfileScreen() {
     if (payload.emailChanged && profileSaved) {
       const emailRedirectTo =
         process.env.EXPO_PUBLIC_EMAIL_REDIRECT_URL ||
-        'https://muhammedatef98.github.io/fixatee-mobile/email-change-confirmation.html';
+        'https://muhammedatef98.github.io/fixate-mobile/email-change-confirmation.html';
       try {
         const { error: emailError } = await supabase.auth.updateUser(
           { email: payload.email },

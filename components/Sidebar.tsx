@@ -395,7 +395,7 @@ export default function Sidebar({ visible, onClose }: SidebarProps) {
             </Animated.View>
 
             <Text style={[s.footer, { color: COLORS.textSecondary }]}>
-              Fixatee · v1.0.0
+              Fixate · v1.0.0
             </Text>
           </ScrollView>
         </Animated.View>

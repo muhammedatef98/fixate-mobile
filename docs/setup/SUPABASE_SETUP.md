@@ -1,4 +1,4 @@
-# Supabase Setup Guide for Fixatee
+# Supabase Setup Guide for Fixate
 
 ## 🚀 Quick Start (5 minutes)
 
@@ -10,7 +10,7 @@
 ### 2. Create New Project
 1. Click "New Project"
 2. Fill in:
-   - **Name**: `fixatee`
+   - **Name**: `fixate`
    - **Database Password**: (save this!)
    - **Region**: Choose closest to Saudi Arabia (e.g., `Singapore`)
 3. Click "Create new project"
@@ -133,7 +133,7 @@ When ready for production:
 
 1. **Custom Domain** (optional):
    - Settings → API → Custom Domain
-   - Add your domain (e.g., api.fixatee.com)
+   - Add your domain (e.g., api.fixate.com)
 
 2. **Email Templates**:
    - Authentication → Email Templates

@@ -109,7 +109,7 @@
 ### 3. Build & Release
 - [ ] **Create production build**
   ```bash
-  cd ~/fixatee-mobile
+  cd ~/fixate-mobile
   eas build --platform android --profile production
   ```
 

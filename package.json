@@ -1,15 +1,15 @@
 {
-  "name": "fixatee-mobile",
+  "name": "fixate-mobile",
   "version": "1.0.0",
   "private": true,
-  "description": "Fixatee — mobile platform connecting Saudi customers with certified device-repair technicians.",
-  "homepage": "https://github.com/muhammedatef98/fixatee-mobile#readme",
+  "description": "Fixate — mobile platform connecting Saudi customers with certified device-repair technicians.",
+  "homepage": "https://github.com/muhammedatef98/fixate-mobile#readme",
   "repository": {
     "type": "git",
-    "url": "https://github.com/muhammedatef98/fixatee-mobile.git"
+    "url": "https://github.com/muhammedatef98/fixate-mobile.git"
   },
   "bugs": {
-    "url": "https://github.com/muhammedatef98/fixatee-mobile/issues"
+    "url": "https://github.com/muhammedatef98/fixate-mobile/issues"
   },
   "license": "MIT",
   "author": "Mohamed Atef <fixate01@gmail.com>",
