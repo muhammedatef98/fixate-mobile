@@ -19,18 +19,28 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useApp } from '../contexts/AppContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useIsAdmin } from '../hooks/useAdminGuard';
+import { usePermissions } from '../hooks/usePermissions';
 import { getColors, SPACING, BORDER_RADIUS } from '../constants/theme';
 import { RTLIonicon } from '../components/RTLIcon';
 import { safeBack } from '../utils/navigation';
 import { AnimatedBackButton } from '../components/AnimatedBackButton';
+import { adminTimeAgo } from '../components/admin/AdminUI';
 import * as support from '../services/supportService';
 import { supabase } from '../services/supabaseClient';
 import { useScrollToEndOnKeyboard } from '../hooks/useScrollToEndOnKeyboard';
 
-interface ThreadView extends support.SupportThread {
-  user_name?: string;
-  user_email?: string;
-}
+type ThreadView = support.AdminThread;
+
+const STATUS_META = (s: support.SupportStatus | undefined, isRTL: boolean) => {
+  switch (s) {
+    case 'assigned':
+      return { label: isRTL ? 'قيد المعالجة' : 'Assigned', color: '#3b82f6', icon: 'account-check' as const };
+    case 'closed':
+      return { label: isRTL ? 'مغلقة' : 'Closed', color: '#9CA3AF', icon: 'check-circle' as const };
+    default:
+      return { label: isRTL ? 'بانتظار الرد' : 'Waiting', color: '#F59E0B', icon: 'clock-outline' as const };
+  }
+};
 
 export default function AdminSupportScreen() {
   const router = useRouter();
@@ -40,7 +50,9 @@ export default function AdminSupportScreen() {
   const isRTL = language === 'ar';
 
   const { isAdmin, checking: adminChecking } = useIsAdmin();
-  const [statusFilter, setStatusFilter] = useState<'open' | 'closed'>('open');
+  const { can, loading: permLoading } = usePermissions();
+  const allowed = isAdmin || can('support_management');
+  const [statusFilter, setStatusFilter] = useState<support.ThreadFilter>('waiting');
   const [threads, setThreads] = useState<ThreadView[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -52,7 +64,7 @@ export default function AdminSupportScreen() {
   useScrollToEndOnKeyboard(listRef);
   const messagesChannelRef = useRef<any>(null);
 
-  const loadThreads = async (status: 'open' | 'closed' = statusFilter) => {
+  const loadThreads = async (status: support.ThreadFilter = statusFilter) => {
     try {
       const data = await support.listAllThreads({ status });
       setThreads(data as any);
@@ -63,7 +75,7 @@ export default function AdminSupportScreen() {
   };
 
   useEffect(() => {
-    if (!isAdmin) return;
+    if (!allowed) return;
     // Opportunistic auto-close of idle threads each time admin opens the
     // inbox. The DB-side cron job is authoritative; this just keeps the
     // list tidy in real time even without cron configured.
@@ -71,7 +83,18 @@ export default function AdminSupportScreen() {
     loadThreads(statusFilter);
     // subscribeAllThreads now returns its own cleanup callable.
     return support.subscribeAllThreads(() => loadThreads(statusFilter));
-  }, [isAdmin, statusFilter]);
+  }, [allowed, statusFilter]);
+
+  const assignToMe = async () => {
+    if (!active) return;
+    try {
+      await support.assignThread(active.id);
+      setActive((prev) => (prev ? { ...prev, status: 'assigned', assigned_admin_id: user?.id, assigned_admin_name: userProfile?.name } : prev));
+      loadThreads(statusFilter);
+    } catch {
+      Alert.alert(isRTL ? 'خطأ' : 'Error', isRTL ? 'تعذّر الإسناد' : 'Could not assign');
+    }
+  };
 
   const openThread = async (t: ThreadView) => {
     setActive(t);
@@ -145,14 +168,14 @@ export default function AdminSupportScreen() {
 
   const styles = makeStyles(COLORS, isRTL);
 
-  if (adminChecking) {
+  if (adminChecking || permLoading) {
     return (
       <SafeAreaView style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
         <ActivityIndicator color={COLORS.primary} size="large" />
       </SafeAreaView>
     );
   }
-  if (!isAdmin) {
+  if (!allowed) {
     return (
       <SafeAreaView style={[styles.container, { padding: 32, alignItems: 'center', justifyContent: 'center' }]}>
         <MaterialCommunityIcons name="shield-alert-outline" size={64} color="#ef4444" />
@@ -184,11 +207,13 @@ export default function AdminSupportScreen() {
         </View>
 
         <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', paddingHorizontal: SPACING.md, paddingTop: 6, gap: 8 }}>
-          {(['open', 'closed'] as const).map((s) => {
+          {(['waiting', 'assigned', 'closed', 'all'] as const).map((s) => {
             const active = statusFilter === s;
-            const label = s === 'open'
-              ? (isRTL ? 'نشطة' : 'Active')
-              : (isRTL ? 'مغلقة' : 'Closed');
+            const label =
+              s === 'waiting' ? (isRTL ? 'بانتظار الرد' : 'Waiting')
+              : s === 'assigned' ? (isRTL ? 'قيد المعالجة' : 'Assigned')
+              : s === 'closed' ? (isRTL ? 'مغلقة' : 'Closed')
+              : (isRTL ? 'الكل' : 'All');
             return (
               <TouchableOpacity
                 key={s}
@@ -259,12 +284,25 @@ export default function AdminSupportScreen() {
                       {item.user_name || item.user_email || 'User'}
                     </Text>
                     <Text style={{ color: COLORS.textSecondary, fontSize: 11 }}>
-                      {new Date(item.last_message_at).toLocaleDateString(language === 'ar' ? 'ar' : 'en-US', { month: 'short', day: 'numeric' })}
+                      {adminTimeAgo(item.last_message_at, isRTL)}
                     </Text>
                   </View>
-                  <Text style={{ color: COLORS.textSecondary, fontSize: 12, marginTop: 2 }} numberOfLines={1}>
-                    {item.user_email}
-                  </Text>
+                  <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 8, marginTop: 4 }}>
+                    {(() => {
+                      const m = STATUS_META(item.status, isRTL);
+                      return (
+                        <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 3, backgroundColor: m.color + '1A', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999 }}>
+                          <MaterialCommunityIcons name={m.icon} size={11} color={m.color} />
+                          <Text style={{ color: m.color, fontSize: 10, fontWeight: '800' }}>{m.label}</Text>
+                        </View>
+                      );
+                    })()}
+                    {!!item.assigned_admin_name && (
+                      <Text style={{ color: COLORS.textSecondary, fontSize: 11 }} numberOfLines={1}>
+                        {isRTL ? `لدى ${item.assigned_admin_name}` : `by ${item.assigned_admin_name}`}
+                      </Text>
+                    )}
+                  </View>
                 </View>
                 {item.unread_for_admin && (
                   <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: COLORS.primary }} />
@@ -295,21 +333,33 @@ export default function AdminSupportScreen() {
             {active.user_name || active.user_email || 'User'}
           </Text>
           <Text style={{ color: COLORS.textSecondary, fontSize: 11, marginTop: 2 }} numberOfLines={1}>
-            {active.user_email}
+            {active.assigned_admin_name
+              ? (isRTL ? `قيد المعالجة لدى ${active.assigned_admin_name}` : `Assigned to ${active.assigned_admin_name}`)
+              : (isRTL ? 'بانتظار رد موظف' : 'Waiting for an agent')}
           </Text>
         </View>
-        {active.status === 'closed' ? (
-          <View style={{ width: 32 }} />
-        ) : (
-          <TouchableOpacity
-            onPress={handleCloseThread}
-            accessibilityRole="button"
-            accessibilityLabel={isRTL ? 'إغلاق المحادثة' : 'Close chat'}
-            style={{ padding: 6 }}
-          >
-            <MaterialCommunityIcons name="archive-arrow-down-outline" size={22} color={COLORS.text} />
-          </TouchableOpacity>
-        )}
+        <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 4 }}>
+          {active.status !== 'closed' && active.assigned_admin_id !== user?.id && (
+            <TouchableOpacity
+              onPress={assignToMe}
+              accessibilityRole="button"
+              accessibilityLabel={isRTL ? 'إسناد لي' : 'Assign to me'}
+              style={{ padding: 6 }}
+            >
+              <MaterialCommunityIcons name="account-arrow-down-outline" size={22} color={COLORS.primary} />
+            </TouchableOpacity>
+          )}
+          {active.status !== 'closed' && (
+            <TouchableOpacity
+              onPress={handleCloseThread}
+              accessibilityRole="button"
+              accessibilityLabel={isRTL ? 'إغلاق المحادثة' : 'Close chat'}
+              style={{ padding: 6 }}
+            >
+              <MaterialCommunityIcons name="archive-arrow-down-outline" size={22} color={COLORS.text} />
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
 
       {active.status === 'closed' && (
@@ -333,6 +383,18 @@ export default function AdminSupportScreen() {
           keyboardShouldPersistTaps="handled"
           contentContainerStyle={{ padding: SPACING.md }}
           renderItem={({ item }) => {
+            if (item.is_system) {
+              return (
+                <View style={{ alignItems: 'center', marginVertical: 8 }}>
+                  <View style={{ maxWidth: '88%', backgroundColor: COLORS.primary + '12', borderRadius: 12, paddingVertical: 8, paddingHorizontal: 12, flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'flex-start', gap: 6 }}>
+                    <MaterialCommunityIcons name="robot-happy-outline" size={14} color={COLORS.primary} style={{ marginTop: 2 }} />
+                    <Text style={{ color: COLORS.textSecondary, fontSize: 12, lineHeight: 18, flexShrink: 1, textAlign: isRTL ? 'right' : 'left', writingDirection: isRTL ? 'rtl' : 'ltr' }}>
+                      {item.content}
+                    </Text>
+                  </View>
+                </View>
+              );
+            }
             const mine = item.is_admin;
             return (
               <View style={[styles.msgRow, { justifyContent: mine ? (isRTL ? 'flex-start' : 'flex-end') : (isRTL ? 'flex-end' : 'flex-start') }]}>

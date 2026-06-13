@@ -53,6 +53,15 @@ coverage/
 google-services.json
 GoogleService-Info.plist
 
+# Database backups / dumps (contain production data — never commit)
+*.dump
+backup_*.sql
+backup_*
+
+# Generated native projects (Expo CNG — regenerated via `expo prebuild`)
+/ios/
+/android/
+
 # Reports and temporary documentation
 *-report.md
 *-complete.md

@@ -17,6 +17,7 @@ import { getReviewByOrder } from '../../services/reviewService';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../services/supabaseClient';
 import { subscribeUnique } from '../../utils/realtimeChannel';
+import InvoiceDownloadButton from '../../components/InvoiceDownloadButton';
 
 export default function OrdersScreen() {
   const router = useRouter();
@@ -285,6 +286,12 @@ export default function OrdersScreen() {
                       <RTLIonicon name="chevron-forward" size={14} color={COLORS.primary} />
                     </View>
                   </View>
+
+                  {order.status === 'completed' && (
+                    <View style={{ marginTop: 10, alignItems: isRTL ? 'flex-start' : 'flex-end' }}>
+                      <InvoiceDownloadButton orderId={order.id} isRTL={isRTL} COLORS={COLORS} variant="inline" />
+                    </View>
+                  )}
                 </PressableScale>
               );
             })}

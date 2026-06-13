@@ -19,6 +19,7 @@ import { useAuth } from '../contexts/AuthContext';
 import type { Order } from '../services/orderService';
 import { RTLMaterialIcon } from '../components/RTLIcon';
 import { safeBack } from '../utils/navigation';
+import InvoiceDownloadButton from '../components/InvoiceDownloadButton';
 
 const ORDER_STATUS_CONFIG = {
   pending: {
@@ -225,7 +226,11 @@ export default function MyOrdersScreen() {
         </View>
 
         {/* Footer */}
-        <View style={styles.orderFooter}>
+        <View style={[styles.orderFooter, { flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 10 }]}>
+          {order.status === 'completed' && (
+            <InvoiceDownloadButton orderId={order.id} isRTL={isRTL} COLORS={COLORS} variant="inline" />
+          )}
+          <View style={{ flex: 1 }} />
           <TouchableOpacity
             style={[styles.detailsButton, { backgroundColor: COLORS.primary }]}
             onPress={() => router.push(`/order-details?id=${order.id}`)}
@@ -233,7 +238,7 @@ export default function MyOrdersScreen() {
             <Text style={styles.detailsButtonText}>
               {isRTL ? 'عرض التفاصيل' : 'View Details'}
             </Text>
-            <MaterialCommunityIcons 
+            <MaterialCommunityIcons
               name={isRTL ? 'chevron-left' : 'chevron-right'} 
               size={18} 
               color="#FFFFFF" 

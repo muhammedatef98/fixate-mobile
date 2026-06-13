@@ -15,6 +15,7 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useApp } from '../contexts/AppContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useIsAdmin } from '../hooks/useAdminGuard';
+import { usePermissions } from '../hooks/usePermissions';
 import { getColors, SPACING, BORDER_RADIUS } from '../constants/theme';
 import { RTLIonicon } from '../components/RTLIcon';
 import { safeBack } from '../utils/navigation';
@@ -71,6 +72,7 @@ export default function AdminDashboardScreen() {
   const isRTL = language === 'ar';
 
   const { isAdmin, checking: adminChecking } = useIsAdmin();
+  const { can } = usePermissions();
   const [stats, setStats] = useState<Stats>({
     totalUsers: 0, totalTechnicians: 0, totalOrders: 0, totalListings: 0,
     revenue: 0, pendingVerifications: 0, pendingListings: 0, unreadThreads: 0,
@@ -619,8 +621,29 @@ export default function AdminDashboardScreen() {
           onPress={() => router.push('/admin-broadcasts' as any)}
         />
 
+        {/* ── Finance ─────────────────────────────────────────────── */}
+        {can('billing_management') && (
+          <>
+            <AdminSectionLabel icon="finance" text={isRTL ? 'المالية' : 'Finance'} />
+            <AdminActionCard
+              icon="file-document-outline" iconColor="#0ea5e9"
+              title={isRTL ? 'الفوترة والفواتير' : 'Billing & Invoices'}
+              subtitle={isRTL ? 'عرض الفواتير، المدفوعات، وإعدادات الفوترة' : 'View invoices, payments and billing settings'}
+              onPress={() => router.push('/admin-billing' as any)}
+            />
+          </>
+        )}
+
         {/* ── Configuration ───────────────────────────────────────── */}
         <AdminSectionLabel icon="tune-variant" text={isRTL ? 'الإعدادات' : 'Configuration'} />
+        {can('staff_management') && (
+          <AdminActionCard
+            icon="account-group-outline" iconColor="#14b8a6"
+            title={isRTL ? 'الفريق والصلاحيات' : 'Admin Team & Roles'}
+            subtitle={isRTL ? 'إدارة الموظفين والأدوار والصلاحيات' : 'Manage staff, roles and permissions'}
+            onPress={() => router.push('/admin-team' as any)}
+          />
+        )}
         <AdminActionCard
           icon="tune-vertical" iconColor="#6366f1"
           title={isRTL ? 'إعدادات المنصة' : 'Platform Settings'}

@@ -2,6 +2,8 @@ import { supabase } from './supabaseClient';
 import { logger } from '../utils/logger';
 import { subscribeUnique } from '../utils/realtimeChannel';
 
+export type SupportStatus = 'open' | 'waiting' | 'assigned' | 'closed';
+
 export interface SupportThread {
   id: string;
   user_id: string;
@@ -9,9 +11,14 @@ export interface SupportThread {
   last_message_at: string;
   unread_for_admin: boolean;
   unread_for_user: boolean;
-  status?: 'open' | 'closed';
+  status?: SupportStatus;
   closed_at?: string | null;
   closed_reason?: string | null;
+  assigned_admin_id?: string | null;
+  assigned_at?: string | null;
+  last_admin_id?: string | null;
+  auto_reply_sent?: boolean;
+  internal_note?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -19,8 +26,9 @@ export interface SupportThread {
 export interface SupportMessage {
   id: string;
   thread_id: string;
-  sender_id: string;
+  sender_id: string | null;
   is_admin: boolean;
+  is_system?: boolean;
   content: string;
   created_at: string;
 }
@@ -49,28 +57,34 @@ export const getOrCreateMyThread = async (userId: string): Promise<SupportThread
   return data as SupportThread;
 };
 
+export type ThreadFilter = 'waiting' | 'assigned' | 'closed' | 'all';
+
 export interface ListThreadsOptions {
-  /** 'open' (default), 'closed', or 'all'. */
-  status?: 'open' | 'closed' | 'all';
+  /** 'waiting', 'assigned', 'closed', or 'all' (default). */
+  status?: ThreadFilter;
 }
 
-export const listAllThreads = async (
-  opts: ListThreadsOptions = {}
-): Promise<(SupportThread & { user_name?: string; user_email?: string; last_preview?: string })[]> => {
-  const status = opts.status ?? 'open';
+export type AdminThread = SupportThread & {
+  user_name?: string;
+  user_email?: string;
+  assigned_admin_name?: string;
+  last_admin_name?: string;
+};
+
+export const listAllThreads = async (opts: ListThreadsOptions = {}): Promise<AdminThread[]> => {
+  const status = opts.status ?? 'all';
   let q = supabase
     .from('support_threads')
     .select('*')
     .order('last_message_at', { ascending: false })
-    .limit(200);
-  if (status !== 'all') {
-    // Treat rows with NULL status (legacy) as 'open' so they remain visible
-    // after the migration ships but before triggers re-fill them.
-    if (status === 'open') {
-      q = q.or('status.eq.open,status.is.null') as typeof q;
-    } else {
-      q = q.eq('status', 'closed');
-    }
+    .limit(300);
+  if (status === 'closed') {
+    q = q.eq('status', 'closed');
+  } else if (status === 'waiting') {
+    // Legacy 'open'/NULL behave as waiting (no agent yet).
+    q = q.or('status.eq.waiting,status.eq.open,status.is.null') as typeof q;
+  } else if (status === 'assigned') {
+    q = q.eq('status', 'assigned');
   }
   const { data: threads, error } = await q;
   if (error) {
@@ -81,10 +95,13 @@ export const listAllThreads = async (
   if (!list.length) return [];
 
   const userIds = Array.from(new Set(list.map((t: any) => t.user_id).filter(Boolean)));
-  const { data: users } = await supabase
-    .from('users')
-    .select('id, name, email')
-    .in('id', userIds);
+  const adminIds = Array.from(
+    new Set(
+      list.flatMap((t: any) => [t.assigned_admin_id, t.last_admin_id]).filter(Boolean)
+    )
+  );
+  const allIds = Array.from(new Set([...userIds, ...adminIds]));
+  const { data: users } = await supabase.from('users').select('id, name, email').in('id', allIds);
   const lookup = new Map<string, { name?: string; email?: string }>();
   (users ?? []).forEach((u: any) => lookup.set(u.id, { name: u.name, email: u.email }));
 
@@ -92,7 +109,21 @@ export const listAllThreads = async (
     ...t,
     user_name: lookup.get(t.user_id)?.name,
     user_email: lookup.get(t.user_id)?.email,
+    assigned_admin_name: t.assigned_admin_id ? lookup.get(t.assigned_admin_id)?.name : undefined,
+    last_admin_name: t.last_admin_id ? lookup.get(t.last_admin_id)?.name : undefined,
   }));
+};
+
+/** Assign (claim) a thread to an agent. Defaults to the current user. */
+export const assignThread = async (threadId: string, adminId?: string): Promise<void> => {
+  const { error } = await supabase.rpc('support_assign_thread', {
+    p_thread_id: threadId,
+    p_admin_id: adminId ?? null,
+  });
+  if (error) {
+    logger.warn('support_assign_thread failed', error);
+    throw error;
+  }
 };
 
 export const getMessages = async (threadId: string, limit = 200): Promise<SupportMessage[]> => {

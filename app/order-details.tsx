@@ -27,6 +27,7 @@ import * as reviewService from '../services/reviewService';
 import { supabase } from '../services/supabaseClient';
 import ImageViewer from '../components/ImageViewer';
 import ServiceCenterCard from '../components/ServiceCenterCard';
+import InvoiceDownloadButton from '../components/InvoiceDownloadButton';
 import { getPlatformSettings } from '../services/platformSettingsService';
 import { computeCancellationFee } from '../constants/fees';
 import { useLoyalty } from '../contexts/LoyaltyContext';
@@ -718,6 +719,12 @@ export default function OrderDetailsScreen() {
             )}
           </View>
         </View>
+
+        {order.status === 'completed' && userType === 'customer' && (
+          <View style={{ marginHorizontal: 16, marginBottom: 12 }}>
+            <InvoiceDownloadButton orderId={order.id as string} isRTL={isRTL} COLORS={COLORS} />
+          </View>
+        )}
 
         {order.status === 'completed' && usesServiceCenter && (
           <View style={{ marginHorizontal: 16, marginBottom: 12 }}>
