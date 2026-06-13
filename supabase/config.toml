@@ -50,9 +50,6 @@ verify_jwt = false
 [functions.legal-delete-account]
 verify_jwt = false
 
-[functions.auto-close-support]
-verify_jwt = false
-
 # ── Authenticated functions ───────────────────────────────────────────
 # Supabase's default is verify_jwt = true, but we set it explicitly so a
 # future config edit can't accidentally open these to anonymous callers.
