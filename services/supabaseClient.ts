@@ -50,7 +50,12 @@ const fetchWithTimeout: typeof fetch = (input, init) => {
         ? 45000
         : 15000;
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), ms);
+  // Label the reason so a timeout abort is distinguishable in logs from a
+  // user/navigation cancel (otherwise both surface as a bare "Aborted").
+  const timeoutId = setTimeout(
+    () => controller.abort(`Request timed out after ${ms}ms: ${method} ${url}`),
+    ms
+  );
   return fetch(input as any, { ...(init || {}), signal: controller.signal }).finally(() => {
     clearTimeout(timeoutId);
   }) as Promise<Response>;

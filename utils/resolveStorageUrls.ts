@@ -9,7 +9,8 @@ const DEFAULT_BUCKET = 'order-media';
 const KNOWN_BUCKETS = new Set(['order-media', 'orders']);
 
 // Matches `/storage/v1/object/(public|sign|authenticated)/<bucket>/<path>`
-const STORAGE_URL_RE = /\/storage\/v1\/object\/(?:public|sign|authenticated)\/([^/]+)\/(.+?)(?:\?|$)/;
+const STORAGE_URL_RE =
+  /\/storage\/v1\/object\/(?:public|sign|authenticated)\/([^/]+)\/(.+?)(?:\?|$)/;
 
 interface Parsed {
   bucket: string;
@@ -54,19 +55,27 @@ export async function resolveStorageUrls(urls: string[]): Promise<string[]> {
       const { bucket, path } = parseStorageRef(u);
 
       try {
-        const { data, error } = await supabase.storage
-          .from(bucket)
-          .createSignedUrl(path, 3600);
+        const { data, error } = await supabase.storage.from(bucket).createSignedUrl(path, 3600);
         if (error || !data?.signedUrl) {
           // Original was a public URL — return verbatim so the <Image> can
           // still try to load it.
           if (/\/storage\/v1\/object\/public\//.test(u)) return u;
-          console.warn('[resolveStorageUrls] failed to sign', { bucket, path, error: error?.message });
+          if (__DEV__)
+            console.warn('[resolveStorageUrls] failed to sign', {
+              bucket,
+              path,
+              error: error?.message,
+            });
           return u;
         }
         return data.signedUrl;
       } catch (e: unknown) {
-        console.warn('[resolveStorageUrls] exception', { bucket, path, error: (e as Error)?.message });
+        if (__DEV__)
+          console.warn('[resolveStorageUrls] exception', {
+            bucket,
+            path,
+            error: (e as Error)?.message,
+          });
         return u;
       }
     })
