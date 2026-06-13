@@ -6,7 +6,7 @@ import { RequestProvider } from '../contexts/RequestContext';
 import { ThemeProvider } from '../contexts/ThemeContext';
 import { AppProvider, useApp } from '../contexts/AppContext';
 import { AuthProvider, useAuth } from '../contexts/AuthContext';
-import { isAdminPhone } from '../constants/admin';
+import { isAdminUser } from '../constants/admin';
 import { OrdersProvider } from '../contexts/OrdersContext';
 import { LoyaltyProvider } from '../contexts/LoyaltyContext';
 import { useRouter, useSegments } from 'expo-router';
@@ -68,7 +68,7 @@ const SNAP_ANIM = {
 
 function RootLayoutContent() {
   const { language } = useApp();
-  const { user, userProfile, loading } = useAuth();
+  const { user, userProfile, profileLoaded, loading } = useAuth();
   const segments = useSegments();
   const router = useRouter();
 
@@ -116,26 +116,24 @@ function RootLayoutContent() {
     const isProtectedRoute = !!first && PROTECTED_GROUPS.has(first);
 
     if (user && inAuthFlow) {
-      // CRITICAL: don't auto-redirect until we know the role. userProfile loads
-      // asynchronously after the session is established; if we routed on a
-      // null profile we'd dump every user into /(customer) regardless of
-      // whether they were a technician — that's the "I tap technician portal,
-      // it sends me to customer portal" bug.
-      if (userProfile === null) return;
+      // CRITICAL: wait for the profile fetch to SETTLE (not to be non-null).
+      // A brand-new signup has a session but no public.users row yet —
+      // `userProfile === null` is permanent for them and would freeze
+      // routing forever. We instead wait on `profileLoaded`, which flips
+      // true the moment the fetch returns regardless of result.
+      if (!profileLoaded) return;
       const wantsTechnician = !!first && TECHNICIAN_AUTH_SOURCES.has(first);
       const wantsCustomer = !!first && CUSTOMER_AUTH_SOURCES.has(first);
-      const phone =
-        (user as any)?.phone ?? (userProfile as any)?.phone ?? null;
-      const adminByPhone = isAdminPhone(phone);
+      const adminByClaim = isAdminUser(user);
 
       // Resolution order:
-      //   1. Admin phone → /admin (system-level, always wins).
+      //   1. Admin (JWT app_metadata.is_admin) → /admin (system-level, always wins).
       //   2. Explicit customer auth source → /(customer) — honours the
       //      user's choice even if their profile role is technician.
       //   3. Explicit technician auth source → /(technician).
       //   4. Fallback to profile-stored role for routes like /onboarding
       //      where there's no role-binding auth source.
-      const target = adminByPhone
+      const target = adminByClaim
         ? '/admin'
         : wantsCustomer
           ? '/(customer)'
@@ -153,11 +151,11 @@ function RootLayoutContent() {
     }
 
     // Route-level admin gate — applies to every admin segment (the bare
-    // /admin hub plus all admin-* detail screens). Only the account whose
-    // phone matches ADMIN_PHONE may render any admin surface. Anyone else
-    // is bounced back to the customer home before the screen mounts.
-    // This is defence-in-depth on top of useAdminGuard inside each
-    // admin-* screen.
+    // /admin hub plus all admin-* detail screens). Only users whose JWT
+    // carries app_metadata.is_admin (server-controlled) may render any
+    // admin surface. Anyone else is bounced back to the customer home
+    // before the screen mounts. Defence-in-depth on top of useAdminGuard
+    // inside each admin-* screen.
     const isAdminSegment =
       !!first && (first === 'admin' || first.startsWith('admin-'));
     if (isAdminSegment) {
@@ -165,16 +163,11 @@ function RootLayoutContent() {
         router.replace('/role-selection');
         return;
       }
-      // Wait for the profile to land so we can read the phone without
-      // a false negative on first paint.
-      if (userProfile === null) return;
-      const phone =
-        (user as any)?.phone ?? (userProfile as any)?.phone ?? null;
-      if (!isAdminPhone(phone)) {
+      if (!isAdminUser(user)) {
         router.replace('/(customer)');
       }
     }
-  }, [user, userProfile, segments, loading]);
+  }, [user, userProfile, profileLoaded, segments, loading]);
 
   // RTL is handled per-screen via manual `isRTL ? 'row-reverse' : 'row'`
   // conditionals and `textAlign: isRTL ? 'right' : 'left'`. We deliberately

@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../contexts/AuthContext';
+import { isAdminUser } from '../constants/admin';
 
 export interface UseIsAdminResult {
   /** True only when the signed-in user has the admin claim in JWT app_metadata. */
@@ -11,13 +12,13 @@ export interface UseIsAdminResult {
 
 /**
  * Lightweight observer — returns whether the current user is an admin.
- * Reads the `is_admin` claim from the Supabase JWT `app_metadata`. This
- * claim is server-controlled and cannot be set by the client.
+ * Delegates to `isAdminUser`, which reads the server-controlled JWT
+ * `app_metadata` (is_admin === true OR roles contains "admin"). The
+ * client cannot mint or modify this claim.
  */
 export const useIsAdmin = (): UseIsAdminResult => {
   const { user, loading } = useAuth();
-  const isAdmin = (user as any)?.app_metadata?.is_admin === true;
-  return { isAdmin: !loading && isAdmin, checking: loading };
+  return { isAdmin: !loading && isAdminUser(user), checking: loading };
 };
 
 /**

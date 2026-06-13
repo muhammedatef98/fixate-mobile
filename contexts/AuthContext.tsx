@@ -8,6 +8,14 @@ interface AuthContextType {
   session: Session | null;
   user: User | null;
   userProfile: userService.UserProfile | null;
+  /**
+   * True once the public.users row has been fetched at least once for the
+   * current session, regardless of whether a row exists. Used by routing
+   * to distinguish "still loading" from "settled, no profile row" — a
+   * brand-new signup has a session but no profile row until onboarding
+   * completes, and we must not block redirects forever on that case.
+   */
+  profileLoaded: boolean;
   loading: boolean;
   isAuthenticated: boolean;
   signOut: () => Promise<void>;
@@ -23,6 +31,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [userProfile, setUserProfile] = useState<userService.UserProfile | null>(null);
+  const [profileLoaded, setProfileLoaded] = useState(false);
   const [loading, setLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
@@ -38,29 +47,46 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setLoading(false);
 
       if (session?.user) {
+        setProfileLoaded(false);
         userService
           .getUserProfile(session.user.id)
-          .then(setUserProfile)
-          .catch(() => undefined);
+          .then((p) => {
+            setUserProfile(p);
+            setProfileLoaded(true);
+          })
+          .catch(() => {
+            setProfileLoaded(true);
+          });
+      } else {
+        setProfileLoaded(true);
       }
     });
 
     // Listen for auth changes — set state synchronously, fetch profile in
     // background. If we awaited getUserProfile here a slow query would block
     // every subsequent auth event, including signOut().
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
       setUser(session?.user ?? null);
       setIsAuthenticated(!!session);
       setLoading(false);
 
       if (session?.user) {
+        setProfileLoaded(false);
         userService
           .getUserProfile(session.user.id)
-          .then(setUserProfile)
-          .catch(() => undefined);
+          .then((p) => {
+            setUserProfile(p);
+            setProfileLoaded(true);
+          })
+          .catch(() => {
+            setProfileLoaded(true);
+          });
       } else {
         setUserProfile(null);
+        setProfileLoaded(true);
       }
     });
 
@@ -73,10 +99,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setSession(null);
     setUser(null);
     setUserProfile(null);
+    setProfileLoaded(true);
     setIsAuthenticated(false);
 
     // Best-effort Supabase signOut (idempotent, never throws)
-    try { await supabase.auth.signOut({ scope: 'local' }); } catch {}
+    try {
+      await supabase.auth.signOut({ scope: 'local' });
+    } catch {}
   };
 
   const deleteAccount = async () => {
@@ -102,26 +131,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const { user } = await authService.loginWithPhoneOrEmail({ email, password });
     if (!user) return 'customer';
 
-    // Belt-and-braces: read is_admin from BOTH the user_metadata (cheap,
-    // attached to the auth response) and from public.users (canonical).
-    // Either being true is enough — protects against the public.users
-    // lookup failing on a flaky network.
-    let isAdmin = (user.user_metadata as any)?.is_admin === true;
-    let role: 'customer' | 'technician' =
-      (user.user_metadata as any)?.role === 'technician' ? 'technician' : 'customer';
+    // Admin is decided ONLY by the server-controlled JWT app_metadata
+    // claim — user_metadata is client-writable and must never be trusted
+    // for authorization. Role for routing falls back to public.users.role
+    // (canonical) and never to user_metadata.
+    const meta = (user.app_metadata as any) ?? {};
+    const isAdmin =
+      meta.is_admin === true || (Array.isArray(meta.roles) && meta.roles.includes('admin'));
+    let role: 'customer' | 'technician' = 'customer';
 
     try {
-      const { data } = await supabase
-        .from('users')
-        .select('role, is_admin')
-        .eq('id', user.id)
-        .maybeSingle();
-      if (data) {
-        if ((data as any).is_admin === true) isAdmin = true;
-        if ((data as any).role === 'technician') role = 'technician';
-      }
+      const { data } = await supabase.from('users').select('role').eq('id', user.id).maybeSingle();
+      if (data && (data as any).role === 'technician') role = 'technician';
     } catch {
-      // user_metadata fallback already applied above
+      // Best-effort role lookup — default to customer on failure.
     }
 
     return isAdmin ? 'admin' : role;
@@ -141,7 +164,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // importantly an email change that completed after the current token
     // was issued) without waiting for the next auto-refresh tick.
     try {
-      const { data: { user: freshUser } } = await supabase.auth.getUser();
+      const {
+        data: { user: freshUser },
+      } = await supabase.auth.getUser();
       if (freshUser) setUser(freshUser);
     } catch {
       // Non-fatal — fall through to the public profile refresh below.
@@ -155,7 +180,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ session, user, userProfile, loading, isAuthenticated, signOut, deleteAccount, login, signup, refreshUser }}>
+    <AuthContext.Provider
+      value={{
+        session,
+        user,
+        userProfile,
+        profileLoaded,
+        loading,
+        isAuthenticated,
+        signOut,
+        deleteAccount,
+        login,
+        signup,
+        refreshUser,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
