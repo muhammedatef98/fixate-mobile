@@ -1,12 +1,5 @@
 import React from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  SafeAreaView,
-  TouchableOpacity,
-} from 'react-native';
+import { View, Text, StyleSheet, ScrollView, SafeAreaView, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
 import { getColors, SPACING, BORDER_RADIUS } from '../constants/theme';
@@ -130,8 +123,7 @@ export default function TermsScreen() {
 
 إذا كان لديك أي استفسارات حول هذه الشروط، يرجى التواصل معنا:
 
-- البريد الإلكتروني: support@fixatee.com
-- الهاتف: +966 XX XXX XXXX
+- البريد الإلكتروني: support@fixate.com
 - العنوان: الرياض، المملكة العربية السعودية
 
 ---
@@ -247,8 +239,7 @@ Welcome to Fixate ("the App"). By using this App, you agree to comply with these
 
 If you have any questions about these terms, please contact us:
 
-- Email: support@fixatee.com
-- Phone: +966 XX XXX XXXX
+- Email: support@fixate.com
 - Address: Riyadh, Saudi Arabia
 
 ---
@@ -260,11 +251,13 @@ If you have any questions about these terms, please contact us:
     <SafeAreaView style={[styles.container, { backgroundColor: COLORS.background }]}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity accessibilityRole="button" accessibilityLabel={isRTL ? 'رجوع' : 'Back'} onPress={() => safeBack()} style={styles.backButton}>
-          <RTLMaterialIcon name="arrow-back" 
-            size={24} 
-            color={COLORS.text} 
-          />
+        <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel={isRTL ? 'رجوع' : 'Back'}
+          onPress={() => safeBack()}
+          style={styles.backButton}
+        >
+          <RTLMaterialIcon name="arrow-back" size={24} color={COLORS.text} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: COLORS.text }]}>
           {isRTL ? 'الشروط والأحكام' : 'Terms & Conditions'}
@@ -281,39 +274,40 @@ If you have any questions about these terms, please contact us:
   );
 }
 
-const makeStyles = (isRTL: boolean) => StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  header: {
-    flexDirection: isRTL ? 'row-reverse' : 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.md,
-    // Subtle separator now that the duplicate green nav bar is gone — gives
-    // the title a visual base instead of floating against the content.
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: 'rgba(0,0,0,0.06)',
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-  },
-  scrollView: {
-    flex: 1,
-  },
-  content: {
-    padding: SPACING.lg,
-  },
-  text: {
-    fontSize: 14,
-    lineHeight: 24,
-  },
-});
+const makeStyles = (isRTL: boolean) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+    },
+    header: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: SPACING.lg,
+      paddingVertical: SPACING.md,
+      // Subtle separator now that the duplicate green nav bar is gone — gives
+      // the title a visual base instead of floating against the content.
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: 'rgba(0,0,0,0.06)',
+    },
+    backButton: {
+      width: 40,
+      height: 40,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    headerTitle: {
+      fontSize: 20,
+      fontWeight: 'bold',
+    },
+    scrollView: {
+      flex: 1,
+    },
+    content: {
+      padding: SPACING.lg,
+    },
+    text: {
+      fontSize: 14,
+      lineHeight: 24,
+    },
+  });

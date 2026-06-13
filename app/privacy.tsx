@@ -1,12 +1,5 @@
 import React from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  SafeAreaView,
-  TouchableOpacity,
-} from 'react-native';
+import { View, Text, StyleSheet, ScrollView, SafeAreaView, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
 import { getColors, SPACING } from '../constants/theme';
@@ -29,7 +22,7 @@ export default function PrivacyScreen() {
 
 ## 1. المقدمة
 
-نحن في Fixatee نلتزم بحماية خصوصيتك. توضح هذه السياسة كيفية جمع واستخدام وحماية معلوماتك الشخصية وفقاً لنظام حماية البيانات الشخصية في المملكة العربية السعودية.
+نحن في Fixate نلتزم بحماية خصوصيتك. توضح هذه السياسة كيفية جمع واستخدام وحماية معلوماتك الشخصية وفقاً لنظام حماية البيانات الشخصية في المملكة العربية السعودية.
 
 ## 2. المعلومات التي نجمعها
 
@@ -138,8 +131,7 @@ export default function PrivacyScreen() {
 
 لأي استفسارات حول الخصوصية:
 
-- البريد الإلكتروني: privacy@fixatee.com
-- الهاتف: +966 XX XXX XXXX
+- البريد الإلكتروني: privacy@fixate.com
 - العنوان: الرياض، المملكة العربية السعودية
 
 ---
@@ -154,7 +146,7 @@ export default function PrivacyScreen() {
 
 ## 1. Introduction
 
-At Fixatee, we are committed to protecting your privacy. This policy explains how we collect, use, and protect your personal information in accordance with Saudi Arabia's Personal Data Protection Law.
+At Fixate, we are committed to protecting your privacy. This policy explains how we collect, use, and protect your personal information in accordance with Saudi Arabia's Personal Data Protection Law.
 
 ## 2. Information We Collect
 
@@ -263,8 +255,7 @@ We comply with:
 
 For any privacy inquiries:
 
-- Email: privacy@fixatee.com
-- Phone: +966 XX XXX XXXX
+- Email: privacy@fixate.com
 - Address: Riyadh, Saudi Arabia
 
 ---
@@ -276,11 +267,13 @@ For any privacy inquiries:
     <SafeAreaView style={[styles.container, { backgroundColor: COLORS.background }]}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity accessibilityRole="button" accessibilityLabel={isRTL ? 'رجوع' : 'Back'} onPress={() => safeBack()} style={styles.backButton}>
-          <RTLMaterialIcon name="arrow-back" 
-            size={24} 
-            color={COLORS.text} 
-          />
+        <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel={isRTL ? 'رجوع' : 'Back'}
+          onPress={() => safeBack()}
+          style={styles.backButton}
+        >
+          <RTLMaterialIcon name="arrow-back" size={24} color={COLORS.text} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: COLORS.text }]}>
           {isRTL ? 'سياسة الخصوصية' : 'Privacy Policy'}
@@ -297,35 +290,36 @@ For any privacy inquiries:
   );
 }
 
-const makeStyles = (isRTL: boolean) => StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  header: {
-    flexDirection: isRTL ? 'row-reverse' : 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.md,
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-  },
-  scrollView: {
-    flex: 1,
-  },
-  content: {
-    padding: SPACING.lg,
-  },
-  text: {
-    fontSize: 14,
-    lineHeight: 24,
-  },
-});
+const makeStyles = (isRTL: boolean) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+    },
+    header: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: SPACING.lg,
+      paddingVertical: SPACING.md,
+    },
+    backButton: {
+      width: 40,
+      height: 40,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    headerTitle: {
+      fontSize: 20,
+      fontWeight: 'bold',
+    },
+    scrollView: {
+      flex: 1,
+    },
+    content: {
+      padding: SPACING.lg,
+    },
+    text: {
+      fontSize: 14,
+      lineHeight: 24,
+    },
+  });
