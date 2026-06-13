@@ -10,34 +10,55 @@ export interface PasswordValidation {
   strength: 'weak' | 'medium' | 'strong';
 }
 
-export const validatePassword = (password: string, language: 'ar' | 'en' = 'ar'): PasswordValidation => {
+export const validatePassword = (
+  password: string,
+  language: 'ar' | 'en' = 'ar'
+): PasswordValidation => {
   const errors: string[] = [];
-  
+
   // Minimum length check
   if (password.length < 8) {
-    errors.push(language === 'ar' ? 'يجب أن تكون كلمة المرور 8 أحرف على الأقل' : 'Password must be at least 8 characters');
+    errors.push(
+      language === 'ar'
+        ? 'يجب أن تكون كلمة المرور 8 أحرف على الأقل'
+        : 'Password must be at least 8 characters'
+    );
   }
-  
+
   // Uppercase letter check
   if (!/[A-Z]/.test(password)) {
-    errors.push(language === 'ar' ? 'يجب أن تحتوي على حرف كبير واحد على الأقل' : 'Must contain at least one uppercase letter');
+    errors.push(
+      language === 'ar'
+        ? 'يجب أن تحتوي على حرف كبير واحد على الأقل'
+        : 'Must contain at least one uppercase letter'
+    );
   }
-  
+
   // Lowercase letter check
   if (!/[a-z]/.test(password)) {
-    errors.push(language === 'ar' ? 'يجب أن تحتوي على حرف صغير واحد على الأقل' : 'Must contain at least one lowercase letter');
+    errors.push(
+      language === 'ar'
+        ? 'يجب أن تحتوي على حرف صغير واحد على الأقل'
+        : 'Must contain at least one lowercase letter'
+    );
   }
-  
+
   // Number check
   if (!/[0-9]/.test(password)) {
-    errors.push(language === 'ar' ? 'يجب أن تحتوي على رقم واحد على الأقل' : 'Must contain at least one number');
+    errors.push(
+      language === 'ar' ? 'يجب أن تحتوي على رقم واحد على الأقل' : 'Must contain at least one number'
+    );
   }
-  
+
   // Special character check
   if (!/[!@#$%^&*(),.?":{}|<>]/.test(password)) {
-    errors.push(language === 'ar' ? 'يجب أن تحتوي على رمز خاص واحد على الأقل (!@#$%^&*)' : 'Must contain at least one special character (!@#$%^&*)');
+    errors.push(
+      language === 'ar'
+        ? 'يجب أن تحتوي على رمز خاص واحد على الأقل (!@#$%^&*)'
+        : 'Must contain at least one special character (!@#$%^&*)'
+    );
   }
-  
+
   // Calculate strength
   let strength: 'weak' | 'medium' | 'strong' = 'weak';
   if (errors.length === 0) {
@@ -45,7 +66,7 @@ export const validatePassword = (password: string, language: 'ar' | 'en' = 'ar')
   } else if (errors.length <= 2) {
     strength = 'medium';
   }
-  
+
   return {
     isValid: errors.length === 0,
     errors,
@@ -64,7 +85,10 @@ export const getPasswordStrengthColor = (strength: 'weak' | 'medium' | 'strong')
   }
 };
 
-export const getPasswordStrengthText = (strength: 'weak' | 'medium' | 'strong', language: 'ar' | 'en'): string => {
+export const getPasswordStrengthText = (
+  strength: 'weak' | 'medium' | 'strong',
+  language: 'ar' | 'en'
+): string => {
   if (language === 'ar') {
     switch (strength) {
       case 'weak':
@@ -98,14 +122,24 @@ export const validateEmail = (email: string): boolean => {
  * - Citizens start with 1, residents (Iqama) start with 2
  * - Verified using the official check-digit algorithm (Luhn-like, modulo 10)
  */
-export const validateSaudiId = (id: string): { valid: boolean; type: 'citizen' | 'resident' | 'unknown'; message: string } => {
+export const validateSaudiId = (
+  id: string
+): { valid: boolean; type: 'citizen' | 'resident' | 'unknown'; message: string } => {
   const cleaned = id.replace(/\D/g, '');
   if (cleaned.length !== 10) {
-    return { valid: false, type: 'unknown', message: 'رقم الهوية يجب أن يكون 10 أرقام / National ID must be 10 digits' };
+    return {
+      valid: false,
+      type: 'unknown',
+      message: 'رقم الهوية يجب أن يكون 10 أرقام / National ID must be 10 digits',
+    };
   }
   const first = cleaned.charAt(0);
   if (first !== '1' && first !== '2') {
-    return { valid: false, type: 'unknown', message: 'يجب أن يبدأ بـ 1 (مواطن) أو 2 (مقيم) / Must start with 1 (citizen) or 2 (resident)' };
+    return {
+      valid: false,
+      type: 'unknown',
+      message: 'يجب أن يبدأ بـ 1 (مواطن) أو 2 (مقيم) / Must start with 1 (citizen) or 2 (resident)',
+    };
   }
   // Saudi national ID checksum (modulo 10)
   let sum = 0;
@@ -120,7 +154,11 @@ export const validateSaudiId = (id: string): { valid: boolean; type: 'citizen' |
     }
   }
   if (sum % 10 !== 0) {
-    return { valid: false, type: 'unknown', message: 'رقم الهوية غير صحيح / Invalid National ID checksum' };
+    return {
+      valid: false,
+      type: 'unknown',
+      message: 'رقم الهوية غير صحيح / Invalid National ID checksum',
+    };
   }
   return {
     valid: true,
@@ -136,7 +174,11 @@ export const validateSaudiId = (id: string): { valid: boolean; type: 'citizen' |
 export const validateSaudiIban = (iban: string): { valid: boolean; message: string } => {
   const cleaned = iban.replace(/\s/g, '').toUpperCase();
   if (!/^SA\d{22}$/.test(cleaned)) {
-    return { valid: false, message: 'الـ IBAN السعودي يجب أن يبدأ بـ SA متبوعاً بـ 22 رقماً / Saudi IBAN must start with SA followed by 22 digits' };
+    return {
+      valid: false,
+      message:
+        'الـ IBAN السعودي يجب أن يبدأ بـ SA متبوعاً بـ 22 رقماً / Saudi IBAN must start with SA followed by 22 digits',
+    };
   }
   // ISO 13616 mod-97 check
   const rearranged = cleaned.slice(4) + cleaned.slice(0, 4);
@@ -155,11 +197,25 @@ export const validateSaudiIban = (iban: string): { valid: boolean; message: stri
   return { valid: true, message: '' };
 };
 
-// Phone validation (Saudi Arabia format)
+// Phone validation (Saudi Arabia format) — accepts every common entry
+// shape a Saudi user might type:
+//   05XXXXXXXX        local with leading zero
+//   5XXXXXXXX         local without leading zero
+//   9665XXXXXXXX      country code, no plus
+//   00 9665XXXXXXXX   IDD prefix
+//   +9665XXXXXXXX     full E.164
+// Spaces and dashes are stripped first so "+966 55 123 4567" is accepted.
 export const validatePhone = (phone: string): boolean => {
-  // Saudi phone: 05xxxxxxxx or +9665xxxxxxxx or 5xxxxxxxx
-  const phoneRegex = /^(05|5|\+9665)[0-9]{8}$/;
-  return phoneRegex.test(phone.replace(/\s/g, ''));
+  const cleaned = phone.replace(/[\s-]/g, '').replace(/^00/, '+');
+  // The Saudi mobile number itself is 5XXXXXXXX (9 digits starting with 5).
+  const phoneRegex = /^(05|5|9665|\+9665)[0-9]{7,8}$/;
+  // Tighten to exact total lengths so we don't accidentally accept 8- or
+  // 9-digit garbage. Each prefix has a fixed expected suffix length:
+  if (cleaned.startsWith('+9665')) return /^\+9665\d{8}$/.test(cleaned);
+  if (cleaned.startsWith('9665')) return /^9665\d{8}$/.test(cleaned);
+  if (cleaned.startsWith('05')) return /^05\d{8}$/.test(cleaned);
+  if (cleaned.startsWith('5')) return /^5\d{8}$/.test(cleaned);
+  return phoneRegex.test(cleaned);
 };
 
 /**
@@ -174,10 +230,10 @@ export const normalizeSaudiPhone = (phone: string): string => {
   }
 
   // 966XXXXXXXXX (digits only, no +) -> +966XXXXXXXXX
-  // Supabase stores auth.users.phone as bare digits (e.g. "966548940042"),
-  // and isAdminPhone needs to compare those against the canonical E.164
-  // form. Without this branch the bare-digits form would short-circuit
-  // out of normalization at the trailing `return cleanPhone` below.
+  // Supabase stores auth.users.phone as bare digits (e.g. "9665XXXXXXXX");
+  // callers comparing against E.164 form need this normalization branch,
+  // otherwise the bare-digits form would short-circuit out of
+  // normalization at the trailing `return cleanPhone` below.
   if (/^966\d{8,9}$/.test(cleanPhone)) {
     return '+' + cleanPhone;
   }
@@ -302,7 +358,11 @@ export const validateName = (name: string): { valid: boolean; message: string } 
 /**
  * Validate description/notes
  */
-export const validateDescription = (description: string, minLength: number = 10, maxLength: number = 1000): { valid: boolean; message: string } => {
+export const validateDescription = (
+  description: string,
+  minLength: number = 10,
+  maxLength: number = 1000
+): { valid: boolean; message: string } => {
   if (!description || description.trim().length === 0) {
     return {
       valid: false,
@@ -333,7 +393,10 @@ export const validateDescription = (description: string, minLength: number = 10,
 /**
  * Validate file size (in bytes)
  */
-export const validateFileSize = (sizeInBytes: number, maxSizeMB: number = 5): { valid: boolean; message: string } => {
+export const validateFileSize = (
+  sizeInBytes: number,
+  maxSizeMB: number = 5
+): { valid: boolean; message: string } => {
   const maxSizeBytes = maxSizeMB * 1024 * 1024;
 
   if (sizeInBytes > maxSizeBytes) {
@@ -413,7 +476,10 @@ export const isInsideSaudiArabia = (lat: number, lng: number): boolean => {
  * positions). The country anchor is now the customer's explicit city
  * selection upstream; this function only guards against truly bad input.
  */
-export const validateCoordinates = (lat: number, lng: number): { valid: boolean; message: string; insideSaudi: boolean } => {
+export const validateCoordinates = (
+  lat: number,
+  lng: number
+): { valid: boolean; message: string; insideSaudi: boolean } => {
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
     return {
       valid: false,
@@ -439,7 +505,10 @@ export const validateCoordinates = (lat: number, lng: number): { valid: boolean;
 /**
  * Validate all form fields at once
  */
-export const validateForm = (fields: Record<string, any>, rules: Record<string, (value: any) => { valid: boolean; message: string }>): { valid: boolean; errors: Record<string, string> } => {
+export const validateForm = (
+  fields: Record<string, any>,
+  rules: Record<string, (value: any) => { valid: boolean; message: string }>
+): { valid: boolean; errors: Record<string, string> } => {
   const errors: Record<string, string> = {};
   let valid = true;
 
