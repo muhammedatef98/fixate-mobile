@@ -1,7 +1,22 @@
 import { supabase } from './supabaseClient';
 import { logger } from '../utils/logger';
 import { normalizeSaudiPhone } from '../utils/validation';
-import { ADMIN_PHONE } from '../constants/admin';
+
+// Dev-only OTP fallback allowlist. Set EXPO_PUBLIC_DEV_OTP_PHONE in your
+// local .env (NEVER commit) to a normalized E.164 number when you want a
+// specific tester to bypass real SMS in development. The variable is
+// only read while __DEV__ is true; production builds ignore it.
+const DEV_ALLOWLISTED_PHONE_RAW =
+  (process.env.EXPO_PUBLIC_DEV_OTP_PHONE as string | undefined) || '';
+const DEV_ALLOWLISTED_PHONE = DEV_ALLOWLISTED_PHONE_RAW
+  ? (() => {
+      try {
+        return normalizeSaudiPhone(DEV_ALLOWLISTED_PHONE_RAW);
+      } catch {
+        return '';
+      }
+    })()
+  : '';
 
 // 6-digit phone OTP, 5-minute expiry, resend supported.
 //
@@ -17,24 +32,59 @@ export const RESEND_COOLDOWN_SECONDS = 30;
 const withTimeout = <T>(p: PromiseLike<T>, ms: number, label: string): Promise<T> =>
   Promise.race([
     Promise.resolve(p),
-    new Promise<T>((_, reject) =>
-      setTimeout(() => reject(new Error(`${label} timed out`)), ms)
-    ),
+    new Promise<T>((_, reject) => setTimeout(() => reject(new Error(`${label} timed out`)), ms)),
   ]);
 
-const extractError = (data: any, error: any): string | undefined => {
+/**
+ * Pull the server-supplied error key out of a Supabase Edge Functions
+ * response. Async because supabase-js v2 surfaces non-2xx replies as a
+ * `FunctionsHttpError` whose `.context` is a real `Response` object —
+ * the JSON body has to be read with `await ctx.json()` / `ctx.text()`,
+ * never accessed as `.body` synchronously. Without this, every error
+ * just surfaces as the SDK's generic "Edge Function returned a non-2xx
+ * status code" string and the user never sees the real reason
+ * (`wrong_code`, `too_many_attempts`, etc.).
+ */
+const extractError = async (data: any, error: any): Promise<string | undefined> => {
   let serverMsg: string | undefined = data?.error;
-  if (!serverMsg && error) {
-    try {
-      const ctx: any = (error as any).context;
-      if (ctx?.body) {
+  if (serverMsg || !error) return serverMsg;
+
+  // 1) supabase-js v2 — `error.context` is a Response (or Response-like).
+  const ctx: any = (error as any).context;
+  if (ctx) {
+    if (typeof ctx.json === 'function') {
+      try {
+        const parsed = await ctx.clone().json();
+        if (parsed?.error) return parsed.error;
+      } catch {}
+    }
+    if (typeof ctx.text === 'function') {
+      try {
+        const txt = await ctx.clone().text();
+        if (txt) {
+          try {
+            const parsed = JSON.parse(txt);
+            if (parsed?.error) return parsed.error;
+          } catch {
+            // Body wasn't JSON — fall through to other paths below.
+          }
+        }
+      } catch {}
+    }
+    // 2) Legacy / older SDK shape — `context.body` was a string or object.
+    if (ctx.body) {
+      try {
         const parsed = typeof ctx.body === 'string' ? JSON.parse(ctx.body) : ctx.body;
-        serverMsg = parsed?.error;
-      }
-    } catch {}
-    serverMsg = serverMsg || error.message;
+        if (parsed?.error) return parsed.error;
+      } catch {}
+    }
   }
-  return serverMsg;
+
+  // 3) Last resort — the raw SDK message. If we get here we couldn't pull
+  // a server-provided key, so surface a translatable fallback instead of
+  // the unfriendly "Edge Function returned a non-2xx status code".
+  if (/non-2xx/i.test(error.message ?? '')) return 'token_failed';
+  return error.message;
 };
 
 const friendly = (key: string | undefined, lang: 'ar' | 'en') => {
@@ -81,15 +131,16 @@ const friendly = (key: string | undefined, lang: 'ar' | 'en') => {
 const DEV_FALLBACK_CODE = '0000';
 let _pendingDevPhone: string | null = null;
 
-/** Only this phone is allowed through the dev fallback. Matches the
- *  admin phone — keep aligned so the dev tester is always the admin. */
-const DEV_ALLOWLISTED_PHONE = ADMIN_PHONE;
-
-/** Pre-created auth user that the allowlisted phone signs into. This
- *  is the synthetic phone account whose `auth.users.phone` already
- *  matches the admin's phone — no UPSERT needed, no shared-state risk. */
-const DEV_ADMIN_EMAIL = '966548940042@phone.fixate.local';
-const DEV_ADMIN_PASSWORD = 'fixate-dev-2026-shared';
+/** Pre-created auth user that the allowlisted phone signs into. Read
+ *  from env so no credentials are baked into the shipped bundle. The
+ *  dev fallback only engages when ALL of EXPO_PUBLIC_DEV_OTP_PHONE,
+ *  EXPO_PUBLIC_DEV_OTP_EMAIL and EXPO_PUBLIC_DEV_OTP_PASSWORD are set
+ *  (and __DEV__ is true). Missing any one → fallback is disabled and
+ *  the user is told SMS is not configured. */
+const DEV_ADMIN_EMAIL = (process.env.EXPO_PUBLIC_DEV_OTP_EMAIL as string | undefined) || '';
+const DEV_ADMIN_PASSWORD = (process.env.EXPO_PUBLIC_DEV_OTP_PASSWORD as string | undefined) || '';
+const DEV_FALLBACK_ENABLED =
+  !!__DEV__ && !!DEV_ALLOWLISTED_PHONE && !!DEV_ADMIN_EMAIL && !!DEV_ADMIN_PASSWORD;
 
 /** Friendly error key for any non-allowlisted phone in dev fallback. */
 const NOT_ALLOWLISTED_AR =
@@ -103,7 +154,7 @@ const notAllowlistedError = (lang: 'ar' | 'en') =>
 /** Client-side dev sign-in. Only runs for the allowlisted phone; never
  *  touches a shared account and never patches the phone column. */
 const devFallbackVerify = async (phone: string, lang: 'ar' | 'en'): Promise<boolean> => {
-  if (phone !== DEV_ALLOWLISTED_PHONE) {
+  if (!DEV_FALLBACK_ENABLED || phone !== DEV_ALLOWLISTED_PHONE) {
     // Defensive — sendPhoneOtp also gates this, so we should never get
     // here for a non-allowlisted phone. Bail without signing anyone in.
     _pendingDevPhone = null;
@@ -137,22 +188,28 @@ export const sendPhoneOtp = async (
       20000,
       'send-phone-otp'
     );
-    const msg = extractError(data, error);
+    const msg = await extractError(data, error);
     if (msg) {
       logger.warn('send-phone-otp failed', msg);
       throw new Error(friendly(msg, lang));
     }
     const devCode = (data as any)?.dev_code as string | undefined;
-    // Edge function succeeded but didn't include a code (no SMS
-    // provider configured server-side). Engage the client-side
-    // fallback ONLY for the allowlisted admin phone — every other
-    // number is told plainly that SMS isn't configured yet.
-    if (__DEV__ && !devCode) {
-      if (phone !== DEV_ALLOWLISTED_PHONE) {
+    const devFlag = (data as any)?.dev === true;
+    // Trust the edge function's success response. If it returns
+    // `{ ok: true }` without `dev_code`, the SMS provider (Authentica)
+    // dispatched a real code over SMS — the user enters that code. The
+    // client-side dev fallback is ONLY engaged when the edge function
+    // itself explicitly signals dev mode (`dev: true`) or returns a
+    // `dev_code` (legacy shape) AND the allowlist matches.
+    if (__DEV__ && devFlag && !devCode) {
+      if (!DEV_FALLBACK_ENABLED || phone !== DEV_ALLOWLISTED_PHONE) {
         throw notAllowlistedError(lang);
       }
       _pendingDevPhone = phone;
-      return { expiresIn: (data as any)?.expires_in ?? OTP_TTL_SECONDS, devCode: DEV_FALLBACK_CODE };
+      return {
+        expiresIn: (data as any)?.expires_in ?? OTP_TTL_SECONDS,
+        devCode: DEV_FALLBACK_CODE,
+      };
     }
     return {
       expiresIn: (data as any)?.expires_in ?? OTP_TTL_SECONDS,
@@ -163,13 +220,13 @@ export const sendPhoneOtp = async (
     // fixed code only for the allowlisted admin phone. Other numbers
     // surface the real error so we never silently sign them into the
     // dev account.
-    if (__DEV__) {
-      if (phone !== DEV_ALLOWLISTED_PHONE) {
-        throw notAllowlistedError(lang);
-      }
+    // Only the explicitly env-configured dev tester can fall through to
+    // the offline fallback. Real users — including the admin — must see
+    // the underlying network error so they can retry once the edge
+    // function or Authentica recovers.
+    if (DEV_FALLBACK_ENABLED && phone === DEV_ALLOWLISTED_PHONE) {
       logger.warn(
-        'send-phone-otp dev fallback engaged for admin phone. Configure ' +
-          'an SMS provider and deploy the edge function to dispatch real codes.',
+        'send-phone-otp dev fallback engaged (offline) for the env-configured dev tester.',
         e
       );
       _pendingDevPhone = phone;
@@ -202,7 +259,7 @@ export const verifyPhoneOtp = async (
       20000,
       'verify-phone-otp'
     );
-    const msg = extractError(data, error);
+    const msg = await extractError(data, error);
     if (msg) {
       logger.warn('verify-phone-otp failed', msg);
       throw new Error(friendly(msg, lang));
@@ -221,11 +278,7 @@ export const verifyPhoneOtp = async (
     // bundle reloaded between send and verify), entering the
     // fallback code in dev still routes through the client sign-in
     // — but only for the allowlisted admin phone, never anyone else.
-    if (
-      __DEV__ &&
-      code === DEV_FALLBACK_CODE &&
-      phone === DEV_ALLOWLISTED_PHONE
-    ) {
+    if (DEV_FALLBACK_ENABLED && code === DEV_FALLBACK_CODE && phone === DEV_ALLOWLISTED_PHONE) {
       logger.warn('verify-phone-otp dev fallback (post-error)', e);
       return devFallbackVerify(phone, lang);
     }
