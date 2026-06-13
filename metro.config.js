@@ -1,7 +1,7 @@
-const { getDefaultConfig } = require('expo/metro-config');
 const path = require('path');
+const { getSentryExpoConfig } = require('@sentry/react-native/metro');
 
-const config = getDefaultConfig(__dirname);
+const config = getSentryExpoConfig(__dirname);
 
 /**
  * Global IBM Plex Sans Arabic font injection via module alias.
@@ -25,9 +25,7 @@ config.resolver.extraNodeModules = {
 };
 
 // Use sourceExts to ensure TypeScript files are resolved
-config.resolver.sourceExts = config.resolver.sourceExts ?? [
-  'js', 'jsx', 'ts', 'tsx', 'cjs', 'mjs',
-];
+config.resolver.sourceExts = config.resolver.sourceExts ?? ['js', 'jsx', 'ts', 'tsx', 'cjs', 'mjs'];
 
 // resolveRequest lets us intercept specific imports at resolution time.
 // We only intercept the bare `react-native` specifier when the caller
