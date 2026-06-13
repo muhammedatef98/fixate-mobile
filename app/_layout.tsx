@@ -1,7 +1,7 @@
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
-import { View, ActivityIndicator } from 'react-native';
+import { View, ActivityIndicator, I18nManager } from 'react-native';
 import { RequestProvider } from '../contexts/RequestContext';
 import { ThemeProvider } from '../contexts/ThemeContext';
 import { AppProvider, useApp } from '../contexts/AppContext';
@@ -27,6 +27,14 @@ import { initSentry } from '../services/sentryService';
 import { useOtaUpdates } from '../hooks/useOtaUpdates';
 import '../i18n';
 import * as Sentry from '@sentry/react-native';
+
+// All direction handling is done manually in JS (`isRTL ? 'row-reverse' : 'row'`),
+// which assumes the native layout engine stays LTR. On devices whose system
+// language is RTL (e.g. Arabic), React Native enables native RTL by default,
+// double-flipping every manually-mirrored style. Lock native layout to LTR so
+// the JS-level direction logic is the single source of truth.
+I18nManager.allowRTL(false);
+I18nManager.forceRTL(false);
 
 Sentry.init({
   dsn: 'https://5a3e562f125bc31dc84d11938d9fba36@o4511510384672768.ingest.us.sentry.io/4511510403219456',
@@ -88,8 +96,13 @@ function RootLayoutContent() {
     // flash for a moment then disappear and the technician would land on
     // /(technician) without ever updating their password.
     const REDIRECT_AWAY_IF_LOGGED_IN = new Set([
-      'login', 'signup', 'auth', 'technician-auth',
-      'login-otp', 'email-auth', 'onboarding',
+      'login',
+      'signup',
+      'auth',
+      'technician-auth',
+      'login-otp',
+      'email-auth',
+      'onboarding',
     ]);
     const PROTECTED_GROUPS = new Set(['(customer)', '(technician)', 'request']);
 
@@ -107,9 +120,7 @@ function RootLayoutContent() {
     // app today; every other auth surface (login-otp, email-auth, auth,
     // signup, login) is a customer-side entry point.
     const TECHNICIAN_AUTH_SOURCES = new Set(['technician-auth']);
-    const CUSTOMER_AUTH_SOURCES = new Set([
-      'login', 'signup', 'auth', 'login-otp', 'email-auth',
-    ]);
+    const CUSTOMER_AUTH_SOURCES = new Set(['login', 'signup', 'auth', 'login-otp', 'email-auth']);
 
     const first = segments[0] as string | undefined;
     const inAuthFlow = !!first && REDIRECT_AWAY_IF_LOGGED_IN.has(first);
@@ -156,8 +167,7 @@ function RootLayoutContent() {
     // admin surface. Anyone else is bounced back to the customer home
     // before the screen mounts. Defence-in-depth on top of useAdminGuard
     // inside each admin-* screen.
-    const isAdminSegment =
-      !!first && (first === 'admin' || first.startsWith('admin-'));
+    const isAdminSegment = !!first && (first === 'admin' || first.startsWith('admin-'));
     if (isAdminSegment) {
       if (!user) {
         router.replace('/role-selection');
@@ -179,11 +189,7 @@ function RootLayoutContent() {
   // We only gate once the profile has actually loaded (null = still loading)
   // so we never flash the lockout screen during a normal session start.
   const accountStatus = (userProfile as any)?.account_status;
-  if (
-    !loading &&
-    !!user &&
-    (accountStatus === 'suspended' || accountStatus === 'blocked')
-  ) {
+  if (!loading && !!user && (accountStatus === 'suspended' || accountStatus === 'blocked')) {
     return <BlockedScreen status={accountStatus} />;
   }
 
@@ -212,46 +218,16 @@ function RootLayoutContent() {
           gestureDirection: 'horizontal',
         }}
       >
-        <Stack.Screen
-          name="index"
-          options={{ headerShown: false, ...FADE_ANIM }}
-        />
-        <Stack.Screen
-          name="onboarding"
-          options={{ headerShown: false, ...FADE_ANIM }}
-        />
-        <Stack.Screen
-          name="role-selection"
-          options={{ headerShown: false, ...FADE_ANIM }}
-        />
-        <Stack.Screen
-          name="(customer)"
-          options={{ headerShown: false, ...FADE_ANIM }}
-        />
-        <Stack.Screen
-          name="(technician)"
-          options={{ headerShown: false, ...FADE_ANIM }}
-        />
-        <Stack.Screen
-          name="request"
-          options={{ headerShown: false, ...SHEET_ANIM }}
-        />
-        <Stack.Screen
-          name="calculator"
-          options={{ headerShown: false, ...SHEET_ANIM }}
-        />
-        <Stack.Screen
-          name="contact"
-          options={{ headerShown: false, ...FADE_UP_ANIM }}
-        />
-        <Stack.Screen
-          name="chatbot"
-          options={{ headerShown: false, ...SHEET_ANIM }}
-        />
-        <Stack.Screen
-          name="auth"
-          options={{ headerShown: false, ...FADE_ANIM }}
-        />
+        <Stack.Screen name="index" options={{ headerShown: false, ...FADE_ANIM }} />
+        <Stack.Screen name="onboarding" options={{ headerShown: false, ...FADE_ANIM }} />
+        <Stack.Screen name="role-selection" options={{ headerShown: false, ...FADE_ANIM }} />
+        <Stack.Screen name="(customer)" options={{ headerShown: false, ...FADE_ANIM }} />
+        <Stack.Screen name="(technician)" options={{ headerShown: false, ...FADE_ANIM }} />
+        <Stack.Screen name="request" options={{ headerShown: false, ...SHEET_ANIM }} />
+        <Stack.Screen name="calculator" options={{ headerShown: false, ...SHEET_ANIM }} />
+        <Stack.Screen name="contact" options={{ headerShown: false, ...FADE_UP_ANIM }} />
+        <Stack.Screen name="chatbot" options={{ headerShown: false, ...SHEET_ANIM }} />
+        <Stack.Screen name="auth" options={{ headerShown: false, ...FADE_ANIM }} />
         {/* Detail screens drilled into from a list — default horizontal slide */}
         <Stack.Screen name="track/[id]" options={{ title: 'تتبع الطلب' }} />
         <Stack.Screen
@@ -273,46 +249,19 @@ function RootLayoutContent() {
         <Stack.Screen name="admin-order-detail" options={{ headerShown: false }} />
 
         {/* Sheet-like screens that come up from the bottom for a softer feel */}
-        <Stack.Screen
-          name="profile"
-          options={{ title: 'الملف الشخصي', ...SHEET_ANIM }}
-        />
-        <Stack.Screen
-          name="edit-profile"
-          options={{ headerShown: false, ...SHEET_ANIM }}
-        />
-        <Stack.Screen
-          name="addresses"
-          options={{ headerShown: false, ...SHEET_ANIM }}
-        />
-        <Stack.Screen
-          name="wallet"
-          options={{ headerShown: false, ...SHEET_ANIM }}
-        />
-        <Stack.Screen
-          name="settings"
-          options={{ headerShown: false, ...SHEET_ANIM }}
-        />
+        <Stack.Screen name="profile" options={{ title: 'الملف الشخصي', ...SHEET_ANIM }} />
+        <Stack.Screen name="edit-profile" options={{ headerShown: false, ...SHEET_ANIM }} />
+        <Stack.Screen name="addresses" options={{ headerShown: false, ...SHEET_ANIM }} />
+        <Stack.Screen name="wallet" options={{ headerShown: false, ...SHEET_ANIM }} />
+        <Stack.Screen name="settings" options={{ headerShown: false, ...SHEET_ANIM }} />
         <Stack.Screen
           name="notifications-settings"
           options={{ headerShown: false, ...SHEET_ANIM }}
         />
-        <Stack.Screen
-          name="notifications"
-          options={{ headerShown: false, ...SHEET_ANIM }}
-        />
-        <Stack.Screen
-          name="payment"
-          options={{ headerShown: false, ...SHEET_ANIM }}
-        />
-        <Stack.Screen
-          name="market-new"
-          options={{ headerShown: false, ...SHEET_ANIM }}
-        />
-        <Stack.Screen
-          name="loyalty"
-          options={{ headerShown: false, ...FADE_UP_ANIM }}
-        />
+        <Stack.Screen name="notifications" options={{ headerShown: false, ...SHEET_ANIM }} />
+        <Stack.Screen name="payment" options={{ headerShown: false, ...SHEET_ANIM }} />
+        <Stack.Screen name="market-new" options={{ headerShown: false, ...SHEET_ANIM }} />
+        <Stack.Screen name="loyalty" options={{ headerShown: false, ...FADE_UP_ANIM }} />
 
         {/* Auth screens cross-fade — feels less stack-like during onboarding */}
         <Stack.Screen
@@ -338,11 +287,20 @@ function RootLayoutContent() {
         <Stack.Screen name="admin-reports" options={{ headerShown: false, ...FADE_UP_ANIM }} />
         <Stack.Screen name="admin-ratings" options={{ headerShown: false, ...SNAP_ANIM }} />
         <Stack.Screen name="admin-discount-codes" options={{ headerShown: false, ...SNAP_ANIM }} />
-        <Stack.Screen name="admin-platform-settings" options={{ headerShown: false, ...SHEET_ANIM }} />
-        <Stack.Screen name="admin-payment-gateway" options={{ headerShown: false, ...SHEET_ANIM }} />
+        <Stack.Screen
+          name="admin-platform-settings"
+          options={{ headerShown: false, ...SHEET_ANIM }}
+        />
+        <Stack.Screen
+          name="admin-payment-gateway"
+          options={{ headerShown: false, ...SHEET_ANIM }}
+        />
         <Stack.Screen name="admin-otp-provider" options={{ headerShown: false, ...SHEET_ANIM }} />
         <Stack.Screen name="admin-support" options={{ headerShown: false, ...SNAP_ANIM }} />
-        <Stack.Screen name="admin-user-verifications" options={{ headerShown: false, ...SNAP_ANIM }} />
+        <Stack.Screen
+          name="admin-user-verifications"
+          options={{ headerShown: false, ...SNAP_ANIM }}
+        />
         {/* These two screens have their own in-screen header. Without
             headerShown:false they inherit the default green Stack header
             and render two stacked back bars. */}
@@ -360,7 +318,7 @@ function RootLayoutContent() {
   );
 }
 
-export default function RootLayout() {
+export default Sentry.wrap(function RootLayout() {
   useOtaUpdates();
   // Load every weight we map to in utils/applyFont.getAppFontFamily.
   // Missing weights cause iOS to silently fall back to the system font when
@@ -375,7 +333,9 @@ export default function RootLayout() {
 
   if (!fontsLoaded) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' }}>
+      <View
+        style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' }}
+      >
         <ActivityIndicator size="large" color="#10B981" />
       </View>
     );
@@ -403,4 +363,4 @@ export default function RootLayout() {
       </AppProvider>
     </ErrorBoundary>
   );
-}
+});
