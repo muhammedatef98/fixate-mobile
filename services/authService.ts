@@ -1,6 +1,12 @@
 import { supabase } from './supabaseClient';
 import { logger } from '../utils/logger';
-import { validateEmail, validatePassword, validateName, normalizeSaudiPhone, validatePhone } from '../utils/validation';
+import {
+  validateEmail,
+  validatePassword,
+  validateName,
+  normalizeSaudiPhone,
+  validatePhone,
+} from '../utils/validation';
 
 export interface SignUpData {
   email: string;
@@ -14,6 +20,43 @@ export interface LoginData {
   email: string;
   password: string;
 }
+
+// Map raw Supabase auth errors to user-readable Arabic messages. Anything we
+// don't recognize falls through with its original message so real bugs stay
+// visible instead of hiding behind a generic string.
+const AUTH_ERROR_MESSAGES: Array<{ match: RegExp; message: string }> = [
+  {
+    match: /invalid login credentials|invalid_credentials/i,
+    message: 'البريد الإلكتروني أو كلمة المرور غير صحيحة',
+  },
+  {
+    match: /email not confirmed/i,
+    message: 'يرجى تأكيد بريدك الإلكتروني أولاً عبر الرابط المرسل إليك',
+  },
+  {
+    match: /captcha/i,
+    message:
+      'تعذر تسجيل الدخول بسبب إعدادات الحماية في الخادم (CAPTCHA). يرجى المحاولة لاحقاً أو التواصل مع الدعم',
+  },
+  {
+    match: /rate limit|too many requests/i,
+    message: 'محاولات كثيرة خلال وقت قصير، يرجى الانتظار قليلاً ثم المحاولة مجدداً',
+  },
+  {
+    match: /network request failed|fetch failed|timeout/i,
+    message: 'تعذر الاتصال بالخادم، تأكد من اتصالك بالإنترنت',
+  },
+  {
+    match: /user banned|user is banned/i,
+    message: 'هذا الحساب موقوف، يرجى التواصل مع الدعم',
+  },
+];
+
+const translateAuthError = (error: unknown): Error => {
+  const raw = error instanceof Error ? error.message : String(error ?? '');
+  const known = AUTH_ERROR_MESSAGES.find(({ match }) => match.test(raw));
+  return known ? new Error(known.message) : (error instanceof Error ? error : new Error(raw));
+};
 
 const assertValidSignUp = (data: SignUpData) => {
   if (!validateEmail(data.email)) {
@@ -61,16 +104,36 @@ export const signUpWithPhoneOrEmail = async (data: SignUpData) => {
     });
 
     if (fnError) {
-      // supabase.functions.invoke wraps non-2xx responses; pull the real
-      // server-side message out of context.body when present.
+      // supabase-js v2 surfaces non-2xx replies as a FunctionsHttpError
+      // whose `.context` is a real Response object — the JSON body has
+      // to be read via `ctx.json()` / `ctx.text()`. Without this we get
+      // the SDK's generic "Edge Function returned a non-2xx status
+      // code" and miss the real reason (email_already_exists, etc.).
       let serverMsg: string | undefined;
-      try {
-        const ctx: any = (fnError as any).context;
-        if (ctx?.body) {
-          const parsed = typeof ctx.body === 'string' ? JSON.parse(ctx.body) : ctx.body;
-          serverMsg = parsed?.error;
+      const ctx: any = (fnError as any).context;
+      if (ctx) {
+        if (typeof ctx.json === 'function') {
+          try {
+            serverMsg = (await ctx.clone().json())?.error;
+          } catch {}
         }
-      } catch {}
+        if (!serverMsg && typeof ctx.text === 'function') {
+          try {
+            const txt = await ctx.clone().text();
+            if (txt) {
+              try {
+                serverMsg = JSON.parse(txt)?.error;
+              } catch {}
+            }
+          } catch {}
+        }
+        if (!serverMsg && ctx.body) {
+          try {
+            const parsed = typeof ctx.body === 'string' ? JSON.parse(ctx.body) : ctx.body;
+            serverMsg = parsed?.error;
+          } catch {}
+        }
+      }
       throw new Error(serverMsg || fnError.message || 'Sign up failed');
     }
     if (fnData?.error) throw new Error(fnData.error);
@@ -110,7 +173,7 @@ export const loginWithPhoneOrEmail = async (data: LoginData) => {
     // Logging at warn keeps the dev red-overlay quiet while still leaving
     // a breadcrumb for debugging real auth failures.
     logger.warn('Login failed', error);
-    throw error;
+    throw translateAuthError(error);
   }
 };
 
@@ -154,7 +217,10 @@ export const logout = async () => {
 
 export const getCurrentUser = async () => {
   try {
-    const { data: { user }, error } = await supabase.auth.getUser();
+    const {
+      data: { user },
+      error,
+    } = await supabase.auth.getUser();
     if (error) throw error;
     return user;
   } catch (error: any) {
@@ -165,7 +231,10 @@ export const getCurrentUser = async () => {
 
 export const getCurrentSession = async () => {
   try {
-    const { data: { session }, error } = await supabase.auth.getSession();
+    const {
+      data: { session },
+      error,
+    } = await supabase.auth.getSession();
     if (error) throw error;
     return session;
   } catch (error: any) {
