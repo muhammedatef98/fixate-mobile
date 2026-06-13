@@ -31,9 +31,9 @@ export default function SettingsScreen() {
   const { user, userProfile } = useAuth();
   const COLORS = getColors(isDark);
   const isRTL = language === 'ar';
-  // Admin entry is reserved for the single ADMIN_PHONE account (see
-  // constants/admin.ts). useIsAdmin resolves the phone from the live
-  // session/profile and reports a single boolean.
+  // Admin entry is gated on the JWT app_metadata.is_admin claim
+  // (server-controlled). useIsAdmin reads that claim and reports a
+  // single boolean — never trusts client-mutable user_metadata.
   const { isAdmin } = useIsAdmin();
 
   const appVersion = (appConfig as any).expo?.version ?? '1.0.0';
@@ -74,7 +74,10 @@ export default function SettingsScreen() {
             for users with users.is_admin = true. */}
         {isAdmin && (
           <TouchableOpacity
-            onPress={() => { tapLight(); router.push('/admin'); }}
+            onPress={() => {
+              tapLight();
+              router.push('/admin');
+            }}
             style={{
               flexDirection: isRTL ? 'row-reverse' : 'row',
               alignItems: 'center',
@@ -147,7 +150,9 @@ export default function SettingsScreen() {
         >
           <View style={styles.rowLeft}>
             <Ionicons name="notifications" size={22} color={COLORS.primary} />
-            <Text style={styles.rowText}>{isRTL ? 'إعدادات الإشعارات' : 'Notification preferences'}</Text>
+            <Text style={styles.rowText}>
+              {isRTL ? 'إعدادات الإشعارات' : 'Notification preferences'}
+            </Text>
           </View>
           <RTLIonicon name="chevron-forward" size={20} color={COLORS.textSecondary} />
         </TouchableOpacity>
@@ -173,7 +178,9 @@ export default function SettingsScreen() {
         >
           <View style={styles.rowLeft}>
             <Ionicons name="lock-closed" size={22} color={COLORS.primary} />
-            <Text style={styles.rowText}>{isRTL ? 'إعادة تعيين كلمة المرور' : 'Reset password'}</Text>
+            <Text style={styles.rowText}>
+              {isRTL ? 'إعادة تعيين كلمة المرور' : 'Reset password'}
+            </Text>
           </View>
           <RTLIonicon name="chevron-forward" size={20} color={COLORS.textSecondary} />
         </TouchableOpacity>
@@ -235,12 +242,17 @@ export default function SettingsScreen() {
             <Text style={styles.section}>{isRTL ? 'الإدارة' : 'Admin'}</Text>
             <TouchableOpacity
               style={styles.row}
-              onPress={() => { tapLight(); router.push('/admin-verifications'); }}
+              onPress={() => {
+                tapLight();
+                router.push('/admin-verifications');
+              }}
               accessibilityRole="button"
             >
               <View style={styles.rowLeft}>
                 <Ionicons name="shield-checkmark" size={22} color={COLORS.primary} />
-                <Text style={styles.rowText}>{isRTL ? 'مراجعة طلبات الفنيين' : 'Technician verifications'}</Text>
+                <Text style={styles.rowText}>
+                  {isRTL ? 'مراجعة طلبات الفنيين' : 'Technician verifications'}
+                </Text>
               </View>
               <RTLIonicon name="chevron-forward" size={20} color={COLORS.textSecondary} />
             </TouchableOpacity>
@@ -289,10 +301,25 @@ const createStyles = (C: any, isRTL: boolean) =>
       marginBottom: SPACING.sm,
       minHeight: 56,
     },
-    rowLeft: { flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: SPACING.md },
+    rowLeft: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
+      gap: SPACING.md,
+    },
     rowText: { color: C.text, fontSize: 15, fontWeight: '500' },
-    langPicker: { flexDirection: 'row', backgroundColor: C.background, borderRadius: BORDER_RADIUS.md, padding: 2 },
-    langBtn: { paddingHorizontal: 16, paddingVertical: 6, borderRadius: BORDER_RADIUS.md - 2, minHeight: 32, justifyContent: 'center' },
+    langPicker: {
+      flexDirection: 'row',
+      backgroundColor: C.background,
+      borderRadius: BORDER_RADIUS.md,
+      padding: 2,
+    },
+    langBtn: {
+      paddingHorizontal: 16,
+      paddingVertical: 6,
+      borderRadius: BORDER_RADIUS.md - 2,
+      minHeight: 32,
+      justifyContent: 'center',
+    },
     langText: { color: C.text, fontWeight: '600', fontSize: 13 },
     versionRow: { alignItems: 'center', marginTop: SPACING.xl, paddingBottom: SPACING.lg },
     versionText: { color: C.textSecondary, fontSize: 12 },

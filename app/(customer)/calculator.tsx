@@ -7,7 +7,7 @@ import BottomNav from '../../components/BottomNav';
 import { BRANDS } from '../../constants/repairData';
 import { RTLIonicon } from '../../components/RTLIcon';
 import { getColors } from '../../constants/theme';
-import FixateeLogo from '../../components/FixateeLogo';
+import FixateLogo from '../../components/FixateeLogo';
 import {
   SPARE_PART_LABELS,
   SPARE_PART_MULTIPLIERS,
@@ -124,7 +124,7 @@ export default function PriceCalculatorScreen() {
           {/* Branded hero */}
           <View style={styles.brandHero}>
             <View style={styles.brandHeroLogo}>
-              <FixateeLogo size={46} color="#ffffff" />
+              <FixateLogo size={46} color="#ffffff" />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.brandHeroTitle}>
