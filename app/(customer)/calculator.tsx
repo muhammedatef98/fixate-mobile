@@ -270,7 +270,7 @@ export default function PriceCalculatorScreen() {
         <TouchableOpacity
           style={[styles.bookButton, !range && { opacity: 0.5 }]}
           disabled={!range}
-          onPress={() => router.push('/request')}
+          onPress={() => router.push({ pathname: '/request', params: { quality: selectedQuality } })}
         >
           <Text style={styles.bookButtonText}>{isRTL ? 'احجز الآن' : 'Book Now'}</Text>
           <RTLIonicon name="arrow-forward" size={20} color="#fff" />

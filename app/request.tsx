@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, Image, Dimensions, TextInput, Animated, Alert, KeyboardAvoidingView, Platform, Modal, I18nManager, ActivityIndicator } from 'react-native';
-import { useRouter } from 'expo-router';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, Image, Dimensions, TextInput, Animated, Alert, Keyboard, KeyboardAvoidingView, Platform, Modal, I18nManager, ActivityIndicator } from 'react-native';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { getColors, getShadows, SPACING, BORDER_RADIUS } from '../constants/theme';
 import { MaterialIcons, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
+import MapView, { Marker, UrlTile, PROVIDER_GOOGLE } from 'react-native-maps';
 import * as Location from 'expo-location';
 import * as ImagePicker from 'expo-image-picker';
 import { useOrders } from '../contexts/OrdersContext';
@@ -15,6 +15,7 @@ import { logger } from '../utils/logger';
 import { RTLIonicon } from '../components/RTLIcon';
 import { BrandLogo } from '../components/BrandLogo';
 import { uploadOrderMedia } from '../services/storageService';
+import { searchPlaces, isGooglePlacesEnabled, type PlaceResult } from '../services/placesService';
 import { getFriendlyError } from '../utils/errorMessages';
 import { tapLight } from '../utils/haptics';
 import { formatPrice } from '../utils/pricing';
@@ -159,7 +160,14 @@ export default function RequestScreen() {
   const [selectedIssue, setSelectedIssue] = useState<Issue | null>(null);
   const [issueDescription, setIssueDescription] = useState('');
   const [mediaFiles, setMediaFiles] = useState<string[]>([]);
-  const [sparePartQuality, setSparePartQuality] = useState<SparePartQuality>('original');
+  // Seed from the calculator's quality selection when arriving via
+  // "Book Now"; an absent/invalid param falls back to the old default.
+  const { quality: qualityParam } = useLocalSearchParams<{ quality?: string }>();
+  const [sparePartQuality, setSparePartQuality] = useState<SparePartQuality>(
+    (['original', 'high_quality', 'economy'] as const).includes(qualityParam as SparePartQuality)
+      ? (qualityParam as SparePartQuality)
+      : 'original'
+  );
 
   // "Other Devices" free-text entry (used when selectedDeviceType === 'other').
   const [otherDeviceName, setOtherDeviceName] = useState('');
@@ -234,6 +242,88 @@ export default function RequestScreen() {
   const [isLocating, setIsLocating] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [mapReady, setMapReady] = useState(false);
+
+  // Place search on the map step. Backed by placesService — Google Places
+  // (Arabic & English, Saudi-biased) when a key is configured, otherwise the
+  // same expo-location geocoder as before. Selecting a result only moves the
+  // map; the existing onRegionChangeComplete drag handler still owns
+  // address/city detection, so the submit payload flow stays untouched.
+  const mapRef = useRef<MapView>(null);
+  // Android Google tiles require a native API key; when none is configured we
+  // overlay free OpenStreetMap raster tiles instead (iOS keeps Apple Maps).
+  const useOsmTiles = Platform.OS === 'android' && !isGooglePlacesEnabled();
+  const [placeQuery, setPlaceQuery] = useState('');
+  const [isSearchingPlace, setIsSearchingPlace] = useState(false);
+  const [placeSearchError, setPlaceSearchError] = useState<string | null>(null);
+  const [placeResults, setPlaceResults] = useState<PlaceResult[]>([]);
+  // Suppresses the search-as-you-type effect when we set the query
+  // programmatically after the customer picks a result.
+  const suppressAutoSearchRef = useRef(false);
+
+  const runPlaceSearch = async (showEmptyError: boolean) => {
+    const query = placeQuery.trim();
+    if (!query || isSearchingPlace) return;
+    setIsSearchingPlace(true);
+    setPlaceSearchError(null);
+    try {
+      const results = await searchPlaces(query, isRTL ? 'ar' : 'en');
+      if (results.length === 1 && showEmptyError) {
+        // Explicit submit with a single match — go straight there.
+        selectPlace(results[0]);
+        return;
+      }
+      setPlaceResults(results);
+      if (!results.length && showEmptyError) {
+        setPlaceSearchError(isRTL ? 'لم يتم العثور على نتائج لهذا البحث' : 'No results found for this search');
+      }
+    } catch {
+      if (showEmptyError) {
+        setPlaceSearchError(isRTL ? 'فشل البحث، حاول مرة أخرى' : 'Search failed, please try again');
+      }
+    } finally {
+      setIsSearchingPlace(false);
+    }
+  };
+
+  const handlePlaceSearch = () => runPlaceSearch(true);
+
+  // Search-as-you-type, only when Google Places is configured (the native
+  // geocoder fallback is rate-limited, so it stays submit-driven).
+  useEffect(() => {
+    if (!isGooglePlacesEnabled()) return;
+    if (suppressAutoSearchRef.current) {
+      suppressAutoSearchRef.current = false;
+      return;
+    }
+    const query = placeQuery.trim();
+    if (query.length < 3) {
+      setPlaceResults([]);
+      return;
+    }
+    const timer = setTimeout(() => runPlaceSearch(false), 450);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [placeQuery]);
+
+  const selectPlace = (place: PlaceResult) => {
+    Keyboard.dismiss();
+    suppressAutoSearchRef.current = true;
+    setPlaceQuery(place.name);
+    setPlaceResults([]);
+    setPlaceSearchError(null);
+    const region = {
+      latitude: place.latitude,
+      longitude: place.longitude,
+      latitudeDelta: 0.01,
+      longitudeDelta: 0.01,
+    };
+    if (location && mapRef.current) {
+      mapRef.current.animateToRegion(region, 600);
+    } else {
+      // Map not rendered yet (no location) — seed it directly.
+      setLocation(region);
+    }
+  };
 
   // Auto-detect serviceable city from the dropped pin. We compute the
   // closest enabled-city centroid (using the same lookup the delivery
@@ -1191,10 +1281,85 @@ export default function RequestScreen() {
         {currentStep === 6 && selectedServiceType !== 'personal_handoff' && (
           <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 24 }} showsVerticalScrollIndicator={false}>
             <Text style={styles.sectionTitle}>{isRTL ? 'حدد موقعك' : 'Set Your Location'}</Text>
+
+            {/* Place search — moves the map; pin-drag confirmation below is unchanged. */}
+            <View style={styles.placeSearchRow}>
+              <Ionicons name="search" size={18} color={COLORS.gray} />
+              <TextInput
+                style={styles.placeSearchInput}
+                value={placeQuery}
+                onChangeText={(t) => {
+                  setPlaceQuery(t);
+                  if (placeSearchError) setPlaceSearchError(null);
+                }}
+                placeholder={isRTL ? 'ابحث عن حي، شارع أو معلم…' : 'Search for an area, street or landmark…'}
+                placeholderTextColor={COLORS.gray}
+                returnKeyType="search"
+                onSubmitEditing={handlePlaceSearch}
+                textAlign={isRTL ? 'right' : 'left'}
+              />
+              {isSearchingPlace ? (
+                <ActivityIndicator size="small" color={COLORS.primary} />
+              ) : placeQuery.trim() ? (
+                <>
+                  <TouchableOpacity
+                    onPress={() => {
+                      suppressAutoSearchRef.current = true;
+                      setPlaceQuery('');
+                      setPlaceResults([]);
+                      setPlaceSearchError(null);
+                    }}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    accessibilityRole="button"
+                    accessibilityLabel={isRTL ? 'مسح البحث' : 'Clear search'}
+                  >
+                    <Ionicons name="close-circle" size={20} color={COLORS.gray} />
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={handlePlaceSearch} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                    <Ionicons name={isRTL ? 'arrow-back-circle' : 'arrow-forward-circle'} size={24} color={COLORS.primary} />
+                  </TouchableOpacity>
+                </>
+              ) : null}
+            </View>
+            {placeSearchError ? <Text style={styles.placeSearchError}>{placeSearchError}</Text> : null}
+
+            {/* Search results — tapping one moves the map there; the customer
+                can still fine-tune by dragging the pin afterwards. */}
+            {placeResults.length > 0 && (
+              <View style={styles.placeResultsCard}>
+                {placeResults.map((place, index) => (
+                  <TouchableOpacity
+                    key={`${place.latitude},${place.longitude},${index}`}
+                    style={[styles.placeResultRow, index > 0 && styles.placeResultDivider]}
+                    onPress={() => selectPlace(place)}
+                    accessibilityRole="button"
+                  >
+                    <Ionicons name="location-outline" size={18} color={COLORS.primary} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.placeResultName} numberOfLines={1}>
+                        {place.name}
+                      </Text>
+                      {!!place.address && (
+                        <Text style={styles.placeResultAddress} numberOfLines={1}>
+                          {place.address}
+                        </Text>
+                      )}
+                    </View>
+                    <Ionicons name={isRTL ? 'chevron-back' : 'chevron-forward'} size={16} color={COLORS.gray} />
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+
             <View style={[styles.mapContainer, { height: 280 }]}>
               {location && location.latitude && location.longitude ? (
                 <MapView
+                  ref={mapRef}
                   provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
+                  // Android Google tiles need a native API key. Without one,
+                  // hide the (blank) Google base layer and draw free OSM
+                  // raster tiles instead, so the picker works keyless.
+                  mapType={useOsmTiles ? 'none' : 'standard'}
                   style={[styles.map, { opacity: mapReady ? 1 : 0 }]}
                   initialRegion={location}
                   onRegionChangeComplete={async (region) => {
@@ -1220,7 +1385,15 @@ export default function RequestScreen() {
                     }
                   }}
                   onMapReady={() => setMapReady(true)}
-                />
+                >
+                  {useOsmTiles && (
+                    <UrlTile
+                      urlTemplate="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+                      maximumZ={19}
+                      zIndex={-1}
+                    />
+                  )}
+                </MapView>
               ) : (
                 <View style={styles.mapPlaceholder}>
                   <MaterialCommunityIcons name="map-marker-radius" size={64} color={COLORS.gray} />
@@ -1236,6 +1409,11 @@ export default function RequestScreen() {
                     <MaterialCommunityIcons name="map-marker" size={44} color={COLORS.primary} />
                     <View style={styles.centerPinShadow} />
                   </View>
+                  {useOsmTiles && (
+                    <Text pointerEvents="none" style={styles.osmAttribution}>
+                      © OpenStreetMap contributors
+                    </Text>
+                  )}
                   <View pointerEvents="none" style={styles.dragHint}>
                     <Ionicons name="hand-left-outline" size={14} color="#fff" />
                     <Text style={styles.dragHintText}>
@@ -1610,6 +1788,15 @@ const createStyles = (COLORS: any, isRTL: boolean, SHADOWS: any) => StyleSheet.c
   mediaThumb: { width: 80, height: 80, borderRadius: 12 },
   removeMediaBtn: { position: 'absolute', top: -8, right: -8, backgroundColor: COLORS.card, borderRadius: 10 },
   mapContainer: { flex: 1, borderRadius: 16, overflow: 'hidden', marginBottom: 16 },
+  placeSearchRow: { flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 8, backgroundColor: COLORS.card, borderRadius: 12, borderWidth: 1, borderColor: COLORS.border, paddingHorizontal: 12, paddingVertical: 10, marginBottom: 10 },
+  placeSearchInput: { flex: 1, fontSize: 14, color: COLORS.text, padding: 0 },
+  placeSearchError: { fontSize: 13, color: COLORS.error, marginBottom: 10, textAlign: isRTL ? 'right' : 'left' },
+  placeResultsCard: { backgroundColor: COLORS.card, borderRadius: 12, borderWidth: 1, borderColor: COLORS.border, marginBottom: 10, overflow: 'hidden' },
+  placeResultRow: { flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 10, paddingHorizontal: 12, paddingVertical: 11 },
+  placeResultDivider: { borderTopWidth: 1, borderTopColor: COLORS.border },
+  placeResultName: { fontSize: 14, fontWeight: '600', color: COLORS.text, textAlign: isRTL ? 'right' : 'left' },
+  placeResultAddress: { fontSize: 12, color: COLORS.gray, marginTop: 1, textAlign: isRTL ? 'right' : 'left' },
+  osmAttribution: { position: 'absolute', bottom: 4, left: 6, fontSize: 9, color: '#555', backgroundColor: 'rgba(255,255,255,0.7)', paddingHorizontal: 4, borderRadius: 3 },
   map: { flex: 1 },
   mapPlaceholder: { flex: 1, backgroundColor: COLORS.cardAlt, justifyContent: 'center', alignItems: 'center' },
   mapPlaceholderText: { marginTop: 12, fontSize: 16, color: COLORS.gray },
