@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Fixate",
-    "slug": "fixatee",
+    "slug": "fixate",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -16,15 +16,16 @@
     "assetBundlePatterns": ["assets/**/*"],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.fixatee.app",
+      "bundleIdentifier": "com.fixate.app",
       "buildNumber": "1",
+      "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {
         "UIViewControllerBasedStatusBarAppearance": false,
         "UIStatusBarHidden": true,
-        "NSCameraUsageDescription": "يستخدم Fixatee الكاميرا لتصوير الجهاز المعطل ووثائق التحقق للفنيين.",
-        "NSPhotoLibraryUsageDescription": "يستخدم Fixatee مكتبة الصور لاختيار صور الجهاز المعطل ومستندات التحقق.",
-        "NSPhotoLibraryAddUsageDescription": "يحفظ Fixatee الصور المتعلقة بالطلبات في مكتبة الصور عند الطلب.",
-        "NSLocationWhenInUseUsageDescription": "يستخدم Fixatee موقعك لتحديد عنوان الخدمة وتمكين تتبع الفني المباشر.",
+        "NSCameraUsageDescription": "يستخدم Fixate الكاميرا لتصوير الجهاز المعطل ووثائق التحقق للفنيين.",
+        "NSPhotoLibraryUsageDescription": "يستخدم Fixate مكتبة الصور لاختيار صور الجهاز المعطل ومستندات التحقق.",
+        "NSPhotoLibraryAddUsageDescription": "يحفظ Fixate الصور المتعلقة بالطلبات في مكتبة الصور عند الطلب.",
+        "NSLocationWhenInUseUsageDescription": "يستخدم Fixate موقعك لتحديد عنوان الخدمة وتمكين تتبع الفني المباشر.",
         "ITSAppUsesNonExemptEncryption": false,
         "LSApplicationQueriesSchemes": ["tel", "mailto", "whatsapp"]
       },
@@ -54,8 +55,9 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#10b981"
       },
-      "package": "com.fixatee.app",
+      "package": "com.fixate.app",
       "versionCode": 1,
+      "googleServicesFile": "./google-services.json",
       "permissions": [
         "android.permission.ACCESS_FINE_LOCATION",
         "android.permission.ACCESS_COARSE_LOCATION",
@@ -85,14 +87,14 @@
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "السماح لـ Fixatee بالوصول إلى موقعك لتحديد عنوان الخدمة."
+          "locationWhenInUsePermission": "السماح لـ Fixate بالوصول إلى موقعك لتحديد عنوان الخدمة."
         }
       ],
       [
         "expo-image-picker",
         {
-          "photosPermission": "يحتاج Fixatee إلى الوصول إلى صورك لرفع صور الجهاز المعطل ووثائق التحقق.",
-          "cameraPermission": "يحتاج Fixatee إلى الكاميرا لتصوير الجهاز المعطل ووثائق التحقق."
+          "photosPermission": "يحتاج Fixate إلى الوصول إلى صورك لرفع صور الجهاز المعطل ووثائق التحقق.",
+          "cameraPermission": "يحتاج Fixate إلى الكاميرا لتصوير الجهاز المعطل ووثائق التحقق."
         }
       ],
       "expo-notifications",
@@ -111,19 +113,19 @@
         "expo-build-properties",
         {
           "ios": {
-            "useFrameworks": "static"
+            "useFrameworks": "static",
+            "buildReactNativeFromSource": true
           }
         }
-      ]
+      ],
+      "@react-native-firebase/app"
     ],
     "updates": {
       "fallbackToCacheTimeout": 0,
       "url": "https://u.expo.dev/2499a02f-3849-4712-a374-d1dc6546af1e"
     },
-    "runtimeVersion": {
-      "policy": "appVersion"
-    },
-    "scheme": "fixatee",
+    "runtimeVersion": "1.0.1",
+    "scheme": "fixate",
     "extra": {
       "router": {
         "origin": false
