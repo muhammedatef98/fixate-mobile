@@ -27,6 +27,14 @@ import Avatar from '../components/Avatar';
 import { uploadAvatar } from '../services/storageService';
 import { updateUserProfile } from '../services/userService';
 
+// Where Supabase sends the user after it verifies an email-change token.
+// Must be in the project's Auth redirect allow-list (https://fixate.site/**).
+// Override via env for staging. The page itself is docs/email-change-
+// confirmation.html — branded, deep-links back into the app.
+const EMAIL_CHANGE_REDIRECT_URL =
+  process.env.EXPO_PUBLIC_EMAIL_REDIRECT_URL ||
+  'https://fixate.site/email-change-confirmation.html';
+
 export default function EditProfileScreen() {
   const router = useRouter();
   const { language, isDark } = useApp();
@@ -60,6 +68,18 @@ export default function EditProfileScreen() {
   // drive the "✓ Saved" flash on the button.
   const [saving, setSaving] = useState(false);
   const [savedFlash, setSavedFlash] = useState(false);
+  // Optimistic bridge for the "confirmation link sent" banner: set the
+  // instant the user saves a new email, so the green banner shows without
+  // waiting for the updateUser round-trip + refreshUser. Cleared on failure
+  // (below), and retired by the effect once the real server value
+  // (user.new_email) arrives so the banner is driven by server truth from
+  // then on — including when it clears after the user confirms.
+  const [optimisticPendingEmail, setOptimisticPendingEmail] = useState<string | null>(null);
+  // Banner / field-lock source: the real server value when present,
+  // otherwise the optimistic one. emailChanged (below) still keys off the
+  // real pendingNewEmail only, so the optimistic value never affects which
+  // network call fires.
+  const effectivePendingEmail = pendingNewEmail || (optimisticPendingEmail ?? '');
   // Monotonic counter bumped on every handleSave. Each background run
   // captures its generation; when a late response arrives, we compare
   // against the ref's current value. If it differs, a newer save has
@@ -139,6 +159,17 @@ export default function EditProfileScreen() {
     return () => clearInterval(id);
   }, [isCountingDown]);
 
+  // Retire the optimistic banner once the real server value lands. After
+  // refreshUser populates user.new_email, the banner is driven by the real
+  // pendingNewEmail, so dropping the optimistic bridge here causes no
+  // flicker — and it lets the banner disappear correctly once the user
+  // confirms and the server clears new_email.
+  useEffect(() => {
+    if (optimisticPendingEmail && pendingNewEmail) {
+      setOptimisticPendingEmail(null);
+    }
+  }, [optimisticPendingEmail, pendingNewEmail]);
+
   const handleResendConfirmation = async () => {
     if (!pendingNewEmail || resending || resendCooldown > 0) return;
     setResending(true);
@@ -150,9 +181,7 @@ export default function EditProfileScreen() {
       // link in the inbox becomes invalid (the server generates a fresh
       // OTP), which is the standard "resend" contract — the new link
       // supersedes the old.
-      const emailRedirectTo =
-        process.env.EXPO_PUBLIC_EMAIL_REDIRECT_URL ||
-        'https://muhammedatef98.github.io/fixate-mobile/email-change-confirmation.html';
+      const emailRedirectTo = EMAIL_CHANGE_REDIRECT_URL;
       // For type=email_change, GoTrue uses `email` to look up the user
       // via auth.users.email (the current email). The pending new email
       // lives in auth.users.email_change and is read server-side from the
@@ -299,6 +328,10 @@ export default function EditProfileScreen() {
     // NOT awaited from here so the UI feels immediate.
     setSaving(true);
     setSavedFlash(true);
+    // Optimistic: show the green "confirmation link sent" banner now, while
+    // the updateUser call is still in flight. Rolled back in
+    // persistInBackground if the email step fails or is skipped.
+    if (emailChanged) setOptimisticPendingEmail(trimmedEmail);
     setTimeout(() => {
       setSaving(false);
       setSavedFlash(false);
@@ -387,23 +420,27 @@ export default function EditProfileScreen() {
     //    isLatest + functional-setter guard so a stale failure can't
     //    clobber a newer typed email.
     //
-    //    emailRedirectTo points Supabase at our static landing page (see
-    //    docs/email-change-confirmation.html, served via GitHub Pages of
-    //    this repo). Env override available for staging.
-    if (payload.emailChanged && profileSaved) {
-      const emailRedirectTo =
-        process.env.EXPO_PUBLIC_EMAIL_REDIRECT_URL ||
-        'https://muhammedatef98.github.io/fixate-mobile/email-change-confirmation.html';
+    //    emailRedirectTo (EMAIL_CHANGE_REDIRECT_URL) points Supabase at our
+    //    branded landing page on https://fixate.site after it verifies the
+    //    token. The page content is docs/email-change-confirmation.html.
+    if (payload.emailChanged && !profileSaved) {
+      // Profile save failed, so we skipped the email-change call — undo the
+      // optimistic banner so it doesn't imply a confirmation was sent.
+      if (isLatest()) setOptimisticPendingEmail(null);
+    } else if (payload.emailChanged && profileSaved) {
       try {
         const { error: emailError } = await supabase.auth.updateUser(
           { email: payload.email },
-          { emailRedirectTo }
+          { emailRedirectTo: EMAIL_CHANGE_REDIRECT_URL }
         );
         if (emailError) throw emailError;
       } catch (e: any) {
         if (!isLatest()) {
           logger.warn('stale email save error suppressed', e);
         } else {
+          // Reverse the optimistic success: drop the green banner, restore
+          // the email field, and surface the real error.
+          setOptimisticPendingEmail(null);
           setEmail((current) =>
             current === payload.email ? snapshot.email : current
           );
@@ -508,7 +545,7 @@ export default function EditProfileScreen() {
           <Text style={styles.label}>
             {isRTL ? 'البريد الإلكتروني' : 'Email'}
           </Text>
-          {pendingNewEmail ? (
+          {effectivePendingEmail ? (
             <>
               <View style={styles.pendingBanner}>
                 <Ionicons
@@ -519,10 +556,14 @@ export default function EditProfileScreen() {
                 />
                 <Text style={styles.pendingBannerText}>
                   {isRTL
-                    ? `تم إرسال رابط التأكيد إلى ${pendingNewEmail}. افتح بريدك الجديد واضغط الرابط لإكمال التغيير. لا تضغط حفظ مرة أخرى حتى يكتمل.`
-                    : `Confirmation link sent to ${pendingNewEmail}. Open it and tap the link to complete the change. Don't tap Save again until it's confirmed.`}
+                    ? `تم إرسال رابط التأكيد إلى ${effectivePendingEmail}. افتح بريدك الجديد واضغط الرابط لإكمال التغيير. لا تضغط حفظ مرة أخرى حتى يكتمل.`
+                    : `Confirmation link sent to ${effectivePendingEmail}. Open it and tap the link to complete the change. Don't tap Save again until it's confirmed.`}
                 </Text>
               </View>
+              {/* Resend uses Supabase's email_change resend, which needs the
+                  change to already exist server-side — so gate it on the real
+                  pendingNewEmail, not the optimistic value. */}
+              {pendingNewEmail ? (
               <TouchableOpacity
                 onPress={handleResendConfirmation}
                 disabled={resending || resendCooldown > 0}
@@ -549,12 +590,13 @@ export default function EditProfileScreen() {
                   </Text>
                 )}
               </TouchableOpacity>
+              ) : null}
             </>
           ) : null}
           <View
             style={[
               styles.inputWrapper,
-              pendingNewEmail ? { opacity: 0.6 } : null,
+              effectivePendingEmail ? { opacity: 0.6 } : null,
             ]}
           >
             <Ionicons
@@ -572,7 +614,7 @@ export default function EditProfileScreen() {
               keyboardType="email-address"
               autoCapitalize="none"
               autoCorrect={false}
-              editable={!pendingNewEmail}
+              editable={!effectivePendingEmail}
               textAlign={isRTL ? 'right' : 'left'}
             />
           </View>
