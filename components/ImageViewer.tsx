@@ -72,7 +72,6 @@ export default function ImageViewer({ visible, images, initialIndex = 0, onClose
             >
               <TouchableWithoutFeedback onPress={onClose}>
                 <View style={{ width: SCREEN_W, height: SCREEN_H }}>
-                  {__DEV__ && console.log('[ImageViewer] uri:', uri)}
                   <Image
                     source={{ uri: typeof uri === 'string' ? uri : (uri as any)?.url ?? (uri as any)?.uri }}
                     style={{ width: SCREEN_W, height: SCREEN_H, resizeMode: 'contain' }}
