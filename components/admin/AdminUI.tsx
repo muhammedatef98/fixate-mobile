@@ -66,8 +66,8 @@ export function orderStatusTone(status: string): { tone: StatusTone; icon: strin
 const TONE_COLORS: Record<StatusTone, { bg: string; text: string }> = {
   success: { bg: '#D1FAE5', text: '#065F46' },
   warning: { bg: '#FEF3C7', text: '#92400E' },
-  danger:  { bg: '#FEE2E2', text: '#991B1B' },
-  info:    { bg: '#DBEAFE', text: '#1E40AF' },
+  danger: { bg: '#FEE2E2', text: '#991B1B' },
+  info: { bg: '#DBEAFE', text: '#1E40AF' },
   neutral: { bg: '#F3F4F6', text: '#374151' },
 };
 
@@ -114,17 +114,11 @@ export function AdminScreenHeader({
       />
 
       <View style={{ flex: 1, alignItems: 'center', paddingHorizontal: 8 }}>
-        <Text
-          style={[styles.headerTitle, { color: COLORS.text }]}
-          numberOfLines={1}
-        >
+        <Text style={[styles.headerTitle, { color: COLORS.text }]} numberOfLines={1}>
           {title}
         </Text>
         {!!subtitle && (
-          <Text
-            style={[styles.headerSubtitle, { color: COLORS.textSecondary }]}
-            numberOfLines={1}
-          >
+          <Text style={[styles.headerSubtitle, { color: COLORS.textSecondary }]} numberOfLines={1}>
             {subtitle}
           </Text>
         )}
@@ -178,10 +172,7 @@ export function AdminSearchBar({
     >
       <Ionicons name="search-outline" size={18} color={COLORS.textSecondary} />
       <TextInput
-        style={[
-          styles.searchInput,
-          { color: COLORS.text, textAlign: isRTL ? 'right' : 'left' },
-        ]}
+        style={[styles.searchInput, { color: COLORS.text, textAlign: isRTL ? 'right' : 'left' }]}
         value={value}
         onChangeText={onChangeText}
         placeholder={placeholder ?? (isRTL ? 'بحث…' : 'Search…')}
@@ -190,9 +181,7 @@ export function AdminSearchBar({
         clearButtonMode="while-editing"
       />
       {resultCount !== undefined && (
-        <Text style={[styles.searchCount, { color: COLORS.textSecondary }]}>
-          {resultCount}
-        </Text>
+        <Text style={[styles.searchCount, { color: COLORS.textSecondary }]}>{resultCount}</Text>
       )}
     </View>
   );
@@ -219,10 +208,11 @@ export function AdminFilterChips<T extends string>({
     <ScrollView
       horizontal
       showsHorizontalScrollIndicator={false}
-      contentContainerStyle={[
-        styles.chipsRow,
-        { flexDirection: isRTL ? 'row-reverse' : 'row' },
-      ]}
+      // Fixed-height container prevents the bar from jittering when chip
+      // counts update (e.g. "Pending (12)" → "Pending (3)" used to shift
+      // the row height by 1–2px because padding was driving height).
+      style={styles.chipsScroll}
+      contentContainerStyle={[styles.chipsRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}
     >
       {filters.map((f) => {
         const active = f.key === value;
@@ -230,13 +220,20 @@ export function AdminFilterChips<T extends string>({
           <TouchableOpacity
             key={f.key}
             onPress={() => onChange(f.key)}
+            // Match the market device-chip style: fixed 40px height,
+            // 14px radius, soft primary-tinted active state with a
+            // 1.5px primary border instead of a harsh solid fill.
             style={[
               styles.chip,
-              {
-                backgroundColor: active ? COLORS.primary : COLORS.card,
-                borderColor: active ? COLORS.primary : COLORS.border,
+              active
+                ? styles.chipActive
+                : { borderColor: COLORS.border, backgroundColor: COLORS.card },
+              active && {
+                borderColor: COLORS.primary,
+                backgroundColor: COLORS.primarySoft ?? COLORS.primary + '14',
               },
             ]}
+            activeOpacity={0.85}
             accessibilityRole="radio"
             accessibilityState={{ checked: active }}
           >
@@ -244,7 +241,8 @@ export function AdminFilterChips<T extends string>({
               numberOfLines={1}
               style={[
                 styles.chipText,
-                { color: active ? '#fff' : COLORS.text },
+                { color: active ? COLORS.primary : (COLORS.textSecondary ?? COLORS.text) },
+                active && { fontWeight: '800' },
               ]}
             >
               {isRTL ? f.ar : f.en}
@@ -269,14 +267,7 @@ export function AdminStatusPill({ label, tone, icon }: AdminStatusPillProps) {
   const { bg, text } = TONE_COLORS[tone] ?? TONE_COLORS.neutral;
   return (
     <View style={[styles.pill, { backgroundColor: bg }]}>
-      {!!icon && (
-        <Ionicons
-          name={icon as any}
-          size={12}
-          color={text}
-          style={{ marginRight: 3 }}
-        />
-      )}
+      {!!icon && <Ionicons name={icon as any} size={12} color={text} style={{ marginRight: 3 }} />}
       <Text style={[styles.pillText, { color: text }]}>{label}</Text>
     </View>
   );
@@ -311,11 +302,7 @@ export function AdminEmptyState({
         <MaterialCommunityIcons name={icon as any} size={36} color={iconColor} />
       </View>
       <Text style={[styles.emptyTitle, { color: COLORS.text }]}>{title}</Text>
-      {!!body && (
-        <Text style={[styles.emptyBody, { color: COLORS.textSecondary }]}>
-          {body}
-        </Text>
-      )}
+      {!!body && <Text style={[styles.emptyBody, { color: COLORS.textSecondary }]}>{body}</Text>}
       {!!ctaLabel && (
         <TouchableOpacity
           onPress={onCtaPress}
@@ -364,21 +351,38 @@ const styles = StyleSheet.create({
   searchInput: { flex: 1, fontSize: 13 },
   searchCount: { fontSize: 12 },
 
-  // Chips
+  // Chips — geometry mirrors app/market.tsx deviceChip so the admin
+  // filter row reads as part of the same design language and stays
+  // dimensionally stable across count changes.
+  chipsScroll: {
+    maxHeight: 64,
+  },
   chipsRow: {
     paddingHorizontal: SPACING.lg,
-    paddingBottom: SPACING.sm,
+    paddingVertical: 10,
     gap: 8,
     alignItems: 'center',
   },
   chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
     paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 999,
+    height: 40,
+    borderRadius: 14,
     borderWidth: 1,
     flexShrink: 0,
   },
-  chipText: { fontWeight: '700', fontSize: 13, includeFontPadding: false },
+  chipActive: {
+    borderWidth: 1.5,
+    // Subtle lift so the selected chip visibly anchors the row.
+    shadowColor: '#10B981',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.18,
+    shadowRadius: 10,
+    elevation: 3,
+  },
+  chipText: { fontWeight: '700', fontSize: 13.5, letterSpacing: -0.1, includeFontPadding: false },
 
   // Status pill
   pill: {
@@ -448,14 +452,28 @@ export function AdminSectionLabel({ icon, text, hint }: AdminSectionLabelProps) 
   return (
     <View style={[sl.wrap, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
       <MaterialCommunityIcons name={icon as any} size={16} color={COLORS.primary} />
-      <Text style={[sl.text, { color: COLORS.text, textAlign: isRTL ? 'right' : 'left' }]}>{text}</Text>
-      {hint ? <Text style={[sl.hint, { color: COLORS.textSecondary, textAlign: isRTL ? 'right' : 'left' }]}>{hint}</Text> : null}
+      <Text style={[sl.text, { color: COLORS.text, textAlign: isRTL ? 'right' : 'left' }]}>
+        {text}
+      </Text>
+      {hint ? (
+        <Text
+          style={[sl.hint, { color: COLORS.textSecondary, textAlign: isRTL ? 'right' : 'left' }]}
+        >
+          {hint}
+        </Text>
+      ) : null}
     </View>
   );
 }
 const sl = StyleSheet.create({
   wrap: { alignItems: 'center', gap: 6, marginTop: 20, marginBottom: 10 },
-  text: { fontSize: 13, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.5, flex: 1 },
+  text: {
+    fontSize: 13,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    flex: 1,
+  },
   hint: { fontSize: 11, fontWeight: '600' },
 });
 
@@ -469,7 +487,15 @@ interface AdminStatTileProps {
   hint?: string;
   onPress?: () => void;
 }
-export function AdminStatTile({ icon, label, value, color, loading, hint, onPress }: AdminStatTileProps) {
+export function AdminStatTile({
+  icon,
+  label,
+  value,
+  color,
+  loading,
+  hint,
+  onPress,
+}: AdminStatTileProps) {
   const { isDark } = useApp();
   const COLORS = getColors(isDark);
   return (
@@ -490,14 +516,32 @@ export function AdminStatTile({ icon, label, value, color, loading, hint, onPres
       ) : (
         <Text style={[st.value, { color: COLORS.text }]}>{value}</Text>
       )}
-      <Text style={[st.label, { color: COLORS.textSecondary }]} numberOfLines={2}>{label}</Text>
-      {hint ? <Text style={[st.hint, { color }]} numberOfLines={1}>{hint}</Text> : null}
+      <Text style={[st.label, { color: COLORS.textSecondary }]} numberOfLines={2}>
+        {label}
+      </Text>
+      {hint ? (
+        <Text style={[st.hint, { color }]} numberOfLines={1}>
+          {hint}
+        </Text>
+      ) : null}
     </TouchableOpacity>
   );
 }
 const st = StyleSheet.create({
-  tile: { width: '47%', borderRadius: BORDER_RADIUS.md, padding: 14, borderWidth: StyleSheet.hairlineWidth, gap: 4 },
-  iconWrap: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  tile: {
+    width: '47%',
+    borderRadius: BORDER_RADIUS.md,
+    padding: 14,
+    borderWidth: StyleSheet.hairlineWidth,
+    gap: 4,
+  },
+  iconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   value: { fontSize: 22, fontWeight: '900', marginTop: 6, letterSpacing: -0.5 },
   label: { fontSize: 12, fontWeight: '600', lineHeight: 16 },
   hint: { fontSize: 11, fontWeight: '700', marginTop: 2 },
@@ -512,7 +556,14 @@ interface AdminActionCardProps {
   badge?: number;
   onPress: () => void;
 }
-export function AdminActionCard({ icon, iconColor, title, subtitle, badge, onPress }: AdminActionCardProps) {
+export function AdminActionCard({
+  icon,
+  iconColor,
+  title,
+  subtitle,
+  badge,
+  onPress,
+}: AdminActionCardProps) {
   const { language, isDark } = useApp();
   const COLORS = getColors(isDark);
   const isRTL = language === 'ar';
@@ -522,7 +573,11 @@ export function AdminActionCard({ icon, iconColor, title, subtitle, badge, onPre
       activeOpacity={0.82}
       style={[
         ac.card,
-        { backgroundColor: COLORS.card, borderColor: COLORS.border, flexDirection: isRTL ? 'row-reverse' : 'row' },
+        {
+          backgroundColor: COLORS.card,
+          borderColor: COLORS.border,
+          flexDirection: isRTL ? 'row-reverse' : 'row',
+        },
         ADMIN_CARD_SHADOW,
       ]}
     >
@@ -530,24 +585,55 @@ export function AdminActionCard({ icon, iconColor, title, subtitle, badge, onPre
         <MaterialCommunityIcons name={icon as any} size={22} color={iconColor} />
       </View>
       <View style={{ flex: 1 }}>
-        <Text style={[ac.title, { color: COLORS.text, textAlign: isRTL ? 'right' : 'left' }]}>{title}</Text>
-        <Text style={[ac.sub, { color: COLORS.textSecondary, textAlign: isRTL ? 'right' : 'left' }]} numberOfLines={2}>{subtitle}</Text>
+        <Text style={[ac.title, { color: COLORS.text, textAlign: isRTL ? 'right' : 'left' }]}>
+          {title}
+        </Text>
+        <Text
+          style={[ac.sub, { color: COLORS.textSecondary, textAlign: isRTL ? 'right' : 'left' }]}
+          numberOfLines={2}
+        >
+          {subtitle}
+        </Text>
       </View>
       {(badge ?? 0) > 0 ? (
         <View style={[ac.badge, { backgroundColor: iconColor }]}>
           <Text style={ac.badgeText}>{badge}</Text>
         </View>
       ) : null}
-      <Ionicons name={isRTL ? 'chevron-back' : 'chevron-forward'} size={18} color={COLORS.textLight ?? COLORS.textSecondary} />
+      <Ionicons
+        name={isRTL ? 'chevron-back' : 'chevron-forward'}
+        size={18}
+        color={COLORS.textLight ?? COLORS.textSecondary}
+      />
     </TouchableOpacity>
   );
 }
 const ac = StyleSheet.create({
-  card: { alignItems: 'center', borderRadius: BORDER_RADIUS.md, padding: 14, marginBottom: 10, borderWidth: StyleSheet.hairlineWidth, gap: 12 },
-  iconWrap: { width: 44, height: 44, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  card: {
+    alignItems: 'center',
+    borderRadius: BORDER_RADIUS.md,
+    padding: 14,
+    marginBottom: 10,
+    borderWidth: StyleSheet.hairlineWidth,
+    gap: 12,
+  },
+  iconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   title: { fontSize: 15, fontWeight: '700' },
   sub: { fontSize: 12, marginTop: 2, lineHeight: 17 },
-  badge: { borderRadius: 10, minWidth: 20, height: 20, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 5 },
+  badge: {
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 5,
+  },
   badgeText: { color: '#fff', fontSize: 11, fontWeight: '800' },
 });
 
@@ -559,7 +645,13 @@ interface AdminAttentionBarProps {
   ctaLabel: string;
   onPress: () => void;
 }
-export function AdminAttentionBar({ count, title, body, ctaLabel, onPress }: AdminAttentionBarProps) {
+export function AdminAttentionBar({
+  count,
+  title,
+  body,
+  ctaLabel,
+  onPress,
+}: AdminAttentionBarProps) {
   const { language } = useApp();
   const isRTL = language === 'ar';
   if (!count || count <= 0) return null;
@@ -572,7 +664,11 @@ export function AdminAttentionBar({ count, title, body, ctaLabel, onPress }: Adm
       <MaterialCommunityIcons name="alert-circle-outline" size={22} color="#f59e0b" />
       <View style={{ flex: 1 }}>
         <Text style={[ab.title, { textAlign: isRTL ? 'right' : 'left' }]}>{title}</Text>
-        {body ? <Text style={[ab.body, { textAlign: isRTL ? 'right' : 'left' }]} numberOfLines={2}>{body}</Text> : null}
+        {body ? (
+          <Text style={[ab.body, { textAlign: isRTL ? 'right' : 'left' }]} numberOfLines={2}>
+            {body}
+          </Text>
+        ) : null}
       </View>
       <View style={ab.cta}>
         <Text style={ab.ctaText}>{ctaLabel}</Text>
@@ -581,7 +677,16 @@ export function AdminAttentionBar({ count, title, body, ctaLabel, onPress }: Adm
   );
 }
 const ab = StyleSheet.create({
-  bar: { alignItems: 'center', borderRadius: BORDER_RADIUS.md, padding: 14, marginBottom: 12, borderWidth: 1, gap: 10, backgroundColor: '#fef3c7', borderColor: '#f59e0b' },
+  bar: {
+    alignItems: 'center',
+    borderRadius: BORDER_RADIUS.md,
+    padding: 14,
+    marginBottom: 12,
+    borderWidth: 1,
+    gap: 10,
+    backgroundColor: '#fef3c7',
+    borderColor: '#f59e0b',
+  },
   title: { fontSize: 13, fontWeight: '800', color: '#92400e' },
   body: { fontSize: 12, color: '#b45309', marginTop: 2, lineHeight: 17 },
   cta: { backgroundColor: '#f59e0b', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 6 },
@@ -603,7 +708,11 @@ export function AdminQuickAction({ icon, label, badge, color, onPress }: AdminQu
     <TouchableOpacity
       onPress={onPress}
       activeOpacity={0.8}
-      style={[qa.wrap, { backgroundColor: COLORS.card, borderColor: COLORS.border }, ADMIN_CARD_SHADOW]}
+      style={[
+        qa.wrap,
+        { backgroundColor: COLORS.card, borderColor: COLORS.border },
+        ADMIN_CARD_SHADOW,
+      ]}
     >
       <View style={[qa.iconWrap, { backgroundColor: color + '18' }]}>
         <MaterialCommunityIcons name={icon as any} size={22} color={color} />
@@ -613,14 +722,39 @@ export function AdminQuickAction({ icon, label, badge, color, onPress }: AdminQu
           </View>
         ) : null}
       </View>
-      <Text style={[qa.label, { color: COLORS.textSecondary }]} numberOfLines={2}>{label}</Text>
+      <Text style={[qa.label, { color: COLORS.textSecondary }]} numberOfLines={2}>
+        {label}
+      </Text>
     </TouchableOpacity>
   );
 }
 const qa = StyleSheet.create({
-  wrap: { flex: 1, alignItems: 'center', borderRadius: BORDER_RADIUS.md, padding: 12, borderWidth: StyleSheet.hairlineWidth, gap: 8 },
-  iconWrap: { width: 46, height: 46, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
-  badge: { position: 'absolute', top: -4, right: -4, borderRadius: 8, minWidth: 16, height: 16, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 3 },
+  wrap: {
+    flex: 1,
+    alignItems: 'center',
+    borderRadius: BORDER_RADIUS.md,
+    padding: 12,
+    borderWidth: StyleSheet.hairlineWidth,
+    gap: 8,
+  },
+  iconWrap: {
+    width: 46,
+    height: 46,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  badge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    borderRadius: 8,
+    minWidth: 16,
+    height: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 3,
+  },
   badgeText: { color: '#fff', fontSize: 9, fontWeight: '900' },
   label: { fontSize: 11, fontWeight: '700', textAlign: 'center' },
 });
@@ -634,7 +768,14 @@ interface AdminActivityRowProps {
   time: string;
   onPress?: () => void;
 }
-export function AdminActivityRow({ icon, iconColor, title, meta, time, onPress }: AdminActivityRowProps) {
+export function AdminActivityRow({
+  icon,
+  iconColor,
+  title,
+  meta,
+  time,
+  onPress,
+}: AdminActivityRowProps) {
   const { language, isDark } = useApp();
   const COLORS = getColors(isDark);
   const isRTL = language === 'ar';
@@ -644,7 +785,11 @@ export function AdminActivityRow({ icon, iconColor, title, meta, time, onPress }
       activeOpacity={onPress ? 0.8 : 1}
       style={[
         arRow.row,
-        { backgroundColor: COLORS.card, borderColor: COLORS.border, flexDirection: isRTL ? 'row-reverse' : 'row' },
+        {
+          backgroundColor: COLORS.card,
+          borderColor: COLORS.border,
+          flexDirection: isRTL ? 'row-reverse' : 'row',
+        },
         ADMIN_CARD_SHADOW,
       ]}
     >
@@ -652,16 +797,39 @@ export function AdminActivityRow({ icon, iconColor, title, meta, time, onPress }
         <MaterialCommunityIcons name={icon as any} size={18} color={iconColor} />
       </View>
       <View style={{ flex: 1 }}>
-        <Text style={[arRow.title, { color: COLORS.text, textAlign: isRTL ? 'right' : 'left' }]} numberOfLines={1}>{title}</Text>
-        <Text style={[arRow.meta, { color: COLORS.textSecondary, textAlign: isRTL ? 'right' : 'left' }]} numberOfLines={1}>{meta}</Text>
+        <Text
+          style={[arRow.title, { color: COLORS.text, textAlign: isRTL ? 'right' : 'left' }]}
+          numberOfLines={1}
+        >
+          {title}
+        </Text>
+        <Text
+          style={[arRow.meta, { color: COLORS.textSecondary, textAlign: isRTL ? 'right' : 'left' }]}
+          numberOfLines={1}
+        >
+          {meta}
+        </Text>
       </View>
       <Text style={[arRow.time, { color: COLORS.textLight ?? COLORS.textSecondary }]}>{time}</Text>
     </TouchableOpacity>
   );
 }
 const arRow = StyleSheet.create({
-  row: { alignItems: 'center', borderRadius: BORDER_RADIUS.sm, padding: 12, marginBottom: 8, borderWidth: StyleSheet.hairlineWidth, gap: 12 },
-  iconWrap: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  row: {
+    alignItems: 'center',
+    borderRadius: BORDER_RADIUS.sm,
+    padding: 12,
+    marginBottom: 8,
+    borderWidth: StyleSheet.hairlineWidth,
+    gap: 12,
+  },
+  iconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   title: { fontSize: 14, fontWeight: '700' },
   meta: { fontSize: 12, marginTop: 2 },
   time: { fontSize: 11, fontWeight: '600' },
