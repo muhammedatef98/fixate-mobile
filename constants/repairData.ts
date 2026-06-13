@@ -35,7 +35,8 @@ export const BRANDS: Brand[] = [
     deviceType: 'phone',
     logo: require('../assets/apple-logo.png'),
     models: [
-      'iPhone 16 Pro Max', 'iPhone 16 Pro', 'iPhone 16 Plus', 'iPhone 16',
+      'iPhone 17 Pro Max', 'iPhone 17 Pro', 'iPhone Air', 'iPhone 17',
+      'iPhone 16 Pro Max', 'iPhone 16 Pro', 'iPhone 16 Plus', 'iPhone 16', 'iPhone 16e',
       'iPhone 15 Pro Max', 'iPhone 15 Pro', 'iPhone 15 Plus', 'iPhone 15',
       'iPhone 14 Pro Max', 'iPhone 14 Pro', 'iPhone 14 Plus', 'iPhone 14',
       'iPhone 13 Pro Max', 'iPhone 13 Pro', 'iPhone 13', 'iPhone 13 Mini',
@@ -54,14 +55,16 @@ export const BRANDS: Brand[] = [
     deviceType: 'phone',
     logo: require('../assets/samsung-logo.png'),
     models: [
-      'Galaxy S25 Ultra', 'Galaxy S25+', 'Galaxy S25',
+      'Galaxy S25 Ultra', 'Galaxy S25 Edge', 'Galaxy S25+', 'Galaxy S25', 'Galaxy S25 FE',
       'Galaxy S24 Ultra', 'Galaxy S24+', 'Galaxy S24', 'Galaxy S24 FE',
+      'Galaxy Z Fold 7', 'Galaxy Z Flip 7', 'Galaxy Z Flip 7 FE',
       'Galaxy S23 Ultra', 'Galaxy S23+', 'Galaxy S23', 'Galaxy S23 FE',
       'Galaxy S22 Ultra', 'Galaxy S22+', 'Galaxy S22',
       'Galaxy S21 Ultra', 'Galaxy S21+', 'Galaxy S21',
       'Galaxy Z Fold 6', 'Galaxy Z Fold 5', 'Galaxy Z Fold 4', 'Galaxy Z Fold 3',
       'Galaxy Z Flip 6', 'Galaxy Z Flip 5', 'Galaxy Z Flip 4', 'Galaxy Z Flip 3',
-      'Galaxy A54', 'Galaxy A53', 'Galaxy A52', 'Galaxy A51',
+      'Galaxy A56', 'Galaxy A55', 'Galaxy A54', 'Galaxy A53', 'Galaxy A52', 'Galaxy A51',
+      'Galaxy A36', 'Galaxy A35', 'Galaxy A26', 'Galaxy A25', 'Galaxy A16', 'Galaxy A15',
       'Galaxy A34', 'Galaxy A33', 'Galaxy A32', 'Galaxy A31',
       'Galaxy A24', 'Galaxy A23', 'Galaxy A22', 'Galaxy A21',
       'Galaxy A14', 'Galaxy A13', 'Galaxy A12', 'Galaxy A11',
@@ -81,6 +84,8 @@ export const BRANDS: Brand[] = [
     deviceType: 'phone',
     logo: require('../assets/huawei-logo.png'),
     models: [
+      'Mate 70 Pro', 'Mate 70', 'Pura 70 Ultra', 'Pura 70 Pro', 'Pura 70',
+      'Nova 13 Pro', 'Nova 13',
       'Mate 60 Pro', 'Mate 60', 'Mate 50 Pro', 'Mate 50',
       'Mate 40 Pro', 'Mate 40', 'Mate 30 Pro', 'Mate 30',
       'P60 Pro', 'P60', 'P50 Pro', 'P50', 'P40 Pro', 'P40',
@@ -98,7 +103,10 @@ export const BRANDS: Brand[] = [
     deviceType: 'phone',
     logo: require('../assets/xiaomi-logo.png'),
     models: [
+      'Xiaomi 15 Ultra', 'Xiaomi 15', 'Xiaomi 14 Ultra',
       'Xiaomi 14 Pro', 'Xiaomi 14', 'Xiaomi 13 Ultra', 'Xiaomi 13 Pro', 'Xiaomi 13',
+      'Redmi Note 14 Pro+', 'Redmi Note 14 Pro', 'Redmi Note 14',
+      'Redmi 14C', 'Poco X7 Pro', 'Poco X7', 'Poco F6 Pro', 'Poco F6',
       'Xiaomi 12 Pro', 'Xiaomi 12', 'Xiaomi 11 Ultra', 'Xiaomi 11 Pro', 'Xiaomi 11',
       'Redmi Note 13 Pro+', 'Redmi Note 13 Pro', 'Redmi Note 13',
       'Redmi Note 12 Pro+', 'Redmi Note 12 Pro', 'Redmi Note 12',
@@ -119,6 +127,7 @@ export const BRANDS: Brand[] = [
     deviceType: 'phone',
     logo: require('../assets/oppo-logo.png'),
     models: [
+      'Find X8 Pro', 'Find X8', 'Reno 13 Pro', 'Reno 13', 'Reno 12 Pro', 'Reno 12',
       'Find X7 Ultra', 'Find X7', 'Find X6 Pro', 'Find X6',
       'Find X5 Pro', 'Find X5', 'Find X3 Pro', 'Find X3',
       'Reno 11 Pro', 'Reno 11', 'Reno 10 Pro+', 'Reno 10 Pro', 'Reno 10',
@@ -135,6 +144,7 @@ export const BRANDS: Brand[] = [
     deviceType: 'phone',
     logo: require('../assets/vivo-logo.png'),
     models: [
+      'X200 Pro', 'X200', 'V40 Pro', 'V40', 'Y200', 'iQOO 13',
       'X100 Pro', 'X100', 'X90 Pro', 'X90', 'X80 Pro', 'X80',
       'X70 Pro+', 'X70 Pro', 'X70', 'X60 Pro', 'X60',
       'V30 Pro', 'V30', 'V29 Pro', 'V29', 'V27 Pro', 'V27',
@@ -151,6 +161,7 @@ export const BRANDS: Brand[] = [
     deviceType: 'phone',
     logo: require('../assets/oneplus-logo.png'),
     models: [
+      'OnePlus 13', 'OnePlus 13R', 'OnePlus 12R', 'OnePlus Nord 4', 'OnePlus Nord CE 4',
       'OnePlus 12', 'OnePlus 11', 'OnePlus 10 Pro', 'OnePlus 10T',
       'OnePlus 9 Pro', 'OnePlus 9', 'OnePlus 8 Pro', 'OnePlus 8T', 'OnePlus 8',
       'OnePlus 7 Pro', 'OnePlus 7T', 'OnePlus 7',
@@ -165,6 +176,7 @@ export const BRANDS: Brand[] = [
     deviceType: 'phone',
     logo: require('../assets/realme-logo.png'),
     models: [
+      'Realme GT 7 Pro', 'Realme GT 6', 'Realme 13 Pro+', 'Realme 13 Pro', 'Realme C75',
       'Realme GT 5 Pro', 'Realme GT 5', 'Realme GT 3', 'Realme GT 2 Pro', 'Realme GT 2',
       'Realme 12 Pro+', 'Realme 12 Pro', 'Realme 12', 'Realme 11 Pro+', 'Realme 11 Pro', 'Realme 11',
       'Realme 10 Pro+', 'Realme 10 Pro', 'Realme 10', 'Realme 9 Pro+', 'Realme 9 Pro', 'Realme 9',
@@ -179,7 +191,9 @@ export const BRANDS: Brand[] = [
     deviceType: 'phone',
     logo: require('../assets/google-logo.png'),
     models: [
-      'Pixel 8 Pro', 'Pixel 8', 'Pixel 7 Pro', 'Pixel 7', 'Pixel 7a',
+      'Pixel 10 Pro XL', 'Pixel 10 Pro', 'Pixel 10',
+      'Pixel 9 Pro XL', 'Pixel 9 Pro', 'Pixel 9 Pro Fold', 'Pixel 9', 'Pixel 9a',
+      'Pixel 8 Pro', 'Pixel 8', 'Pixel 8a', 'Pixel 7 Pro', 'Pixel 7', 'Pixel 7a',
       'Pixel 6 Pro', 'Pixel 6', 'Pixel 6a', 'Pixel 5', 'Pixel 4a',
       'Pixel 4 XL', 'Pixel 4', 'Pixel 3a', 'Pixel 3'
     ]
@@ -190,8 +204,9 @@ export const BRANDS: Brand[] = [
     deviceType: 'phone',
     logo: require('../assets/honor-logo.png'),
     models: [
-      'Honor Magic 6 Pro', 'Honor Magic 5 Pro', 'Honor 90', 'Honor 70',
-      'Honor X9b', 'Honor X8b', 'Honor X7b'
+      'Honor Magic 7 Pro', 'Honor Magic 6 Pro', 'Honor Magic 5 Pro',
+      'Honor 200 Pro', 'Honor 200', 'Honor 90', 'Honor 70',
+      'Honor X9c', 'Honor X9b', 'Honor X8b', 'Honor X7b'
     ]
   },
   {
@@ -226,7 +241,7 @@ export const BRANDS: Brand[] = [
     id: 'nothing',
     name: 'Nothing',
     deviceType: 'phone',
-    models: ['Phone (2a) Plus', 'Phone (2a)', 'Phone (2)', 'Phone (1)']
+    models: ['Phone (3)', 'Phone (3a) Pro', 'Phone (3a)', 'Phone (2a) Plus', 'Phone (2a)', 'Phone (2)', 'Phone (1)']
   },
   {
     id: 'infinix',
@@ -280,11 +295,12 @@ export const BRANDS: Brand[] = [
     deviceType: 'tablet',
     logo: require('../assets/apple-logo.png'),
     models: [
+      'iPad Pro 13" (M4)', 'iPad Pro 11" (M4)',
       'iPad Pro 12.9" (2024)', 'iPad Pro 11" (2024)', 'iPad Pro 12.9" (2022)', 'iPad Pro 11" (2022)',
       'iPad Pro 12.9" (2020)', 'iPad Pro 11" (2020)',
-      'iPad Air (2024)', 'iPad Air (2022)', 'iPad Air (2019)',
-      'iPad (10th gen)', 'iPad (9th gen)', 'iPad (8th gen)', 'iPad (7th gen)',
-      'iPad mini (6th gen)', 'iPad mini (5th gen)', 'iPad mini (4th gen)'
+      'iPad Air 13" (M3)', 'iPad Air 11" (M3)', 'iPad Air (2024)', 'iPad Air (2022)', 'iPad Air (2019)',
+      'iPad (11th gen)', 'iPad (10th gen)', 'iPad (9th gen)', 'iPad (8th gen)', 'iPad (7th gen)',
+      'iPad mini (7th gen)', 'iPad mini (6th gen)', 'iPad mini (5th gen)', 'iPad mini (4th gen)'
     ]
   },
   {
@@ -293,7 +309,8 @@ export const BRANDS: Brand[] = [
     deviceType: 'tablet',
     logo: require('../assets/samsung-logo.png'),
     models: [
-      'Galaxy Tab S9 Ultra', 'Galaxy Tab S9+', 'Galaxy Tab S9',
+      'Galaxy Tab S10 Ultra', 'Galaxy Tab S10+', 'Galaxy Tab S10 FE',
+      'Galaxy Tab S9 Ultra', 'Galaxy Tab S9+', 'Galaxy Tab S9', 'Galaxy Tab S9 FE',
       'Galaxy Tab S8 Ultra', 'Galaxy Tab S8+', 'Galaxy Tab S8',
       'Galaxy Tab S7+', 'Galaxy Tab S7', 'Galaxy Tab S6 Lite', 'Galaxy Tab S6',
       'Galaxy Tab A9+', 'Galaxy Tab A9', 'Galaxy Tab A8', 'Galaxy Tab A7'
@@ -313,7 +330,7 @@ export const BRANDS: Brand[] = [
     id: 'xiaomi-tablet',
     name: 'Xiaomi Pad',
     deviceType: 'tablet',
-    models: ['Pad 6S Pro', 'Pad 6 Pro', 'Pad 6', 'Pad 5 Pro', 'Pad 5', 'Redmi Pad SE', 'Redmi Pad']
+    models: ['Pad 7 Pro', 'Pad 7', 'Pad 6S Pro', 'Pad 6 Pro', 'Pad 6', 'Pad 5 Pro', 'Pad 5', 'Redmi Pad SE', 'Redmi Pad']
   },
   {
     id: 'lenovo-tablet',
@@ -325,7 +342,7 @@ export const BRANDS: Brand[] = [
     id: 'microsoft-tablet',
     name: 'Microsoft Surface',
     deviceType: 'tablet',
-    models: ['Surface Pro 10', 'Surface Pro 9', 'Surface Pro 8', 'Surface Go 4', 'Surface Go 3']
+    models: ['Surface Pro 11', 'Surface Pro 10', 'Surface Pro 9', 'Surface Pro 8', 'Surface Go 4', 'Surface Go 3']
   },
   {
     id: 'honor-tablet',
@@ -341,7 +358,9 @@ export const BRANDS: Brand[] = [
     deviceType: 'laptop',
     logo: require('../assets/apple-logo.png'),
     models: [
+      'MacBook Pro 16" (M4)', 'MacBook Pro 14" (M4)',
       'MacBook Pro 16" (M3)', 'MacBook Pro 14" (M3)', 'MacBook Pro 16" (M2)', 'MacBook Pro 14" (M2)',
+      'MacBook Air 15" (M4)', 'MacBook Air 13" (M4)',
       'MacBook Air 15" (M3)', 'MacBook Air 13" (M3)', 'MacBook Air 15" (M2)', 'MacBook Air 13" (M2)',
       'MacBook Air (M1)', 'MacBook Pro 13" (M1)',
       'MacBook Pro 16" (Intel)', 'MacBook Pro 15" (Intel)', 'MacBook Pro 13" (Intel)',
@@ -394,6 +413,7 @@ export const BRANDS: Brand[] = [
     deviceType: 'laptop',
     logo: require('../assets/samsung-logo.png'),
     models: [
+      'Galaxy Book 5 Pro', 'Galaxy Book 5',
       'Galaxy Book 4 Ultra', 'Galaxy Book 4 Pro', 'Galaxy Book 4',
       'Galaxy Book 3 Ultra', 'Galaxy Book 3 Pro', 'Galaxy Book 3',
       'Galaxy Book 2 Pro', 'Galaxy Book 2'
@@ -431,7 +451,7 @@ export const BRANDS: Brand[] = [
     name: 'Microsoft Surface',
     deviceType: 'laptop',
     models: [
-      'Surface Laptop 6', 'Surface Laptop 5', 'Surface Laptop Studio 2',
+      'Surface Laptop 7', 'Surface Laptop 6', 'Surface Laptop 5', 'Surface Laptop Studio 2',
       'Surface Laptop Go 3', 'Surface Book 3'
     ]
   },
@@ -449,7 +469,8 @@ export const BRANDS: Brand[] = [
     deviceType: 'watch',
     logo: require('../assets/apple-logo.png'),
     models: [
-      'Apple Watch Ultra 2', 'Apple Watch Ultra',
+      'Apple Watch Series 11', 'Apple Watch Ultra 3', 'Apple Watch SE 3',
+      'Apple Watch Series 10', 'Apple Watch Ultra 2', 'Apple Watch Ultra',
       'Apple Watch Series 9', 'Apple Watch Series 8', 'Apple Watch Series 7',
       'Apple Watch SE (2022)', 'Apple Watch SE'
     ]
@@ -460,6 +481,7 @@ export const BRANDS: Brand[] = [
     deviceType: 'watch',
     logo: require('../assets/samsung-logo.png'),
     models: [
+      'Galaxy Watch 8 Classic', 'Galaxy Watch 8', 'Galaxy Watch Ultra', 'Galaxy Watch 7',
       'Galaxy Watch 6 Classic', 'Galaxy Watch 6',
       'Galaxy Watch 5 Pro', 'Galaxy Watch 5',
       'Galaxy Watch 4 Classic', 'Galaxy Watch 4'
@@ -471,6 +493,7 @@ export const BRANDS: Brand[] = [
     deviceType: 'watch',
     logo: require('../assets/huawei-logo.png'),
     models: [
+      'Watch GT 5 Pro', 'Watch GT 5', 'Watch 5',
       'Watch Ultimate', 'Watch 4 Pro', 'Watch 4',
       'Watch GT 4', 'Watch GT 3 Pro', 'Watch GT 3',
       'Watch Fit 3', 'Watch Fit 2'
@@ -652,6 +675,69 @@ export const ISSUES: Issue[] = [
     deviceType: 'phone',
   },
   {
+    id: 'phone-mic',
+    name: 'Microphone Repair',
+    nameAr: 'إصلاح المايكروفون',
+    icon: 'microphone',
+    estimatedPrice: 140,
+    priceRange: { min: 100, max: 300 },
+    deviceType: 'phone',
+  },
+  {
+    id: 'phone-earpiece',
+    name: 'Earpiece / Call Audio',
+    nameAr: 'سماعة المكالمات',
+    icon: 'phone-in-talk',
+    estimatedPrice: 140,
+    priceRange: { min: 100, max: 300 },
+    deviceType: 'phone',
+  },
+  {
+    id: 'phone-biometrics',
+    name: 'Face ID / Fingerprint',
+    nameAr: 'بصمة الوجه / الإصبع',
+    icon: 'face-recognition',
+    estimatedPrice: 250,
+    priceRange: { min: 150, max: 600 },
+    deviceType: 'phone',
+  },
+  {
+    id: 'phone-buttons',
+    name: 'Power / Volume Buttons',
+    nameAr: 'أزرار الطاقة / الصوت',
+    icon: 'gesture-tap-button',
+    estimatedPrice: 120,
+    priceRange: { min: 80, max: 250 },
+    deviceType: 'phone',
+  },
+  {
+    id: 'phone-network',
+    name: 'Network / SIM Issues',
+    nameAr: 'مشاكل الشبكة / الشريحة',
+    icon: 'sim-alert',
+    estimatedPrice: 160,
+    priceRange: { min: 100, max: 400 },
+    deviceType: 'phone',
+  },
+  {
+    id: 'phone-no-power',
+    name: "Dead / Won't Turn On",
+    nameAr: 'الجهاز لا يعمل',
+    icon: 'power-plug-off',
+    estimatedPrice: 200,
+    priceRange: { min: 120, max: 600 },
+    deviceType: 'phone',
+  },
+  {
+    id: 'phone-data-recovery',
+    name: 'Data Recovery',
+    nameAr: 'استعادة البيانات',
+    icon: 'backup-restore',
+    estimatedPrice: 250,
+    priceRange: { min: 150, max: 800 },
+    deviceType: 'phone',
+  },
+  {
     id: 'other-phone',
     name: 'Other Issue',
     nameAr: 'أخرى',
@@ -725,6 +811,60 @@ export const ISSUES: Issue[] = [
     deviceType: 'laptop',
   },
   {
+    id: 'laptop-overheat',
+    name: 'Overheating / Fan Cleaning',
+    nameAr: 'سخونة الجهاز / تنظيف المراوح',
+    icon: 'fan',
+    estimatedPrice: 150,
+    priceRange: { min: 100, max: 350 },
+    deviceType: 'laptop',
+  },
+  {
+    id: 'laptop-charging',
+    name: 'Charging Port / Adapter',
+    nameAr: 'منفذ الشحن / الشاحن',
+    icon: 'power-plug',
+    estimatedPrice: 180,
+    priceRange: { min: 120, max: 450 },
+    deviceType: 'laptop',
+  },
+  {
+    id: 'laptop-motherboard',
+    name: 'Motherboard Repair',
+    nameAr: 'إصلاح اللوحة الأم',
+    icon: 'chip',
+    estimatedPrice: 450,
+    priceRange: { min: 250, max: 1500 },
+    deviceType: 'laptop',
+  },
+  {
+    id: 'laptop-data-recovery',
+    name: 'Data Recovery',
+    nameAr: 'استعادة البيانات',
+    icon: 'backup-restore',
+    estimatedPrice: 300,
+    priceRange: { min: 150, max: 900 },
+    deviceType: 'laptop',
+  },
+  {
+    id: 'laptop-wifi',
+    name: 'Wi-Fi / Network Issues',
+    nameAr: 'مشاكل الواي فاي / الشبكة',
+    icon: 'wifi-off',
+    estimatedPrice: 130,
+    priceRange: { min: 80, max: 300 },
+    deviceType: 'laptop',
+  },
+  {
+    id: 'laptop-speaker',
+    name: 'Speaker Repair',
+    nameAr: 'إصلاح السماعات',
+    icon: 'volume-high',
+    estimatedPrice: 160,
+    priceRange: { min: 100, max: 350 },
+    deviceType: 'laptop',
+  },
+  {
     id: 'other-laptop',
     name: 'Other Issue',
     nameAr: 'أخرى',
@@ -771,6 +911,42 @@ export const ISSUES: Issue[] = [
     deviceType: 'tablet',
   },
   {
+    id: 'tablet-camera',
+    name: 'Camera Repair',
+    nameAr: 'إصلاح الكاميرا',
+    icon: 'camera',
+    estimatedPrice: 180,
+    priceRange: { min: 120, max: 450 },
+    deviceType: 'tablet',
+  },
+  {
+    id: 'tablet-speaker',
+    name: 'Speaker Repair',
+    nameAr: 'إصلاح السماعات',
+    icon: 'volume-high',
+    estimatedPrice: 150,
+    priceRange: { min: 100, max: 350 },
+    deviceType: 'tablet',
+  },
+  {
+    id: 'tablet-buttons',
+    name: 'Power / Volume Buttons',
+    nameAr: 'أزرار الطاقة / الصوت',
+    icon: 'gesture-tap-button',
+    estimatedPrice: 130,
+    priceRange: { min: 80, max: 260 },
+    deviceType: 'tablet',
+  },
+  {
+    id: 'tablet-liquid',
+    name: 'Water Damage',
+    nameAr: 'ضرر السوائل',
+    icon: 'water-alert',
+    estimatedPrice: 300,
+    priceRange: { min: 200, max: 800 },
+    deviceType: 'tablet',
+  },
+  {
     id: 'other-tablet',
     name: 'Other Issue',
     nameAr: 'أخرى',
@@ -805,6 +981,42 @@ export const ISSUES: Issue[] = [
     icon: 'circle-double',
     estimatedPrice: 200,
     priceRange: { min: 150, max: 280 },
+    deviceType: 'watch',
+  },
+  {
+    id: 'watch-charging',
+    name: 'Charging Issues',
+    nameAr: 'مشاكل الشحن',
+    icon: 'power-plug',
+    estimatedPrice: 140,
+    priceRange: { min: 100, max: 300 },
+    deviceType: 'watch',
+  },
+  {
+    id: 'watch-strap',
+    name: 'Strap / Band Replacement',
+    nameAr: 'تبديل السوار',
+    icon: 'watch-variant',
+    estimatedPrice: 80,
+    priceRange: { min: 50, max: 200 },
+    deviceType: 'watch',
+  },
+  {
+    id: 'watch-sensor',
+    name: 'Sensors / Heart-rate',
+    nameAr: 'الحساسات / نبض القلب',
+    icon: 'heart-pulse',
+    estimatedPrice: 180,
+    priceRange: { min: 100, max: 400 },
+    deviceType: 'watch',
+  },
+  {
+    id: 'watch-software',
+    name: 'Software / Pairing Issues',
+    nameAr: 'مشاكل النظام / الاقتران',
+    icon: 'cog',
+    estimatedPrice: 100,
+    priceRange: { min: 60, max: 250 },
     deviceType: 'watch',
   },
   {
@@ -940,6 +1152,33 @@ export const ISSUES: Issue[] = [
     icon: 'gamepad-variant',
     estimatedPrice: 120,
     priceRange: { min: 60, max: 300 },
+    deviceType: 'gaming',
+  },
+  {
+    id: 'gaming-storage',
+    name: 'Storage Upgrade / Repair',
+    nameAr: 'ترقية / إصلاح التخزين',
+    icon: 'harddisk',
+    estimatedPrice: 200,
+    priceRange: { min: 120, max: 600 },
+    deviceType: 'gaming',
+  },
+  {
+    id: 'gaming-port',
+    name: 'USB / Charging Port',
+    nameAr: 'منفذ USB / الشحن',
+    icon: 'usb-port',
+    estimatedPrice: 160,
+    priceRange: { min: 100, max: 400 },
+    deviceType: 'gaming',
+  },
+  {
+    id: 'gaming-software',
+    name: 'Software / Firmware Issues',
+    nameAr: 'مشاكل النظام / البرمجيات',
+    icon: 'update',
+    estimatedPrice: 130,
+    priceRange: { min: 80, max: 300 },
     deviceType: 'gaming',
   },
   {
