@@ -58,3 +58,5 @@ GoogleService-Info.plist
 *-complete.md
 .claude/
 secrets/
+
+.env.local
