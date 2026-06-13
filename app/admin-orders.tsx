@@ -41,25 +41,27 @@ interface AdminOrder {
   final_price?: number | null;
   customer_phone?: string | null;
   created_at?: string | null;
+  user_id?: string | null;
+  customer?: { name?: string | null } | { name?: string | null }[] | null;
 }
 
 type FilterKey = 'all' | 'pending' | 'active' | 'completed' | 'cancelled';
 
 const STATUS_META = (s: string, isRTL: boolean): { label: string; color: string } => {
   const map: Record<string, { ar: string; en: string; color: string }> = {
-    pending:       { ar: 'قيد الانتظار', en: 'Pending',     color: '#F59E0B' },
-    confirmed:     { ar: 'مؤكد',         en: 'Confirmed',   color: '#3B82F6' },
-    accepted:      { ar: 'مقبول',        en: 'Accepted',    color: '#3B82F6' },
-    picking_up:    { ar: 'جاري الاستلام', en: 'Picking up', color: '#6366F1' },
-    diagnosing:    { ar: 'جاري الفحص',   en: 'Diagnosing',  color: '#6366F1' },
-    quoted:        { ar: 'عرض سعر',      en: 'Quoted',      color: '#8B5CF6' },
-    waiting_parts: { ar: 'انتظار قطع',   en: 'Waiting parts', color: '#8B5CF6' },
-    repairing:     { ar: 'جاري الإصلاح', en: 'Repairing',   color: '#6366F1' },
-    testing:       { ar: 'اختبار',       en: 'Testing',     color: '#6366F1' },
-    delivering:    { ar: 'جاري التوصيل', en: 'Delivering',  color: '#06B6D4' },
+    pending: { ar: 'قيد الانتظار', en: 'Pending', color: '#F59E0B' },
+    confirmed: { ar: 'مؤكد', en: 'Confirmed', color: '#3B82F6' },
+    accepted: { ar: 'مقبول', en: 'Accepted', color: '#3B82F6' },
+    picking_up: { ar: 'جاري الاستلام', en: 'Picking up', color: '#6366F1' },
+    diagnosing: { ar: 'جاري الفحص', en: 'Diagnosing', color: '#6366F1' },
+    quoted: { ar: 'عرض سعر', en: 'Quoted', color: '#8B5CF6' },
+    waiting_parts: { ar: 'انتظار قطع', en: 'Waiting parts', color: '#8B5CF6' },
+    repairing: { ar: 'جاري الإصلاح', en: 'Repairing', color: '#6366F1' },
+    testing: { ar: 'اختبار', en: 'Testing', color: '#6366F1' },
+    delivering: { ar: 'جاري التوصيل', en: 'Delivering', color: '#06B6D4' },
     awaiting_payment: { ar: 'بانتظار الدفع', en: 'Awaiting payment', color: '#D97706' },
-    completed:     { ar: 'مكتمل',        en: 'Completed',   color: '#16A34A' },
-    cancelled:     { ar: 'ملغي',         en: 'Cancelled',   color: '#DC2626' },
+    completed: { ar: 'مكتمل', en: 'Completed', color: '#16A34A' },
+    cancelled: { ar: 'ملغي', en: 'Cancelled', color: '#DC2626' },
   };
   const m = map[s];
   return m ? { label: isRTL ? m.ar : m.en, color: m.color } : { label: s, color: '#8A94A3' };
@@ -87,7 +89,9 @@ export default function AdminOrdersScreen() {
     try {
       const { data, error } = await supabase
         .from('orders')
-        .select('id, order_number, device_brand, device_model, status, estimated_price, final_price, customer_phone, created_at')
+        .select(
+          'id, order_number, device_brand, device_model, status, estimated_price, final_price, customer_phone, created_at, user_id, customer:users!user_id(name)'
+        )
         .is('deleted_at', null)
         .order('created_at', { ascending: false })
         .limit(150);
@@ -110,17 +114,25 @@ export default function AdminOrdersScreen() {
   const q = search.trim().toLowerCase();
   const visible = orders.filter((o) => {
     const statusOk =
-      filter === 'all' ? true
-      : filter === 'pending' ? o.status === 'pending'
-      : filter === 'completed' ? o.status === 'completed'
-      : filter === 'cancelled' ? o.status === 'cancelled'
-      : !TERMINAL.includes(o.status) && o.status !== 'pending';
+      filter === 'all'
+        ? true
+        : filter === 'pending'
+          ? o.status === 'pending'
+          : filter === 'completed'
+            ? o.status === 'completed'
+            : filter === 'cancelled'
+              ? o.status === 'cancelled'
+              : !TERMINAL.includes(o.status) && o.status !== 'pending';
     if (!statusOk) return false;
     if (!q) return true;
+    const customerName = Array.isArray(o.customer)
+      ? (o.customer[0]?.name ?? '')
+      : (o.customer?.name ?? '');
     return (
       (o.order_number ?? '').toLowerCase().includes(q) ||
       [o.device_brand, o.device_model].filter(Boolean).join(' ').toLowerCase().includes(q) ||
-      (o.customer_phone ?? '').toLowerCase().includes(q)
+      (o.customer_phone ?? '').toLowerCase().includes(q) ||
+      customerName.toLowerCase().includes(q)
     );
   });
 
@@ -158,15 +170,15 @@ export default function AdminOrdersScreen() {
       else acc.active++;
       return acc;
     },
-    { all: 0, pending: 0, active: 0, completed: 0, cancelled: 0 } as Record<FilterKey, number>,
+    { all: 0, pending: 0, active: 0, completed: 0, cancelled: 0 } as Record<FilterKey, number>
   );
 
   const FILTERS: AdminFilterChip<FilterKey>[] = [
-    { key: 'all',       ar: 'الكل',         en: 'All',         count: counts.all },
-    { key: 'pending',   ar: 'قيد الانتظار', en: 'Pending',     count: counts.pending },
-    { key: 'active',    ar: 'قيد التنفيذ',  en: 'In progress', count: counts.active },
-    { key: 'completed', ar: 'مكتملة',       en: 'Completed',   count: counts.completed },
-    { key: 'cancelled', ar: 'ملغاة',        en: 'Cancelled',   count: counts.cancelled },
+    { key: 'all', ar: 'الكل', en: 'All', count: counts.all },
+    { key: 'pending', ar: 'قيد الانتظار', en: 'Pending', count: counts.pending },
+    { key: 'active', ar: 'قيد التنفيذ', en: 'In progress', count: counts.active },
+    { key: 'completed', ar: 'مكتملة', en: 'Completed', count: counts.completed },
+    { key: 'cancelled', ar: 'ملغاة', en: 'Cancelled', count: counts.cancelled },
   ];
 
   return (
@@ -174,31 +186,37 @@ export default function AdminOrdersScreen() {
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
       <AdminScreenHeader
         title={isRTL ? 'إدارة الطلبات' : 'Orders Management'}
-        subtitle={isRTL ? `${visible.length} من ${orders.length}` : `${visible.length} of ${orders.length}`}
+        subtitle={
+          isRTL ? `${visible.length} من ${orders.length}` : `${visible.length} of ${orders.length}`
+        }
         rightIcon="refresh"
-        onRightPress={() => { setRefreshing(true); load(); }}
+        onRightPress={() => {
+          setRefreshing(true);
+          load();
+        }}
         rightLabel={isRTL ? 'تحديث' : 'Refresh'}
       />
 
       <AdminSearchBar
         value={search}
         onChangeText={setSearch}
-        placeholder={isRTL ? 'ابحث برقم الطلب أو الجهاز أو الهاتف' : 'Search by request no., device or phone'}
+        placeholder={
+          isRTL ? 'ابحث برقم الطلب أو الجهاز أو الهاتف' : 'Search by request no., device or phone'
+        }
         resultCount={search.trim() ? visible.length : undefined}
       />
 
-      <AdminFilterChips<FilterKey>
-        filters={FILTERS}
-        value={filter}
-        onChange={setFilter}
-      />
+      <AdminFilterChips<FilterKey> filters={FILTERS} value={filter} onChange={setFilter} />
 
       <ScrollView
         contentContainerStyle={{ padding: SPACING.lg, paddingBottom: 40 }}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
-            onRefresh={() => { setRefreshing(true); load(); }}
+            onRefresh={() => {
+              setRefreshing(true);
+              load();
+            }}
             tintColor={COLORS.primary}
           />
         }
@@ -210,32 +228,50 @@ export default function AdminOrdersScreen() {
             icon="clipboard-text-outline"
             title={
               search.trim() || filter !== 'all'
-                ? (isRTL ? 'لا توجد نتائج مطابقة' : 'No matching results')
-                : (isRTL ? 'لا توجد طلبات بعد' : 'No orders yet')
+                ? isRTL
+                  ? 'لا توجد نتائج مطابقة'
+                  : 'No matching results'
+                : isRTL
+                  ? 'لا توجد طلبات بعد'
+                  : 'No orders yet'
             }
             body={
               search.trim() || filter !== 'all'
-                ? (isRTL ? 'جرّب تعديل الفلتر أو البحث' : 'Try a different filter or search term')
-                : (isRTL ? 'ستظهر الطلبات هنا فور إنشائها' : 'Orders appear here as soon as they are created')
+                ? isRTL
+                  ? 'جرّب تعديل الفلتر أو البحث'
+                  : 'Try a different filter or search term'
+                : isRTL
+                  ? 'ستظهر الطلبات هنا فور إنشائها'
+                  : 'Orders appear here as soon as they are created'
             }
             ctaLabel={
               search.trim() || filter !== 'all'
-                ? (isRTL ? 'مسح الفلاتر' : 'Clear filters')
+                ? isRTL
+                  ? 'مسح الفلاتر'
+                  : 'Clear filters'
                 : undefined
             }
-            onCtaPress={() => { setSearch(''); setFilter('all'); }}
+            onCtaPress={() => {
+              setSearch('');
+              setFilter('all');
+            }}
           />
         ) : (
           visible.map((o) => {
             const meta = STATUS_META(o.status, isRTL);
             const tone = orderStatusTone(o.status);
             const price = o.final_price ?? o.estimated_price ?? 0;
+            const customerName = Array.isArray(o.customer)
+              ? (o.customer[0]?.name ?? '')
+              : (o.customer?.name ?? '');
             return (
               <TouchableOpacity
                 key={o.id}
                 style={styles.card}
                 activeOpacity={0.8}
-                onPress={() => router.push({ pathname: '/admin-order-detail', params: { id: o.id } })}
+                onPress={() =>
+                  router.push({ pathname: '/admin-order-detail', params: { id: o.id } })
+                }
               >
                 <View style={styles.cardNumRow}>
                   <View style={styles.numBadge}>
@@ -243,23 +279,30 @@ export default function AdminOrdersScreen() {
                     <Text style={styles.numBadgeText}>{o.order_number ?? '—'}</Text>
                   </View>
                   {o.created_at && (
-                    <Text style={styles.date}>
-                      {fmtAdminDate(o.created_at, isRTL)}
-                    </Text>
+                    <Text style={styles.date}>{fmtAdminDate(o.created_at, isRTL)}</Text>
                   )}
                 </View>
                 <View style={styles.cardTop}>
                   <Text style={styles.device} numberOfLines={1}>
-                    {[o.device_brand, o.device_model].filter(Boolean).join(' ') || (isRTL ? 'طلب' : 'Order')}
+                    {[o.device_brand, o.device_model].filter(Boolean).join(' ') ||
+                      (isRTL ? 'طلب' : 'Order')}
                   </Text>
                   <AdminStatusPill label={meta.label} tone={tone.tone} icon={tone.icon} />
                 </View>
                 <View style={styles.cardBottom}>
-                  <Text style={styles.meta}>
-                    {o.customer_phone || '—'}
-                  </Text>
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <Text style={styles.metaPrimary} numberOfLines={1}>
+                      {customerName || (isRTL ? 'بدون اسم' : 'No name')}
+                    </Text>
+                    {!!o.customer_phone && (
+                      <Text style={styles.metaSecondary} numberOfLines={1}>
+                        {o.customer_phone}
+                      </Text>
+                    )}
+                  </View>
                   <Text style={styles.price}>
-                    {Number(price).toLocaleString(isRTL ? 'ar-SA' : 'en-US')} {isRTL ? 'ر.س' : 'SAR'}
+                    {Number(price).toLocaleString(isRTL ? 'ar-SA' : 'en-US')}{' '}
+                    {isRTL ? 'ر.س' : 'SAR'}
                   </Text>
                 </View>
               </TouchableOpacity>
@@ -359,6 +402,18 @@ const createStyles = (C: any, isRTL: boolean) =>
       marginTop: 8,
     },
     meta: { color: C.textSecondary, fontSize: 13 },
+    metaPrimary: {
+      color: C.text,
+      fontSize: 13.5,
+      fontWeight: '700',
+      textAlign: isRTL ? 'right' : 'left',
+    },
+    metaSecondary: {
+      color: C.textSecondary,
+      fontSize: 12,
+      marginTop: 2,
+      textAlign: isRTL ? 'right' : 'left',
+    },
     price: { color: C.primary, fontWeight: '800', fontSize: 14 },
     date: { color: C.textLight, fontSize: 11, marginTop: 6, textAlign: isRTL ? 'right' : 'left' },
     empty: { alignItems: 'center', paddingVertical: 60 },
