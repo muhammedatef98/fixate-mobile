@@ -1,5 +1,34 @@
 project_id = "gpucisjxecupcyosumgy"
 
+# ── Auth ──────────────────────────────────────────────────────────────
+# These values are pushed to the hosted project via `supabase config push`,
+# so every field here must hold the real production value — omitted fields
+# get overwritten with CLI defaults on push.
+[auth]
+site_url = "https://fixate.site"
+# GitHub Pages host for the email-change confirmation page. The repo was
+# renamed fixatee-mobile → fixate-mobile; Pages URLs do not redirect, so
+# these must always use the current repo name.
+additional_redirect_urls = [
+  "fixate://auth/callback",
+  "fixate://**",
+  "https://fixate.site/**",
+  "https://muhammedatef98.github.io/fixate-mobile/email-change-confirmation.html",
+  "https://muhammedatef98.github.io/fixate-mobile/**",
+]
+# 7 days — mobile sessions should not force hourly refreshes.
+jwt_expiry = 604800
+
+# CAPTCHA must stay OFF: the mobile app calls signInWithPassword without a
+# captcha token, so enabling this in the dashboard blocks every mobile login.
+[auth.captcha]
+enabled = false
+
+# ── Anonymous functions ───────────────────────────────────────────────
+# These MUST be reachable before the caller has a session — OTP send/verify,
+# the auto-confirming signup helper, and the static legal pages required by
+# Apple/Google for account-deletion and privacy disclosure.
+
 [functions.verify-phone-otp]
 verify_jwt = false
 
@@ -11,3 +40,30 @@ verify_jwt = false
 
 [functions.verify-otp]
 verify_jwt = false
+
+[functions.signup]
+verify_jwt = false
+
+[functions.legal-privacy]
+verify_jwt = false
+
+[functions.legal-delete-account]
+verify_jwt = false
+
+[functions.auto-close-support]
+verify_jwt = false
+
+# ── Authenticated functions ───────────────────────────────────────────
+# Supabase's default is verify_jwt = true, but we set it explicitly so a
+# future config edit can't accidentally open these to anonymous callers.
+# Each of these reads `req.headers.get('Authorization')` and rejects on
+# a missing/invalid token.
+
+[functions.delete-account]
+verify_jwt = true
+
+[functions.create-paypal-order]
+verify_jwt = true
+
+[functions.capture-paypal-order]
+verify_jwt = true
