@@ -20,15 +20,22 @@ const money = (n: number, isRTL: boolean, currency = 'SAR'): string => {
   return isRTL ? `${v} ر.س` : `${v} ${currency}`;
 };
 
-const fmtDate = (iso: string, isRTL: boolean): string => {
+/**
+ * Invoice dates are ALWAYS Gregorian + English (Latin numerals), regardless of
+ * the app's RTL/Arabic locale. We pin the calendar to 'gregory', the locale to
+ * 'en-GB' (→ "14 Jun 2026"), and the timezone to KSA so the printed date is
+ * stable and never falls back to device Hijri/ar-SA defaults. Exported so the
+ * admin billing screen formats dates identically.
+ */
+export const formatInvoiceDate = (iso: string): string => {
   try {
-    return new Date(iso).toLocaleString(isRTL ? 'ar-SA' : 'en-US', {
-      year: 'numeric',
+    return new Intl.DateTimeFormat('en-GB', {
+      day: '2-digit',
       month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
+      year: 'numeric',
+      calendar: 'gregory',
+      timeZone: 'Asia/Riyadh',
+    }).format(new Date(iso));
   } catch {
     return iso;
   }
@@ -171,7 +178,7 @@ export const buildInvoiceHtml = async (
     <div class="doc">
       <div class="title">${t.invoice}</div>
       <div class="field">${t.number} <b>${esc(invoice.invoice_number)}</b></div>
-      <div class="field">${t.date}: ${fmtDate(invoice.issued_at, isRTL)}</div>
+      <div class="field">${t.date}: <span dir="ltr">${formatInvoiceDate(invoice.issued_at)}</span></div>
       ${invoice.order_id ? `<div class="field">${t.order} <b>${esc(invoice.order_id.slice(0, 8))}</b></div>` : ''}
     </div>
   </div>

@@ -38,7 +38,7 @@ import {
   type InvoiceStatus,
   type InvoiceSettings,
 } from '../services/invoiceService';
-import { generateAndShareInvoicePdf } from '../services/invoicePdf';
+import { generateAndShareInvoicePdf, formatInvoiceDate } from '../services/invoicePdf';
 import { getFriendlyError } from '../utils/errorMessages';
 
 type Tab = 'invoices' | 'settings';
@@ -164,7 +164,7 @@ export default function AdminBillingScreen() {
                     <View style={{ flex: 1 }}>
                       <Text style={styles.invNo}>{inv.invoice_number}</Text>
                       <Text style={styles.invSub} numberOfLines={1}>
-                        {inv.customer_name || inv.customer_phone || '—'} · {new Date(inv.issued_at).toLocaleDateString(isRTL ? 'ar-SA' : 'en-US')}
+                        {inv.customer_name || inv.customer_phone || '—'} · {formatInvoiceDate(inv.issued_at)}
                       </Text>
                     </View>
                     <View style={{ alignItems: isRTL ? 'flex-start' : 'flex-end', gap: 6 }}>
@@ -249,7 +249,7 @@ function InvoiceDetail({ invoice, isRTL, COLORS, styles, onClose, onChanged }: a
           <DetailRow label={isRTL ? 'العميل' : 'Customer'} value={invoice.customer_name} isRTL={isRTL} styles={styles} />
           <DetailRow label={isRTL ? 'الجوال' : 'Phone'} value={invoice.customer_phone} isRTL={isRTL} styles={styles} />
           {!!invoice.technician_name && <DetailRow label={isRTL ? 'الفني' : 'Technician'} value={invoice.technician_name} isRTL={isRTL} styles={styles} />}
-          <DetailRow label={isRTL ? 'التاريخ' : 'Date'} value={new Date(invoice.issued_at).toLocaleString(isRTL ? 'ar-SA' : 'en-US')} isRTL={isRTL} styles={styles} />
+          <DetailRow label={isRTL ? 'التاريخ' : 'Date'} value={formatInvoiceDate(invoice.issued_at)} isRTL={isRTL} styles={styles} />
 
           <View style={styles.lineHead}>
             <Text style={[styles.lineHeadText, { flex: 1 }]}>{isRTL ? 'الوصف' : 'Item'}</Text>
