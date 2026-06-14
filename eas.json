@@ -36,9 +36,7 @@
         "track": "internal",
         "releaseStatus": "draft"
       },
-      "ios": {
-        "ascAppId": "PENDING"
-      }
+      "ios": {}
     }
   }
 }
