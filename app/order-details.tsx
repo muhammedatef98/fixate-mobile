@@ -426,19 +426,21 @@ export default function OrderDetailsScreen() {
 
             <View style={[styles.divider, { backgroundColor: COLORS.border }]} />
 
-            <View style={styles.infoBlock}>
-              <Text style={[styles.infoLabel, { color: COLORS.textSecondary, marginBottom: 6 }]}>
+            <View style={[styles.infoRow, { alignItems: 'flex-start' }]}>
+              <Text style={[styles.infoLabel, { color: COLORS.textSecondary }]}>
                 {isRTL ? 'المشكلة' : 'Issue'}
               </Text>
               <Text
-                style={{
-                  color: COLORS.text,
-                  fontSize: 15,
-                  fontWeight: '600',
-                  lineHeight: 22,
-                  textAlign: isRTL ? 'right' : 'left',
-                  writingDirection: isRTL ? 'rtl' : 'ltr',
-                }}
+                style={[
+                  styles.infoValue,
+                  {
+                    color: COLORS.text,
+                    flex: 1,
+                    fontSize: 15,
+                    lineHeight: 22,
+                    writingDirection: isRTL ? 'rtl' : 'ltr',
+                  },
+                ]}
               >
                 {order.issue_description}
               </Text>
@@ -520,6 +522,9 @@ export default function OrderDetailsScreen() {
                 {amountDue} {isRTL ? 'ر.س' : 'SAR'}
               </Text>
             </View>
+            <Text style={{ color: COLORS.textSecondary, fontSize: 11, marginBottom: 8, textAlign: isRTL ? 'right' : 'left' }}>
+              {isRTL ? 'الأسعار شاملة ضريبة القيمة المضافة' : 'Prices include VAT'}
+            </Text>
             {addonsTotal > 0 && (
               <Text style={{ color: COLORS.textSecondary, fontSize: 12, marginBottom: 10, textAlign: isRTL ? 'right' : 'left' }}>
                 {isRTL
@@ -659,13 +664,16 @@ export default function OrderDetailsScreen() {
                   </View>
                 )}
                 <View style={styles.priceRow}>
-                  <Text style={[styles.priceLabel, { color: COLORS.textSecondary }]}>
+                  <Text style={[styles.priceLabel, { color: COLORS.text, fontWeight: '800' }]}>
                     {isRTL ? 'المبلغ المستحق' : 'Amount due'}
                   </Text>
                   <Text style={[styles.priceAmount, { color: COLORS.primary }]}>
                     {amountDue} {isRTL ? 'ر.س' : 'SAR'}
                   </Text>
                 </View>
+                <Text style={{ color: COLORS.textSecondary, fontSize: 11, marginTop: 4, textAlign: isRTL ? 'right' : 'left' }}>
+                  {isRTL ? 'الأسعار شاملة ضريبة القيمة المضافة' : 'Prices include VAT'}
+                </Text>
               </>
             ) : (
               <View

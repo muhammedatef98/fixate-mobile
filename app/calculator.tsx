@@ -180,8 +180,8 @@ export default function PriceCalculatorScreen() {
               }
             </Text>
             <Text style={styles.disclaimer}>
-              {isRTL 
-                ? '• الأسعار شاملة للضريبة'
+              {isRTL
+                ? '• الأسعار شاملة ضريبة القيمة المضافة'
                 : '• Prices include VAT'
               }
             </Text>

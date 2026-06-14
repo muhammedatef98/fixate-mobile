@@ -1187,6 +1187,9 @@ const makeStyles = (isRTL: boolean) => StyleSheet.create({
     flex: 1,
     fontSize: 14,
     fontWeight: '500',
+    // Push the value to the opposite side of the label (device & problem
+    // rows read like "الجهاز … Apple Watch" / "المشكلة … إصلاح الأزرار").
+    textAlign: isRTL ? 'left' : 'right',
   },
   locationText: {
     fontSize: 14,

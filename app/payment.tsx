@@ -230,6 +230,7 @@ export default function PaymentScreen() {
             <Text style={[styles.breakdownTitle, { color: COLORS.text }]}>
               {isRTL ? 'تفاصيل المبلغ' : 'Price breakdown'}
             </Text>
+            {/* Standard order: repair → delivery → add-ons → discount → amount due */}
             <View style={styles.bdRow}>
               <Text style={[styles.bdLabel, { color: COLORS.textSecondary }]}>
                 {isRTL ? 'سعر الإصلاح' : 'Repair price'}
@@ -238,16 +239,6 @@ export default function PaymentScreen() {
                 {repairPrice.toLocaleString(isRTL ? 'ar-SA' : 'en-US')} {isRTL ? 'ر.س' : 'SAR'}
               </Text>
             </View>
-            {discount > 0 && (
-              <View style={styles.bdRow}>
-                <Text style={[styles.bdLabel, { color: COLORS.primary }]}>
-                  {isRTL ? 'الخصم' : 'Discount'}
-                </Text>
-                <Text style={[styles.bdValue, { color: COLORS.primary }]}>
-                  -{discount.toLocaleString(isRTL ? 'ar-SA' : 'en-US')} {isRTL ? 'ر.س' : 'SAR'}
-                </Text>
-              </View>
-            )}
             {deliveryFee > 0 && (
               <View style={styles.bdRow}>
                 <Text style={[styles.bdLabel, { color: COLORS.textSecondary }]}>
@@ -288,15 +279,28 @@ export default function PaymentScreen() {
                 ))}
               </>
             )}
+            {discount > 0 && (
+              <View style={styles.bdRow}>
+                <Text style={[styles.bdLabel, { color: COLORS.primary }]}>
+                  {isRTL ? 'الخصم' : 'Discount'}
+                </Text>
+                <Text style={[styles.bdValue, { color: COLORS.primary }]}>
+                  -{discount.toLocaleString(isRTL ? 'ar-SA' : 'en-US')} {isRTL ? 'ر.س' : 'SAR'}
+                </Text>
+              </View>
+            )}
             <View style={[styles.bdDivider, { backgroundColor: COLORS.border }]} />
             <View style={styles.bdRow}>
-              <Text style={[styles.bdLabel, { color: COLORS.text, fontWeight: '800' }]}>
-                {isRTL ? 'الإجمالي' : 'Total'}
+              <Text style={[styles.bdLabel, { color: COLORS.text, fontWeight: '900', fontSize: 15 }]}>
+                {isRTL ? 'المبلغ المستحق' : 'Amount due'}
               </Text>
-              <Text style={[styles.bdValue, { color: COLORS.primary, fontSize: 16, fontWeight: '900' }]}>
+              <Text style={[styles.bdValue, { color: COLORS.primary, fontSize: 18, fontWeight: '900' }]}>
                 {(amount ?? 0).toLocaleString(isRTL ? 'ar-SA' : 'en-US')} {isRTL ? 'ر.س' : 'SAR'}
               </Text>
             </View>
+            <Text style={[styles.bdVatNote, { color: COLORS.textSecondary }]}>
+              {isRTL ? 'الأسعار شاملة ضريبة القيمة المضافة' : 'Prices include VAT'}
+            </Text>
           </View>
         )}
 
@@ -455,6 +459,11 @@ const makeStyles = (C: any, isRTL: boolean, SHADOWS: any) =>
     bdLabel: { fontSize: 13, textAlign: isRTL ? 'right' : 'left' },
     bdValue: { fontSize: 13, fontWeight: '700' },
     bdDivider: { height: StyleSheet.hairlineWidth, marginVertical: 8 },
+    bdVatNote: {
+      fontSize: 11,
+      marginTop: 6,
+      textAlign: isRTL ? 'right' : 'left',
+    },
     bdSubhead: {
       fontSize: 11,
       fontWeight: '700',

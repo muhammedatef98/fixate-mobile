@@ -1568,8 +1568,19 @@ export default function RequestScreen() {
                 </View>
               </View>
 
+              {selectedServiceType !== 'personal_handoff' && (deliveryFee > 0 || isFreeDelivery) && (
+                <View style={styles.summaryRow}>
+                  <Text style={styles.summaryLabel}>{isRTL ? 'رسوم التوصيل' : 'Delivery fee'}</Text>
+                  <Text style={styles.summaryValue}>
+                    {isFreeDelivery
+                      ? (isRTL ? 'مجاناً' : 'Free')
+                      : `${deliveryFee} ${isRTL ? 'ر.س' : 'SAR'}`}
+                  </Text>
+                </View>
+              )}
+
               <View style={styles.summaryRow}>
-                <Text style={styles.summaryLabel}>{isRTL ? 'الفحص' : 'Inspection'}</Text>
+                <Text style={styles.summaryLabel}>{isRTL ? 'رسوم الفحص' : 'Inspection fee'}</Text>
                 <Text
                   style={[
                     styles.summaryValue,
@@ -1581,17 +1592,6 @@ export default function RequestScreen() {
                     : isRTL ? 'مجاني' : 'Free'}
                 </Text>
               </View>
-
-              {selectedServiceType !== 'personal_handoff' && (deliveryFee > 0 || isFreeDelivery) && (
-                <View style={styles.summaryRow}>
-                  <Text style={styles.summaryLabel}>{isRTL ? 'رسوم التوصيل' : 'Delivery fee'}</Text>
-                  <Text style={styles.summaryValue}>
-                    {isFreeDelivery
-                      ? (isRTL ? 'مجاناً' : 'Free')
-                      : `${deliveryFee} ${isRTL ? 'ر.س' : 'SAR'}`}
-                  </Text>
-                </View>
-              )}
 
               {commitmentDue > 0 && (
                 <View style={styles.summaryRow}>
@@ -1610,6 +1610,10 @@ export default function RequestScreen() {
                   </Text>
                 </View>
               )}
+
+              <Text style={styles.summaryVatNote}>
+                {isRTL ? 'الأسعار شاملة ضريبة القيمة المضافة' : 'Prices include VAT'}
+              </Text>
             </View>
 
             {/* Service center — shown for drop-off / personal handoff only. */}
@@ -1862,6 +1866,7 @@ const createStyles = (COLORS: any, isRTL: boolean, SHADOWS: any) => StyleSheet.c
   summaryRow: { flexDirection: isRTL ? 'row-reverse' : 'row', justifyContent: 'space-between', paddingVertical: 6, gap: 12 },
   summaryLabel: { fontSize: 14, color: COLORS.gray },
   summaryValue: { fontSize: 14, color: COLORS.text, fontWeight: '600', flex: 1, textAlign: isRTL ? 'left' : 'right' },
+  summaryVatNote: { fontSize: 11, color: COLORS.gray, marginTop: 8, textAlign: isRTL ? 'right' : 'left' },
   priceNotice: { flexDirection: isRTL ? 'row-reverse' : 'row', gap: 10, backgroundColor: COLORS.lightGreen, borderRadius: 12, padding: 12, marginVertical: 8 },
   priceNoticeTitle: { fontSize: 14, fontWeight: '800', color: COLORS.primary, textAlign: isRTL ? 'right' : 'left' },
   priceNoticeBody: { fontSize: 12, color: COLORS.gray, marginTop: 3, lineHeight: 18, textAlign: isRTL ? 'right' : 'left' },
