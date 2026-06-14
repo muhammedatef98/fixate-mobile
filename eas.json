@@ -22,7 +22,7 @@
       "channel": "production",
       "android": {
         "buildType": "app-bundle",
-        "credentialsSource": "remote"
+        "credentialsSource": "local"
       },
       "ios": {
         "buildConfiguration": "Release"

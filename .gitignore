@@ -69,3 +69,6 @@ backup_*
 secrets/
 
 .env.local
+
+# Local EAS Android signing credentials (keystore passwords) — NEVER commit
+credentials.json
