@@ -16,7 +16,7 @@ import {
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { MaterialIcons, MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
-import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
+import OsmMap from '../../components/OsmMap';
 import { getColors, getShadows, SPACING, BORDER_RADIUS } from '../../constants/theme';
 import { useApp } from '../../contexts/AppContext';
 import * as ImagePicker from 'expo-image-picker';
@@ -834,30 +834,14 @@ export default function ManageOrderScreen() {
 
           {order.latitude && order.longitude && (
             <View style={{ height: 200, width: '100%' }}>
-              <MapView
-                provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
-                style={{ flex: 1, opacity: mapReady ? 1 : 0 }}
-                initialRegion={{
-                  latitude: Number(order.latitude),
-                  longitude: Number(order.longitude),
-                  latitudeDelta: 0.005,
-                  longitudeDelta: 0.005,
-                }}
-                scrollEnabled={false}
-                zoomEnabled={false}
-                onMapReady={() => setMapReady(true)}
-              >
-                <Marker
-                  coordinate={{
-                    latitude: Number(order.latitude),
-                    longitude: Number(order.longitude),
-                  }}
-                >
-                  <View style={{ backgroundColor: COLORS.primary, padding: 8, borderRadius: 20, borderWidth: 2, borderColor: '#FFF' }}>
-                    <MaterialIcons name="person-pin-circle" size={24} color="#FFF" />
-                  </View>
-                </Marker>
-              </MapView>
+              <OsmMap
+                latitude={Number(order.latitude)}
+                longitude={Number(order.longitude)}
+                zoom={15}
+                markers={[{ lat: Number(order.latitude), lng: Number(order.longitude), color: COLORS.primary }]}
+                onReady={() => setMapReady(true)}
+                style={{ flex: 1 }}
+              />
               
               {!mapReady && (
                 <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: '#f3f4f6', justifyContent: 'center', alignItems: 'center' }}>

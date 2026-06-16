@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, Platform } from 'react-native';
-import MapView, { Marker } from 'react-native-maps';
+import OsmMap, { type OsmMapHandle, type OsmMarker } from './OsmMap';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useApp } from '../contexts/AppContext';
 import { getColors, BORDER_RADIUS } from '../constants/theme';
@@ -18,7 +18,7 @@ export default function LiveTrackingMap({ orderId, customerLat, customerLng, hei
   const COLORS = getColors(isDark);
   const isRTL = language === 'ar';
   const [techLoc, setTechLoc] = useState<TechnicianLocation | null>(null);
-  const mapRef = useRef<MapView | null>(null);
+  const mapRef = useRef<OsmMapHandle | null>(null);
 
   useEffect(() => {
     const unsub = subscribeToTechnicianLocation(orderId, (loc) => setTechLoc(loc));
@@ -26,14 +26,8 @@ export default function LiveTrackingMap({ orderId, customerLat, customerLng, hei
   }, [orderId]);
 
   useEffect(() => {
-    if (!mapRef.current || !techLoc || !customerLat || !customerLng) return;
-    mapRef.current.fitToCoordinates(
-      [
-        { latitude: techLoc.latitude, longitude: techLoc.longitude },
-        { latitude: customerLat, longitude: customerLng },
-      ],
-      { edgePadding: { top: 60, right: 60, bottom: 60, left: 60 }, animated: true }
-    );
+    // Keep both the technician and customer pins in view as the technician moves.
+    mapRef.current?.fitToMarkers();
   }, [techLoc?.latitude, techLoc?.longitude, customerLat, customerLng]);
 
   if (Platform.OS === 'web') {
@@ -57,33 +51,23 @@ export default function LiveTrackingMap({ orderId, customerLat, customerLng, hei
     );
   }
 
-  const initialRegion = {
-    latitude: techLoc.latitude,
-    longitude: techLoc.longitude,
-    latitudeDelta: 0.02,
-    longitudeDelta: 0.02,
-  };
+  const markers: OsmMarker[] = [
+    { lat: techLoc.latitude, lng: techLoc.longitude, color: '#10b981' },
+    ...(customerLat && customerLng
+      ? [{ lat: customerLat, lng: customerLng, color: '#ef4444' }]
+      : []),
+  ];
 
   return (
     <View style={[styles.wrap, { height, borderColor: COLORS.border }]}>
-      <MapView
+      <OsmMap
         ref={mapRef}
+        latitude={techLoc.latitude}
+        longitude={techLoc.longitude}
+        zoom={14}
+        markers={markers}
         style={StyleSheet.absoluteFillObject}
-        initialRegion={initialRegion}
-      >
-        <Marker
-          coordinate={{ latitude: techLoc.latitude, longitude: techLoc.longitude }}
-          title={isRTL ? 'الفني' : 'Technician'}
-          pinColor="green"
-        />
-        {customerLat && customerLng && (
-          <Marker
-            coordinate={{ latitude: customerLat, longitude: customerLng }}
-            title={isRTL ? 'موقعك' : 'You'}
-            pinColor="red"
-          />
-        )}
-      </MapView>
+      />
       <View style={styles.liveBadge}>
         <View style={styles.liveDot} />
         <Text style={styles.liveText}>{isRTL ? 'مباشر' : 'LIVE'}</Text>

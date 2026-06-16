@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, Ima
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { getColors, getShadows, SPACING, BORDER_RADIUS } from '../constants/theme';
 import { MaterialIcons, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import MapView, { Marker, UrlTile, PROVIDER_GOOGLE } from 'react-native-maps';
+import OsmMap, { type OsmMapHandle } from '../components/OsmMap';
 import * as Location from 'expo-location';
 import * as ImagePicker from 'expo-image-picker';
 import { useOrders } from '../contexts/OrdersContext';
@@ -248,10 +248,27 @@ export default function RequestScreen() {
   // same expo-location geocoder as before. Selecting a result only moves the
   // map; the existing onRegionChangeComplete drag handler still owns
   // address/city detection, so the submit payload flow stays untouched.
-  const mapRef = useRef<MapView>(null);
-  // Android Google tiles require a native API key; when none is configured we
-  // overlay free OpenStreetMap raster tiles instead (iOS keeps Apple Maps).
-  const useOsmTiles = Platform.OS === 'android' && !isGooglePlacesEnabled();
+  const mapRef = useRef<OsmMapHandle>(null);
+
+  // Set the dropped-pin location + reverse-geocode the address. Shared by the
+  // map's drag handler, the place-search result, and the GPS button so all
+  // three keep the address/city auto-detection identical.
+  const applyPickedLocation = async (latitude: number, longitude: number) => {
+    setLocation({ latitude, longitude, latitudeDelta: 0.01, longitudeDelta: 0.01 });
+    try {
+      const places = await Location.reverseGeocodeAsync({ latitude, longitude });
+      const p = places?.[0];
+      if (p) {
+        const composed = [(p.street ?? '').trim(), (p.district ?? '').trim(), (p.city ?? '').trim()]
+          .filter(Boolean)
+          .join(', ');
+        if (composed) setAddress(composed);
+        setSelectedNeighborhood((p.district ?? '').trim());
+      }
+    } catch {
+      // reverse geocode is best-effort
+    }
+  };
   const [placeQuery, setPlaceQuery] = useState('');
   const [isSearchingPlace, setIsSearchingPlace] = useState(false);
   const [placeSearchError, setPlaceSearchError] = useState<string | null>(null);
@@ -311,18 +328,12 @@ export default function RequestScreen() {
     setPlaceQuery(place.name);
     setPlaceResults([]);
     setPlaceSearchError(null);
-    const region = {
-      latitude: place.latitude,
-      longitude: place.longitude,
-      latitudeDelta: 0.01,
-      longitudeDelta: 0.01,
-    };
-    if (location && mapRef.current) {
-      mapRef.current.animateToRegion(region, 600);
-    } else {
-      // Map not rendered yet (no location) — seed it directly.
-      setLocation(region);
+    // Recenter the map if it's already mounted; applyPickedLocation seeds the
+    // location (mounting the map) and refreshes the address either way.
+    if (location) {
+      mapRef.current?.recenter(place.latitude, place.longitude, 15);
     }
+    applyPickedLocation(place.latitude, place.longitude);
   };
 
   // Auto-detect serviceable city from the dropped pin. We compute the
@@ -524,6 +535,8 @@ export default function RequestScreen() {
           latitudeDelta: 0.005,
           longitudeDelta: 0.005,
         });
+        // Recenter the map onto the fresh GPS fix if it's already mounted.
+        mapRef.current?.recenter(latitude, longitude, 16);
 
         // Reverse geocode is a hint for the address field; allowed to fail
         // silently. Country-mismatch is logged but never blocks the flow —
@@ -1353,47 +1366,16 @@ export default function RequestScreen() {
 
             <View style={[styles.mapContainer, { height: 280 }]}>
               {location && location.latitude && location.longitude ? (
-                <MapView
+                <OsmMap
                   ref={mapRef}
-                  provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
-                  // Android Google tiles need a native API key. Without one,
-                  // hide the (blank) Google base layer and draw free OSM
-                  // raster tiles instead, so the picker works keyless.
-                  mapType={useOsmTiles ? 'none' : 'standard'}
-                  style={[styles.map, { opacity: mapReady ? 1 : 0 }]}
-                  initialRegion={location}
-                  onRegionChangeComplete={async (region) => {
-                    if (region && region.latitude) {
-                      setLocation(region);
-                      try {
-                        const places = await Location.reverseGeocodeAsync({
-                          latitude: region.latitude,
-                          longitude: region.longitude,
-                        });
-                        const p = places?.[0];
-                        if (p) {
-                          const street = (p.street ?? '').trim();
-                          const district = (p.district ?? '').trim();
-                          const city = (p.city ?? '').trim();
-                          const composed = [street, district, city].filter(Boolean).join(', ');
-                          if (composed) setAddress(composed);
-                          setSelectedNeighborhood(district);
-                        }
-                      } catch {
-                        // reverse geocode is best-effort
-                      }
-                    }
-                  }}
-                  onMapReady={() => setMapReady(true)}
-                >
-                  {useOsmTiles && (
-                    <UrlTile
-                      urlTemplate="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
-                      maximumZ={19}
-                      zIndex={-1}
-                    />
-                  )}
-                </MapView>
+                  latitude={location.latitude}
+                  longitude={location.longitude}
+                  zoom={16}
+                  interactive
+                  onReady={() => setMapReady(true)}
+                  onMoveEnd={(lat, lng) => applyPickedLocation(lat, lng)}
+                  style={styles.map}
+                />
               ) : (
                 <View style={styles.mapPlaceholder}>
                   <MaterialCommunityIcons name="map-marker-radius" size={64} color={COLORS.gray} />
@@ -1401,26 +1383,15 @@ export default function RequestScreen() {
                 </View>
               )}
 
-              {/* Centered pin + drag hint — outside the ternary so they
-                  overlay the map without breaking JSX structure. */}
+              {/* Drag hint overlays the map. The centre pin is drawn by the
+                  map itself (Leaflet), so no separate RN pin is needed. */}
               {mapReady && location && (
-                <>
-                  <View pointerEvents="none" style={styles.centerPinWrap}>
-                    <MaterialCommunityIcons name="map-marker" size={44} color={COLORS.primary} />
-                    <View style={styles.centerPinShadow} />
-                  </View>
-                  {useOsmTiles && (
-                    <Text pointerEvents="none" style={styles.osmAttribution}>
-                      © OpenStreetMap contributors
-                    </Text>
-                  )}
-                  <View pointerEvents="none" style={styles.dragHint}>
-                    <Ionicons name="hand-left-outline" size={14} color="#fff" />
-                    <Text style={styles.dragHintText}>
-                      {isRTL ? 'اسحب الخريطة لتغيير الموقع' : 'Drag the map to set location'}
-                    </Text>
-                  </View>
-                </>
+                <View pointerEvents="none" style={styles.dragHint}>
+                  <Ionicons name="hand-left-outline" size={14} color="#fff" />
+                  <Text style={styles.dragHintText}>
+                    {isRTL ? 'اسحب الخريطة لتغيير الموقع' : 'Drag the map to set location'}
+                  </Text>
+                </View>
               )}
 
               {!mapReady && location && (
