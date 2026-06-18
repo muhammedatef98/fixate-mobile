@@ -1,39 +1,33 @@
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
-import { NativeModules, Platform } from 'react-native';
+import Constants from 'expo-constants';
+import { Platform } from 'react-native';
 import { supabase } from './supabase';
 import { logger } from '../utils/logger';
 
-// We send pushes via the FCM v1 HTTP API directly (see the `push-dispatch`
-// Edge Function), so the token stored in public.users.push_token MUST be a raw
-// FCM registration token — NOT an Expo push token. Expo's `ExponentPushToken`
-// format is rejected by FCM v1's messages:send.
+// Push delivery goes through Expo's Push API (see the `push-dispatch` Edge
+// Function), so the token stored in public.users.push_token MUST be an Expo
+// push token ("ExponentPushToken[...]"). Expo's service relays to FCM v1
+// (Android) and APNs (iOS) for us, using the credentials configured on the EAS
+// project — so the app never deals with raw FCM/APNs tokens or a Firebase
+// service account.
 //
-// `@react-native-firebase/messaging` is loaded LAZILY (never at module top
-// level): a static import evaluates the native `RNFBAppModule` at launch and
-// throws "Native module RNFBAppModule not found" in any binary that doesn't
-// bundle the Firebase pods (Expo Go, or a dev client built before the plugin
-// was added), crashing the whole app.
-//
-// Even a lazy require() of the package triggers that same throw (RNFB calls
-// TurboModuleRegistry.getEnforcing at import), which surfaces as a dev-mode
-// error overlay. So we first probe NativeModules.RNFBAppModule — a plain,
-// non-throwing lookup — and only require the package when the native module is
-// actually present. Otherwise we fall back to expo-notifications'
-// getDevicePushTokenAsync() (a raw FCM token on Android).
-function loadMessaging(): null | (() => any) {
-  if (!NativeModules.RNFBAppModule) {
-    logger.info('[PushToken] Firebase native module absent — using device-token fallback');
-    return null;
-  }
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const mod = require('@react-native-firebase/messaging');
-    return (mod?.default ?? mod) as () => any;
-  } catch (e) {
-    logger.warn('[PushToken] @react-native-firebase/messaging unavailable', e);
-    return null;
-  }
+// Requirements for delivery to actually work in standalone builds:
+//   - Android: the project's FCM V1 service-account key is uploaded to Expo
+//     (EAS credentials) — google-services.json alone is not enough.
+//   - iOS: an APNs key is configured on the EAS project.
+
+/**
+ * The EAS project id is required by getExpoPushTokenAsync. Read it from the
+ * app config (extra.eas.projectId / easConfig) instead of hardcoding, so it
+ * always matches the project this binary was built for.
+ */
+function resolveProjectId(): string | undefined {
+  return (
+    Constants?.expoConfig?.extra?.eas?.projectId ??
+    (Constants as any)?.easConfig?.projectId ??
+    undefined
+  );
 }
 
 Notifications.setNotificationHandler({
@@ -48,9 +42,9 @@ Notifications.setNotificationHandler({
 
 export const notificationManager = {
   /**
-   * Acquire a raw FCM registration token for this device. Requests
-   * notification permission if needed and returns null (silently) when the
-   * user denies it or we're on a simulator. Safe to call on every launch.
+   * Acquire an Expo push token for this device. Requests notification
+   * permission if needed and returns null (silently) when the user denies it
+   * or we're on a simulator. Safe to call on every launch / login.
    */
   registerForPushNotificationsAsync: async (): Promise<string | null> => {
     if (!Device.isDevice) {
@@ -81,47 +75,27 @@ export const notificationManager = {
       });
     }
 
-    // Preferred path: a real FCM token via @react-native-firebase/messaging
-    // (works in builds that bundle the Firebase native module).
-    const messaging = loadMessaging();
-    if (messaging) {
-      try {
-        if (Platform.OS === 'ios' && !messaging().isDeviceRegisteredForRemoteMessages) {
-          await messaging().registerDeviceForRemoteMessages();
-        }
-        const token = await messaging().getToken();
-        console.log('[PushToken] registered (fcm):', token);
-        return token;
-      } catch (e) {
-        logger.error('[PushToken] firebase getToken failed, falling back', e);
-      }
-    }
-
-    // Fallback: expo-notifications device token. On Android this is the raw FCM
-    // token (deliverable via FCM v1); on iOS it's an APNs token. Never crashes.
     try {
-      const device = await Notifications.getDevicePushTokenAsync();
-      const token = typeof device?.data === 'string' ? device.data : null;
-      console.log('[PushToken] registered (device):', token);
+      const projectId = resolveProjectId();
+      if (!projectId) {
+        logger.warn('[PushToken] EAS projectId missing from app config');
+      }
+      const { data: token } = await Notifications.getExpoPushTokenAsync(
+        projectId ? { projectId } : undefined
+      );
+      console.log('[PushToken] registered (expo):', token);
       return token;
     } catch (e) {
-      logger.error('[PushToken] device push token failed', e);
+      logger.error('[PushToken] getExpoPushTokenAsync failed', e);
       return null;
     }
   },
 
-  // BACKFILL NOTE (one-time): existing rows in public.users.push_token hold
-  // legacy Expo tokens ("ExponentPushToken[...]") or NULL. FCM v1 cannot deliver
-  // to Expo tokens, so those rows will report as failed until each user re-opens
-  // the app — registerForPushNotificationsAsync() then overwrites push_token with
-  // a fresh FCM token. There is no server-side backfill possible (FCM tokens can
-  // only be minted on-device); the only "migration" is users launching the app
-  // once. Optionally run, to stop stale Expo tokens from inflating "registered"
-  // counts: UPDATE public.users SET push_token = NULL
-  //         WHERE push_token LIKE 'ExponentPushToken%';
+  /**
+   * Persist the Expo push token on the user's public.users row so the
+   * service-role `push-dispatch` function can resolve it for fan-out.
+   */
   saveTokenToProfile: async (userId: string, token: string) => {
-    // Persist the FCM token on the user's public.users row so the
-    // service-role `push-dispatch` function can resolve it for fan-out.
     try {
       const { error } = await supabase
         .from('users')
@@ -138,11 +112,10 @@ export const notificationManager = {
   },
 
   notifyTechniciansInCity: async (city: string, orderDetails: any) => {
-    // Fan out through the service-role `push-dispatch` Edge Function (FCM v1).
-    // It resolves technician tokens server-side, so the client never reads
-    // other users' push tokens. City scoping is not yet a server-side filter;
-    // all technicians are notified (the previous `profiles`-table query was a
-    // no-op because that table doesn't exist).
+    // Fan out through the service-role `push-dispatch` Edge Function. It
+    // resolves technician tokens server-side, so the client never reads other
+    // users' push tokens. City scoping is not yet a server-side filter; all
+    // technicians are notified.
     try {
       const title = 'طلب صيانة جديد! 🛠️';
       const body = `يوجد طلب جديد في ${city}: ${orderDetails.device_brand} - ${orderDetails.device_model}`;
@@ -159,5 +132,5 @@ export const notificationManager = {
     } catch (error) {
       logger.error('Error notifying technicians', error);
     }
-  }
+  },
 };

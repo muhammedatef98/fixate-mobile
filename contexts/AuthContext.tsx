@@ -7,7 +7,7 @@ import { notificationManager } from '../lib/notifications';
 import { logger } from '../utils/logger';
 
 /**
- * Acquire an FCM push token and persist it to the user's public.users row.
+ * Acquire an Expo push token and persist it to the user's public.users row.
  * Runs only once per user per app session — `onAuthStateChange` fires on every
  * token refresh, and we must not re-prompt / re-register on each tick.
  */

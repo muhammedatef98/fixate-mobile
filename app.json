@@ -121,7 +121,8 @@
         "expo-notifications",
         {
           "icon": "./assets/notification-icon.png",
-          "color": "#10b981"
+          "color": "#10b981",
+          "sounds": []
         }
       ],
       "expo-font",
