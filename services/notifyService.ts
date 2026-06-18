@@ -14,9 +14,16 @@ import { logger } from '../utils/logger';
 export interface PushResult {
   sent: number;
   failed: number;
+  /** Total tokens the server attempted to deliver to. */
+  total?: number;
   /** Number of valid registered tokens the server resolved for this send. */
   recipients?: number;
   errors?: string[];
+}
+
+export interface PushStats {
+  totalUsers: number;
+  withToken: number;
 }
 
 export type PushAudience = 'all' | 'customers' | 'technicians';
@@ -60,3 +67,32 @@ export const notifyAudience = async (
   audience: PushAudience,
   payload: PushPayload
 ): Promise<PushResult> => invoke({ audience, ...payload });
+
+/**
+ * Admin debug helpers. `getPushStats` returns DB-wide token counts (resolved
+ * server-side with the service role, so RLS never hides rows). `sendTestPush`
+ * fans a test notification out to ALL registered tokens and returns the raw
+ * dispatch result so the admin can see sent/failed/errors end-to-end.
+ */
+export const getPushStats = async (): Promise<PushStats> => {
+  try {
+    const { data, error } = await supabase.functions.invoke('push-dispatch', {
+      body: { mode: 'stats' },
+    });
+    if (error) {
+      logger.warn('push stats failed', error);
+      return { totalUsers: 0, withToken: 0 };
+    }
+    return (data as PushStats) ?? { totalUsers: 0, withToken: 0 };
+  } catch (e) {
+    logger.warn('push stats threw', e);
+    return { totalUsers: 0, withToken: 0 };
+  }
+};
+
+export const sendTestPush = async (): Promise<PushResult> =>
+  notifyAudience('all', {
+    title: 'Fixate test 🔔',
+    body: 'Push debug: end-to-end delivery check.',
+    data: { type: 'debug_test' },
+  });

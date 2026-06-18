@@ -1,7 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { notificationManager } from '../lib/notifications';
-import { auth } from '../lib/supabase-api';
 
 type Language = 'en' | 'ar';
 type Theme = 'light' | 'dark';
@@ -54,19 +52,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const isDark = theme === 'dark';
 
-  useEffect(() => {
-    setupNotifications();
-  }, []);
-
-  const setupNotifications = async () => {
-    const user = await auth.getCurrentUser();
-    if (user) {
-      const token = await notificationManager.registerForPushNotificationsAsync();
-      if (token) {
-        await notificationManager.saveTokenToProfile(user.id, token);
-      }
-    }
-  };
+  // Push-token registration now lives in AuthContext (fires reliably once the
+  // user is authenticated, on every launch) — see registerPushForUser there.
 
   return (
     <AppContext.Provider

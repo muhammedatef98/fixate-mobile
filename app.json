@@ -72,6 +72,10 @@
       "package": "com.fixatee.app",
       "versionCode": 1,
       "googleServicesFile": "./google-services.json",
+      "notification": {
+        "icon": "./assets/notification-icon.png",
+        "color": "#10b981"
+      },
       "permissions": [
         "android.permission.ACCESS_FINE_LOCATION",
         "android.permission.ACCESS_COARSE_LOCATION",
@@ -113,7 +117,13 @@
           "cameraPermission": "يحتاج Fixate إلى الكاميرا لتصوير الجهاز المعطل ووثائق التحقق."
         }
       ],
-      "expo-notifications",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#10b981"
+        }
+      ],
       "expo-font",
       "expo-web-browser",
       "expo-secure-store",

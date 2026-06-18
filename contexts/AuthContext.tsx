@@ -1,8 +1,26 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '../services/supabaseClient';
 import * as authService from '../services/authService';
 import * as userService from '../services/userService';
+import { notificationManager } from '../lib/notifications';
+import { logger } from '../utils/logger';
+
+/**
+ * Acquire an FCM push token and persist it to the user's public.users row.
+ * Runs only once per user per app session — `onAuthStateChange` fires on every
+ * token refresh, and we must not re-prompt / re-register on each tick.
+ */
+async function registerPushForUser(userId: string): Promise<void> {
+  try {
+    const token = await notificationManager.registerForPushNotificationsAsync();
+    if (token) {
+      await notificationManager.saveTokenToProfile(userId, token);
+    }
+  } catch (e) {
+    logger.warn('[PushToken] registration failed', e);
+  }
+}
 
 interface AuthContextType {
   session: Session | null;
@@ -34,6 +52,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [profileLoaded, setProfileLoaded] = useState(false);
   const [loading, setLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  // Tracks which user we've already registered a push token for this session,
+  // so token-refresh auth events don't re-trigger registration.
+  const pushRegisteredFor = useRef<string | null>(null);
 
   useEffect(() => {
     // Get initial session — fast path. Don't block on a profile fetch:
@@ -48,6 +69,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (session?.user) {
         setProfileLoaded(false);
+        // Register the device for push AFTER auth — once per user per session.
+        if (pushRegisteredFor.current !== session.user.id) {
+          pushRegisteredFor.current = session.user.id;
+          void registerPushForUser(session.user.id);
+        }
         userService
           .getUserProfile(session.user.id)
           .then((p) => {
@@ -75,6 +101,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (session?.user) {
         setProfileLoaded(false);
+        if (pushRegisteredFor.current !== session.user.id) {
+          pushRegisteredFor.current = session.user.id;
+          void registerPushForUser(session.user.id);
+        }
         userService
           .getUserProfile(session.user.id)
           .then((p) => {
@@ -87,6 +117,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } else {
         setUserProfile(null);
         setProfileLoaded(true);
+        pushRegisteredFor.current = null;
       }
     });
 

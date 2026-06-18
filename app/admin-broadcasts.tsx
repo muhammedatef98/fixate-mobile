@@ -32,6 +32,12 @@ import {
   type BroadcastAudience,
   type BroadcastCategory,
 } from '../services/broadcastService';
+import {
+  getPushStats,
+  sendTestPush,
+  type PushResult,
+  type PushStats,
+} from '../services/notifyService';
 
 export default function AdminBroadcastsScreen() {
   const router = useRouter();
@@ -51,6 +57,11 @@ export default function AdminBroadcastsScreen() {
   const [category, setCategory] = useState<BroadcastCategory>('announcement');
   const [audience, setAudience] = useState<BroadcastAudience>('all');
 
+  // --- Push debug (temporary) ---
+  const [stats, setStats] = useState<PushStats | null>(null);
+  const [testing, setTesting] = useState(false);
+  const [testResult, setTestResult] = useState<PushResult | null>(null);
+
   const load = useCallback(async () => {
     try {
       const items = await listBroadcasts();
@@ -61,10 +72,29 @@ export default function AdminBroadcastsScreen() {
     }
   }, []);
 
+  const loadStats = useCallback(async () => {
+    setStats(await getPushStats());
+  }, []);
+
   useEffect(() => {
     if (!isAdmin) return;
     load();
-  }, [isAdmin, load]);
+    loadStats();
+  }, [isAdmin, load, loadStats]);
+
+  const handleSendTest = async () => {
+    setTesting(true);
+    setTestResult(null);
+    try {
+      const result = await sendTestPush();
+      setTestResult(result);
+      loadStats();
+    } catch (e: any) {
+      setTestResult({ sent: 0, failed: 0, errors: [e?.message ?? String(e)] });
+    } finally {
+      setTesting(false);
+    }
+  };
 
   const handleSend = async () => {
     if (!user?.id) return;
@@ -278,6 +308,56 @@ export default function AdminBroadcastsScreen() {
               </View>
             ))
           )}
+
+          {/* Push Debug (temporary) — verifies the FCM v1 end-to-end flow. */}
+          <View style={[styles.card, { borderStyle: 'dashed' }]}>
+            <Text style={styles.sectionTitle}>
+              {isRTL ? 'تشخيص الإشعارات (مؤقت)' : 'Push Debug (temporary)'}
+            </Text>
+
+            <View style={styles.debugRow}>
+              <Text style={styles.debugLabel}>
+                {isRTL ? 'إجمالي المستخدمين' : 'Total users in DB'}
+              </Text>
+              <Text style={styles.debugValue}>{stats ? stats.totalUsers : '—'}</Text>
+            </View>
+            <View style={styles.debugRow}>
+              <Text style={styles.debugLabel}>
+                {isRTL ? 'لديهم رمز إشعارات' : 'With push_token registered'}
+              </Text>
+              <Text style={styles.debugValue}>{stats ? stats.withToken : '—'}</Text>
+            </View>
+
+            <TouchableOpacity
+              onPress={handleSendTest}
+              disabled={testing}
+              style={[styles.sendBtn, { marginTop: 14 }, testing && { opacity: 0.6 }]}
+            >
+              {testing ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <>
+                  <Ionicons name="bug-outline" size={18} color="#fff" />
+                  <Text style={styles.sendBtnText}>
+                    {isRTL ? 'إرسال إشعار تجريبي للجميع' : 'Send Test Notification (all)'}
+                  </Text>
+                </>
+              )}
+            </TouchableOpacity>
+
+            {testResult && (
+              <View style={{ marginTop: 12, gap: 4 }}>
+                <Text style={styles.debugLabel}>
+                  {isRTL ? 'استجابة push-dispatch:' : 'push-dispatch response:'}
+                </Text>
+                <View style={styles.debugCode}>
+                  <Text style={styles.debugCodeText} selectable>
+                    {JSON.stringify(testResult, null, 2)}
+                  </Text>
+                </View>
+              </View>
+            )}
+          </View>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -377,4 +457,27 @@ const makeStyles = (C: any, isRTL: boolean) =>
     itemTitle: { color: C.text, fontWeight: '800', fontSize: 14, flex: 1 },
     itemDate: { color: C.textSecondary, fontSize: 11, marginLeft: 8 },
     itemBody: { color: C.text, fontSize: 13, marginTop: 6, textAlign: isRTL ? 'right' : 'left' },
+    debugRow: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingVertical: 6,
+      borderBottomWidth: 1,
+      borderBottomColor: C.border,
+    },
+    debugLabel: { color: C.textSecondary, fontSize: 13, fontWeight: '600' },
+    debugValue: { color: C.text, fontSize: 16, fontWeight: '800' },
+    debugCode: {
+      backgroundColor: C.background,
+      borderWidth: 1,
+      borderColor: C.border,
+      borderRadius: BORDER_RADIUS.md,
+      padding: 10,
+    },
+    debugCodeText: {
+      color: C.text,
+      fontSize: 12,
+      fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+      textAlign: 'left',
+    },
   });
