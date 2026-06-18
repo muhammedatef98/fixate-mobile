@@ -107,11 +107,11 @@ export default function TechnicianOnboardingScreen() {
       });
       await refreshUser();
       Alert.alert(
-        isRTL ? 'تم الإرسال ✓' : 'Submitted ✓',
+        isRTL ? 'تم إرسال طلب التسجيل ✓' : 'Registration request sent ✓',
         isRTL
-          ? 'استلمنا طلبك. سنراجع بياناتك خلال 1-2 يوم عمل وستصلك رسالة عند الموافقة.'
-          : 'We received your application. Review takes 1-2 business days; you will be notified when approved.',
-        [{ text: 'OK', onPress: () => router.replace('/(technician)') }]
+          ? 'تم إرسال طلب التسجيل بنجاح. سيتم إشعارك عبر البريد الإلكتروني عند مراجعة طلبك وقبوله كفني في Fixate.'
+          : 'Your registration request was sent successfully. You will be notified by email once your request is reviewed and approved as a technician at Fixate.',
+        [{ text: isRTL ? 'حسناً' : 'OK', onPress: () => router.replace('/(technician)') }]
       );
     } catch (e: any) {
       Alert.alert(isRTL ? 'خطأ' : 'Error', getFriendlyError(e, language));

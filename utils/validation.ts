@@ -74,6 +74,36 @@ export const validatePassword = (
   };
 };
 
+/**
+ * A representative set of special characters we accept. Shown to users as a
+ * hint next to the password field so they know what "special character" means.
+ */
+export const PASSWORD_SPECIAL_EXAMPLES = '! @ # $ % ^ & *';
+
+/** Single source of truth for the special-character rule. */
+const SPECIAL_CHAR_REGEX = /[!@#$%^&*(),.?":{}|<>]/;
+
+export interface PasswordChecks {
+  length: boolean;
+  uppercase: boolean;
+  lowercase: boolean;
+  number: boolean;
+  special: boolean;
+}
+
+/**
+ * Per-rule booleans for live, inline password feedback. Mirrors the rules in
+ * validatePassword so the UI checklist and the submit-time validation never
+ * disagree.
+ */
+export const getPasswordChecks = (password: string): PasswordChecks => ({
+  length: password.length >= 8,
+  uppercase: /[A-Z]/.test(password),
+  lowercase: /[a-z]/.test(password),
+  number: /[0-9]/.test(password),
+  special: SPECIAL_CHAR_REGEX.test(password),
+});
+
 export const getPasswordStrengthColor = (strength: 'weak' | 'medium' | 'strong'): string => {
   switch (strength) {
     case 'weak':

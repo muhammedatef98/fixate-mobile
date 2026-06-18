@@ -21,7 +21,8 @@ import { useApp } from '../contexts/AppContext';
 import { getColors, SPACING, BORDER_RADIUS } from '../constants/theme';
 import { RTLIonicon } from '../components/RTLIcon';
 import { supabase } from '../services/supabaseClient';
-import { validateEmail, validatePassword, validateName } from '../utils/validation';
+import { validateEmail, validatePassword, validateName, getPasswordChecks } from '../utils/validation';
+import PasswordRequirements from '../components/PasswordRequirements';
 import { tapMedium, success } from '../utils/haptics';
 import {
   signUpWithPhoneOrEmail,
@@ -72,6 +73,11 @@ export default function EmailAuthScreen() {
   const [name, setName]         = useState('');
   const [code, setCode]         = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [pwFocused, setPwFocused] = useState(false);
+
+  // Live password validity (sign-up only) for inline success state.
+  const pwChecks = getPasswordChecks(password);
+  const pwAllValid = Object.values(pwChecks).every(Boolean);
 
   // UI state
   const [loading, setLoading]   = useState(false);
@@ -538,10 +544,23 @@ export default function EmailAuthScreen() {
               </View>
 
               <Text style={styles.fieldLabel}>{isRTL ? 'كلمة المرور' : 'Password'}</Text>
-              <View style={[styles.inputRow, { borderColor: error ? COLORS.error : COLORS.border }]}>
+              <View
+                style={[
+                  styles.inputRow,
+                  {
+                    borderColor: error
+                      ? COLORS.error
+                      : pwSub === 'signup' && password.length > 0 && pwAllValid
+                        ? '#16A34A'
+                        : COLORS.border,
+                  },
+                ]}
+              >
                 <TextInput
                   value={password}
                   onChangeText={(v) => { setError(null); setPassword(v); }}
+                  onFocus={() => setPwFocused(true)}
+                  onBlur={() => setPwFocused(false)}
                   placeholder={isRTL ? '••••••••' : 'Password'}
                   placeholderTextColor={COLORS.textSecondary}
                   secureTextEntry={!showPassword}
@@ -560,6 +579,16 @@ export default function EmailAuthScreen() {
                   <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={20} color={COLORS.textSecondary} />
                 </TouchableOpacity>
               </View>
+
+              {/* Live, always-visible requirements while creating an account. */}
+              {pwSub === 'signup' && (
+                <PasswordRequirements
+                  password={password}
+                  isRTL={isRTL}
+                  COLORS={COLORS}
+                  visible={pwFocused || password.length > 0}
+                />
+              )}
 
               {error ? <Text style={styles.errorText}>{error}</Text> : null}
 

@@ -21,6 +21,7 @@ import { getColors, SPACING, BORDER_RADIUS } from '../constants/theme';
 import { RTLIonicon } from '../components/RTLIcon';
 import { supabase } from '../services/supabaseClient';
 import { getFriendlyError } from '../utils/errorMessages';
+import { logger } from '../utils/logger';
 import { success, warning } from '../utils/haptics';
 import { safeBack } from '../utils/navigation';
 import { AnimatedBackButton } from '../components/AnimatedBackButton';
@@ -129,6 +130,21 @@ export default function AdminTechniciansScreen() {
       setItems((prev) =>
         prev.map((x) => (x.id === item.id ? { ...x, verification_status: decision } : x))
       );
+
+      // Fire the one-time approval email. The edge function guards against
+      // double-sends, so a UI re-tap is safe. Email failure must never block
+      // the approval itself — we only log it.
+      if (decision === 'approved') {
+        supabase.functions
+          .invoke('send-technician-approval-email', {
+            body: { technicianId: item.id },
+          })
+          .then(({ data, error: fnErr }) => {
+            const msg = (fnErr as any)?.message || (data as any)?.error;
+            if (msg) logger.warn('approval email not sent', msg);
+          })
+          .catch((err) => logger.warn('approval email invoke failed', err?.message ?? err));
+      }
     } catch (e: any) {
       Alert.alert(isRTL ? 'خطأ' : 'Error', getFriendlyError(e, language));
     } finally {

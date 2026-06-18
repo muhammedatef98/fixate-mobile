@@ -23,6 +23,8 @@ import { RTLIonicon } from '../components/RTLIcon';
 import { signUpWithPhoneOrEmail } from '../services/authService';
 import { getFriendlyError } from '../utils/errorMessages';
 import { getColors } from '../constants/theme';
+import { validatePassword, getPasswordChecks } from '../utils/validation';
+import PasswordRequirements from '../components/PasswordRequirements';
 
 const { width } = Dimensions.get('window');
 
@@ -40,6 +42,11 @@ export default function TechnicianAuthScreen() {
   const [phone, setPhone] = useState('');
   const [specialization, setSpecialization] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [pwFocused, setPwFocused] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Live password validity (sign-up only) for the inline success state.
+  const pwAllValid = Object.values(getPasswordChecks(password)).every(Boolean);
 
   const COLORS = {
     primary: themeColors.primary,
@@ -49,12 +56,24 @@ export default function TechnicianAuthScreen() {
     gray: themeColors.textSecondary,
     lightGray: isDark ? '#1f2937' : '#f3f4f6',
     border: themeColors.border,
+    error: themeColors.error,
   };
 
   const handleAuth = async () => {
+    setError(null);
     if (!email || !password || (!isLogin && !name)) {
-      Alert.alert(isRTL ? 'خطأ' : 'Error', isRTL ? 'الرجاء ملء جميع الحقول' : 'Please fill all fields');
+      setError(isRTL ? 'الرجاء ملء جميع الحقول' : 'Please fill all fields');
       return;
+    }
+
+    // Enforce the same password policy as the customer signup so the rule the
+    // user sees (special character, etc.) is actually required to proceed.
+    if (!isLogin) {
+      const passCheck = validatePassword(password, isRTL ? 'ar' : 'en');
+      if (!passCheck.isValid) {
+        setError(passCheck.errors[0] ?? (isRTL ? 'كلمة المرور ضعيفة' : 'Weak password'));
+        return;
+      }
     }
 
     setLoading(true);
@@ -110,8 +129,8 @@ export default function TechnicianAuthScreen() {
         );
         router.replace('/technician-onboarding');
       }
-    } catch (error: any) {
-      Alert.alert(isRTL ? 'خطأ' : 'Error', error.message);
+    } catch (e: any) {
+      setError(getFriendlyError(e, language));
     } finally {
       setLoading(false);
     }
@@ -191,76 +210,122 @@ export default function TechnicianAuthScreen() {
           <View style={styles.form}>
             {!isLogin && (
               <>
-                <View style={styles.inputContainer}>
-                  <MaterialCommunityIcons name="account-outline" size={20} color={COLORS.gray} />
-                  <TextInput
-                    style={styles.input}
-                    placeholder={isRTL ? 'الاسم الكامل' : 'Full Name'}
-                    placeholderTextColor={COLORS.gray}
-                    value={name}
-                    onChangeText={setName}
-                    textAlign={isRTL ? 'right' : 'left'}
-                  />
+                <View style={styles.field}>
+                  <Text style={styles.label}>{isRTL ? 'الاسم الكامل' : 'Full Name'}</Text>
+                  <View style={styles.inputContainer}>
+                    <MaterialCommunityIcons name="account-outline" size={20} color={COLORS.gray} />
+                    <TextInput
+                      style={styles.input}
+                      placeholder={isRTL ? 'اكتب اسمك الكامل' : 'Your full name'}
+                      placeholderTextColor={COLORS.gray}
+                      value={name}
+                      onChangeText={(v) => { setError(null); setName(v); }}
+                      textAlign={isRTL ? 'right' : 'left'}
+                    />
+                  </View>
                 </View>
-                <View style={styles.inputContainer}>
-                  <MaterialCommunityIcons name="phone-outline" size={20} color={COLORS.gray} />
-                  <TextInput
-                    style={styles.input}
-                    placeholder={isRTL ? 'رقم الجوال' : 'Phone Number'}
-                    placeholderTextColor={COLORS.gray}
-                    value={phone}
-                    onChangeText={setPhone}
-                    keyboardType="phone-pad"
-                    textAlign={isRTL ? 'right' : 'left'}
-                  />
+                <View style={styles.field}>
+                  <Text style={styles.label}>{isRTL ? 'رقم الجوال' : 'Phone Number'}</Text>
+                  <View style={styles.inputContainer}>
+                    <MaterialCommunityIcons name="phone-outline" size={20} color={COLORS.gray} />
+                    <TextInput
+                      style={styles.input}
+                      placeholder={isRTL ? '05XXXXXXXX' : '05XXXXXXXX'}
+                      placeholderTextColor={COLORS.gray}
+                      value={phone}
+                      onChangeText={(v) => { setError(null); setPhone(v); }}
+                      keyboardType="phone-pad"
+                      textAlign={isRTL ? 'right' : 'left'}
+                    />
+                  </View>
                 </View>
-                <View style={styles.inputContainer}>
-                  <MaterialCommunityIcons name="tools" size={20} color={COLORS.gray} />
-                  <TextInput
-                    style={styles.input}
-                    placeholder={isRTL ? 'التخصص' : 'Specialization'}
-                    placeholderTextColor={COLORS.gray}
-                    value={specialization}
-                    onChangeText={setSpecialization}
-                    textAlign={isRTL ? 'right' : 'left'}
-                  />
+                <View style={styles.field}>
+                  <Text style={styles.label}>{isRTL ? 'التخصص' : 'Specialization'}</Text>
+                  <View style={styles.inputContainer}>
+                    <MaterialCommunityIcons name="tools" size={20} color={COLORS.gray} />
+                    <TextInput
+                      style={styles.input}
+                      placeholder={isRTL ? 'مثال: صيانة جوالات' : 'e.g. Phone repair'}
+                      placeholderTextColor={COLORS.gray}
+                      value={specialization}
+                      onChangeText={(v) => { setError(null); setSpecialization(v); }}
+                      textAlign={isRTL ? 'right' : 'left'}
+                    />
+                  </View>
                 </View>
               </>
             )}
 
-            <View style={styles.inputContainer}>
-              <MaterialCommunityIcons name="email-outline" size={20} color={COLORS.gray} />
-              <TextInput
-                style={styles.input}
-                placeholder={isRTL ? 'البريد الإلكتروني' : 'Email'}
-                placeholderTextColor={COLORS.gray}
-                value={email}
-                onChangeText={setEmail}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                textAlign={isRTL ? 'right' : 'left'}
-              />
+            <View style={styles.field}>
+              <Text style={styles.label}>{isRTL ? 'البريد الإلكتروني' : 'Email'}</Text>
+              <View style={styles.inputContainer}>
+                <MaterialCommunityIcons name="email-outline" size={20} color={COLORS.gray} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="name@example.com"
+                  placeholderTextColor={COLORS.gray}
+                  value={email}
+                  onChangeText={(v) => { setError(null); setEmail(v); }}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  textAlign={isRTL ? 'right' : 'left'}
+                />
+              </View>
             </View>
 
-            <View style={styles.inputContainer}>
-              <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-                <Ionicons
-                  name={showPassword ? 'eye-off-outline' : 'eye-outline'}
-                  size={20}
-                  color={COLORS.gray}
+            <View style={styles.field}>
+              <Text style={styles.label}>{isRTL ? 'كلمة المرور' : 'Password'}</Text>
+              <View
+                style={[
+                  styles.inputContainer,
+                  !isLogin && password.length > 0 && pwAllValid && { borderColor: '#16A34A' },
+                ]}
+              >
+                <TouchableOpacity
+                  onPress={() => setShowPassword(!showPassword)}
+                  accessibilityRole="button"
+                  accessibilityLabel={isRTL ? 'إظهار/إخفاء كلمة المرور' : 'Show/hide password'}
+                >
+                  <Ionicons
+                    name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                    size={20}
+                    color={COLORS.gray}
+                  />
+                </TouchableOpacity>
+                <TextInput
+                  style={styles.input}
+                  placeholder={isRTL ? '••••••••' : 'Password'}
+                  placeholderTextColor={COLORS.gray}
+                  value={password}
+                  onChangeText={(v) => { setError(null); setPassword(v); }}
+                  onFocus={() => setPwFocused(true)}
+                  onBlur={() => setPwFocused(false)}
+                  secureTextEntry={!showPassword}
+                  autoCapitalize="none"
+                  textAlign={isRTL ? 'right' : 'left'}
                 />
-              </TouchableOpacity>
-              <TextInput
-                style={styles.input}
-                placeholder={isRTL ? 'كلمة المرور' : 'Password'}
-                placeholderTextColor={COLORS.gray}
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry={!showPassword}
-                textAlign={isRTL ? 'right' : 'left'}
-              />
-              <MaterialCommunityIcons name="lock-outline" size={20} color={COLORS.gray} />
+                <MaterialCommunityIcons name="lock-outline" size={20} color={COLORS.gray} />
+              </View>
             </View>
+
+            {/* Live, always-visible password requirements during signup. */}
+            {!isLogin && (
+              <PasswordRequirements
+                password={password}
+                isRTL={isRTL}
+                COLORS={{
+                  text: COLORS.text,
+                  textSecondary: COLORS.gray,
+                  error: themeColors.error,
+                  primary: COLORS.primary,
+                  card: COLORS.white,
+                  border: COLORS.border,
+                }}
+                visible={pwFocused || password.length > 0}
+              />
+            )}
+
+            {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
             <TouchableOpacity style={styles.mainButton} onPress={handleAuth} disabled={loading}>
               {loading ? (
@@ -396,6 +461,24 @@ const createStyles = (COLORS: any, isRTL: boolean) => StyleSheet.create({
   },
   form: {
     gap: 16,
+  },
+  field: {
+    gap: 6,
+  },
+  label: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: COLORS.text,
+    textAlign: isRTL ? 'right' : 'left',
+    writingDirection: isRTL ? 'rtl' : 'ltr',
+    marginBottom: 2,
+  },
+  errorText: {
+    color: COLORS.error,
+    fontSize: 13,
+    fontWeight: '600',
+    textAlign: isRTL ? 'right' : 'left',
+    writingDirection: isRTL ? 'rtl' : 'ltr',
   },
   inputContainer: {
     flexDirection: isRTL ? 'row-reverse' : 'row',
