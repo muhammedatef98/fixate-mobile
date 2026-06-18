@@ -1,17 +1,31 @@
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import { Platform } from 'react-native';
-import messaging from '@react-native-firebase/messaging';
 import { supabase } from './supabase';
 import { logger } from '../utils/logger';
 
 // We send pushes via the FCM v1 HTTP API directly (see the `push-dispatch`
 // Edge Function), so the token stored in public.users.push_token MUST be a raw
 // FCM registration token — NOT an Expo push token. Expo's `ExponentPushToken`
-// format is rejected by FCM v1's messages:send. `@react-native-firebase/
-// messaging`'s getToken() returns a real FCM token on both Android and iOS
-// (iOS routes through Firebase's APNs integration configured via
-// GoogleService-Info.plist), which is the one format FCM v1 accepts everywhere.
+// format is rejected by FCM v1's messages:send.
+//
+// `@react-native-firebase/messaging` is loaded LAZILY (never at module top
+// level): a static import evaluates the native `RNFBAppModule` at launch and
+// throws "Native module RNFBAppModule not found" in any binary that doesn't
+// bundle the Firebase pods (Expo Go, or a dev client built before the plugin
+// was added), crashing the whole app. We require it on demand and fall back to
+// expo-notifications' getDevicePushTokenAsync() when it's unavailable — on
+// Android that still yields a raw FCM token.
+function loadMessaging(): null | (() => any) {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const mod = require('@react-native-firebase/messaging');
+    return (mod?.default ?? mod) as () => any;
+  } catch (e) {
+    logger.warn('[PushToken] @react-native-firebase/messaging unavailable', e);
+    return null;
+  }
+}
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -58,16 +72,31 @@ export const notificationManager = {
       });
     }
 
-    try {
-      // iOS must register with APNs before an FCM token can be minted.
-      if (Platform.OS === 'ios' && !messaging().isDeviceRegisteredForRemoteMessages) {
-        await messaging().registerDeviceForRemoteMessages();
+    // Preferred path: a real FCM token via @react-native-firebase/messaging
+    // (works in builds that bundle the Firebase native module).
+    const messaging = loadMessaging();
+    if (messaging) {
+      try {
+        if (Platform.OS === 'ios' && !messaging().isDeviceRegisteredForRemoteMessages) {
+          await messaging().registerDeviceForRemoteMessages();
+        }
+        const token = await messaging().getToken();
+        console.log('[PushToken] registered (fcm):', token);
+        return token;
+      } catch (e) {
+        logger.error('[PushToken] firebase getToken failed, falling back', e);
       }
-      const token = await messaging().getToken();
-      console.log('[PushToken] registered:', token);
+    }
+
+    // Fallback: expo-notifications device token. On Android this is the raw FCM
+    // token (deliverable via FCM v1); on iOS it's an APNs token. Never crashes.
+    try {
+      const device = await Notifications.getDevicePushTokenAsync();
+      const token = typeof device?.data === 'string' ? device.data : null;
+      console.log('[PushToken] registered (device):', token);
       return token;
     } catch (e) {
-      logger.error('[PushToken] error getting FCM token', e);
+      logger.error('[PushToken] device push token failed', e);
       return null;
     }
   },
