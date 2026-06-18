@@ -311,8 +311,16 @@ export default function MarketScreen() {
             </View>
           )}
 
-          {/* Top-left badge stack: HOT + verified */}
+          {/* Top-left badge stack: Certified + HOT + verified */}
           <View style={styles.cardTopBadges}>
+            {item.is_official && (
+              <View style={styles.certifiedBadge}>
+                <Ionicons name="shield-checkmark" size={10} color="#fff" />
+                <Text style={styles.certifiedBadgeText}>
+                  {isRTL ? 'معتمد من Fixate' : 'Fixate Certified'}
+                </Text>
+              </View>
+            )}
             {isHot && (
               <View style={styles.hotBadge}>
                 <Text style={styles.hotBadgeText}>🔥 {isRTL ? 'جديد' : 'HOT'}</Text>
@@ -1042,6 +1050,16 @@ const createStyles = (C: any, isRTL: boolean) =>
       borderRadius: 6,
     },
     verifiedBadgeText: { color: '#fff', fontSize: 9.5, fontWeight: '800' },
+    certifiedBadge: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
+      gap: 3,
+      backgroundColor: '#0EA5E9',
+      paddingHorizontal: 7,
+      paddingVertical: 3,
+      borderRadius: 999,
+    },
+    certifiedBadgeText: { color: '#fff', fontSize: 9.5, fontWeight: '800' },
     heartBtn: {
       position: 'absolute',
       top: 8,

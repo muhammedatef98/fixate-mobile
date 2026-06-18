@@ -1,7 +1,8 @@
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { View, ActivityIndicator, I18nManager } from 'react-native';
+import AnimatedSplash from '../components/AnimatedSplash';
 import { RequestProvider } from '../contexts/RequestContext';
 import { ThemeProvider } from '../contexts/ThemeContext';
 import { AppProvider, useApp } from '../contexts/AppContext';
@@ -368,6 +369,8 @@ function RootLayoutContent() {
 
 export default Sentry.wrap(function RootLayout() {
   useOtaUpdates();
+  // FEATURE-2 — animated splash overlay shown over the app on cold start.
+  const [splashDone, setSplashDone] = useState(false);
   // Load every weight we map to in utils/applyFont.getAppFontFamily.
   // Missing weights cause iOS to silently fall back to the system font when
   // a Text uses fontWeight: '300'/'500'/'600' etc.
@@ -409,6 +412,7 @@ export default Sentry.wrap(function RootLayout() {
           </OrdersProvider>
         </AuthProvider>
       </AppProvider>
+      {!splashDone && <AnimatedSplash onFinish={() => setSplashDone(true)} />}
     </ErrorBoundary>
   );
 });

@@ -36,8 +36,19 @@ export interface RecentTransaction {
   orderNumber: string;
   customer: string;
   technician: string;
+  service: string;
   amount: number;
+  spareParts: number;
+  net: number;
   date: string;
+}
+
+export interface PendingOrder {
+  id: string;
+  orderNumber: string;
+  customer: string;
+  amount: number;
+  ageDays: number;
 }
 
 export interface AccountingData {
@@ -50,6 +61,7 @@ export interface AccountingData {
   technicians: TechnicianEarning[];
   categories: CategorySlice[];
   recent: RecentTransaction[];
+  pendingOrders: PendingOrder[];
 }
 
 interface OrderRow {
@@ -130,9 +142,27 @@ export const getAccountingData = async (
     0
   );
   const netProfit = totalRevenue - totalSpareParts;
-  const pendingPayments = rows
-    .filter((o) => o.payment_status === 'pending' || o.payment_status === 'pending_payment')
-    .reduce((s, o) => s + revenueOf(o), 0);
+  const pendingRows = rows.filter(
+    (o) =>
+      o.payment_status === 'pending' ||
+      o.payment_status === 'pending_payment' ||
+      o.payment_status === 'unpaid' ||
+      o.status === 'awaiting_payment'
+  );
+  const pendingPayments = pendingRows.reduce((s, o) => s + revenueOf(o), 0);
+
+  const now = Date.now();
+  const pendingOrders: PendingOrder[] = pendingRows
+    .map((o) => ({
+      id: o.id,
+      orderNumber: o.order_number ?? `#${o.id.slice(0, 6)}`,
+      customer: flatName(o.customer) || (isRTL ? 'بدون اسم' : 'No name'),
+      amount: revenueOf(o),
+      ageDays: o.created_at
+        ? Math.max(0, Math.floor((now - new Date(o.created_at).getTime()) / 86400000))
+        : 0,
+    }))
+    .sort((a, b) => b.ageDays - a.ageDays);
 
   // Per-technician earnings.
   const techMap = new Map<string, TechnicianEarning>();
@@ -176,14 +206,21 @@ export const getAccountingData = async (
     .slice(-12)
     .map(([label, revenue]) => ({ label, revenue }));
 
-  const recent: RecentTransaction[] = completed.slice(0, 20).map((o) => ({
-    id: o.id,
-    orderNumber: o.order_number ?? `#${o.id.slice(0, 6)}`,
-    customer: flatName(o.customer) || (isRTL ? 'بدون اسم' : 'No name'),
-    technician: flatName(o.technician) || (isRTL ? 'غير معيّن' : 'Unassigned'),
-    amount: revenueOf(o),
-    date: o.created_at ?? '',
-  }));
+  const recent: RecentTransaction[] = completed.slice(0, 50).map((o) => {
+    const amount = revenueOf(o);
+    const spareParts = Number(o.spare_parts_cost ?? 0);
+    return {
+      id: o.id,
+      orderNumber: o.order_number ?? `#${o.id.slice(0, 6)}`,
+      customer: flatName(o.customer) || (isRTL ? 'بدون اسم' : 'No name'),
+      technician: flatName(o.technician) || (isRTL ? 'غير معيّن' : 'Unassigned'),
+      service: o.service_type || (isRTL ? 'خدمة' : 'Service'),
+      amount,
+      spareParts,
+      net: amount - spareParts,
+      date: o.created_at ?? '',
+    };
+  });
 
   return {
     totalRevenue,
@@ -195,6 +232,7 @@ export const getAccountingData = async (
     technicians,
     categories,
     recent,
+    pendingOrders,
   };
 };
 
@@ -203,65 +241,10 @@ const csvCell = (v: string | number): string => {
   return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 };
 
-/** Export the per-technician + recent-transaction data as a CSV file. */
-export const exportAccountingCsv = async (
-  data: AccountingData,
-  isRTL: boolean
-): Promise<void> => {
-  const sar = isRTL ? 'ر.س' : 'SAR';
-  const lines: string[] = [];
-
-  lines.push(isRTL ? 'الملخص' : 'Summary');
-  lines.push(`${isRTL ? 'إجمالي الإيرادات' : 'Total revenue'} (${sar}),${data.totalRevenue.toFixed(2)}`);
-  lines.push(`${isRTL ? 'تكلفة قطع الغيار' : 'Spare parts cost'} (${sar}),${data.totalSpareParts.toFixed(2)}`);
-  lines.push(`${isRTL ? 'صافي الربح' : 'Net profit'} (${sar}),${data.netProfit.toFixed(2)}`);
-  lines.push(`${isRTL ? 'مدفوعات معلقة' : 'Pending payments'} (${sar}),${data.pendingPayments.toFixed(2)}`);
-  lines.push('');
-
-  lines.push(isRTL ? 'أرباح الفنيين' : 'Technician earnings');
-  lines.push(
-    [
-      isRTL ? 'الفني' : 'Technician',
-      isRTL ? 'طلبات مكتملة' : 'Completed',
-      isRTL ? 'الإيرادات' : 'Revenue',
-      isRTL ? 'قطع الغيار' : 'Spare parts',
-      isRTL ? 'الصافي' : 'Net',
-    ]
-      .map(csvCell)
-      .join(',')
-  );
-  for (const t of data.technicians) {
-    lines.push(
-      [t.name, t.completedOrders, t.revenue.toFixed(2), t.spareParts.toFixed(2), t.net.toFixed(2)]
-        .map(csvCell)
-        .join(',')
-    );
-  }
-  lines.push('');
-
-  lines.push(isRTL ? 'أحدث المعاملات' : 'Recent transactions');
-  lines.push(
-    [
-      isRTL ? 'رقم الطلب' : 'Order',
-      isRTL ? 'العميل' : 'Customer',
-      isRTL ? 'الفني' : 'Technician',
-      isRTL ? 'المبلغ' : 'Amount',
-      isRTL ? 'التاريخ' : 'Date',
-    ]
-      .map(csvCell)
-      .join(',')
-  );
-  for (const r of data.recent) {
-    lines.push(
-      [r.orderNumber, r.customer, r.technician, r.amount.toFixed(2), r.date.slice(0, 10)]
-        .map(csvCell)
-        .join(',')
-    );
-  }
-
+const shareCsv = async (lines: string[], filePrefix: string): Promise<void> => {
   // Prepend a BOM so Excel renders Arabic correctly.
   const csv = '﻿' + lines.join('\n');
-  const fileUri = `${FileSystem.documentDirectory}fixate-accounting-${Date.now()}.csv`;
+  const fileUri = `${FileSystem.documentDirectory}${filePrefix}-${Date.now()}.csv`;
   await FileSystem.writeAsStringAsync(fileUri, csv, {
     encoding: FileSystem.EncodingType.UTF8,
   });
@@ -272,4 +255,119 @@ export const exportAccountingCsv = async (
       UTI: 'public.comma-separated-values-text',
     });
   }
+};
+
+/** Export the full accounting report (all sections) as a CSV file. */
+export const exportAccountingCsv = async (
+  data: AccountingData,
+  isRTL: boolean,
+  commissionRate = 0
+): Promise<void> => {
+  const sar = isRTL ? 'ر.س' : 'SAR';
+  const totalCommission = (data.totalRevenue * commissionRate) / 100;
+  const lines: string[] = [];
+
+  lines.push(isRTL ? 'الملخص' : 'Summary');
+  lines.push(`${isRTL ? 'إجمالي الإيرادات' : 'Total revenue'} (${sar}),${data.totalRevenue.toFixed(2)}`);
+  lines.push(`${isRTL ? 'إجمالي المصروفات (قطع الغيار)' : 'Total expenses (spare parts)'} (${sar}),${data.totalSpareParts.toFixed(2)}`);
+  lines.push(`${isRTL ? 'صافي الربح' : 'Net profit'} (${sar}),${data.netProfit.toFixed(2)}`);
+  lines.push(`${isRTL ? 'مدفوعات معلقة' : 'Pending payments'} (${sar}),${data.pendingPayments.toFixed(2)}`);
+  lines.push(`${isRTL ? 'عمولة المنصة' : 'Platform commission'} (${commissionRate}%) (${sar}),${totalCommission.toFixed(2)}`);
+  lines.push('');
+
+  lines.push(isRTL ? 'أرباح وعمولات الفنيين' : 'Technician P&L');
+  lines.push(
+    [
+      isRTL ? 'الفني' : 'Technician',
+      isRTL ? 'طلبات مكتملة' : 'Completed',
+      isRTL ? 'الإيرادات' : 'Revenue',
+      isRTL ? 'قطع الغيار' : 'Spare parts',
+      isRTL ? 'الصافي' : 'Net',
+      isRTL ? 'العمولة' : 'Commission',
+    ].map(csvCell).join(',')
+  );
+  for (const t of data.technicians) {
+    lines.push(
+      [
+        t.name,
+        t.completedOrders,
+        t.revenue.toFixed(2),
+        t.spareParts.toFixed(2),
+        t.net.toFixed(2),
+        ((t.revenue * commissionRate) / 100).toFixed(2),
+      ].map(csvCell).join(',')
+    );
+  }
+  lines.push('');
+
+  lines.push(isRTL ? 'المعاملات' : 'Transactions');
+  lines.push(
+    [
+      isRTL ? 'رقم الطلب' : 'Order',
+      isRTL ? 'العميل' : 'Customer',
+      isRTL ? 'الفني' : 'Technician',
+      isRTL ? 'الخدمة' : 'Service',
+      isRTL ? 'الإجمالي' : 'Total',
+      isRTL ? 'قطع الغيار' : 'Spare parts',
+      isRTL ? 'الصافي' : 'Net',
+      isRTL ? 'التاريخ' : 'Date',
+    ].map(csvCell).join(',')
+  );
+  for (const r of data.recent) {
+    lines.push(
+      [
+        r.orderNumber, r.customer, r.technician, r.service,
+        r.amount.toFixed(2), r.spareParts.toFixed(2), r.net.toFixed(2), r.date.slice(0, 10),
+      ].map(csvCell).join(',')
+    );
+  }
+  lines.push('');
+
+  lines.push(isRTL ? 'المدفوعات المعلقة والمتأخرة' : 'Pending & overdue');
+  lines.push(
+    [
+      isRTL ? 'رقم الطلب' : 'Order',
+      isRTL ? 'العميل' : 'Customer',
+      isRTL ? 'المبلغ' : 'Amount',
+      isRTL ? 'متأخر (أيام)' : 'Overdue (days)',
+    ].map(csvCell).join(',')
+  );
+  for (const p of data.pendingOrders) {
+    lines.push([p.orderNumber, p.customer, p.amount.toFixed(2), p.ageDays].map(csvCell).join(','));
+  }
+
+  await shareCsv(lines, 'fixate-accounting');
+};
+
+/** Export a focused per-technician P&L + commission summary as a CSV file. */
+export const exportTechnicianSummaryCsv = async (
+  data: AccountingData,
+  isRTL: boolean,
+  commissionRate = 0
+): Promise<void> => {
+  const lines: string[] = [];
+  lines.push(isRTL ? 'ملخص الفنيين' : 'Technician summary');
+  lines.push(
+    [
+      isRTL ? 'الفني' : 'Technician',
+      isRTL ? 'طلبات مكتملة' : 'Completed orders',
+      isRTL ? 'إجمالي الإيرادات' : 'Gross revenue',
+      isRTL ? 'مصروف قطع الغيار' : 'Spare parts expense',
+      isRTL ? 'صافي الأرباح' : 'Net earnings',
+      isRTL ? `عمولة المنصة (${commissionRate}%)` : `Platform commission (${commissionRate}%)`,
+    ].map(csvCell).join(',')
+  );
+  for (const t of data.technicians) {
+    lines.push(
+      [
+        t.name,
+        t.completedOrders,
+        t.revenue.toFixed(2),
+        t.spareParts.toFixed(2),
+        t.net.toFixed(2),
+        ((t.revenue * commissionRate) / 100).toFixed(2),
+      ].map(csvCell).join(',')
+    );
+  }
+  await shareCsv(lines, 'fixate-technician-summary');
 };

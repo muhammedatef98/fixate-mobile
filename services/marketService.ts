@@ -99,6 +99,8 @@ export interface MarketListing {
   delete_requested_at?: string | null;
   /** Set when status enters `archived_by_admin`. */
   archived_at?: string | null;
+  /** True when posted by an admin — shows the Fixate Certified badge (FEAT-8). */
+  is_official?: boolean | null;
 }
 
 /** Normalise legacy DB statuses (`active`, `archived`) to the v3 vocabulary. */
@@ -224,6 +226,8 @@ export interface CreateListingInput {
   device_type?: DeviceType;
   condition?: ListingCondition;
   images?: string[];
+  /** When true (admin authors), the listing is auto-branded Fixate Certified. */
+  official?: boolean;
 }
 
 export interface ListingComment {
@@ -341,7 +345,7 @@ export interface BrowseFilters {
 // initial browse payload stays small. The full row is fetched lazily by
 // market-detail when the buyer opens an individual listing.
 const BROWSE_LIST_COLUMNS =
-  'id,seller_id,title,category,device_type,condition,price,currency,city,contact_phone,contact_preference,contact_methods,images,status,created_at,updated_at,removed_at,removed_reason,moderation_reason,hidden_at,delete_requested_at,archived_at';
+  'id,seller_id,title,category,device_type,condition,price,currency,city,contact_phone,contact_preference,contact_methods,images,status,created_at,updated_at,removed_at,removed_reason,moderation_reason,hidden_at,delete_requested_at,archived_at,is_official';
 
 export const browseListings = async (
   filters: BrowseFilters = {}
@@ -431,10 +435,20 @@ export const createListing = async (
   // them with PGRST204 (column not found in schema cache). This lets
   // the app keep working whether or not the v2 migration is applied
   // on this Supabase project yet.
+  // FEAT-8 — admin posts are auto-branded "Fixate Certified": a non-editable
+  // certified note is appended to the description at save time, and the
+  // is_official flag drives the badge in the feed + detail page.
+  const CERTIFIED_NOTE_AR = '✅ معتمد من Fixate — جهاز مفحوص وموثّق من فريق Fixate.';
+  const CERTIFIED_NOTE_EN = '✅ Fixate Certified — inspected and verified by the Fixate team.';
+  const baseDescription = input.description?.trim() || '';
+  const finalDescription = input.official
+    ? `${baseDescription}${baseDescription ? '\n\n' : ''}${CERTIFIED_NOTE_AR}\n${CERTIFIED_NOTE_EN}`.trim()
+    : baseDescription || null;
+
   const baseRow: Record<string, any> = {
     seller_id: sellerId,
     title: input.title.trim(),
-    description: input.description?.trim() || null,
+    description: finalDescription,
     category: input.category,
     price: input.price,
     city: input.city?.trim() || null,
@@ -449,6 +463,7 @@ export const createListing = async (
     contact_methods: methodsFromPreference(input),
     device_type: input.device_type ?? null,
     condition: input.condition ?? null,
+    is_official: input.official ?? false,
   };
 
   const tryInsert = async (row: Record<string, any>) => {

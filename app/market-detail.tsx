@@ -470,6 +470,15 @@ export default function MarketDetailScreen() {
             )}
 
             <View style={styles.body}>
+              {/* FEAT-8 — Fixate Certified banner for admin-posted listings */}
+              {listing.is_official && (
+                <View style={styles.certifiedBanner}>
+                  <Ionicons name="shield-checkmark" size={16} color="#fff" />
+                  <Text style={styles.certifiedBannerText}>
+                    {isRTL ? '✅ معتمد من Fixate' : '✅ Fixate Certified'}
+                  </Text>
+                </View>
+              )}
               <Text style={styles.listingTitle}>{listing.title}</Text>
               {/* Price block — RTL-clean: amount and currency are wrapped
                   together so they always render on the trailing side and
@@ -1025,6 +1034,18 @@ const createStyles = (C: any, isRTL: boolean) =>
 
     body: { padding: SPACING.lg, gap: 4 },
     listingTitle: { color: C.text, fontSize: 22, fontWeight: '800', lineHeight: 28, textAlign: isRTL ? 'right' : 'left' },
+    certifiedBanner: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
+      alignSelf: isRTL ? 'flex-end' : 'flex-start',
+      gap: 6,
+      backgroundColor: '#0EA5E9',
+      paddingHorizontal: 12,
+      paddingVertical: 7,
+      borderRadius: 999,
+      marginBottom: 10,
+    },
+    certifiedBannerText: { color: '#fff', fontSize: 13, fontWeight: '800' },
     price: { color: C.primary, fontSize: 26, fontWeight: '900', marginTop: 4, textAlign: isRTL ? 'right' : 'left' },
     // New price block — label on the start side, big value on the end.
     priceBlock: {

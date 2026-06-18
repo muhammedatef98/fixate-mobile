@@ -18,6 +18,7 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useApp } from '../contexts/AppContext';
 import { useAuth } from '../contexts/AuthContext';
+import { useIsAdmin } from '../hooks/useAdminGuard';
 import { getColors, SPACING, BORDER_RADIUS } from '../constants/theme';
 import { RTLIonicon } from '../components/RTLIcon';
 import {
@@ -50,6 +51,7 @@ export default function MarketNewScreen() {
   const router = useRouter();
   const { language, isDark } = useApp();
   const { user, userProfile } = useAuth();
+  const { isAdmin } = useIsAdmin();
   const COLORS = getColors(isDark);
   const isRTL = language === 'ar';
 
@@ -155,6 +157,8 @@ export default function MarketNewScreen() {
         contact_phone: contactPhone.trim() || undefined,
         contact_preference: contactPreference,
         images: uploaded,
+        // FEAT-8 — admin listings are auto-branded Fixate Certified.
+        official: isAdmin,
       });
       Alert.alert(
         isRTL ? 'تم الإرسال' : 'Submitted',

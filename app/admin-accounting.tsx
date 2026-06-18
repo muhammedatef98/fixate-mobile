@@ -9,8 +9,10 @@ import {
   ActivityIndicator,
   RefreshControl,
   TouchableOpacity,
+  TextInput,
   Alert,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useApp } from '../contexts/AppContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -25,12 +27,14 @@ import {
 import {
   getAccountingData,
   exportAccountingCsv,
+  exportTechnicianSummaryCsv,
   type AccountingData,
   type AccountingRange,
 } from '../services/accountingService';
 import { logger } from '../utils/logger';
 
 const CATEGORY_COLORS = ['#10B981', '#3B82F6', '#F59E0B', '#8B5CF6', '#EC4899', '#06B6D4', '#EF4444'];
+const COMMISSION_KEY = '@fixate/platform_commission_pct';
 
 export default function AdminAccountingScreen() {
   const { language, isDark } = useApp();
@@ -44,6 +48,21 @@ export default function AdminAccountingScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [exporting, setExporting] = useState(false);
+  // Configurable platform commission % (persisted locally).
+  const [commissionRate, setCommissionRate] = useState('0');
+
+  useEffect(() => {
+    AsyncStorage.getItem(COMMISSION_KEY).then((v) => {
+      if (v != null) setCommissionRate(v);
+    });
+  }, []);
+
+  const commissionPct = Math.max(0, Math.min(100, Number(commissionRate) || 0));
+  const onChangeCommission = (v: string) => {
+    const clean = v.replace(/[^0-9.]/g, '');
+    setCommissionRate(clean);
+    AsyncStorage.setItem(COMMISSION_KEY, clean).catch(() => {});
+  };
 
   const profileLoaded = userProfile !== null;
   const { isAdmin } = useIsAdmin();
@@ -73,11 +92,11 @@ export default function AdminAccountingScreen() {
     }
   }, [profileLoaded, isAdmin, load]);
 
-  const onExport = async () => {
+  const runExport = async (fn: () => Promise<void>) => {
     if (!data) return;
     setExporting(true);
     try {
-      await exportAccountingCsv(data, isRTL);
+      await fn();
     } catch (e) {
       logger.warn('accounting export failed', e);
       Alert.alert(isRTL ? 'خطأ' : 'Error', isRTL ? 'تعذّر تصدير التقرير' : 'Could not export the report');
@@ -85,6 +104,8 @@ export default function AdminAccountingScreen() {
       setExporting(false);
     }
   };
+  const onExportFull = () => runExport(() => exportAccountingCsv(data!, isRTL, commissionPct));
+  const onExportTech = () => runExport(() => exportTechnicianSummaryCsv(data!, isRTL, commissionPct));
 
   const RANGE_FILTERS: AdminFilterChip<AccountingRange>[] = [
     { key: 'today', ar: 'اليوم', en: 'Today' },
@@ -125,6 +146,7 @@ export default function AdminAccountingScreen() {
         { label: isRTL ? 'تكلفة قطع الغيار' : 'Spare parts cost', value: fmt(data.totalSpareParts), icon: 'cog-outline', color: '#F59E0B' },
         { label: isRTL ? 'صافي الربح' : 'Net profit', value: fmt(data.netProfit), icon: 'trending-up', color: '#3B82F6' },
         { label: isRTL ? 'مدفوعات معلقة' : 'Pending payments', value: fmt(data.pendingPayments), icon: 'credit-card-clock', color: '#EF4444' },
+        { label: isRTL ? 'عمولة المنصة' : 'Platform commission', value: fmt((data.totalRevenue * commissionPct) / 100), icon: 'percent', color: '#8B5CF6' },
       ]
     : [];
 
@@ -175,6 +197,21 @@ export default function AdminAccountingScreen() {
               ))}
             </View>
 
+            {/* Configurable platform commission % */}
+            <View style={[styles.commissionRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+              <Text style={styles.commissionLabel}>
+                {isRTL ? 'نسبة عمولة المنصة (%)' : 'Platform commission (%)'}
+              </Text>
+              <TextInput
+                value={commissionRate}
+                onChangeText={onChangeCommission}
+                keyboardType="numeric"
+                placeholder="0"
+                placeholderTextColor={COLORS.textSecondary}
+                style={styles.commissionInput}
+              />
+            </View>
+
             {/* Revenue bar chart */}
             <Text style={styles.sectionTitle}>{isRTL ? 'الإيرادات' : 'Revenue'}</Text>
             <View style={styles.card}>
@@ -199,19 +236,23 @@ export default function AdminAccountingScreen() {
               )}
             </View>
 
-            {/* Per-technician earnings */}
-            <Text style={styles.sectionTitle}>{isRTL ? 'أرباح الفنيين' : 'Technician earnings'}</Text>
+            {/* Per-technician P&L */}
+            <Text style={styles.sectionTitle}>{isRTL ? 'أرباح الفنيين (ربح/خسارة)' : 'Technician P&L'}</Text>
             <View style={styles.card}>
               <View style={[styles.tableHead, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
                 <Text style={[styles.thName]}>{isRTL ? 'الفني' : 'Technician'}</Text>
                 <Text style={styles.thNum}>{isRTL ? 'طلبات' : 'Orders'}</Text>
                 <Text style={styles.thNum}>{isRTL ? 'الصافي' : 'Net'}</Text>
+                {commissionPct > 0 && <Text style={styles.thNum}>{isRTL ? 'العمولة' : 'Comm.'}</Text>}
               </View>
               {data.technicians.map((t) => (
                 <View key={t.technicianId} style={[styles.tableRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
                   <Text style={[styles.tdName, { textAlign: isRTL ? 'right' : 'left' }]} numberOfLines={1}>{t.name}</Text>
                   <Text style={styles.tdNum}>{t.completedOrders}</Text>
                   <Text style={[styles.tdNum, { color: COLORS.primary, fontWeight: '800' }]}>{fmt(t.net)}</Text>
+                  {commissionPct > 0 && (
+                    <Text style={[styles.tdNum, { color: '#8B5CF6' }]}>{fmt((t.revenue * commissionPct) / 100)}</Text>
+                  )}
                 </View>
               ))}
             </View>
@@ -236,8 +277,8 @@ export default function AdminAccountingScreen() {
               })}
             </View>
 
-            {/* Recent transactions */}
-            <Text style={styles.sectionTitle}>{isRTL ? 'أحدث المعاملات' : 'Recent transactions'}</Text>
+            {/* Transactions */}
+            <Text style={styles.sectionTitle}>{isRTL ? 'المعاملات' : 'Transactions'}</Text>
             <View style={styles.card}>
               {data.recent.map((r) => (
                 <View key={r.id} style={[styles.txnRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
@@ -246,24 +287,55 @@ export default function AdminAccountingScreen() {
                       {r.orderNumber} · {r.customer}
                     </Text>
                     <Text style={[styles.txnSub, { textAlign: isRTL ? 'right' : 'left' }]} numberOfLines={1}>
-                      {r.technician} · {r.date.slice(0, 10)}
+                      {r.technician} · {r.service} · {r.date.slice(0, 10)}
                     </Text>
+                    {r.spareParts > 0 && (
+                      <Text style={[styles.txnSub, { textAlign: isRTL ? 'right' : 'left', color: '#F59E0B' }]} numberOfLines={1}>
+                        {isRTL ? 'قطع غيار' : 'Parts'}: {fmt(r.spareParts)} · {isRTL ? 'صافي' : 'Net'}: {fmt(r.net)}
+                      </Text>
+                    )}
                   </View>
                   <Text style={styles.txnAmount}>{fmt(r.amount)} {sar}</Text>
                 </View>
               ))}
             </View>
 
+            {/* Pending & Overdue */}
+            {data.pendingOrders.length > 0 && (
+              <>
+                <Text style={styles.sectionTitle}>{isRTL ? 'المدفوعات المعلقة والمتأخرة' : 'Pending & overdue'}</Text>
+                <View style={styles.card}>
+                  {data.pendingOrders.map((p) => (
+                    <View key={p.id} style={[styles.txnRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                      <View style={{ flex: 1, minWidth: 0 }}>
+                        <Text style={[styles.txnTitle, { textAlign: isRTL ? 'right' : 'left' }]} numberOfLines={1}>
+                          {p.orderNumber} · {p.customer}
+                        </Text>
+                        <Text style={[styles.txnSub, { textAlign: isRTL ? 'right' : 'left', color: p.ageDays > 7 ? '#EF4444' : COLORS.textSecondary }]} numberOfLines={1}>
+                          {isRTL ? `متأخر ${p.ageDays} يوم` : `${p.ageDays} days overdue`}
+                        </Text>
+                      </View>
+                      <Text style={[styles.txnAmount, { color: '#EF4444' }]}>{fmt(p.amount)} {sar}</Text>
+                    </View>
+                  ))}
+                </View>
+              </>
+            )}
+
             {/* Export */}
-            <TouchableOpacity style={styles.exportBtn} onPress={onExport} disabled={exporting} activeOpacity={0.85}>
+            <TouchableOpacity style={styles.exportBtn} onPress={onExportFull} disabled={exporting} activeOpacity={0.85}>
               {exporting ? (
                 <ActivityIndicator color="#fff" />
               ) : (
                 <>
                   <MaterialCommunityIcons name="file-export-outline" size={20} color="#fff" />
-                  <Text style={styles.exportText}>{isRTL ? 'تصدير التقرير' : 'Export report'}</Text>
+                  <Text style={styles.exportText}>{isRTL ? 'تصدير التقرير الكامل (CSV)' : 'Export full report (CSV)'}</Text>
                 </>
               )}
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.exportBtnAlt} onPress={onExportTech} disabled={exporting} activeOpacity={0.85}>
+              <MaterialCommunityIcons name="account-cash-outline" size={20} color={COLORS.primary} />
+              <Text style={styles.exportTextAlt}>{isRTL ? 'تصدير ملخص الفنيين' : 'Export technician summary'}</Text>
             </TouchableOpacity>
           </>
         )}
@@ -329,4 +401,43 @@ const createStyles = (C: any, isRTL: boolean) =>
       marginTop: 24,
     },
     exportText: { color: '#fff', fontWeight: '800', fontSize: 15 },
+    exportBtnAlt: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      backgroundColor: C.primary + '14',
+      borderWidth: 1,
+      borderColor: C.primary,
+      borderRadius: 14,
+      paddingVertical: 13,
+      marginTop: 12,
+    },
+    exportTextAlt: { color: C.primary, fontWeight: '800', fontSize: 14 },
+    commissionRow: {
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      backgroundColor: C.card,
+      borderRadius: 14,
+      borderWidth: 1,
+      borderColor: C.border,
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+      marginTop: 14,
+      gap: 12,
+    },
+    commissionLabel: { flex: 1, color: C.text, fontSize: 13.5, fontWeight: '700', textAlign: isRTL ? 'right' : 'left' },
+    commissionInput: {
+      width: 80,
+      backgroundColor: C.background,
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: C.border,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      color: C.text,
+      fontSize: 15,
+      fontWeight: '800',
+      textAlign: 'center',
+    },
   });
