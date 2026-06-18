@@ -24,7 +24,14 @@ const toDate = (input: DateInput): Date | null => {
 
 // Arabic locale yields Arabic-Indic numerals + Arabic month names + ص/م.
 // 'en-GB' keeps day-before-month ordering with Latin numerals.
-const localeFor = (isRTL: boolean): string => (isRTL ? 'ar-SA' : 'en-GB');
+//
+// IMPORTANT: the Gregorian calendar is pinned via the Unicode locale extension
+// '-u-ca-gregory', NOT only the { calendar } option. On React Native (Hermes)
+// the { calendar } option is silently ignored, so 'ar-SA' falls back to its
+// default Islamic (Hijri) calendar. The locale-extension form is honoured on
+// device and is what keeps dates Gregorian (Miladi) everywhere.
+const localeFor = (isRTL: boolean): string =>
+  isRTL ? 'ar-SA-u-ca-gregory' : 'en-GB';
 
 const partsFor = (
   date: Date,
