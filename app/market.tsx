@@ -16,6 +16,8 @@ import {
   Dimensions,
   Platform,
   Alert,
+  Animated,
+  type LayoutChangeEvent,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -115,6 +117,55 @@ const timeAgo = (iso: string | undefined, isRTL: boolean): string => {
   return isRTL ? `قبل ${yr} س` : `${yr}y ago`;
 };
 
+/** A single device-filter chip. Its label color eases between secondary and
+ *  primary as it becomes active, so the active state never snaps. The sliding
+ *  pill (rendered by the parent) supplies the moving background indicator. */
+function DeviceChip({
+  chip,
+  active,
+  isRTL,
+  COLORS,
+  styles,
+  onPress,
+  onLayout,
+}: {
+  chip: { id: string; ar: string; en: string; icon: string };
+  active: boolean;
+  isRTL: boolean;
+  COLORS: ReturnType<typeof getColors>;
+  styles: any;
+  onPress: () => void;
+  onLayout: (e: LayoutChangeEvent) => void;
+}) {
+  const t = useRef(new Animated.Value(active ? 1 : 0)).current;
+  useEffect(() => {
+    Animated.timing(t, {
+      toValue: active ? 1 : 0,
+      duration: 200,
+      useNativeDriver: false,
+    }).start();
+  }, [active, t]);
+  const color = t.interpolate({
+    inputRange: [0, 1],
+    outputRange: [COLORS.textSecondary, COLORS.primary],
+  });
+  return (
+    <Pressable onPress={onPress} onLayout={onLayout} android_ripple={null as any} style={styles.deviceChip}>
+      <MaterialCommunityIcons
+        name={chip.icon as any}
+        size={17}
+        color={active ? COLORS.primary : COLORS.textSecondary}
+      />
+      <Animated.Text
+        style={[styles.deviceChipText, { color, fontWeight: active ? '800' : '700' }]}
+        numberOfLines={1}
+      >
+        {isRTL ? chip.ar : chip.en}
+      </Animated.Text>
+    </Pressable>
+  );
+}
+
 export default function MarketScreen() {
   const router = useRouter();
   const { language, isDark } = useApp();
@@ -153,6 +204,52 @@ export default function MarketScreen() {
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
   const [savedOnly, setSavedOnly] = useState(false);
   const deviceStripRef = useRef<ScrollView>(null);
+
+  // Animated filter tabs: a sliding underline tracks the active chip, and the
+  // result grid fades in on every filter change. Chip x/width are measured via
+  // onLayout (chips are variable width), the underline animates to them, and
+  // `indicatorReady` avoids flashing it at 0,0 before the first measurement.
+  const chipLayouts = useRef<Record<string, { x: number; width: number }>>({});
+  const indicatorX = useRef(new Animated.Value(0)).current;
+  const indicatorW = useRef(new Animated.Value(0)).current;
+  const [indicatorReady, setIndicatorReady] = useState(false);
+  const listFade = useRef(new Animated.Value(1)).current;
+
+  const moveIndicatorTo = useCallback(
+    (id: string, animated: boolean) => {
+      const l = chipLayouts.current[id];
+      if (!l) return;
+      if (animated) {
+        Animated.parallel([
+          Animated.spring(indicatorX, { toValue: l.x, useNativeDriver: false, speed: 18, bounciness: 6 }),
+          Animated.spring(indicatorW, { toValue: l.width, useNativeDriver: false, speed: 18, bounciness: 6 }),
+        ]).start();
+      } else {
+        indicatorX.setValue(l.x);
+        indicatorW.setValue(l.width);
+      }
+      setIndicatorReady(true);
+    },
+    [indicatorX, indicatorW]
+  );
+
+  const onChipLayout = useCallback(
+    (id: string, e: LayoutChangeEvent) => {
+      const { x, width } = e.nativeEvent.layout;
+      chipLayouts.current[id] = { x, width };
+      // Position the underline under the active chip as soon as it's measured.
+      if (id === device) moveIndicatorTo(id, false);
+    },
+    [device, moveIndicatorTo]
+  );
+
+  // Slide the underline to the newly-active chip and fade the grid back in
+  // (opacity 0 → 1, ~150ms) whenever the device filter changes.
+  useEffect(() => {
+    moveIndicatorTo(device, true);
+    listFade.setValue(0);
+    Animated.timing(listFade, { toValue: 1, duration: 150, useNativeDriver: true }).start();
+  }, [device, moveIndicatorTo, listFade]);
 
   // Favorites are now per-user, stored server-side in `market_favorites`
   // with RLS gating reads/writes to the row owner. We reset the local set
@@ -576,41 +673,36 @@ export default function MarketScreen() {
           }
         }}
       >
-        {DEVICE_CHIPS.map((c) => {
-          const active = device === c.id;
-          return (
-            // Plain Pressable with no opacity fade / Android ripple. The
-            // earlier TouchableOpacity press animation (opacity 1 → 0.75
-            // → 1) ran concurrently with the active-state color swap and
-            // was perceived as a brief shrink/squeeze of the chip. With
-            // visual feedback disabled the chip stays geometrically
-            // identical — only its colours change.
-            <Pressable
-              key={c.id}
-              onPress={() => setDevice(c.id)}
-              android_ripple={null as any}
-              style={[
-                styles.deviceChip,
-                active && styles.deviceChipActive,
-              ]}
-            >
-              <MaterialCommunityIcons
-                name={c.icon as any}
-                size={17}
-                color={active ? COLORS.primary : COLORS.textSecondary}
-              />
-              <Text
-                style={[styles.deviceChipText, active && styles.deviceChipTextActive]}
-                numberOfLines={1}
-              >
-                {isRTL ? c.ar : c.en}
-              </Text>
-            </Pressable>
-          );
-        })}
+        {/* Sliding indicator pill — animates its x/width to sit under the
+            active chip. Rendered first (behind the chips) and the chips are
+            transparent so it reads as the active background. */}
+        <Animated.View
+          pointerEvents="none"
+          style={[
+            styles.deviceChipPill,
+            {
+              opacity: indicatorReady ? 1 : 0,
+              width: indicatorW,
+              transform: [{ translateX: indicatorX }],
+            },
+          ]}
+        />
+        {DEVICE_CHIPS.map((c) => (
+          <DeviceChip
+            key={c.id}
+            chip={c}
+            active={device === c.id}
+            isRTL={isRTL}
+            COLORS={COLORS}
+            styles={styles}
+            onPress={() => setDevice(c.id)}
+            onLayout={(e) => onChipLayout(c.id, e)}
+          />
+        ))}
       </ScrollView>
 
-      {/* Grid */}
+      {/* Grid — fades in (opacity 0 → 1) on every filter change. */}
+      <Animated.View style={{ flex: 1, opacity: listFade }}>
       {loading && listings.length === 0 ? (
         renderSkeletonGrid()
       ) : displayedListings.length === 0 ? (
@@ -700,6 +792,7 @@ export default function MarketScreen() {
           />
         </>
       )}
+      </Animated.View>
 
       {/* Floating "post a listing" action. Always visible while browsing —
           conversion-critical, so it sits above the grid on the trailing
@@ -949,6 +1042,8 @@ const createStyles = (C: any, isRTL: boolean) =>
     // generous horizontal padding so words like "لابتوب" / "تابلت" never
     // clip and the icon+text never look squished. Single-line guarantee
     // via numberOfLines={1} on the label.
+    // Chips are transparent so the sliding `deviceChipPill` below shows through
+    // as the active background. The chip itself only lays out icon + label.
     deviceChip: {
       flexDirection: isRTL ? 'row-reverse' : 'row',
       alignItems: 'center',
@@ -956,18 +1051,20 @@ const createStyles = (C: any, isRTL: boolean) =>
       paddingHorizontal: 14,
       height: 40,
       borderRadius: 14,
-      borderWidth: 1,
-      borderColor: C.border,
-      backgroundColor: C.card,
+      backgroundColor: 'transparent',
     },
-    // Active state: primary-tinted surface, primary 1.5px border, primary
-    // text. Reads decisively without the harshness of a fully solid pill —
-    // strong but elegant, as requested.
-    deviceChipActive: {
+    // The single moving indicator. Positioned absolutely and animated (x/width)
+    // to sit under the active chip — primary-tinted surface, primary border,
+    // soft lift. `top` matches the strip's vertical padding so it frames the
+    // 40px chip exactly.
+    deviceChipPill: {
+      position: 'absolute',
+      top: 10,
+      height: 40,
+      borderRadius: 14,
       backgroundColor: C.primarySoft,
-      borderColor: C.primary,
       borderWidth: 1.5,
-      // Soft lift so the selected chip visibly anchors the row.
+      borderColor: C.primary,
       shadowColor: C.primary,
       shadowOffset: { width: 0, height: 4 },
       shadowOpacity: 0.18,

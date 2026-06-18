@@ -140,6 +140,9 @@ export default function ChatScreen() {
   };
 
   const handleSend = async (textOverride?: string) => {
+    // Technician side is read-only once the order is completed (Fix 6c).
+    const role = (currentUser?.user_metadata || {})?.user_type || (currentUser?.user_metadata || {})?.role;
+    if (role === 'technician' && order?.status === 'completed') return;
     const messageContent = (textOverride ?? newMessage).trim();
     if (!messageContent) return;
 
@@ -358,6 +361,9 @@ export default function ChatScreen() {
   const meta = (currentUser?.user_metadata || {}) as { user_type?: string; role?: string };
   const myRole = meta.user_type || meta.role;
   const isTechnician = myRole === 'technician';
+  // Fix 6c — once the order is completed, the technician can read the full
+  // history but can no longer send. The customer side is unaffected.
+  const chatLocked = isTechnician && order?.status === 'completed';
   const quickReplies = isTechnician
     ? (isRTL ? QUICK_REPLIES_TECHNICIAN_AR : QUICK_REPLIES_TECHNICIAN_EN)
     : (isRTL ? QUICK_REPLIES_CUSTOMER_AR : QUICK_REPLIES_CUSTOMER_EN);
@@ -453,8 +459,8 @@ export default function ChatScreen() {
         }
       />
 
-      {/* Quick replies */}
-      {messages.length === 0 && (
+      {/* Quick replies — hidden once the chat is locked. */}
+      {!chatLocked && messages.length === 0 && (
         <View style={styles.quickReplies}>
           {quickReplies.map((q) => (
             <TouchableOpacity
@@ -469,7 +475,15 @@ export default function ChatScreen() {
         </View>
       )}
 
-      {/* Input */}
+      {/* Input — replaced by a read-only banner when the chat is locked. */}
+      {chatLocked ? (
+        <View style={[styles.lockedBanner, { backgroundColor: COLORS.card, borderTopColor: COLORS.border }]}>
+          <Ionicons name="lock-closed" size={16} color={COLORS.textSecondary} />
+          <Text style={[styles.lockedBannerText, { color: COLORS.textSecondary }]}>
+            {isRTL ? 'تم إغلاق المحادثة — الطلب مكتمل' : 'Chat closed — order completed'}
+          </Text>
+        </View>
+      ) : (
       <View style={[styles.inputBar, { backgroundColor: COLORS.card, borderTopColor: COLORS.border }]}>
           {/* Attachment menu — image + location */}
           <TouchableOpacity
@@ -514,6 +528,7 @@ export default function ChatScreen() {
             )}
           </TouchableOpacity>
       </View>
+      )}
       </KeyboardAvoidingView>
 
       <ImageViewer
@@ -595,6 +610,19 @@ const makeStyles = (C: any, isRTL: boolean) =>
       padding: 8,
       gap: 8,
       borderTopWidth: 1,
+    },
+    lockedBanner: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      paddingVertical: 16,
+      paddingHorizontal: 16,
+      borderTopWidth: 1,
+    },
+    lockedBannerText: {
+      fontSize: 13.5,
+      fontWeight: '700',
     },
     input: {
       flex: 1,

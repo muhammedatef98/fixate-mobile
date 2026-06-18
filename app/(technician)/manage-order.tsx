@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -14,6 +14,7 @@ import {
   Platform,
   TextInput,
   Modal,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { MaterialIcons, MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
@@ -110,6 +111,8 @@ export default function ManageOrderScreen() {
   const [rejectReasonKey, setRejectReasonKey] = useState<string | null>(null);
   const [rejectCustomReason, setRejectCustomReason] = useState('');
   const [submittingReject, setSubmittingReject] = useState(false);
+  // Lets us scroll the custom-reason input into view when the keyboard opens.
+  const rejectScrollRef = useRef<ScrollView>(null);
   const [notesDraft, setNotesDraft] = useState('');
   const [savingNotes, setSavingNotes] = useState(false);
   const [beforePhotos, setBeforePhotos] = useState<string[]>([]);
@@ -1194,9 +1197,13 @@ export default function ManageOrderScreen() {
         animationType="slide"
         onRequestClose={() => setRejectModalVisible(false)}
       >
-        <View style={styles.rejectSheetOverlay}>
+        <KeyboardAvoidingView
+          style={styles.rejectSheetOverlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
           <View style={[styles.rejectSheet, { backgroundColor: COLORS.card }]}>
             <ScrollView
+              ref={rejectScrollRef}
               showsVerticalScrollIndicator={false}
               keyboardShouldPersistTaps="handled"
               contentContainerStyle={{ paddingBottom: 4 }}
@@ -1236,6 +1243,10 @@ export default function ManageOrderScreen() {
                 placeholder={isRTL ? 'اكتب السبب (10 أحرف على الأقل)' : 'Type the reason (min 10 characters)'}
                 placeholderTextColor={COLORS.textSecondary}
                 multiline
+                onFocus={() =>
+                  // Bring the input + confirm button above the keyboard.
+                  setTimeout(() => rejectScrollRef.current?.scrollToEnd({ animated: true }), 150)
+                }
                 style={{
                   borderWidth: 1,
                   borderColor: COLORS.border,
@@ -1273,7 +1284,7 @@ export default function ManageOrderScreen() {
             </View>
             </ScrollView>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </SafeAreaView>
   );

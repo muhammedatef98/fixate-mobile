@@ -938,7 +938,12 @@ export default function RequestScreen() {
               keyExtractor={(brand) => brand.id}
               numColumns={2}
               columnWrapperStyle={{ gap: 12, flexDirection: isRTL ? 'row-reverse' : 'row' }}
-              contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 24 }}
+              // The card width is (width - 44) / 2, which already budgets for
+              // the 16px margins supplied by the parent `content` padding plus
+              // the 12px gap — exactly like the device-type grid. Adding a
+              // second horizontal padding here over-widened the row and clipped
+              // the leftmost card, so only vertical padding lives on the list.
+              contentContainerStyle={{ gap: 12, paddingBottom: 24 }}
               showsVerticalScrollIndicator={false}
               ListEmptyComponent={renderEmptyState(isRTL ? 'لا توجد نتائج' : 'No results found')}
               renderItem={({ item: brand }) => (

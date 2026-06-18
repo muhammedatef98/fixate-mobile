@@ -495,27 +495,9 @@ export default function TechnicianHomeScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Support bar — quick line to customer service */}
-      <TouchableOpacity
-        style={[styles.supportBar, SHADOWS.neuSmall]}
-        activeOpacity={0.85}
-        onPress={() => router.push('/support-chat')}
-        accessibilityRole="button"
-        accessibilityLabel={isRTL ? 'الدعم' : 'Support'}
-      >
-        <View style={styles.supportBarIcon}>
-          <MaterialCommunityIcons name="headset" size={20} color="#10B981" />
-        </View>
-        <View style={{ flex: 1, alignItems: isRTL ? 'flex-end' : 'flex-start' }}>
-          <Text style={[styles.supportBarTitle, { color: COLORS.text }]}>
-            {isRTL ? 'تواصل مع فريق الدعم' : 'Contact the support team'}
-          </Text>
-          <Text style={[styles.supportBarSub, { color: COLORS.textSecondary }]} numberOfLines={1}>
-            {isRTL ? 'مساعدة في الطلبات أو حسابك' : 'Help with jobs or your account'}
-          </Text>
-        </View>
-        <Ionicons name={isRTL ? 'chevron-back' : 'chevron-forward'} size={18} color={COLORS.textSecondary} />
-      </TouchableOpacity>
+      {/* Support bar removed (Fix 6a): redundant with the "الدعم الفني / Tech
+          Support" entry in the technician profile tab; the dashboard now stays
+          focused on operational widgets (stats, availability, jobs). */}
 
       {/* Tabs */}
       <View style={[styles.tabsContainer, SHADOWS.neuFlat]}>

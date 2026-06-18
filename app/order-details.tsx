@@ -491,28 +491,67 @@ export default function OrderDetailsScreen() {
         })()}
 
         {/* FEAT-03 — rejection notice shown to the client when a technician
-            declined the request, with the reason they provided. */}
+            declined the request, with the reason they provided. Warm,
+            apologetic tone + a CTA to encourage re-submitting a new request. */}
         {order.status === 'rejected' && (
           <View style={[styles.card, { backgroundColor: '#FEF2F2', borderColor: '#FECACA', borderWidth: 1 }, SHADOWS.small]}>
             <View style={[styles.cardHeader, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-              <MaterialCommunityIcons name="close-octagon" size={24} color="#DC2626" />
+              <MaterialCommunityIcons name="emoticon-sad-outline" size={24} color="#DC2626" />
               <Text style={[styles.cardTitle, { color: '#991B1B' }]}>
-                {isRTL ? 'تم رفض الطلب' : 'Request rejected'}
+                {isRTL ? 'نعتذر منك' : 'We’re sorry'}
               </Text>
             </View>
             <Text
               style={{
                 color: '#7F1D1D',
                 fontSize: 15,
-                lineHeight: 22,
+                lineHeight: 23,
                 marginTop: 8,
                 textAlign: isRTL ? 'right' : 'left',
                 writingDirection: isRTL ? 'rtl' : 'ltr',
               }}
             >
-              {(order as any).rejection_reason ||
-                (isRTL ? 'تم رفض الطلب من قبل الفني.' : 'This request was rejected by the technician.')}
+              {isRTL
+                ? `تم رفض طلبك من قِبل الفني بسبب: ${
+                    (order as any).rejection_reason || 'لم يُذكر سبب محدد'
+                  }`
+                : `Your request was declined by the technician for the following reason: ${
+                    (order as any).rejection_reason || 'no specific reason given'
+                  }`}
             </Text>
+            <Text
+              style={{
+                color: '#9F4444',
+                fontSize: 13,
+                lineHeight: 20,
+                marginTop: 8,
+                textAlign: isRTL ? 'right' : 'left',
+                writingDirection: isRTL ? 'rtl' : 'ltr',
+              }}
+            >
+              {isRTL
+                ? 'لا تقلق — يمكنك إنشاء طلب جديد وسيسعد فنيّ آخر بخدمتك.'
+                : 'Don’t worry — you can create a new request and another technician will be glad to help.'}
+            </Text>
+            <TouchableOpacity
+              onPress={() => router.replace('/request' as any)}
+              style={{
+                flexDirection: isRTL ? 'row-reverse' : 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 8,
+                backgroundColor: '#DC2626',
+                paddingVertical: 13,
+                borderRadius: BORDER_RADIUS.md,
+                marginTop: 14,
+              }}
+              accessibilityRole="button"
+            >
+              <Ionicons name="add-circle-outline" size={18} color="#fff" />
+              <Text style={{ color: '#fff', fontWeight: '800', fontSize: 15 }}>
+                {isRTL ? 'إنشاء طلب جديد' : 'Create a new request'}
+              </Text>
+            </TouchableOpacity>
           </View>
         )}
 

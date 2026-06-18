@@ -8,10 +8,13 @@ import { useApp } from '../../contexts/AppContext';
 import { logger } from '../../utils/logger';
 import { safeBack } from '../../utils/navigation';
 
+// Color-coded per status: pending/accepted = orange, active = blue,
+// completed = green, rejected = red (see Fix 6d / Fix 7).
 const STATUS_TABS = [
   { id: 'accepted', labelAr: 'مقبولة', labelEn: 'Accepted', color: '#F59E0B' },
   { id: 'in_progress', labelAr: 'قيد التنفيذ', labelEn: 'In Progress', color: '#3B82F6' },
   { id: 'completed', labelAr: 'مكتملة', labelEn: 'Completed', color: '#10B981' },
+  { id: 'rejected', labelAr: 'مرفوضة', labelEn: 'Rejected', color: '#EF4444' },
 ];
 
 export default function MyOrdersScreen() {
@@ -64,11 +67,20 @@ export default function MyOrdersScreen() {
   const renderOrderCard = (order: any) => {
     if (!order || !order.id) return null;
     const statusConfig = STATUS_TABS.find(t => t.id === order.status);
-    
+    // A rejected order is final & read-only — mute the card and drop all
+    // action buttons so it visually reads as "closed/ended" (Fix 7).
+    const isRejected = order.status === 'rejected';
+
     return (
       <TouchableOpacity
         key={order.id}
-        style={[styles.orderCard, { backgroundColor: COLORS.card }, SHADOWS.medium]}
+        activeOpacity={isRejected ? 1 : 0.7}
+        style={[
+          styles.orderCard,
+          { backgroundColor: COLORS.card },
+          SHADOWS.medium,
+          isRejected && styles.orderCardClosed,
+        ]}
         onPress={() => {
           if (order.id) {
             // Use correct path for technician order management
@@ -138,6 +150,16 @@ export default function MyOrdersScreen() {
               {language === 'ar' ? 'إكمال' : 'Complete'}
             </Text>
           </TouchableOpacity>
+        )}
+
+        {/* Rejected = final & read-only: no actions, just a closed marker. */}
+        {isRejected && (
+          <View style={styles.closedRow}>
+            <MaterialCommunityIcons name="lock-outline" size={16} color="#EF4444" />
+            <Text style={styles.closedText}>
+              {language === 'ar' ? 'تم إنهاء هذا الطلب (مرفوض)' : 'This request is closed (rejected)'}
+            </Text>
+          </View>
         )}
       </TouchableOpacity>
     );
@@ -243,6 +265,25 @@ const makeStyles = (isRTL: boolean) => StyleSheet.create({
     padding: SPACING.l,
     borderRadius: BORDER_RADIUS.md,
     marginBottom: SPACING.md,
+  },
+  // Muted, "ended" look for a final (rejected) order.
+  orderCardClosed: {
+    opacity: 0.6,
+  },
+  closedRow: {
+    flexDirection: isRTL ? 'row-reverse' : 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginTop: SPACING.sm,
+    paddingVertical: SPACING.sm,
+    borderRadius: BORDER_RADIUS.sm,
+    backgroundColor: '#EF444415',
+  },
+  closedText: {
+    color: '#EF4444',
+    fontSize: 12.5,
+    fontWeight: '700',
   },
   orderHeader: {
     flexDirection: isRTL ? 'row-reverse' : 'row',

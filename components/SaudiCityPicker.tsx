@@ -9,6 +9,8 @@ import {
   StyleSheet,
   Pressable,
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../contexts/AppContext';
@@ -189,7 +191,15 @@ export default function SaudiCityPicker({
         onRequestClose={close}
         statusBarTranslucent
       >
-        <View style={styles.backdrop}>
+        {/* The KAV is the backdrop itself (flex:1, bottom-anchored) so the
+            sheet's maxHeight:85% still resolves against a full-height parent,
+            while `padding`/`height` behavior lifts the sheet above the keyboard
+            — keeping the search input on top and the results list visible and
+            scrollable as the user types a city name. */}
+        <KeyboardAvoidingView
+          style={styles.backdrop}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
           <Pressable style={StyleSheet.absoluteFill} onPress={close} />
           <View style={styles.sheet}>
             <View style={styles.handle} />
@@ -288,7 +298,7 @@ export default function SaudiCityPicker({
               />
             )}
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </>
   );

@@ -475,7 +475,7 @@ export default function MarketDetailScreen() {
                 <View style={styles.certifiedBanner}>
                   <Ionicons name="shield-checkmark" size={16} color="#fff" />
                   <Text style={styles.certifiedBannerText}>
-                    {isRTL ? '✅ معتمد من Fixate' : '✅ Fixate Certified'}
+                    {isRTL ? 'معتمد من Fixate' : 'Fixate Certified'}
                   </Text>
                 </View>
               )}

@@ -24,11 +24,32 @@ type ChatRow = {
   customerId: string | null;
   customerName: string;
   customerAvatar: string | null;
-  orderTitle: string;
+  /** Row identity: "[Device] — #[Order Number]" (Fix 6b). */
+  title: string;
   orderStatus: string;
   lastMessage: string | null;
   lastAt: string | null;
   unread: number;
+};
+
+/** Color-coded status chip mapping (Fix 6d): pending = orange, active = blue,
+ *  completed = green, rejected/cancelled = red. */
+const statusMeta = (status: string, isRTL: boolean): { label: string; color: string } => {
+  switch (status) {
+    case 'completed':
+      return { label: isRTL ? 'مكتمل' : 'Completed', color: '#10B981' };
+    case 'rejected':
+      return { label: isRTL ? 'مرفوض' : 'Rejected', color: '#EF4444' };
+    case 'cancelled':
+      return { label: isRTL ? 'ملغى' : 'Cancelled', color: '#EF4444' };
+    case 'pending':
+    case 'quoted':
+    case 'awaiting_payment':
+      return { label: isRTL ? 'قيد الانتظار' : 'Pending', color: '#F59E0B' };
+    default:
+      // accepted / in_progress / repairing / delivering … — work in motion.
+      return { label: isRTL ? 'نشط' : 'Active', color: '#3B82F6' };
+  }
 };
 
 export default function TechnicianChats() {
@@ -61,7 +82,7 @@ export default function TechnicianChats() {
       ] = await Promise.all([
         supabase
           .from('orders')
-          .select('id, user_id, service_type, status, created_at')
+          .select('id, user_id, service_type, status, created_at, device_brand, device_model, order_number')
           .eq('technician_id', user.id)
           .order('created_at', { ascending: false })
           .limit(60),
@@ -90,7 +111,7 @@ export default function TechnicianChats() {
       if (extraIds.length > 0) {
         const { data: more, error: moreErr } = await supabase
           .from('orders')
-          .select('id, user_id, service_type, status, created_at')
+          .select('id, user_id, service_type, status, created_at, device_brand, device_model, order_number')
           .in('id', extraIds);
         if (moreErr) logger.warn('chats: extra orders query failed', moreErr);
         extraOrders = more ?? [];
@@ -138,22 +159,25 @@ export default function TechnicianChats() {
       const built: ChatRow[] = list.map((o: any) => {
         const last = latestByOrder.get(o.id);
         const cust = o.user_id ? customersById.get(o.user_id) : null;
-        // Show "#xxxxxxxx" — short, stable, scannable. Matches the pattern
-        // used elsewhere (order-details falls back to order_number || #id8).
-        const shortId =
-          (o as any).order_number ||
-          (o.id ? `#${String(o.id).slice(0, 8)}` : (isRTL ? 'طلب' : 'Order'));
-        const customerName = cust?.name || (isRTL ? 'عميل' : 'Customer');
-        const service = o.service_type || (isRTL ? 'طلب صيانة' : 'Repair order');
+        // Fix 6b — identify each conversation by the device + order number,
+        // e.g. "Apple iPhone 13 — #1042", instead of a generic customer
+        // name/placeholder. order_number is shown bare-prefixed with '#';
+        // we fall back to a short id slice when it's missing.
+        const orderNo = o.order_number
+          ? `#${o.order_number}`
+          : o.id
+          ? `#${String(o.id).slice(0, 8)}`
+          : '';
+        const deviceLabel =
+          [o.device_brand, o.device_model].filter(Boolean).join(' ').trim() ||
+          (isRTL ? 'جهاز' : 'Device');
         return {
           orderId: o.id,
           customerId: o.user_id ?? null,
-          // Display the order number as the row title.
-          customerName: shortId,
+          // Kept for the avatar only — no longer shown as the row title.
+          customerName: cust?.name || (isRTL ? 'عميل' : 'Customer'),
           customerAvatar: cust?.avatar_url ?? null,
-          // Subtitle now carries customer name + service type so the
-          // technician still sees who/what the chat is about.
-          orderTitle: `${customerName} · ${service}`,
+          title: `${deviceLabel} — ${orderNo}`,
           orderStatus: o.status || 'pending',
           lastMessage: last?.content ?? null,
           lastAt: last?.created_at ?? o.created_at ?? null,
@@ -200,40 +224,44 @@ export default function TechnicianChats() {
     });
   };
 
-  const renderItem = ({ item }: { item: ChatRow }) => (
-    <TouchableOpacity
-      activeOpacity={0.85}
-      onPress={() => openChat(item)}
-      style={styles.row}
-      accessibilityRole="button"
-      accessibilityLabel={`${item.customerName}, ${item.orderTitle}`}
-    >
-      <Avatar name={item.customerName} uri={item.customerAvatar ?? undefined} size={50} />
-      <View style={styles.rowBody}>
-        <View style={styles.rowTop}>
-          <Text style={styles.name} numberOfLines={1}>{item.customerName}</Text>
-          <Text style={styles.when}>{formatWhen(item.lastAt)}</Text>
-        </View>
-        <Text style={styles.preview} numberOfLines={1}>
-          {item.lastMessage
-            ? item.lastMessage
-            : (isRTL ? 'لا توجد رسائل بعد — ابدأ المحادثة' : 'No messages yet — start the chat')}
-        </Text>
-        <View style={styles.metaRow}>
-          <View style={styles.statusChip}>
-            <Text style={styles.statusChipText} numberOfLines={1}>
-              {item.orderTitle}
-            </Text>
+  const renderItem = ({ item }: { item: ChatRow }) => {
+    const sMeta = statusMeta(item.orderStatus, isRTL);
+    return (
+      <TouchableOpacity
+        activeOpacity={0.85}
+        onPress={() => openChat(item)}
+        style={styles.row}
+        accessibilityRole="button"
+        accessibilityLabel={`${item.title}, ${sMeta.label}`}
+      >
+        <Avatar name={item.customerName} uri={item.customerAvatar ?? undefined} size={50} />
+        <View style={styles.rowBody}>
+          <View style={styles.rowTop}>
+            <Text style={styles.name} numberOfLines={1}>{item.title}</Text>
+            <Text style={styles.when}>{formatWhen(item.lastAt)}</Text>
           </View>
-          {item.unread > 0 ? (
-            <View style={styles.unreadBadge}>
-              <Text style={styles.unreadText}>{item.unread}</Text>
+          <Text style={styles.preview} numberOfLines={1}>
+            {item.lastMessage
+              ? item.lastMessage
+              : (isRTL ? 'لا توجد رسائل بعد — ابدأ المحادثة' : 'No messages yet — start the chat')}
+          </Text>
+          <View style={styles.metaRow}>
+            <View style={[styles.statusChip, { backgroundColor: sMeta.color + '18' }]}>
+              <View style={[styles.statusDot, { backgroundColor: sMeta.color }]} />
+              <Text style={[styles.statusChipText, { color: sMeta.color }]} numberOfLines={1}>
+                {sMeta.label}
+              </Text>
             </View>
-          ) : null}
+            {item.unread > 0 ? (
+              <View style={styles.unreadBadge}>
+                <Text style={styles.unreadText}>{item.unread}</Text>
+              </View>
+            ) : null}
+          </View>
         </View>
-      </View>
-    </TouchableOpacity>
-  );
+      </TouchableOpacity>
+    );
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -332,12 +360,15 @@ const createStyles = (C: any, isRTL: boolean, SHADOWS: any) =>
       marginTop: 4,
     },
     statusChip: {
-      paddingHorizontal: 8, paddingVertical: 3,
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
+      gap: 5,
+      paddingHorizontal: 9, paddingVertical: 4,
       borderRadius: 999,
-      backgroundColor: C.cardAlt,
       maxWidth: '75%',
     },
-    statusChipText: { color: C.textSecondary, fontSize: 10.5, fontWeight: '700' },
+    statusDot: { width: 6, height: 6, borderRadius: 3 },
+    statusChipText: { fontSize: 10.5, fontWeight: '800' },
     unreadBadge: {
       minWidth: 20, height: 20, borderRadius: 10,
       backgroundColor: C.primary,
