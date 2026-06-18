@@ -139,12 +139,12 @@ export default function MarketMessagesScreen() {
         d.getMonth() === now.getMonth() &&
         d.getDate() === now.getDate();
       if (sameDay) {
-        return d.toLocaleTimeString(isRTL ? 'ar-SA' : 'en-US', {
+        return d.toLocaleTimeString(isRTL ? 'ar-SA-u-ca-gregory' : 'en-US', {
           hour: '2-digit',
           minute: '2-digit',
         });
       }
-      return d.toLocaleDateString(isRTL ? 'ar-SA' : 'en-US', {
+      return d.toLocaleDateString(isRTL ? 'ar-SA-u-ca-gregory' : 'en-US', {
         month: 'short',
         day: 'numeric',
       });

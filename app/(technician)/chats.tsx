@@ -215,11 +215,11 @@ export default function TechnicianChats() {
     const now = new Date();
     const sameDay = d.toDateString() === now.toDateString();
     if (sameDay) {
-      return d.toLocaleTimeString(isRTL ? 'ar-SA' : 'en-GB', {
+      return d.toLocaleTimeString(isRTL ? 'ar-SA-u-ca-gregory' : 'en-GB', {
         hour: '2-digit', minute: '2-digit',
       });
     }
-    return d.toLocaleDateString(isRTL ? 'ar-SA' : 'en-GB', {
+    return d.toLocaleDateString(isRTL ? 'ar-SA-u-ca-gregory' : 'en-GB', {
       month: 'short', day: '2-digit',
     });
   };

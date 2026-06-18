@@ -73,7 +73,7 @@ function timeAgo(iso: string | undefined, isRTL: boolean): string {
   if (h < 24) return isRTL ? `قبل ${h} س` : `${h}h ago`;
   const d = Math.floor(h / 24);
   if (d < 30) return isRTL ? `قبل ${d} ي` : `${d}d ago`;
-  return new Date(iso).toLocaleDateString(isRTL ? 'ar' : 'en-GB');
+  return new Date(iso).toLocaleDateString(isRTL ? 'ar-SA-u-ca-gregory' : 'en-GB');
 }
 
 // Full device-type label map. Every type that can appear in the

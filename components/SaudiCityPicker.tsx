@@ -9,7 +9,6 @@ import {
   StyleSheet,
   Pressable,
   ActivityIndicator,
-  Keyboard,
   Dimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -85,42 +84,21 @@ export default function SaudiCityPicker({
   const [query, setQuery] = useState('');
   const [data, setData] = useState<PickerRegion[] | null>(mode === 'all' ? staticPickerData() : null);
   const [loading, setLoading] = useState(false);
-  // Live keyboard height so the results list can shrink to stay fully visible
-  // above the keyboard (Fix 5).
-  const [keyboardHeight, setKeyboardHeight] = useState(0);
 
-  useEffect(() => {
-    // `keyboardDidShow`/`keyboardDidHide` fire after the keyboard frame is
-    // final, so endCoordinates.height is the real height on both platforms.
-    const showSub = Keyboard.addListener('keyboardDidShow', (e) =>
-      setKeyboardHeight(e.endCoordinates?.height ?? 0)
-    );
-    const hideSub = Keyboard.addListener('keyboardDidHide', () => setKeyboardHeight(0));
-    return () => {
-      showSub.remove();
-      hideSub.remove();
-    };
-  }, []);
-
-  // Dynamic list height — the list shrinks to exactly the gap between the
-  // search bar and the top of the keyboard, so results are ALWAYS visible.
+  // FIXED layout — the sheet permanently reserves space for the keyboard and
+  // the list has a FIXED height, so NOTHING moves or shrinks when the keyboard
+  // shows/hides. The user just scrolls the stable list and taps a city.
+  // (No Keyboard listeners on purpose; the search input is auto-focused so the
+  // keyboard is up from the start and the reserved space is never empty.)
   const screenHeight = Dimensions.get('window').height;
-  const BOTTOM_SHEET_HEADER = 60; // handle + title row
-  const SEARCH_BAR = 56;
-  const SAFE_BOTTOM = insets.bottom || 16;
-  const kbOpen = keyboardHeight > 0;
-  const listMaxHeight = kbOpen
-    ? Math.max(
-        140,
-        screenHeight - keyboardHeight - BOTTOM_SHEET_HEADER - SEARCH_BAR - SAFE_BOTTOM - 20
-      )
-    : Math.round(screenHeight * 0.7);
-  // The sheet is also lifted to sit directly on top of the keyboard (a
-  // bottom-anchored sheet would otherwise stay behind it on iOS), and capped so
-  // its top never runs past the safe area.
-  const sheetMaxHeight = kbOpen
-    ? screenHeight - keyboardHeight - insets.top - 16
-    : Math.round(screenHeight * 0.85);
+  const KEYBOARD_RESERVE = 330; // space kept clear at the bottom for the keyboard
+  const sheetHeight = Math.max(
+    280,
+    Math.min(
+      Math.round(screenHeight * 0.5),
+      screenHeight - KEYBOARD_RESERVE - insets.top - 24
+    )
+  );
 
   // Load coverage data when the sheet opens (serviceable mode only).
   // We keep `data` cached on the component instance so re-opens are
@@ -191,7 +169,6 @@ export default function SaudiCityPicker({
   const close = () => {
     setOpen(false);
     setQuery('');
-    setKeyboardHeight(0);
   };
 
   const handlePick = (city: PickerCity) => {
@@ -230,13 +207,13 @@ export default function SaudiCityPicker({
         onRequestClose={close}
         statusBarTranslucent
       >
-        {/* Fix 5 — the sheet is lifted above the keyboard by exactly its height
-            (marginBottom) and its results list is capped (listMaxHeight) so the
-            search bar stays on top and the full list stays visible/scrollable
-            while typing, on both iOS and Android. */}
+        {/* The sheet has a FIXED height and permanently sits above a reserved
+            keyboard area (marginBottom: KEYBOARD_RESERVE). It never resizes or
+            moves when the keyboard shows/hides — the list stays exactly as is
+            and the user simply scrolls it to pick a city. */}
         <View style={styles.backdrop}>
           <Pressable style={StyleSheet.absoluteFill} onPress={close} />
-          <View style={[styles.sheet, { maxHeight: sheetMaxHeight, marginBottom: keyboardHeight }]}>
+          <View style={[styles.sheet, { height: sheetHeight, marginBottom: KEYBOARD_RESERVE }]}>
             <View style={styles.handle} />
             <View style={styles.sheetHeader}>
               <Text style={styles.sheetTitle}>
@@ -256,6 +233,7 @@ export default function SaudiCityPicker({
                 placeholderTextColor={COLORS.textSecondary}
                 style={styles.searchInput}
                 autoCorrect={false}
+                autoFocus
                 textAlign={isRTL ? 'right' : 'left'}
               />
               {query.length > 0 && (
@@ -278,7 +256,7 @@ export default function SaudiCityPicker({
                 sections={sections}
                 keyExtractor={(item, index) => item.en + index}
                 keyboardShouldPersistTaps="handled"
-                style={{ maxHeight: listMaxHeight }}
+                style={{ flex: 1 }}
                 stickySectionHeadersEnabled
                 renderSectionHeader={({ section }) => (
                   <View style={styles.regionHeader}>

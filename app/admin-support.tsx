@@ -408,7 +408,7 @@ export default function AdminSupportScreen() {
                     {item.content}
                   </Text>
                   <Text style={{ color: mine ? '#ffffffaa' : COLORS.textSecondary, fontSize: 10, marginTop: 4, textAlign: isRTL ? 'left' : 'right' }}>
-                    {new Date(item.created_at).toLocaleTimeString(language === 'ar' ? 'ar' : 'en-US', { hour: '2-digit', minute: '2-digit' })}
+                    {new Date(item.created_at).toLocaleTimeString(language === 'ar' ? 'ar-SA-u-ca-gregory' : 'en-US', { hour: '2-digit', minute: '2-digit' })}
                   </Text>
                 </View>
               </View>

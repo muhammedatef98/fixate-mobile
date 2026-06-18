@@ -174,7 +174,7 @@ export default function AdminRatingsScreen() {
                     ))}
                   </View>
                   <Text style={styles.metaText}>
-                    {r.created_at ? new Date(r.created_at).toLocaleDateString(isRTL ? 'ar' : 'en-GB') : ''}
+                    {r.created_at ? new Date(r.created_at).toLocaleDateString(isRTL ? 'ar-SA-u-ca-gregory' : 'en-GB') : ''}
                   </Text>
                 </View>
                 {r.comment ? (

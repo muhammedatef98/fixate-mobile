@@ -117,7 +117,7 @@ export default function MyOrdersScreen() {
           <View style={styles.orderDetailItem}>
             <MaterialIcons name="access-time" size={16} color={COLORS.textSecondary} />
             <Text style={[styles.orderDetailText, { color: COLORS.textSecondary }]}>
-              {new Date(order.created_at).toLocaleDateString(language === 'ar' ? 'ar' : 'en-US')}
+              {new Date(order.created_at).toLocaleDateString(language === 'ar' ? 'ar-SA-u-ca-gregory' : 'en-US')}
             </Text>
           </View>
           <View style={styles.orderDetailItem}>

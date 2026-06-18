@@ -144,7 +144,7 @@ export default function WalletScreen() {
                     {isRTL ? 'طلب صيانة #' : 'Repair order #'}{p.order_id.slice(0, 6)}
                   </Text>
                   <Text style={styles.txnDate}>
-                    {p.created_at ? new Date(p.created_at).toLocaleDateString(isRTL ? 'ar' : 'en-GB') : ''}
+                    {p.created_at ? new Date(p.created_at).toLocaleDateString(isRTL ? 'ar-SA-u-ca-gregory' : 'en-GB') : ''}
                   </Text>
                 </View>
                 <View style={{ alignItems: isRTL ? 'flex-start' : 'flex-end' }}>
