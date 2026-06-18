@@ -19,7 +19,7 @@ import { safeBack } from '../utils/navigation';
 
 const CONTACT_INFO = {
   phone: '0548940042',
-  email: 'fixate01@gmail.com',
+  email: 'support@fixate.site',
   whatsapp: '966548940042', // Saudi format
 };
 

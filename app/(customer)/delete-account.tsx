@@ -71,8 +71,8 @@ export default function DeleteAccountScreen() {
               Alert.alert(
                 isRTL ? 'تم حذف الحساب' : 'Account Deleted',
                 isRTL
-                  ? 'تم حذف حسابك بنجاح. سيتم حذف جميع بياناتك نهائياً بعد 30 يوماً. يمكنك التواصل معنا على fixate01@gmail.com خلال هذه الفترة لاسترجاع حسابك.'
-                  : 'Your account has been successfully deleted. All your data will be permanently deleted after 30 days. You can contact us at fixate01@gmail.com during this period to restore your account.',
+                  ? 'تم حذف حسابك بنجاح. سيتم حذف جميع بياناتك نهائياً بعد 30 يوماً. يمكنك التواصل معنا على support@fixate.site خلال هذه الفترة لاسترجاع حسابك.'
+                  : 'Your account has been successfully deleted. All your data will be permanently deleted after 30 days. You can contact us at support@fixate.site during this period to restore your account.',
                 [
                   {
                     text: isRTL ? 'حسناً' : 'OK',
@@ -210,7 +210,7 @@ export default function DeleteAccountScreen() {
               ? 'هل تواجه مشكلة؟ تواصل معنا:'
               : 'Having issues? Contact us:'}
           </Text>
-          <Text style={styles.supportEmail}>fixate01@gmail.com</Text>
+          <Text style={styles.supportEmail}>support@fixate.site</Text>
           <Text style={styles.supportPhone}>+966548940042</Text>
         </View>
       </View>

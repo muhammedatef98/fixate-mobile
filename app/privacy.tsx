@@ -131,8 +131,8 @@ export default function PrivacyScreen() {
 
 لأي استفسارات حول الخصوصية:
 
-- البريد الإلكتروني: privacy@fixate.com
-- العنوان: الرياض، المملكة العربية السعودية
+- البريد الإلكتروني: support@fixate.site
+- العنوان: القطيف، المنطقة الشرقية، المملكة العربية السعودية
 
 ---
 
@@ -255,8 +255,8 @@ We comply with:
 
 For any privacy inquiries:
 
-- Email: privacy@fixate.com
-- Address: Riyadh, Saudi Arabia
+- Email: support@fixate.site
+- Address: Al-Qatif, Eastern Province, Saudi Arabia
 
 ---
 

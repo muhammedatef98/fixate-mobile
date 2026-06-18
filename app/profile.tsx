@@ -397,12 +397,19 @@ export default function ProfileScreen() {
             
             <View style={styles.aboutInfo}>
               <Text style={[styles.aboutLabel, { color: COLORS.textSecondary }]}>{isRTL ? 'البريد الإلكتروني' : 'Email'}</Text>
-              <Text style={[styles.aboutValue, { color: COLORS.text }]}>fixate01@gmail.com</Text>
+              <Text style={[styles.aboutValue, { color: COLORS.text }]}>support@fixate.site</Text>
             </View>
-            
+
             <View style={styles.aboutInfo}>
               <Text style={[styles.aboutLabel, { color: COLORS.textSecondary }]}>{isRTL ? 'الهاتف' : 'Phone'}</Text>
               <Text style={[styles.aboutValue, { color: COLORS.text }]}>0548940042</Text>
+            </View>
+
+            <View style={styles.aboutInfo}>
+              <Text style={[styles.aboutLabel, { color: COLORS.textSecondary }]}>{isRTL ? 'الموقع' : 'Location'}</Text>
+              <Text style={[styles.aboutValue, { color: COLORS.text }]}>
+                {isRTL ? 'القطيف، المنطقة الشرقية، المملكة العربية السعودية' : 'Al-Qatif, Eastern Province, Saudi Arabia'}
+              </Text>
             </View>
             
             <TouchableOpacity 

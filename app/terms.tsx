@@ -143,8 +143,8 @@ export default function TermsScreen() {
 
 إذا كان لديك أي استفسارات حول هذه الشروط، يرجى التواصل معنا:
 
-- البريد الإلكتروني: support@fixate.com
-- العنوان: الرياض، المملكة العربية السعودية
+- البريد الإلكتروني: support@fixate.site
+- العنوان: القطيف، المنطقة الشرقية، المملكة العربية السعودية
 
 ---
 
@@ -279,8 +279,8 @@ The following terms apply when a device is received for repair and collected aft
 
 If you have any questions about these terms, please contact us:
 
-- Email: support@fixate.com
-- Address: Riyadh, Saudi Arabia
+- Email: support@fixate.site
+- Address: Al-Qatif, Eastern Province, Saudi Arabia
 
 ---
 

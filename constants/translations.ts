@@ -99,7 +99,7 @@ export const translations = {
       workingHours: 'ساعات العمل',
       workingHoursValue: 'السبت - الخميس: 9 صباحاً - 9 مساءً',
       location: 'الموقع',
-      locationValue: 'الرياض، المملكة العربية السعودية',
+      locationValue: 'القطيف، المنطقة الشرقية، المملكة العربية السعودية',
     },
   },
   
@@ -203,7 +203,7 @@ export const translations = {
       workingHours: 'Working Hours',
       workingHoursValue: 'Saturday - Thursday: 9 AM - 9 PM',
       location: 'Location',
-      locationValue: 'Riyadh, Saudi Arabia',
+      locationValue: 'Al-Qatif, Eastern Province, Saudi Arabia',
     },
   },
 };
