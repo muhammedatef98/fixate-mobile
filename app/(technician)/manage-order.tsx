@@ -27,6 +27,7 @@ import type { Order } from '../../lib/supabase-api';
 import { notifyUsers } from '../../services/notifyService';
 import { getUserProfile } from '../../services/userService';
 import { logger } from '../../utils/logger';
+import { fmtRequestDateTime } from '../../utils/dateFormat';
 import {
   ORDER_STATUS_LABELS_AR,
   ORDER_STATUS_LABELS_EN,
@@ -590,11 +591,40 @@ export default function ManageOrderScreen() {
           </Text>
         </View>
 
+        {/* Fix 4 — REJECTED order: read-only terminal summary. No quote, no
+            workflow actions; the device/client info below stays visible. */}
+        {order.status === 'rejected' && (
+          <View style={[styles.card, { backgroundColor: '#FEF2F2', borderWidth: 1, borderColor: '#FECACA' }, SHADOWS.small]}>
+            <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 10 }}>
+              <MaterialCommunityIcons name="close-octagon" size={24} color="#DC2626" />
+              <Text style={{ flex: 1, color: '#991B1B', fontWeight: '800', fontSize: 16, textAlign: isRTL ? 'right' : 'left' }}>
+                {isRTL ? 'الطلب مرفوض' : 'Request rejected'}
+              </Text>
+            </View>
+            <Text style={{ color: '#7F1D1D', fontSize: 14, lineHeight: 22, marginTop: 10, textAlign: isRTL ? 'right' : 'left', writingDirection: isRTL ? 'rtl' : 'ltr' }}>
+              {isRTL ? 'السبب: ' : 'Reason: '}
+              {(order as any).rejection_reason || (isRTL ? 'لم يُذكر سبب محدد' : 'No specific reason given')}
+            </Text>
+            {(order as any).updated_at ? (
+              <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 6, marginTop: 10 }}>
+                <MaterialCommunityIcons name="clock-outline" size={15} color="#B91C1C" />
+                <Text style={{ color: '#B91C1C', fontSize: 12.5, fontWeight: '600' }}>
+                  {fmtRequestDateTime((order as any).updated_at, isRTL)}
+                </Text>
+              </View>
+            ) : null}
+            <Text style={{ color: '#9F4444', fontSize: 12.5, marginTop: 10, textAlign: isRTL ? 'right' : 'left' }}>
+              {isRTL ? 'هذا الطلب مُغلق ولا يمكن اتخاذ أي إجراء عليه.' : 'This request is closed — no further action is possible.'}
+            </Text>
+          </View>
+        )}
+
         {/* Inspection quote — technician sets the final price AFTER inspecting
             the device. The customer must approve it before repair begins. */}
         {order.status !== 'pending' &&
           order.status !== 'completed' &&
           order.status !== 'cancelled' &&
+          order.status !== 'rejected' &&
           order.status !== 'quoted' &&
           !hasAcceptedQuote && (
             <View style={[styles.card, { backgroundColor: COLORS.card }, SHADOWS.medium]}>
@@ -720,7 +750,8 @@ export default function ManageOrderScreen() {
         {order.status !== 'quoted' &&
           order.status !== 'awaiting_payment' &&
           order.status !== 'completed' &&
-          order.status !== 'cancelled' && (
+          order.status !== 'cancelled' &&
+          order.status !== 'rejected' && (
           <View style={[styles.card, { backgroundColor: COLORS.card }, SHADOWS.medium]}>
             <Text style={[styles.cardTitle, { color: COLORS.text }]}>
               {isRTL ? 'لوحة التحكم في سير العمل' : 'Workflow Control Panel'}
@@ -794,8 +825,8 @@ export default function ManageOrderScreen() {
           </View>
         )}
 
-        {/* Action Buttons */}
-        {order.status !== 'pending' && order.status !== 'cancelled' && (
+        {/* Action Buttons — hidden on terminal/rejected orders (Fix 4). */}
+        {order.status !== 'pending' && order.status !== 'cancelled' && order.status !== 'rejected' && (
           <View style={styles.actionButtonRow}>
             <TouchableOpacity
               style={[styles.chatButton, { backgroundColor: COLORS.primary, flex: 1 }, SHADOWS.small]}

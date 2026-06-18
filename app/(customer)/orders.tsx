@@ -8,6 +8,7 @@ import BottomNav from '../../components/BottomNav';
 import ErrorState from '../../components/ErrorState';
 import { SkeletonOrderCard } from '../../components/SkeletonLoader';
 import { logger } from '../../utils/logger';
+import { fmtRequestDateTime } from '../../utils/dateFormat';
 import { getColors, getShadows, BORDER_RADIUS } from '../../constants/theme';
 import { getFriendlyError } from '../../utils/errorMessages';
 import { RTLIonicon } from '../../components/RTLIcon';
@@ -236,7 +237,9 @@ export default function OrdersScreen() {
           <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
             {orders.map((order) => {
               const status = getStatusInfo(order.status);
-              const dateStr = new Date(order.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
+              // Full creation date + time, Arabic Gregorian (Miladi), shown on
+              // the card so the client sees when they placed the request.
+              const dateTimeStr = fmtRequestDateTime(order.created_at, isRTL);
               return (
                 <PressableScale
                   key={order.id}
@@ -244,22 +247,29 @@ export default function OrdersScreen() {
                   style={[styles.orderCard, { borderLeftColor: status.color, borderLeftWidth: 4 }]}
                   onPress={() => router.push(`/order-details?id=${order.id}`)}
                 >
-                  {/* Top: status pill on the lead side, date at the trailing edge */}
+                  {/* Top: status pill on the lead side */}
                   <View style={styles.cardTopRow}>
                     <View style={[styles.statusPill, { backgroundColor: status.color + '15' }]}>
                       <Ionicons name={status.icon as any} size={11} color={status.color} />
                       <Text style={[styles.statusPillText, { color: status.color }]}>{status.label}</Text>
                     </View>
-                    <Text style={styles.cardDate}>{dateStr}</Text>
                   </View>
 
-                  {/* Device row: icon + name + chevron */}
+                  {/* Device row: icon + name */}
                   <View style={styles.cardDeviceRow}>
                     <View style={styles.deviceIcon}>
                       <MaterialCommunityIcons name="cellphone" size={22} color={COLORS.primary} />
                     </View>
                     <Text style={styles.deviceName} numberOfLines={1}>
                       {order.device_brand} {order.device_model}
+                    </Text>
+                  </View>
+
+                  {/* Request date + time — visible without opening the order */}
+                  <View style={styles.cardDateTimeRow}>
+                    <Ionicons name="calendar-outline" size={13} color={COLORS.textSecondary} />
+                    <Text style={styles.cardDateTimeText} numberOfLines={1}>
+                      {dateTimeStr}
                     </Text>
                   </View>
 
@@ -351,6 +361,18 @@ const createStyles = (COLORS: any, isRTL: boolean, SHADOWS: any) => StyleSheet.c
   },
   statusPillText: { fontSize: 11, fontWeight: '700' },
   cardDate: { fontSize: 11, color: COLORS.textSecondary, fontWeight: '500' },
+  cardDateTimeRow: {
+    flexDirection: isRTL ? 'row-reverse' : 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 8,
+  },
+  cardDateTimeText: {
+    fontSize: 12,
+    color: COLORS.textSecondary,
+    fontWeight: '600',
+    textAlign: isRTL ? 'right' : 'left',
+  },
   cardDeviceRow: {
     flexDirection: isRTL ? 'row-reverse' : 'row',
     alignItems: 'center',

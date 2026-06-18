@@ -58,6 +58,21 @@ const QUICK_REPLIES_TECHNICIAN_EN = [
   'Parts needed',
 ];
 
+// Terminal order states — once an order is here, the technician chat is
+// permanently read-only (Fix 1). Customer side is unaffected.
+const TERMINAL_STATUSES = ['completed', 'rejected', 'cancelled'];
+
+const lockedBannerLabel = (status: string | undefined, isRTL: boolean): string => {
+  switch (status) {
+    case 'rejected':
+      return isRTL ? 'تم إغلاق المحادثة — الطلب مرفوض' : 'Chat closed — order rejected';
+    case 'cancelled':
+      return isRTL ? 'تم إغلاق المحادثة — الطلب ملغي' : 'Chat closed — order cancelled';
+    default:
+      return isRTL ? 'تم إغلاق المحادثة — الطلب مكتمل' : 'Chat closed — order completed';
+  }
+};
+
 export default function ChatScreen() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
@@ -140,9 +155,10 @@ export default function ChatScreen() {
   };
 
   const handleSend = async (textOverride?: string) => {
-    // Technician side is read-only once the order is completed (Fix 6c).
+    // Technician side is read-only once the order reaches any terminal state
+    // (completed / rejected / cancelled).
     const role = (currentUser?.user_metadata || {})?.user_type || (currentUser?.user_metadata || {})?.role;
-    if (role === 'technician' && order?.status === 'completed') return;
+    if (role === 'technician' && TERMINAL_STATUSES.includes(order?.status)) return;
     const messageContent = (textOverride ?? newMessage).trim();
     if (!messageContent) return;
 
@@ -245,10 +261,12 @@ export default function ChatScreen() {
     const next = messages[index + 1];
     const isFirstInGroup = !prev || prev.sender_id !== item.sender_id;
     const isLastInGroup = !next || next.sender_id !== item.sender_id;
-    const time = new Date(item.created_at).toLocaleTimeString(language === 'ar' ? 'ar' : 'en-US', {
-      hour: '2-digit',
-      minute: '2-digit',
-    });
+    // Fix 3 — force Gregorian (Miladi) calendar; the bare 'ar' locale renders
+    // Hijri on some devices. '-u-ca-gregory' pins the Gregorian calendar.
+    const time = new Date(item.created_at).toLocaleTimeString(
+      language === 'ar' ? 'ar-SA-u-ca-gregory' : 'en-US',
+      { hour: '2-digit', minute: '2-digit' }
+    );
 
     return (
       <View
@@ -361,9 +379,10 @@ export default function ChatScreen() {
   const meta = (currentUser?.user_metadata || {}) as { user_type?: string; role?: string };
   const myRole = meta.user_type || meta.role;
   const isTechnician = myRole === 'technician';
-  // Fix 6c — once the order is completed, the technician can read the full
-  // history but can no longer send. The customer side is unaffected.
-  const chatLocked = isTechnician && order?.status === 'completed';
+  // Fix 1 — once the order is in a terminal state (completed / rejected /
+  // cancelled), the technician can read the full history but can no longer
+  // send. The customer side is unaffected.
+  const chatLocked = isTechnician && TERMINAL_STATUSES.includes(order?.status);
   const quickReplies = isTechnician
     ? (isRTL ? QUICK_REPLIES_TECHNICIAN_AR : QUICK_REPLIES_TECHNICIAN_EN)
     : (isRTL ? QUICK_REPLIES_CUSTOMER_AR : QUICK_REPLIES_CUSTOMER_EN);
@@ -480,7 +499,7 @@ export default function ChatScreen() {
         <View style={[styles.lockedBanner, { backgroundColor: COLORS.card, borderTopColor: COLORS.border }]}>
           <Ionicons name="lock-closed" size={16} color={COLORS.textSecondary} />
           <Text style={[styles.lockedBannerText, { color: COLORS.textSecondary }]}>
-            {isRTL ? 'تم إغلاق المحادثة — الطلب مكتمل' : 'Chat closed — order completed'}
+            {lockedBannerLabel(order?.status, isRTL)}
           </Text>
         </View>
       ) : (

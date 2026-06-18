@@ -9,9 +9,11 @@ import {
   StyleSheet,
   Pressable,
   ActivityIndicator,
-  KeyboardAvoidingView,
   Platform,
+  Keyboard,
+  Dimensions,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../contexts/AppContext';
 import { getColors, SPACING, BORDER_RADIUS } from '../constants/theme';
@@ -79,10 +81,40 @@ export default function SaudiCityPicker({
 }: SaudiCityPickerProps) {
   const { isDark } = useApp();
   const COLORS = getColors(isDark);
+  const insets = useSafeAreaInsets();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [data, setData] = useState<PickerRegion[] | null>(mode === 'all' ? staticPickerData() : null);
   const [loading, setLoading] = useState(false);
+  // Live keyboard height so the results list can shrink to stay fully visible
+  // above the keyboard (Fix 5).
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+
+  useEffect(() => {
+    if (!open) return;
+    const showEvt = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvt = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const showSub = Keyboard.addListener(showEvt, (e) =>
+      setKeyboardHeight(e.endCoordinates?.height ?? 0)
+    );
+    const hideSub = Keyboard.addListener(hideEvt, () => setKeyboardHeight(0));
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, [open]);
+
+  // Combined height of the handle + header + search bar inside the sheet.
+  const SHEET_CHROME = 150;
+  const screenH = Dimensions.get('window').height;
+  const kbOpen = keyboardHeight > 0;
+  const topLimit = insets.top + 16;
+  // When the keyboard is up, cap the list so the WHOLE sheet (chrome + list)
+  // fits in the space above it; otherwise use a comfortable 85%-screen sheet.
+  const listMaxHeight = kbOpen
+    ? Math.max(160, screenH - keyboardHeight - topLimit - SHEET_CHROME - insets.bottom - 20)
+    : Math.round(screenH * 0.85) - SHEET_CHROME;
+  const sheetMaxHeight = kbOpen ? screenH - keyboardHeight - topLimit : Math.round(screenH * 0.85);
 
   // Load coverage data when the sheet opens (serviceable mode only).
   // We keep `data` cached on the component instance so re-opens are
@@ -153,6 +185,7 @@ export default function SaudiCityPicker({
   const close = () => {
     setOpen(false);
     setQuery('');
+    setKeyboardHeight(0);
   };
 
   const handlePick = (city: PickerCity) => {
@@ -191,17 +224,13 @@ export default function SaudiCityPicker({
         onRequestClose={close}
         statusBarTranslucent
       >
-        {/* The KAV is the backdrop itself (flex:1, bottom-anchored) so the
-            sheet's maxHeight:85% still resolves against a full-height parent,
-            while `padding`/`height` behavior lifts the sheet above the keyboard
-            — keeping the search input on top and the results list visible and
-            scrollable as the user types a city name. */}
-        <KeyboardAvoidingView
-          style={styles.backdrop}
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        >
+        {/* Fix 5 — the sheet is lifted above the keyboard by exactly its height
+            (marginBottom) and its results list is capped (listMaxHeight) so the
+            search bar stays on top and the full list stays visible/scrollable
+            while typing, on both iOS and Android. */}
+        <View style={styles.backdrop}>
           <Pressable style={StyleSheet.absoluteFill} onPress={close} />
-          <View style={styles.sheet}>
+          <View style={[styles.sheet, { maxHeight: sheetMaxHeight, marginBottom: keyboardHeight }]}>
             <View style={styles.handle} />
             <View style={styles.sheetHeader}>
               <Text style={styles.sheetTitle}>
@@ -243,6 +272,7 @@ export default function SaudiCityPicker({
                 sections={sections}
                 keyExtractor={(item, index) => item.en + index}
                 keyboardShouldPersistTaps="handled"
+                style={{ maxHeight: listMaxHeight }}
                 stickySectionHeadersEnabled
                 renderSectionHeader={({ section }) => (
                   <View style={styles.regionHeader}>
@@ -298,7 +328,7 @@ export default function SaudiCityPicker({
               />
             )}
           </View>
-        </KeyboardAvoidingView>
+        </View>
       </Modal>
     </>
   );

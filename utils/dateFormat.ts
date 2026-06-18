@@ -57,6 +57,37 @@ export function fmtAdminDateTime(
 }
 
 /**
+ * Full request date + time for client-facing cards, e.g.
+ *   "الخميس، 18 يونيو 2026 — 11:30 ص"
+ * Always Gregorian (Miladi); Latin digits even on Arabic locale (-nu-latn) so
+ * dates read consistently with the rest of the customer UI.
+ */
+export function fmtRequestDateTime(
+  v: string | number | Date | null | undefined,
+  isRTL = false,
+): string {
+  if (v == null || v === '') return '';
+  try {
+    const d = v instanceof Date ? v : new Date(v);
+    if (!Number.isFinite(d.getTime())) return '';
+    const locale = isRTL ? 'ar-SA-u-ca-gregory-nu-latn' : 'en-GB';
+    const datePart = d.toLocaleDateString(locale, {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    });
+    const timePart = d.toLocaleTimeString(locale, {
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+    return `${datePart} — ${timePart}`;
+  } catch {
+    return String(v);
+  }
+}
+
+/**
  * Format a number for admin screens (counts, money). Arabic locale uses
  * Arabic-Indic digits via 'ar-EG'.
  */
