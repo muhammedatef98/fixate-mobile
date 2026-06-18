@@ -27,6 +27,7 @@ import {
   listTechnicianReviews,
   type TechnicianReview,
 } from '../../services/reviewService';
+import { formatAppDateOnly } from '../../lib/formatDate';
 
 export default function TechnicianRatingsScreen() {
   const { isDark, language } = useApp();
@@ -147,10 +148,7 @@ export default function TechnicianRatingsScreen() {
                 )}
                 {r.created_at ? (
                   <Text style={styles.reviewDate}>
-                    {new Date(r.created_at).toLocaleDateString(
-                      isRTL ? 'ar-SA-u-ca-gregory' : 'en-GB',
-                      { year: 'numeric', month: 'short', day: '2-digit' },
-                    )}
+                    {formatAppDateOnly(r.created_at, isRTL)}
                   </Text>
                 ) : null}
               </View>

@@ -21,6 +21,7 @@ import * as messagingService from '../services/messagingService';
 import type { Message } from '../services/messagingService';
 import { logger } from '../utils/logger';
 import { useScrollToEndOnKeyboard } from '../hooks/useScrollToEndOnKeyboard';
+import { formatAppTimeOnly } from '../lib/formatDate';
 
 export default function ChatScreen() {
   const router = useRouter();
@@ -83,13 +84,8 @@ export default function ChatScreen() {
     }
   };
 
-  const formatTime = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleTimeString(language === 'ar' ? 'ar-SA-u-ca-gregory' : 'en-US', {
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
+  const formatTime = (dateString: string) =>
+    formatAppTimeOnly(dateString, language === 'ar');
 
   const renderMessage = ({ item }: { item: Message }) => {
     const isMyMessage = item.sender_id === user?.id;

@@ -44,6 +44,7 @@ import {
   type ListingStatus,
   type UserCard,
 } from '../services/marketService';
+import { formatAppDateOnly } from '../lib/formatDate';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 const HERO_H = Math.round(SCREEN_W * 0.78);
@@ -73,7 +74,7 @@ function timeAgo(iso: string | undefined, isRTL: boolean): string {
   if (h < 24) return isRTL ? `قبل ${h} س` : `${h}h ago`;
   const d = Math.floor(h / 24);
   if (d < 30) return isRTL ? `قبل ${d} ي` : `${d}d ago`;
-  return new Date(iso).toLocaleDateString(isRTL ? 'ar-SA-u-ca-gregory' : 'en-GB');
+  return formatAppDateOnly(iso, isRTL);
 }
 
 // Full device-type label map. Every type that can appear in the

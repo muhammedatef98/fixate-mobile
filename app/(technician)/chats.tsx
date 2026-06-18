@@ -13,6 +13,7 @@ import Avatar from '../../components/Avatar';
 import { TECH_NAV_HEIGHT } from '../../components/BottomNavTech';
 import { logger } from '../../utils/logger';
 import { selection } from '../../utils/haptics';
+import { formatAppDateOnly, formatAppTimeOnly } from '../../lib/formatDate';
 
 /**
  * Technician "Chats" tab — one row per order the technician is involved in,
@@ -215,13 +216,9 @@ export default function TechnicianChats() {
     const now = new Date();
     const sameDay = d.toDateString() === now.toDateString();
     if (sameDay) {
-      return d.toLocaleTimeString(isRTL ? 'ar-SA-u-ca-gregory' : 'en-GB', {
-        hour: '2-digit', minute: '2-digit',
-      });
+      return formatAppTimeOnly(d, isRTL);
     }
-    return d.toLocaleDateString(isRTL ? 'ar-SA-u-ca-gregory' : 'en-GB', {
-      month: 'short', day: '2-digit',
-    });
+    return formatAppDateOnly(d, isRTL);
   };
 
   const renderItem = ({ item }: { item: ChatRow }) => {

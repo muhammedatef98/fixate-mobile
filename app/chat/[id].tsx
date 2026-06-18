@@ -27,6 +27,7 @@ import { safeBack } from '../../utils/navigation';
 import { useScrollToEndOnKeyboard } from '../../hooks/useScrollToEndOnKeyboard';
 import { uploadOrderMedia } from '../../services/storageService';
 import ImageViewer from '../../components/ImageViewer';
+import { formatAppTimeOnly } from '../../lib/formatDate';
 
 // Quick-reply suggestions that match each side of the conversation. The
 // customer's prompts are questions / status checks; the technician's are
@@ -261,12 +262,7 @@ export default function ChatScreen() {
     const next = messages[index + 1];
     const isFirstInGroup = !prev || prev.sender_id !== item.sender_id;
     const isLastInGroup = !next || next.sender_id !== item.sender_id;
-    // Fix 3 — force Gregorian (Miladi) calendar; the bare 'ar' locale renders
-    // Hijri on some devices. '-u-ca-gregory' pins the Gregorian calendar.
-    const time = new Date(item.created_at).toLocaleTimeString(
-      language === 'ar' ? 'ar-SA-u-ca-gregory' : 'en-US',
-      { hour: '2-digit', minute: '2-digit' }
-    );
+    const time = formatAppTimeOnly(item.created_at, language === 'ar');
 
     return (
       <View

@@ -20,6 +20,7 @@ import * as paymentService from '../services/paymentService';
 import { getFriendlyError } from '../utils/errorMessages';
 import ErrorState from '../components/ErrorState';
 import { safeBack } from '../utils/navigation';
+import { formatAppDateOnly } from '../lib/formatDate';
 
 export default function WalletScreen() {
   const router = useRouter();
@@ -144,7 +145,7 @@ export default function WalletScreen() {
                     {isRTL ? 'طلب صيانة #' : 'Repair order #'}{p.order_id.slice(0, 6)}
                   </Text>
                   <Text style={styles.txnDate}>
-                    {p.created_at ? new Date(p.created_at).toLocaleDateString(isRTL ? 'ar-SA-u-ca-gregory' : 'en-GB') : ''}
+                    {p.created_at ? formatAppDateOnly(p.created_at, isRTL) : ''}
                   </Text>
                 </View>
                 <View style={{ alignItems: isRTL ? 'flex-start' : 'flex-end' }}>

@@ -25,6 +25,7 @@ import {
   markAllAsRead,
   type AppNotification,
 } from '../utils/notifications';
+import { formatAppDateOnly } from '../lib/formatDate';
 
 type IconPack = 'ion' | 'mci';
 // Filled glyphs read more strongly inside the small colored badge than
@@ -55,7 +56,7 @@ function timeAgo(iso: string, isRTL: boolean): string {
   if (hr < 24) return isRTL ? `قبل ${hr} ساعة` : `${hr}h ago`;
   const d = Math.floor(hr / 24);
   if (d < 7) return isRTL ? `قبل ${d} يوم` : `${d}d ago`;
-  return new Date(iso).toLocaleDateString(isRTL ? 'ar-SA-u-ca-gregory' : 'en-US');
+  return formatAppDateOnly(iso, isRTL);
 }
 
 export default function NotificationsScreen() {

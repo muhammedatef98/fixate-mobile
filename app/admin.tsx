@@ -32,6 +32,7 @@ import {
   adminTimeAgo,
   ADMIN_CARD_SHADOW,
 } from '../components/admin/AdminUI';
+import { formatAppTimeOnly } from '../lib/formatDate';
 
 interface Stats {
   totalUsers: number;
@@ -280,8 +281,8 @@ export default function AdminDashboardScreen() {
 
   const lastRefreshLabel = lastRefresh
     ? (isRTL
-        ? `آخر تحديث ${lastRefresh.toLocaleTimeString('ar-SA-u-ca-gregory', { hour: '2-digit', minute: '2-digit' })}`
-        : `Updated ${lastRefresh.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}`)
+        ? `آخر تحديث ${formatAppTimeOnly(lastRefresh, true)}`
+        : `Updated ${formatAppTimeOnly(lastRefresh, false)}`)
     : null;
 
   return (

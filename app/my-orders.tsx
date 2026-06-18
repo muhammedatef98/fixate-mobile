@@ -20,6 +20,7 @@ import type { Order } from '../services/orderService';
 import { RTLMaterialIcon } from '../components/RTLIcon';
 import { safeBack } from '../utils/navigation';
 import InvoiceDownloadButton from '../components/InvoiceDownloadButton';
+import { formatAppDateOnly } from '../lib/formatDate';
 
 const ORDER_STATUS_CONFIG = {
   pending: {
@@ -183,11 +184,7 @@ export default function MyOrdersScreen() {
               {order.device_brand} {order.device_model}
             </Text>
             <Text style={[styles.orderDate, { color: COLORS.textSecondary }]}>
-              {new Date(order.created_at || Date.now()).toLocaleDateString(isRTL ? 'ar-SA-u-ca-gregory' : 'en-US', {
-                year: 'numeric',
-                month: 'short',
-                day: 'numeric',
-              })}
+              {formatAppDateOnly(order.created_at || Date.now(), isRTL)}
             </Text>
           </View>
         </View>

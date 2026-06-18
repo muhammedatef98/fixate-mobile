@@ -1,130 +1,55 @@
 /**
- * dateFormat.ts — shared date formatting utilities.
+ * dateFormat.ts — thin compatibility layer over lib/formatDate.ts.
+ *
+ * All date formatting now flows through the single canonical formatter so the
+ * whole app shows ONE Gregorian format (never Hijri). These wrappers exist only
+ * to keep existing call sites working; new code should import from
+ * `lib/formatDate` directly.
  */
+import {
+  formatAppDate,
+  formatAppDateOnly,
+} from '../lib/formatDate';
 
-/**
- * Format a date string for admin screens.
- * Returns a localised short date + time string.
- */
+type DateInput = string | number | Date | null | undefined;
+
+/** @deprecated use formatAppDate */
 export function fmtAdminDate(iso: string, isRTL = false): string {
-  if (!iso) return '';
-  try {
-    const d = new Date(iso);
-    // Force Gregorian on Arabic locale — admin screens must never show Hijri.
-    return d.toLocaleString(isRTL ? 'ar-SA-u-ca-gregory' : 'en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  } catch {
-    return iso;
-  }
+  return formatAppDate(iso, isRTL);
 }
 
-/**
- * Format a date string for general display.
- */
+/** @deprecated use formatAppDate */
 export function fmtDate(iso: string, isRTL = false): string {
-  return fmtAdminDate(iso, isRTL);
+  return formatAppDate(iso, isRTL);
 }
 
-/**
- * Format a date+time string for admin screens.
- * Forces the Gregorian calendar on Arabic locale (admin ops shouldn't see Hijri).
- */
+/** @deprecated use formatAppDate. `opts` is ignored — format is fixed app-wide. */
 export function fmtAdminDateTime(
-  v: string | number | Date | null | undefined,
+  v: DateInput,
   isRTL = false,
-  opts?: Intl.DateTimeFormatOptions,
+  _opts?: Intl.DateTimeFormatOptions,
 ): string {
-  if (v == null || v === '') return '—';
-  try {
-    const d = v instanceof Date ? v : new Date(v);
-    if (!Number.isFinite(d.getTime())) return '—';
-    const locale = isRTL ? 'ar-SA-u-ca-gregory' : 'en-GB';
-    return d.toLocaleString(locale, opts ?? {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  } catch {
-    return String(v);
-  }
+  return formatAppDate(v, isRTL) || '—';
+}
+
+/** @deprecated use formatAppDate */
+export function fmtRequestDateTime(v: DateInput, isRTL = false): string {
+  return formatAppDate(v, isRTL);
+}
+
+/** @deprecated use formatAppDate */
+export function fmtMyRequestDate(v: DateInput, isRTL = false): string {
+  return formatAppDate(v, isRTL);
+}
+
+/** Date only, no time. @deprecated use formatAppDateOnly */
+export function fmtDateOnly(iso: DateInput, isRTL = false): string {
+  return formatAppDateOnly(iso, isRTL);
 }
 
 /**
- * Full request date + time for client-facing cards, e.g.
- *   "الخميس، 18 يونيو 2026 — 11:30 ص"
- * Always Gregorian (Miladi); Latin digits even on Arabic locale (-nu-latn) so
- * dates read consistently with the rest of the customer UI.
- */
-export function fmtRequestDateTime(
-  v: string | number | Date | null | undefined,
-  isRTL = false,
-): string {
-  if (v == null || v === '') return '';
-  try {
-    const d = v instanceof Date ? v : new Date(v);
-    if (!Number.isFinite(d.getTime())) return '';
-    const locale = isRTL ? 'ar-SA-u-ca-gregory-nu-latn' : 'en-GB';
-    const datePart = d.toLocaleDateString(locale, {
-      weekday: 'long',
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric',
-    });
-    const timePart = d.toLocaleTimeString(locale, {
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-    return `${datePart} — ${timePart}`;
-  } catch {
-    return String(v);
-  }
-}
-
-/**
- * Client "My Requests" date format — EXACTLY:
- *   "١٨ يونيو، ٢٠٢٦ - ١١:٢٠ ص"
- * Arabic-Indic numerals, Arabic month name, Arabic AM/PM (ص/م), Gregorian
- * calendar, no weekday, no seconds, " - " between date and time. Assembled from
- * formatToParts so the comma + separator are exact regardless of locale data.
- * English locale falls back to a clean standard format.
- */
-export function fmtMyRequestDate(
-  v: string | number | Date | null | undefined,
-  isRTL = false,
-): string {
-  if (v == null || v === '') return '';
-  try {
-    const d = v instanceof Date ? v : new Date(v);
-    if (!Number.isFinite(d.getTime())) return '';
-    const dtf = new Intl.DateTimeFormat(isRTL ? 'ar-SA' : 'en-GB', {
-      calendar: 'gregory',
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric',
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true,
-    });
-    if (!isRTL) return dtf.format(d);
-    const parts = dtf.formatToParts(d);
-    const get = (t: Intl.DateTimeFormatPartTypes) =>
-      parts.find((p) => p.type === t)?.value ?? '';
-    return `${get('day')} ${get('month')}، ${get('year')} - ${get('hour')}:${get('minute')} ${get('dayPeriod')}`;
-  } catch {
-    return String(v);
-  }
-}
-
-/**
- * Format a number for admin screens (counts, money). Arabic locale uses
- * Arabic-Indic digits via 'ar-EG'.
+ * Format a number for admin screens (counts, money). NOT a date — Arabic locale
+ * uses Arabic-Indic digits via 'ar-EG'.
  */
 export function fmtAdminNumber(
   n: number | string | null | undefined,

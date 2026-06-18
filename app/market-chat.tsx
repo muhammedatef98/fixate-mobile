@@ -32,6 +32,7 @@ import {
 } from '../services/marketService';
 import { supabase } from '../services/supabaseClient';
 import { useScrollToEndOnKeyboard } from '../hooks/useScrollToEndOnKeyboard';
+import { formatAppTimeOnly } from '../lib/formatDate';
 
 /**
  * Marketplace DM thread.
@@ -339,10 +340,7 @@ export default function MarketChatScreen() {
                         writingDirection: 'ltr',
                       }}
                     >
-                      {new Date(item.created_at).toLocaleTimeString(
-                        isRTL ? 'ar-SA' : 'en-US',
-                        { hour: '2-digit', minute: '2-digit' }
-                      )}
+                      {formatAppTimeOnly(item.created_at, isRTL)}
                     </Text>
                   </View>
                 </View>

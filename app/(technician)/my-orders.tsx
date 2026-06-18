@@ -7,6 +7,7 @@ import { requests, auth } from '../../lib/supabase-api';
 import { useApp } from '../../contexts/AppContext';
 import { logger } from '../../utils/logger';
 import { safeBack } from '../../utils/navigation';
+import { formatAppDateOnly } from '../../lib/formatDate';
 
 // Color-coded per status: pending/accepted = orange, active = blue,
 // completed = green, rejected = red (see Fix 6d / Fix 7).
@@ -117,7 +118,7 @@ export default function MyOrdersScreen() {
           <View style={styles.orderDetailItem}>
             <MaterialIcons name="access-time" size={16} color={COLORS.textSecondary} />
             <Text style={[styles.orderDetailText, { color: COLORS.textSecondary }]}>
-              {new Date(order.created_at).toLocaleDateString(language === 'ar' ? 'ar-SA-u-ca-gregory' : 'en-US')}
+              {formatAppDateOnly(order.created_at, language === 'ar')}
             </Text>
           </View>
           <View style={styles.orderDetailItem}>

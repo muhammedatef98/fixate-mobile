@@ -28,6 +28,7 @@ import {
 import { logger } from '../utils/logger';
 import MarketBottomTabs, { MARKET_TABS_HEIGHT } from '../components/MarketBottomTabs';
 import { AnimatedTouchable } from '../components/ui/PressableScale';
+import { formatAppDateOnly, formatAppTimeOnly } from '../lib/formatDate';
 
 /**
  * Marketplace inbox — every conversation the current user participates in
@@ -139,15 +140,9 @@ export default function MarketMessagesScreen() {
         d.getMonth() === now.getMonth() &&
         d.getDate() === now.getDate();
       if (sameDay) {
-        return d.toLocaleTimeString(isRTL ? 'ar-SA-u-ca-gregory' : 'en-US', {
-          hour: '2-digit',
-          minute: '2-digit',
-        });
+        return formatAppTimeOnly(d, isRTL);
       }
-      return d.toLocaleDateString(isRTL ? 'ar-SA-u-ca-gregory' : 'en-US', {
-        month: 'short',
-        day: 'numeric',
-      });
+      return formatAppDateOnly(d, isRTL);
     },
     [isRTL]
   );

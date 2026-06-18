@@ -25,6 +25,7 @@ import * as orderService from '../../services/orderService';
 import { supabase } from '../../services/supabaseClient';
 import { logger } from '../../utils/logger';
 import NotificationBell from '../../components/NotificationBell';
+import { formatAppDate } from '../../lib/formatDate';
 
 const { width } = Dimensions.get('window');
 
@@ -152,16 +153,7 @@ export default function TechnicianHomeScreen() {
 
   // Format dates with Gregorian even on Arabic locale so technicians never
   // see Hijri on their home cards.
-  const fmtOrderTime = (iso?: string): string => {
-    if (!iso) return '';
-    try {
-      const d = new Date(iso);
-      const locale = isRTL ? 'ar-SA-u-ca-gregory' : 'en-US';
-      return d.toLocaleString(locale, {
-        month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
-      });
-    } catch { return ''; }
-  };
+  const fmtOrderTime = (iso?: string): string => formatAppDate(iso, isRTL);
 
   // Orders posted within the last 30 minutes are flagged as "NEW" — gives
   // the technician an obvious nudge to grab a fresh job before peers.

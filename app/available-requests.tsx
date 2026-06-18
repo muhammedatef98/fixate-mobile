@@ -12,6 +12,7 @@ import { requests as requestsApi, auth } from '../lib/supabase-api';
 import { router } from 'expo-router';
 import { logger } from '../utils/logger';
 import { useApp } from '../contexts/AppContext';
+import { formatAppDate } from '../lib/formatDate';
 
 interface Request {
   id: string;
@@ -107,7 +108,7 @@ export default function AvailableRequestsScreen() {
         <Text style={styles.locationText}>📍 {item.location}</Text>
         <Text style={styles.priceText}>عرض السعر: {item.estimated_price} ريال</Text>
         <Text style={styles.timeText}>
-          ⏰ {new Date(item.created_at).toLocaleString('ar-SA-u-ca-gregory')}
+          ⏰ {formatAppDate(item.created_at, true)}
         </Text>
       </View>
 

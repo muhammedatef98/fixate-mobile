@@ -23,6 +23,7 @@ import { safeBack } from '../utils/navigation';
 import * as support from '../services/supportService';
 import { supabase } from '../services/supabaseClient';
 import { useScrollToEndOnKeyboard } from '../hooks/useScrollToEndOnKeyboard';
+import { formatAppTimeOnly } from '../lib/formatDate';
 
 export default function SupportChatScreen() {
   const router = useRouter();
@@ -165,7 +166,7 @@ export default function SupportChatScreen() {
                       {item.content}
                     </Text>
                     <Text style={{ color: mine ? '#ffffffaa' : COLORS.textSecondary, fontSize: 10, marginTop: 4, textAlign: isRTL ? 'left' : 'right' }}>
-                      {new Date(item.created_at).toLocaleTimeString(language === 'ar' ? 'ar-SA-u-ca-gregory' : 'en-US', { hour: '2-digit', minute: '2-digit' })}
+                      {formatAppTimeOnly(item.created_at, isRTL)}
                     </Text>
                   </View>
                 </View>

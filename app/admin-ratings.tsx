@@ -19,6 +19,7 @@ import { getColors, SPACING, BORDER_RADIUS } from '../constants/theme';
 import { RTLIonicon } from '../components/RTLIcon';
 import { AnimatedBackButton } from '../components/AnimatedBackButton';
 import { adminListRatings } from '../services/reviewService';
+import { formatAppDateOnly } from '../lib/formatDate';
 
 interface AdminRatingRow {
   id: string;
@@ -174,7 +175,7 @@ export default function AdminRatingsScreen() {
                     ))}
                   </View>
                   <Text style={styles.metaText}>
-                    {r.created_at ? new Date(r.created_at).toLocaleDateString(isRTL ? 'ar-SA-u-ca-gregory' : 'en-GB') : ''}
+                    {r.created_at ? formatAppDateOnly(r.created_at, isRTL) : ''}
                   </Text>
                 </View>
                 {r.comment ? (

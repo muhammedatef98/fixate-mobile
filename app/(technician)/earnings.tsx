@@ -8,6 +8,7 @@ import { useApp } from '../../contexts/AppContext';
 import { logger } from '../../utils/logger';
 import * as walletService from '../../services/walletService';
 import { useAuth } from '../../contexts/AuthContext';
+import { formatAppDate } from '../../lib/formatDate';
 
 const { width } = Dimensions.get('window');
 
@@ -160,13 +161,7 @@ export default function EarningsScreen() {
             {order.device_brand} {order.device_model}
           </Text>
           <Text style={[styles.earningDate, { color: COLORS.textSecondary }]}>
-            {new Date(order.updated_at).toLocaleDateString('en-US', {
-              year: 'numeric',
-              month: 'short',
-              day: 'numeric',
-              hour: '2-digit',
-              minute: '2-digit',
-            })}
+            {formatAppDate(order.updated_at, isRTL)}
           </Text>
         </View>
         <View style={[styles.earningAmount, { backgroundColor: '#10B98115' }]}>
