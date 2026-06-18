@@ -45,6 +45,7 @@ import { getColors, SPACING, BORDER_RADIUS } from '../constants/theme';
 import { RTLIonicon } from '../components/RTLIcon';
 import { safeBack } from '../utils/navigation';
 import { AnimatedBackButton } from '../components/AnimatedBackButton';
+import { AdminFilterChips, type AdminFilterChip } from '../components/admin/AdminUI';
 import { supabase } from '../services/supabaseClient';
 
 // Selectable reporting windows. Time-bound metrics (orders, revenue,
@@ -133,7 +134,7 @@ const STATUS_LABEL = (s: string, isRTL: boolean): { label: string; color: string
     picking_up:      { ar: 'جاري الاستلام',  en: 'Picking up',     color: '#6366F1' },
     diagnosing:      { ar: 'جاري الفحص',     en: 'Diagnosing',     color: '#6366F1' },
     quoted:          { ar: 'عرض سعر',        en: 'Quoted',         color: '#8B5CF6' },
-    awaiting_payment:{ ar: 'بانتظار الدفع',  en: 'Awaiting pay',   color: '#8B5CF6' },
+    awaiting_payment:{ ar: 'بإنتظار الدفع',  en: 'Awaiting pay',   color: '#8B5CF6' },
     waiting_parts:   { ar: 'انتظار قطع',     en: 'Waiting parts',  color: '#8B5CF6' },
     repairing:       { ar: 'جاري الإصلاح',   en: 'Repairing',      color: '#6366F1' },
     testing:         { ar: 'اختبار',         en: 'Testing',        color: '#6366F1' },
@@ -465,31 +466,16 @@ export default function AdminReportsScreen() {
         </TouchableOpacity>
       </View>
 
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.rangeRow}
-        style={{ maxHeight: 52 }}
-      >
-        {RANGES.map((r) => {
-          const active = range === r.key;
-          const isCustom = r.key === 'custom';
-          return (
-            <TouchableOpacity
-              key={r.key}
-              onPress={() => {
-                setRange(r.key);
-                if (isCustom) setCustomModalOpen(true);
-              }}
-              style={[styles.rangeChip, active && { backgroundColor: COLORS.primary, borderColor: COLORS.primary }]}
-            >
-              <Text style={[styles.rangeChipText, active && { color: '#fff' }]}>
-                {isCustom && range === 'custom' ? `${customFrom} → ${customTo}` : (isRTL ? r.ar : r.en)}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
-      </ScrollView>
+      {/* FEAT-04 — identical pill/chip bar to the order-management screen.
+          Tapping "Custom" still opens the date-range modal. */}
+      <AdminFilterChips<RangeKey>
+        filters={RANGES as AdminFilterChip<RangeKey>[]}
+        value={range}
+        onChange={(k) => {
+          setRange(k);
+          if (k === 'custom') setCustomModalOpen(true);
+        }}
+      />
 
       {loading ? (
         <ActivityIndicator size="large" color={COLORS.primary} style={{ marginTop: 50 }} />

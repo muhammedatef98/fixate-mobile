@@ -34,7 +34,7 @@ const STATUS_META = (s: string, isRTL: boolean): { label: string; color: string 
     picking_up:      { ar: 'جاري الاستلام',  en: 'Picking up',    color: '#6366F1' },
     diagnosing:      { ar: 'جاري الفحص',     en: 'Diagnosing',    color: '#6366F1' },
     quoted:          { ar: 'عرض سعر',        en: 'Quoted',        color: '#8B5CF6' },
-    awaiting_payment:{ ar: 'بانتظار الدفع',  en: 'Awaiting pay',  color: '#8B5CF6' },
+    awaiting_payment:{ ar: 'بإنتظار الدفع',  en: 'Awaiting pay',  color: '#8B5CF6' },
     waiting_parts:   { ar: 'انتظار قطع',     en: 'Waiting parts', color: '#8B5CF6' },
     repairing:       { ar: 'جاري الإصلاح',   en: 'Repairing',     color: '#6366F1' },
     testing:         { ar: 'اختبار',         en: 'Testing',       color: '#6366F1' },
@@ -68,7 +68,7 @@ const paymentStatusLabel = (s: string | null | undefined, isRTL: boolean): { lab
     case 'paid':
       return { label: isRTL ? 'مدفوع' : 'Paid', color: '#16A34A' };
     case 'pending':
-      return { label: isRTL ? 'بانتظار الدفع' : 'Pending', color: '#F59E0B' };
+      return { label: isRTL ? 'بإنتظار الدفع' : 'Pending', color: '#F59E0B' };
     case 'refunded':
       return { label: isRTL ? 'مسترد' : 'Refunded', color: '#DC2626' };
     case 'failed':

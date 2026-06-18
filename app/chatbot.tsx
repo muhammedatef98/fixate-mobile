@@ -148,6 +148,9 @@ export default function ChatbotScreen() {
     },
   ]);
   const [inputText, setInputText] = useState('');
+  // FEAT-03 — the quick questions stay visible & tappable the whole session.
+  // Track the last-tapped one to highlight it.
+  const [activeFaqId, setActiveFaqId] = useState<string | null>(null);
 
   useEffect(() => {
     const t = setTimeout(() => scrollViewRef.current?.scrollToEnd({ animated: true }), 120);
@@ -199,7 +202,12 @@ export default function ChatbotScreen() {
 
   const goToSupport = () => router.push('/support-chat');
 
-  const showQuickQuestions = messages.length <= 2;
+  // Tapping a quick question highlights it and answers — and the list stays
+  // open so the user can immediately tap another (FEAT-03).
+  const handleQuickQuestion = (f: Faq) => {
+    setActiveFaqId(f.id);
+    sendMessage(isRTL ? f.q_ar : f.q_en);
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -257,25 +265,40 @@ export default function ChatbotScreen() {
             </View>
           ))}
 
-          {/* Quick questions */}
-          {showQuickQuestions && (
-            <View style={styles.quickWrap}>
-              <Text style={styles.quickHint}>
-                {isRTL ? 'أسئلة شائعة:' : 'Common questions:'}
-              </Text>
-              {FAQS.map((f) => (
+          {/* Quick questions — always visible and tappable so the user can
+              ask several in a row without the list resetting (FEAT-03). */}
+          <View style={styles.quickWrap}>
+            <Text style={styles.quickHint}>
+              {isRTL ? 'أسئلة شائعة:' : 'Common questions:'}
+            </Text>
+            {FAQS.map((f) => {
+              const active = activeFaqId === f.id;
+              return (
                 <TouchableOpacity
                   key={f.id}
-                  style={styles.quickChip}
-                  onPress={() => sendMessage(isRTL ? f.q_ar : f.q_en)}
+                  style={[
+                    styles.quickChip,
+                    active && { borderColor: COLORS.primary, backgroundColor: COLORS.primary + '14' },
+                  ]}
+                  onPress={() => handleQuickQuestion(f)}
                   activeOpacity={0.8}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: active }}
                 >
-                  <MaterialCommunityIcons name="message-question-outline" size={16} color={COLORS.primary} />
-                  <Text style={styles.quickChipText}>{isRTL ? f.q_ar : f.q_en}</Text>
+                  <MaterialCommunityIcons
+                    name={active ? 'message-question' : 'message-question-outline'}
+                    size={16}
+                    color={COLORS.primary}
+                  />
+                  <Text
+                    style={[styles.quickChipText, active && { color: COLORS.primary, fontWeight: '800' }]}
+                  >
+                    {isRTL ? f.q_ar : f.q_en}
+                  </Text>
                 </TouchableOpacity>
-              ))}
-            </View>
-          )}
+              );
+            })}
+          </View>
         </ScrollView>
 
         {/* Persistent transfer-to-support strip */}

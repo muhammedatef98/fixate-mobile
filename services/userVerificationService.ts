@@ -24,6 +24,8 @@ export interface UserVerificationRow {
   full_name: string;
   document_front_url: string;
   document_back_url: string | null;
+  selfie_url: string | null;
+  challenge_text: string | null;
   status: VerificationStatus;
   rejection_reason: string | null;
   reviewed_by: string | null;
@@ -39,9 +41,51 @@ export interface SubmitVerificationPayload {
   fullName: string;
   frontImageUri: string;
   backImageUri?: string;
+  /** Selfie of the user performing the on-screen challenge (FEATURE-1 KYC). */
+  selfieImageUri: string;
+  /** The random anti-replay challenge text shown when the selfie was taken. */
+  challengeText: string;
 }
 
 const BUCKET = 'user-id-documents';
+
+/**
+ * Anti-replay liveness challenges (FEATURE-1). A fresh one is generated each
+ * time the verification screen opens; the user must perform it in the selfie.
+ * Templates that embed a random 4-digit number defeat replays of old selfies.
+ */
+const CHALLENGE_TEMPLATES: {
+  ar: (n: string) => string;
+  en: (n: string) => string;
+}[] = [
+  { ar: () => 'ارفع إصبعك الأيمن', en: () => 'Raise your right index finger' },
+  {
+    ar: (n) => `أمسك ورقة مكتوب عليها الرقم ${n}`,
+    en: (n) => `Hold a paper showing the number ${n}`,
+  },
+  { ar: () => 'اعمل علامة النصر (V) بيدك', en: () => 'Make a V (victory) sign with your hand' },
+  { ar: () => 'أشر لأعلى بيدك اليسرى', en: () => 'Point upward with your left hand' },
+  { ar: () => 'ضع يدك اليمنى على كتفك الأيسر', en: () => 'Place your right hand on your left shoulder' },
+];
+
+/**
+ * Generate a fresh challenge string in the requested language. Avoids returning
+ * the exact same text as `previousText` so consecutive sessions differ.
+ */
+export const generateChallenge = (
+  isRTL: boolean,
+  previousText?: string | null,
+): string => {
+  let text = '';
+  let guard = 0;
+  do {
+    const tpl = CHALLENGE_TEMPLATES[Math.floor(Math.random() * CHALLENGE_TEMPLATES.length)];
+    const n = String(Math.floor(1000 + Math.random() * 9000));
+    text = isRTL ? tpl.ar(n) : tpl.en(n);
+    guard += 1;
+  } while (previousText && text === previousText && guard < 10);
+  return text;
+};
 
 /**
  * Upload an image picked from the device into the private bucket
@@ -51,7 +95,7 @@ const BUCKET = 'user-id-documents';
 const uploadIdImage = async (
   userId: string,
   uri: string,
-  side: 'front' | 'back',
+  side: 'front' | 'back' | 'selfie',
 ): Promise<string> => {
   const ext = (uri.split('.').pop() ?? 'jpg').toLowerCase();
   const path = `${userId}/${side}-${Date.now()}.${ext}`;
@@ -75,6 +119,8 @@ const validatePayload = (p: SubmitVerificationPayload): void => {
   if (!p.documentNumber.trim()) throw new Error('Document number is required');
   if (!p.fullName.trim()) throw new Error('Full name is required');
   if (!p.frontImageUri) throw new Error('Front image is required');
+  if (!p.selfieImageUri) throw new Error('Selfie image is required');
+  if (!p.challengeText?.trim()) throw new Error('Challenge text is required');
 };
 
 /**
@@ -99,6 +145,7 @@ export const submitUserVerification = async (
     if (payload.backImageUri) {
       backPath = await uploadIdImage(payload.userId, payload.backImageUri, 'back');
     }
+    const selfiePath = await uploadIdImage(payload.userId, payload.selfieImageUri, 'selfie');
 
     const { data, error } = await supabase
       .from('user_verifications')
@@ -109,6 +156,8 @@ export const submitUserVerification = async (
         full_name: payload.fullName.trim(),
         document_front_url: frontPath,
         document_back_url: backPath,
+        selfie_url: selfiePath,
+        challenge_text: payload.challengeText.trim(),
       })
       .select('*')
       .single();

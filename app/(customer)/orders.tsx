@@ -123,12 +123,14 @@ export default function OrdersScreen() {
       case 'picking_up': return { label: isRTL ? 'جاري الاستلام' : 'Picking up', color: COLORS.info, icon: 'car-outline' };
       case 'diagnosing': return { label: isRTL ? 'تحت الفحص' : 'Diagnosing', color: COLORS.primary, icon: 'search-outline' };
       case 'quoted': return { label: isRTL ? 'بانتظار موافقتك على السعر' : 'Awaiting your approval', color: COLORS.warning, icon: 'pricetag-outline' };
+      case 'awaiting_payment': return { label: isRTL ? 'بإنتظار الدفع' : 'Awaiting payment', color: COLORS.warning, icon: 'card-outline' };
       case 'waiting_parts': return { label: isRTL ? 'انتظار قطع غيار' : 'Waiting parts', color: COLORS.warning, icon: 'time-outline' };
       case 'repairing': return { label: isRTL ? 'قيد الإصلاح' : 'Repairing', color: COLORS.primary, icon: 'construct-outline' };
       case 'testing': return { label: isRTL ? 'اختبار الجودة' : 'Testing', color: COLORS.primary, icon: 'flask-outline' };
       case 'delivering': return { label: isRTL ? 'قيد التسليم' : 'Delivering', color: COLORS.info, icon: 'cube-outline' };
       case 'completed': return { label: isRTL ? 'مكتمل' : 'Completed', color: COLORS.success, icon: 'checkbox-outline' };
       case 'cancelled': return { label: isRTL ? 'ملغي' : 'Cancelled', color: COLORS.error, icon: 'close-circle-outline' };
+      case 'rejected': return { label: isRTL ? 'مرفوض' : 'Rejected', color: COLORS.error, icon: 'close-circle-outline' };
       default: return { label: status, color: COLORS.textSecondary, icon: 'help-circle-outline' };
     }
   };

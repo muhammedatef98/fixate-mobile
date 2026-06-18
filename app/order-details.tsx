@@ -42,7 +42,7 @@ const ORDER_TIMELINE: { status: string; arLabel: string; enLabel: string; icon: 
   { status: 'picking_up', arLabel: 'جاري الاستلام', enLabel: 'Picking Up', icon: 'car' },
   { status: 'diagnosing', arLabel: 'جاري الفحص', enLabel: 'Diagnosing', icon: 'magnify' },
   { status: 'quoted', arLabel: 'بانتظار موافقتك', enLabel: 'Awaiting Your Approval', icon: 'cash-check' },
-  { status: 'awaiting_payment', arLabel: 'بانتظار الدفع', enLabel: 'Awaiting Payment', icon: 'credit-card-clock' },
+  { status: 'awaiting_payment', arLabel: 'بإنتظار الدفع', enLabel: 'Awaiting Payment', icon: 'credit-card-clock' },
   { status: 'waiting_parts', arLabel: 'انتظار قطع غيار', enLabel: 'Waiting for Parts', icon: 'clock-outline' },
   { status: 'repairing', arLabel: 'جاري الإصلاح', enLabel: 'Repairing', icon: 'tools' },
   { status: 'testing', arLabel: 'اختبار الجودة', enLabel: 'Quality Testing', icon: 'flask' },

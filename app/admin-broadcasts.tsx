@@ -96,12 +96,23 @@ export default function AdminBroadcastsScreen() {
               setTitle('');
               setBody('');
               setBroadcasts((prev) => [sent, ...prev]);
-              Alert.alert(
-                isRTL ? 'تم الإرسال ✓' : 'Sent ✓',
-                isRTL
-                  ? `تم إرسال الإشعار إلى ${sent.sent_count} مستخدم${sent.failed_count ? ` (فشل ${sent.failed_count})` : ''}.`
-                  : `Notification delivered to ${sent.sent_count} users${sent.failed_count ? ` (${sent.failed_count} failed)` : ''}.`
-              );
+              // Make "0 sent" diagnosable: distinguish "no devices registered"
+              // from "delivery failed" so the admin knows the real cause.
+              if ((sent.recipients ?? 0) === 0) {
+                Alert.alert(
+                  isRTL ? 'لا توجد أجهزة مسجّلة' : 'No registered devices',
+                  isRTL
+                    ? 'لم يتم العثور على أي رمز إشعارات (push token) لهذه الفئة. يحتاج المستخدمون إلى فتح التطبيق والسماح بالإشعارات أولاً.'
+                    : 'No push tokens were found for this audience. Users must open the app and allow notifications first.'
+                );
+              } else {
+                Alert.alert(
+                  isRTL ? 'تم الإرسال ✓' : 'Sent ✓',
+                  isRTL
+                    ? `تم إرسال الإشعار إلى ${sent.sent_count} من ${sent.recipients} جهاز${sent.failed_count ? ` (فشل ${sent.failed_count})` : ''}.`
+                    : `Delivered to ${sent.sent_count} of ${sent.recipients} devices${sent.failed_count ? ` (${sent.failed_count} failed)` : ''}.`
+                );
+              }
             } catch (e: any) {
               Alert.alert(isRTL ? 'فشل الإرسال' : 'Send failed', e?.message ?? String(e));
             } finally {

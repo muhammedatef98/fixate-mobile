@@ -359,10 +359,12 @@ function ReviewBody({ row, COLORS, isRTL, onClose, onApprove, onReject, submitti
 }) {
   const [frontUrl, setFrontUrl] = useState<string | null>(null);
   const [backUrl, setBackUrl] = useState<string | null>(null);
+  const [selfieUrl, setSelfieUrl] = useState<string | null>(null);
 
   useEffect(() => {
     getSignedDocumentUrl(row.document_front_url).then(setFrontUrl);
     if (row.document_back_url) getSignedDocumentUrl(row.document_back_url).then(setBackUrl);
+    if ((row as any).selfie_url) getSignedDocumentUrl((row as any).selfie_url).then(setSelfieUrl);
   }, [row.id]);
 
   const isPending = row.status === 'pending';
@@ -399,6 +401,26 @@ function ReviewBody({ row, COLORS, isRTL, onClose, onApprove, onReject, submitti
             {isRTL ? 'صورة الوجه الخلفي' : 'Back image'}
           </Text>
           <DocImage url={backUrl} COLORS={COLORS} />
+        </>
+      ) : null}
+
+      {/* FEATURE-1 — selfie + the challenge that must match it */}
+      {(row as any).selfie_url ? (
+        <>
+          <Text style={{ color: COLORS.textSecondary, fontSize: 12, marginTop: 16, marginBottom: 8, fontWeight: '700' }}>
+            {isRTL ? 'الصورة الشخصية مع التحدي' : 'Selfie with challenge'}
+          </Text>
+          {(row as any).challenge_text ? (
+            <View style={{ backgroundColor: COLORS.primary + '12', borderRadius: 12, padding: 12, marginBottom: 8, borderWidth: 1, borderColor: COLORS.primary + '44' }}>
+              <Text style={{ color: COLORS.textSecondary, fontSize: 11, fontWeight: '700', marginBottom: 4 }}>
+                {isRTL ? 'التحدي المطلوب' : 'Required challenge'}
+              </Text>
+              <Text style={{ color: COLORS.text, fontSize: 15, fontWeight: '800', textAlign: isRTL ? 'right' : 'left' }}>
+                {(row as any).challenge_text}
+              </Text>
+            </View>
+          ) : null}
+          <DocImage url={selfieUrl} COLORS={COLORS} />
         </>
       ) : null}
 

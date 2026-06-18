@@ -252,13 +252,20 @@ export default function ManageOrderScreen() {
     }
     try {
       setSubmittingReject(true);
+      // RLS WITH CHECK on orders requires auth.uid() = technician_id after an
+      // update. A pending order has technician_id = NULL, so we must claim it
+      // (set technician_id to this technician) in the same statement, otherwise
+      // the update is rejected and the user sees "تعذّر رفض الطلب".
+      const me = await auth.getCurrentUser();
+      const updatePayload: Record<string, any> = {
+        status: 'rejected',
+        rejection_reason: reason,
+        updated_at: new Date().toISOString(),
+      };
+      if (me?.id) updatePayload.technician_id = me.id;
       const { data, error } = await supabase
         .from('orders')
-        .update({
-          status: 'rejected',
-          rejection_reason: reason,
-          updated_at: new Date().toISOString(),
-        })
+        .update(updatePayload)
         .eq('id', id as string)
         .select()
         .single();
@@ -1189,6 +1196,11 @@ export default function ManageOrderScreen() {
       >
         <View style={styles.rejectSheetOverlay}>
           <View style={[styles.rejectSheet, { backgroundColor: COLORS.card }]}>
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              contentContainerStyle={{ paddingBottom: 4 }}
+            >
             <Text style={[styles.rejectSheetTitle, { color: COLORS.text }]}>
               {isRTL ? 'سبب الرفض' : 'Rejection reason'}
             </Text>
@@ -1259,6 +1271,7 @@ export default function ManageOrderScreen() {
                 <Text style={[styles.rejectCancelText, { color: COLORS.text }]}>{isRTL ? 'إلغاء' : 'Cancel'}</Text>
               </TouchableOpacity>
             </View>
+            </ScrollView>
           </View>
         </View>
       </Modal>
@@ -1456,6 +1469,7 @@ const makeStyles = (isRTL: boolean) => StyleSheet.create({
     borderTopRightRadius: 24,
     padding: SPACING.lg,
     paddingBottom: SPACING.xl,
+    maxHeight: '85%',
   },
   rejectSheetTitle: {
     fontSize: 18,

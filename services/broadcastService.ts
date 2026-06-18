@@ -17,6 +17,8 @@ export interface Broadcast {
   created_by: string | null;
   created_at: string;
   sent_at: string | null;
+  /** Valid registered tokens resolved for this send (transient, not persisted). */
+  recipients?: number;
 }
 
 export interface CreateBroadcastInput {
@@ -65,6 +67,7 @@ export const sendBroadcast = async (
   // ticket errors, which surface the *real* delivery failure reason.
   let sent = 0;
   let failed = 0;
+  let recipients = 0;
   try {
     const result = await notifyAudience(broadcast.audience, {
       title: broadcast.title,
@@ -73,6 +76,7 @@ export const sendBroadcast = async (
     });
     sent = result.sent;
     failed = result.failed;
+    recipients = result.recipients ?? result.sent + result.failed;
     if (result.errors?.length) {
       logger.warn('broadcast push errors', result.errors);
     }
@@ -90,7 +94,7 @@ export const sendBroadcast = async (
     logger.warn('broadcast_mark_sent failed', e);
   }
 
-  return { ...broadcast, sent_count: sent, failed_count: failed, sent_at: new Date().toISOString() };
+  return { ...broadcast, sent_count: sent, failed_count: failed, recipients, sent_at: new Date().toISOString() };
 };
 
 export const listBroadcasts = async (): Promise<Broadcast[]> => {

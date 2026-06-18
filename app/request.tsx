@@ -953,7 +953,7 @@ export default function RequestScreen() {
                     </View>
                   )}
                   <View style={styles.brandLogoContainer}>
-                    <BrandLogo brandId={brand.id} name={brand.name} size={48} />
+                    <BrandLogo brandId={brand.id} name={brand.name} size={34} />
                   </View>
                   <Text style={styles.brandNameText} numberOfLines={1}>{brand.name}</Text>
                 </PressableScale>
@@ -1382,6 +1382,8 @@ export default function RequestScreen() {
                   longitude={location.longitude}
                   zoom={16}
                   interactive
+                  // Tap-to-place is Android-only; iOS keeps drag-only behaviour.
+                  tapToPlace={Platform.OS === 'android'}
                   onReady={() => setMapReady(true)}
                   onMoveEnd={(lat, lng) => applyPickedLocation(lat, lng)}
                   style={styles.map}
@@ -1399,7 +1401,9 @@ export default function RequestScreen() {
                 <View pointerEvents="none" style={styles.dragHint}>
                   <Ionicons name="hand-left-outline" size={14} color="#fff" />
                   <Text style={styles.dragHintText}>
-                    {isRTL ? 'اسحب أو اضغط على الخريطة لتحديد الموقع' : 'Tap or drag the map to set location'}
+                    {Platform.OS === 'android'
+                      ? (isRTL ? 'اسحب أو اضغط على الخريطة لتحديد الموقع' : 'Tap or drag the map to set location')
+                      : (isRTL ? 'اسحب الخريطة لتحديد الموقع' : 'Drag the map to set location')}
                   </Text>
                 </View>
               )}
@@ -1754,9 +1758,11 @@ const createStyles = (COLORS: any, isRTL: boolean, SHADOWS: any) => StyleSheet.c
   brandGrid: { flexDirection: isRTL ? 'row-reverse' : 'row', flexWrap: 'wrap', gap: 12, paddingBottom: 24 },
   brandCard: { width: (width - 44) / 2, backgroundColor: COLORS.card, padding: 16, borderRadius: 12, alignItems: 'center', borderWidth: 1, borderColor: COLORS.border, ...SHADOWS.small },
   brandCheck: { position: 'absolute', top: 6, ...(isRTL ? { left: 6 } : { right: 6 }) },
-  brandLogoContainer: { width: 48, height: 48, justifyContent: 'center', alignItems: 'center', marginBottom: 10 },
-  brandLogo: { width: 40, height: 40 },
-  brandNameText: { fontSize: 12, fontWeight: '700', color: COLORS.text, textAlign: 'center' },
+  // FEAT-05 — sized to match the device-type cards (icon 34 + label,
+  // marginTop 8) so brand cards are no longer oversized.
+  brandLogoContainer: { width: 34, height: 34, justifyContent: 'center', alignItems: 'center' },
+  brandLogo: { width: 34, height: 34 },
+  brandNameText: { marginTop: 8, fontSize: 14, fontWeight: '600', color: COLORS.text, textAlign: 'center' },
   listItem: { flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, backgroundColor: COLORS.card, borderRadius: 12, marginBottom: 8, borderWidth: 1, borderColor: COLORS.border, ...SHADOWS.small },
   selectedListItem: { borderColor: COLORS.primary, backgroundColor: COLORS.lightGreen },
   listItemText: { fontSize: 16, color: COLORS.text },

@@ -14,6 +14,8 @@ import { logger } from '../utils/logger';
 export interface PushResult {
   sent: number;
   failed: number;
+  /** Number of valid registered tokens the server resolved for this send. */
+  recipients?: number;
   errors?: string[];
 }
 

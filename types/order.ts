@@ -227,7 +227,7 @@ export const ORDER_STATUS_LABELS_AR: Record<OrderStatus, string> = {
   picking_up: 'جاري الاستلام',
   diagnosing: 'تحت الفحص',
   quoted: 'بانتظار موافقتك على السعر',
-  awaiting_payment: 'بانتظار الدفع',
+  awaiting_payment: 'بإنتظار الدفع',
   waiting_parts: 'انتظار قطع غيار',
   repairing: 'قيد الإصلاح',
   testing: 'اختبار الجودة',

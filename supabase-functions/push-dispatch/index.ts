@@ -77,8 +77,15 @@ Deno.serve(async (req: Request) => {
         (t) => typeof t === 'string' && t.startsWith('ExponentPushToken')
       );
 
+    // Log the resolved recipient count so "0 sent" is attributable.
+    console.log(
+      `push-dispatch: audience=${audience ?? 'userIds'} resolved ${tokens.length} valid token(s)`
+    );
+
     if (tokens.length === 0) {
-      return json({ sent: 0, failed: 0, errors: [] });
+      // No registered tokens at all — surface it explicitly instead of a
+      // silent "0 sent" so the admin UI can explain the real cause.
+      return json({ sent: 0, failed: 0, recipients: 0, errors: ['no_tokens'] });
     }
 
     let sent = 0;
@@ -134,8 +141,14 @@ Deno.serve(async (req: Request) => {
       }
     }
 
+    console.log(`push-dispatch: sent=${sent} failed=${failed}`);
     // De-dupe the error list so the caller sees distinct failure reasons.
-    return json({ sent, failed, errors: [...new Set(errors)].slice(0, 10) });
+    return json({
+      sent,
+      failed,
+      recipients: tokens.length,
+      errors: [...new Set(errors)].slice(0, 10),
+    });
   } catch (e) {
     return json({ error: e instanceof Error ? e.message : String(e) }, 500);
   }

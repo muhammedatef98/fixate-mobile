@@ -52,6 +52,12 @@ interface OsmMapProps {
   longitude: number;
   zoom?: number;
   interactive?: boolean;
+  /**
+   * Enable tap-to-place (tap the map to drop the pin). Android-only by design —
+   * the caller passes Platform.OS === 'android' so iOS map behaviour (drag the
+   * map under the centre pin) is left completely untouched.
+   */
+  tapToPlace?: boolean;
   onMoveEnd?: (lat: number, lng: number) => void;
   onReady?: () => void;
   markers?: OsmMarker[];
@@ -67,6 +73,7 @@ function buildHtml(
   zoom: number,
   interactive: boolean,
   markers: OsmMarker[],
+  tapToPlace: boolean,
 ): string {
   return `<!DOCTYPE html><html><head>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
@@ -82,6 +89,7 @@ ${interactive ? `<div id="pin">${PIN_SVG('#10b981')}</div>` : ''}
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
   var INTERACTIVE=${interactive ? 'true' : 'false'};
+  var TAP_TO_PLACE=${tapToPlace ? 'true' : 'false'};
   var skip=false, markerLayer=[];
   function post(o){ if(window.ReactNativeWebView){ window.ReactNativeWebView.postMessage(JSON.stringify(o)); } }
   var map=L.map('map',{zoomControl:false,attributionControl:true}).setView([${lat},${lng}],${zoom});
@@ -92,12 +100,15 @@ ${interactive ? `<div id="pin">${PIN_SVG('#10b981')}</div>` : ''}
       if(skip){ skip=false; return; }
       var c=map.getCenter(); post({type:'moveend',lat:c.lat,lng:c.lng});
     });
-    // Tap anywhere to drop/move the pin there. Recenters the map under the
-    // fixed centre pin and emits the new coordinate (FEAT-07).
-    map.on('click',function(e){
-      map.setView(e.latlng, map.getZoom());
-      post({type:'moveend',lat:e.latlng.lat,lng:e.latlng.lng});
-    });
+    // Tap-to-place (Android only — TAP_TO_PLACE is driven by Platform.OS on the
+    // RN side). iOS keeps drag-only behaviour, untouched. Recenters the map
+    // under the fixed centre pin and emits the new coordinate.
+    if(TAP_TO_PLACE){
+      map.on('click',function(e){
+        map.setView(e.latlng, map.getZoom());
+        post({type:'moveend',lat:e.latlng.lat,lng:e.latlng.lng});
+      });
+    }
   }
   function pinIcon(color){ return L.divIcon({className:'',html:'${PIN_SVG('COLORTOKEN').replace(/'/g, "\\'")}'.replace('COLORTOKEN',color||'#10b981'),iconSize:[36,36],iconAnchor:[18,36]}); }
   function setMarkers(list){
@@ -115,7 +126,7 @@ ${interactive ? `<div id="pin">${PIN_SVG('#10b981')}</div>` : ''}
 }
 
 const OsmMap = forwardRef<OsmMapHandle, OsmMapProps>(function OsmMap(
-  { latitude, longitude, zoom = 15, interactive = false, onMoveEnd, onReady, markers = [], style },
+  { latitude, longitude, zoom = 15, interactive = false, tapToPlace = false, onMoveEnd, onReady, markers = [], style },
   ref,
 ) {
   const webRef = useRef<any>(null);
@@ -123,7 +134,7 @@ const OsmMap = forwardRef<OsmMapHandle, OsmMapProps>(function OsmMap(
   // Build the HTML once. Programmatic changes go through injectJavaScript so
   // the WebView never reloads (which would reset the user's pan/zoom).
   const html = useMemo(
-    () => buildHtml(latitude, longitude, zoom, interactive, markers),
+    () => buildHtml(latitude, longitude, zoom, interactive, markers, tapToPlace),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [],
   );
