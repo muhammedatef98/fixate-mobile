@@ -54,9 +54,11 @@ google-services.json
 GoogleService-Info.plist
 
 # Database backups / dumps (contain production data — never commit)
+# Local dumps live under backups/ to keep the repo root tidy.
 *.dump
 backup_*.sql
 backup_*
+backups/
 
 # Generated native projects (Expo CNG — regenerated via `expo prebuild`)
 /ios/
