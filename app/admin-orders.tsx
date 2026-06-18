@@ -10,6 +10,7 @@ import {
   ScrollView,
   ActivityIndicator,
   RefreshControl,
+  Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -59,9 +60,10 @@ const STATUS_META = (s: string, isRTL: boolean): { label: string; color: string 
     repairing: { ar: 'جاري الإصلاح', en: 'Repairing', color: '#6366F1' },
     testing: { ar: 'اختبار', en: 'Testing', color: '#6366F1' },
     delivering: { ar: 'جاري التوصيل', en: 'Delivering', color: '#06B6D4' },
-    awaiting_payment: { ar: 'بانتظار الدفع', en: 'Awaiting payment', color: '#D97706' },
+    awaiting_payment: { ar: 'بإنتظار الدفع', en: 'Awaiting payment', color: '#D97706' },
     completed: { ar: 'مكتمل', en: 'Completed', color: '#16A34A' },
     cancelled: { ar: 'ملغي', en: 'Cancelled', color: '#DC2626' },
+    rejected: { ar: 'مرفوض', en: 'Rejected', color: '#DC2626' },
   };
   const m = map[s];
   return m ? { label: isRTL ? m.ar : m.en, color: m.color } : { label: s, color: '#8A94A3' };
@@ -81,6 +83,7 @@ export default function AdminOrdersScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [filter, setFilter] = useState<FilterKey>('all');
   const [search, setSearch] = useState('');
+  const [deletingAll, setDeletingAll] = useState(false);
 
   const profileLoaded = userProfile !== null;
   const { isAdmin } = useIsAdmin();
@@ -108,6 +111,51 @@ export default function AdminOrdersScreen() {
   useEffect(() => {
     if (profileLoaded && isAdmin) load();
   }, [profileLoaded, isAdmin, load]);
+
+  // FEAT-11 — irreversible bulk delete of every order. We soft-delete
+  // (set deleted_at) which is what the rest of the app treats as "deleted"
+  // (every list query filters `deleted_at is null`) and avoids foreign-key
+  // failures from order_items / messages / payments that reference orders.
+  const performDeleteAll = useCallback(async () => {
+    setDeletingAll(true);
+    try {
+      const { error } = await supabase
+        .from('orders')
+        .update({ deleted_at: new Date().toISOString() })
+        .is('deleted_at', null);
+      if (error) throw error;
+      setOrders([]);
+      Alert.alert(
+        isRTL ? 'تم' : 'Done',
+        isRTL ? 'تم حذف جميع الطلبات بنجاح' : 'All orders deleted successfully'
+      );
+    } catch (e: any) {
+      Alert.alert(
+        isRTL ? 'خطأ' : 'Error',
+        isRTL ? 'تعذّر حذف الطلبات' : 'Could not delete orders'
+      );
+    } finally {
+      setDeletingAll(false);
+    }
+  }, [isRTL]);
+
+  const confirmDeleteAll = useCallback(() => {
+    if (orders.length === 0) return;
+    Alert.alert(
+      isRTL ? 'تأكيد الحذف' : 'Confirm deletion',
+      isRTL
+        ? 'هل أنت متأكد أنك تريد حذف جميع الطلبات؟ لا يمكن التراجع عن هذا الإجراء.'
+        : 'Are you sure you want to delete all orders? This action cannot be undone.',
+      [
+        { text: isRTL ? 'إلغاء' : 'Cancel', style: 'cancel' },
+        {
+          text: isRTL ? 'حذف الكل' : 'Delete all',
+          style: 'destructive',
+          onPress: performDeleteAll,
+        },
+      ]
+    );
+  }, [isRTL, orders.length, performDeleteAll]);
 
   const styles = createStyles(COLORS, isRTL);
 
@@ -207,6 +255,28 @@ export default function AdminOrdersScreen() {
       />
 
       <AdminFilterChips<FilterKey> filters={FILTERS} value={filter} onChange={setFilter} />
+
+      {orders.length > 0 && (
+        <View style={styles.deleteAllRow}>
+          <TouchableOpacity
+            style={styles.deleteAllBtn}
+            activeOpacity={0.85}
+            onPress={confirmDeleteAll}
+            disabled={deletingAll}
+            accessibilityRole="button"
+            accessibilityLabel={isRTL ? 'حذف جميع الطلبات' : 'Delete all orders'}
+          >
+            {deletingAll ? (
+              <ActivityIndicator size="small" color="#DC2626" />
+            ) : (
+              <MaterialCommunityIcons name="trash-can-outline" size={16} color="#DC2626" />
+            )}
+            <Text style={styles.deleteAllText}>
+              {isRTL ? 'حذف جميع الطلبات' : 'Delete all orders'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
       <ScrollView
         contentContainerStyle={{ padding: SPACING.lg, paddingBottom: 40 }}
@@ -417,4 +487,22 @@ const createStyles = (C: any, isRTL: boolean) =>
     price: { color: C.primary, fontWeight: '800', fontSize: 14 },
     date: { color: C.textLight, fontSize: 11, marginTop: 6, textAlign: isRTL ? 'right' : 'left' },
     empty: { alignItems: 'center', paddingVertical: 60 },
+    deleteAllRow: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      justifyContent: 'flex-end',
+      paddingHorizontal: SPACING.lg,
+      marginBottom: SPACING.sm,
+    },
+    deleteAllBtn: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
+      gap: 6,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      borderRadius: BORDER_RADIUS.md,
+      borderWidth: 1,
+      borderColor: '#DC2626',
+      backgroundColor: '#DC262610',
+    },
+    deleteAllText: { color: '#DC2626', fontWeight: '800', fontSize: 12.5 },
   });

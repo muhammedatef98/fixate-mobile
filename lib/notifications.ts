@@ -1,8 +1,17 @@
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
+import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 import { supabase } from './supabase';
 import { logger } from '../utils/logger';
+
+// Expo push tokens are scoped to an EAS project. Without an explicit projectId,
+// getExpoPushTokenAsync can fail (or mint a token for the wrong project) in
+// production / dev-client builds, which is the classic "broadcast sent to 0
+// users / all failed" cause. Resolve it from app config.
+const EAS_PROJECT_ID =
+  Constants?.expoConfig?.extra?.eas?.projectId ??
+  (Constants as any)?.easConfig?.projectId;
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -29,7 +38,11 @@ export const notificationManager = {
         return;
       }
       try {
-        token = (await Notifications.getExpoPushTokenAsync()).data;
+        token = (
+          await Notifications.getExpoPushTokenAsync(
+            EAS_PROJECT_ID ? { projectId: EAS_PROJECT_ID } : undefined
+          )
+        ).data;
       } catch (e) {
         logger.error('Error getting push token', e);
       }

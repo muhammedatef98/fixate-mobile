@@ -244,5 +244,21 @@
     "approve": "موافقة",
     "reject": "رفض",
     "archive": "أرشفة"
-  }
+  },
+  "orderStatus": {
+    "awaiting_payment": "بإنتظار الدفع",
+    "rejected": "مرفوض"
+  },
+  "rejection": {
+    "title": "سبب الرفض",
+    "confirm": "تأكيد الرفض",
+    "cancel": "إلغاء",
+    "reason_parts_unavailable": "قطع الغيار غير متاحة حالياً",
+    "reason_out_of_area": "خارج نطاق الخدمة",
+    "reason_too_far": "الموقع بعيد جداً",
+    "reason_irreparable": "الجهاز لا يمكن إصلاحه",
+    "reason_other": "أخرى",
+    "notice": "تم رفض الطلب"
+  },
+  "spare_parts_cost_label": "تكلفة قطع الغيار"
 }

@@ -2,6 +2,7 @@ import { supabase } from './supabaseClient';
 import { logger } from '../utils/logger';
 import { validatePrice, validateCoordinates, validateDescription } from '../utils/validation';
 import type { Order, CreateOrderData, OrderStatus } from '../types/order';
+import { notifyAudience } from './notifyService';
 
 export type { Order, CreateOrderData, OrderStatus } from '../types/order';
 
@@ -60,6 +61,15 @@ export const createOrder = async (userId: string, orderData: CreateOrderData): P
     throw new Error(error.message || 'Database error');
   }
   if (!data) throw new Error('Order was not created (empty response)');
+
+  // Notify all technicians that a new request is available (FEAT-01).
+  // Fire-and-forget: a push failure must never fail order creation.
+  void notifyAudience('technicians', {
+    title: 'طلب صيانة جديد 🛠️',
+    body: `${data.device_brand || 'جهاز'} ${data.device_model || ''} — ${data.issue_description || 'طلب صيانة جديد'}`.trim(),
+    data: { screen: 'available-orders', orderId: data.id },
+  });
+
   return data;
 };
 

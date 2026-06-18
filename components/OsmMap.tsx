@@ -77,6 +77,12 @@ ${interactive ? `<div id="pin">${PIN_SVG('#10b981')}</div>` : ''}
       if(skip){ skip=false; return; }
       var c=map.getCenter(); post({type:'moveend',lat:c.lat,lng:c.lng});
     });
+    // Tap anywhere to drop/move the pin there. Recenters the map under the
+    // fixed centre pin and emits the new coordinate (FEAT-07).
+    map.on('click',function(e){
+      map.setView(e.latlng, map.getZoom());
+      post({type:'moveend',lat:e.latlng.lat,lng:e.latlng.lng});
+    });
   }
   function pinIcon(color){ return L.divIcon({className:'',html:'${PIN_SVG('COLORTOKEN').replace(/'/g, "\\'")}'.replace('COLORTOKEN',color||'#10b981'),iconSize:[36,36],iconAnchor:[18,36]}); }
   function setMarkers(list){

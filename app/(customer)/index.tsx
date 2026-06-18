@@ -74,6 +74,7 @@ export default function CustomerHomeScreen() {
   const [sidebarVisible, setSidebarVisible] = useState(false);
   const [activeOrder, setActiveOrder] = useState<any>(null);
   const [recentOrder, setRecentOrder] = useState<any>(null);
+  const [pendingQuotes, setPendingQuotes] = useState(0);
   const [loading, setLoading] = useState(true);
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(20)).current;
@@ -92,6 +93,7 @@ export default function CustomerHomeScreen() {
         await Promise.allSettled([
           user?.id ? loadActiveOrder() : Promise.resolve(),
           user?.id ? loadRecentOrder() : Promise.resolve(),
+          user?.id ? loadPendingQuotes() : Promise.resolve(),
         ]);
       } finally {
         setLoading(false);
@@ -130,6 +132,22 @@ export default function CustomerHomeScreen() {
       setRecentOrder(data?.[0] ?? null);
     } catch (e) {
       logger.warn('home loadRecentOrder failed', e);
+    }
+  };
+
+  // Count of orders awaiting the customer's price approval — drives the
+  // badge on the "Quotes" quick action (FEAT-02).
+  const loadPendingQuotes = async () => {
+    if (!user?.id) return;
+    try {
+      const { count } = await supabase
+        .from('orders')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .eq('status', 'quoted');
+      setPendingQuotes(count ?? 0);
+    } catch (e) {
+      logger.warn('home loadPendingQuotes failed', e);
     }
   };
 
@@ -285,37 +303,40 @@ export default function CustomerHomeScreen() {
             <RTLIonicon name="chevron-forward" size={20} color={COLORS.primary} />
           </AnimatedTouchable>
 
-          {/* Recent order — one-tap repeat for returning customers */}
-          {recentOrder && (
-            <View style={[styles.recentCard, { backgroundColor: COLORS.card, borderColor: COLORS.border }]}>
-              <View style={styles.recentTop}>
-                <Text style={[styles.recentEyebrow, { color: COLORS.textSecondary }]}>
-                  {isRTL ? 'آخر طلب' : 'Last order'}
-                </Text>
-                <Text style={[styles.recentDate, { color: COLORS.textSecondary }]}>
-                  {new Date(recentOrder.created_at).toLocaleDateString(language === 'ar' ? 'ar' : 'en-US', { day: '2-digit', month: 'short' })}
-                </Text>
-              </View>
-              <Text style={[styles.recentTitle, { color: COLORS.text }]} numberOfLines={1}>
-                {recentOrder.device_brand} {recentOrder.device_model}
-              </Text>
-              {recentOrder.issue_description && (
-                <Text style={[styles.recentIssue, { color: COLORS.textSecondary }]} numberOfLines={1}>
-                  {recentOrder.issue_description}
-                </Text>
-              )}
-              <AnimatedTouchable
-                onPress={() => router.push('/request')}
-                style={[styles.recentBtn, { backgroundColor: COLORS.primary + '15' }]}
+          {/* Quick Actions — fast access to the things customers do most
+              (FEAT-02, replaces the old "Last order" widget). */}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.quickRow}
+          >
+            {[
+              { id: 'new', icon: 'plus-circle', accent: '#10B981', labelAr: 'طلب صيانة جديد', labelEn: 'New repair', route: '/request', badge: 0 },
+              { id: 'orders', icon: 'clipboard-text-clock-outline', accent: '#3B82F6', labelAr: 'طلباتي', labelEn: 'My requests', route: '/(customer)/orders', badge: 0 },
+              { id: 'chats', icon: 'message-text-outline', accent: '#8B5CF6', labelAr: 'المحادثات', labelEn: 'Chats', route: '/(customer)/orders', badge: 0 },
+              { id: 'quotes', icon: 'cash-multiple', accent: '#F59E0B', labelAr: 'عروض الأسعار', labelEn: 'Quotes', route: '/(customer)/orders', badge: pendingQuotes },
+            ].map((q) => (
+              <PressableScale
+                key={q.id}
+                onPress={() => router.push(q.route as any)}
+                style={[styles.quickCard, { backgroundColor: COLORS.card, borderColor: COLORS.border }]}
                 accessibilityRole="button"
+                accessibilityLabel={isRTL ? q.labelAr : q.labelEn}
               >
-                <MaterialCommunityIcons name="repeat" size={16} color={COLORS.primary} />
-                <Text style={{ color: COLORS.primary, fontSize: 13, fontWeight: '700' }}>
-                  {isRTL ? 'اطلب إصلاح آخر الآن' : 'Repeat order'}
+                <View style={[styles.quickIcon, { backgroundColor: q.accent + '18' }]}>
+                  <MaterialCommunityIcons name={q.icon as any} size={24} color={q.accent} />
+                  {q.badge > 0 && (
+                    <View style={styles.quickBadge}>
+                      <Text style={styles.quickBadgeText}>{q.badge}</Text>
+                    </View>
+                  )}
+                </View>
+                <Text style={[styles.quickLabel, { color: COLORS.text }]} numberOfLines={1}>
+                  {isRTL ? q.labelAr : q.labelEn}
                 </Text>
-              </AnimatedTouchable>
-            </View>
-          )}
+              </PressableScale>
+            ))}
+          </ScrollView>
 
           {/* Section: Choose your device */}
           <View style={styles.sectionHead}>
@@ -610,6 +631,44 @@ const makeStyles = (C: any, isRTL: boolean, SHADOWS: any) =>
     myOrdersSub: { fontSize: 12, marginTop: 2, textAlign: isRTL ? 'right' : 'left' },
 
     // Recent activity card
+    // FEAT-02 Quick Actions row
+    quickRow: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      gap: 12,
+      paddingBottom: 4,
+      marginBottom: 24,
+    },
+    quickCard: {
+      width: 104,
+      borderRadius: BORDER_RADIUS.md,
+      borderWidth: 1,
+      paddingVertical: 16,
+      paddingHorizontal: 10,
+      alignItems: 'center',
+      ...SHADOWS.small,
+    },
+    quickIcon: {
+      width: 48,
+      height: 48,
+      borderRadius: 24,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 10,
+    },
+    quickBadge: {
+      position: 'absolute',
+      top: -4,
+      right: -4,
+      minWidth: 20,
+      height: 20,
+      borderRadius: 10,
+      paddingHorizontal: 5,
+      backgroundColor: '#EF4444',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    quickBadgeText: { color: '#fff', fontSize: 11, fontWeight: '800' },
+    quickLabel: { fontSize: 12.5, fontWeight: '700', textAlign: 'center' },
     recentCard: {
       borderRadius: BORDER_RADIUS.md,
       padding: 16,

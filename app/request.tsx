@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, Image, Dimensions, TextInput, Animated, Alert, Keyboard, KeyboardAvoidingView, Platform, Modal, I18nManager, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, Image, Dimensions, TextInput, Animated, Alert, Keyboard, KeyboardAvoidingView, Platform, Modal, I18nManager, ActivityIndicator, FlatList } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { getColors, getShadows, SPACING, BORDER_RADIUS } from '../constants/theme';
 import { MaterialIcons, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -929,10 +929,20 @@ export default function RequestScreen() {
                 onChangeText={setBrandSearch}
               />
             </View>
-            <ScrollView contentContainerStyle={styles.brandGrid}>
-              {filteredBrands.length > 0 ? filteredBrands.map((brand) => (
+            {/* BUG-05 — proper 2-column responsive grid. The previous
+                ScrollView + flex-wrap squeezed 3 cards per row, which on
+                Android rounded down to two tall stacked columns. A FlatList
+                with numColumns gives a deterministic grid on both platforms. */}
+            <FlatList
+              data={filteredBrands}
+              keyExtractor={(brand) => brand.id}
+              numColumns={2}
+              columnWrapperStyle={{ gap: 12, flexDirection: isRTL ? 'row-reverse' : 'row' }}
+              contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 24 }}
+              showsVerticalScrollIndicator={false}
+              ListEmptyComponent={renderEmptyState(isRTL ? 'لا توجد نتائج' : 'No results found')}
+              renderItem={({ item: brand }) => (
                 <PressableScale
-                  key={brand.id}
                   to={0.97}
                   style={[styles.brandCard, selectedBrand?.id === brand.id && styles.selectedCard]}
                   onPress={() => setSelectedBrand(brand)}
@@ -947,8 +957,8 @@ export default function RequestScreen() {
                   </View>
                   <Text style={styles.brandNameText} numberOfLines={1}>{brand.name}</Text>
                 </PressableScale>
-              )) : renderEmptyState(isRTL ? 'لا توجد نتائج' : 'No results found')}
-            </ScrollView>
+              )}
+            />
           </View>
         )}
 
@@ -1389,7 +1399,7 @@ export default function RequestScreen() {
                 <View pointerEvents="none" style={styles.dragHint}>
                   <Ionicons name="hand-left-outline" size={14} color="#fff" />
                   <Text style={styles.dragHintText}>
-                    {isRTL ? 'اسحب الخريطة لتغيير الموقع' : 'Drag the map to set location'}
+                    {isRTL ? 'اسحب أو اضغط على الخريطة لتحديد الموقع' : 'Tap or drag the map to set location'}
                   </Text>
                 </View>
               )}
@@ -1742,7 +1752,7 @@ const createStyles = (COLORS: any, isRTL: boolean, SHADOWS: any) => StyleSheet.c
   searchBar: { flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', backgroundColor: COLORS.card, paddingHorizontal: 12, height: 48, borderRadius: 12, borderWidth: 1, borderColor: COLORS.border, marginBottom: 16 },
   searchInput: { flex: 1, marginHorizontal: 8, textAlign: isRTL ? 'right' : 'left' },
   brandGrid: { flexDirection: isRTL ? 'row-reverse' : 'row', flexWrap: 'wrap', gap: 12, paddingBottom: 24 },
-  brandCard: { width: (width - 56) / 3, backgroundColor: COLORS.card, padding: 12, borderRadius: 12, alignItems: 'center', borderWidth: 1, borderColor: COLORS.border, ...SHADOWS.small },
+  brandCard: { width: (width - 44) / 2, backgroundColor: COLORS.card, padding: 16, borderRadius: 12, alignItems: 'center', borderWidth: 1, borderColor: COLORS.border, ...SHADOWS.small },
   brandCheck: { position: 'absolute', top: 6, ...(isRTL ? { left: 6 } : { right: 6 }) },
   brandLogoContainer: { width: 48, height: 48, justifyContent: 'center', alignItems: 'center', marginBottom: 10 },
   brandLogo: { width: 40, height: 40 },

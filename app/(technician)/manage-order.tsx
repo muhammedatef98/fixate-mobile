@@ -13,6 +13,7 @@ import {
   I18nManager,
   Platform,
   TextInput,
+  Modal,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { MaterialIcons, MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
@@ -22,6 +23,7 @@ import { useApp } from '../../contexts/AppContext';
 import * as ImagePicker from 'expo-image-picker';
 import { requests, auth } from '../../lib/supabase-api';
 import type { Order } from '../../lib/supabase-api';
+import { notifyUsers } from '../../services/notifyService';
 import { getUserProfile } from '../../services/userService';
 import { logger } from '../../utils/logger';
 import {
@@ -73,6 +75,15 @@ const STATUS_ACTIONS = [
   { status: 'completed', arLabel: 'إكمال الطلب', enLabel: 'Complete Order', icon: 'check-all', color: '#10B981', description: 'تم تسليم الجهاز وإغلاق الطلب' },
 ];
 
+// FEAT-03 — predefined rejection reasons. `other` reveals a free-text input.
+const REJECT_REASONS: { key: string; ar: string; en: string }[] = [
+  { key: 'parts_unavailable', ar: 'قطع الغيار غير متاحة حالياً', en: 'Spare parts not currently available' },
+  { key: 'out_of_area', ar: 'خارج نطاق الخدمة', en: 'Outside service area' },
+  { key: 'too_far', ar: 'الموقع بعيد جداً', en: 'Location is too far' },
+  { key: 'irreparable', ar: 'الجهاز لا يمكن إصلاحه', en: 'Device cannot be repaired' },
+  { key: 'other', ar: 'أخرى', en: 'Other' },
+];
+
 export default function ManageOrderScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams();
@@ -92,7 +103,13 @@ export default function ManageOrderScreen() {
   const [viewerImages, setViewerImages] = useState<string[]>([]);
   const [quotePrice, setQuotePrice] = useState('');
   const [quoteNotes, setQuoteNotes] = useState('');
+  const [sparePartsCost, setSparePartsCost] = useState(''); // FEAT-08 (accounting only)
   const [submittingQuote, setSubmittingQuote] = useState(false);
+  // FEAT-03 — reject-with-reason modal state.
+  const [rejectModalVisible, setRejectModalVisible] = useState(false);
+  const [rejectReasonKey, setRejectReasonKey] = useState<string | null>(null);
+  const [rejectCustomReason, setRejectCustomReason] = useState('');
+  const [submittingReject, setSubmittingReject] = useState(false);
   const [notesDraft, setNotesDraft] = useState('');
   const [savingNotes, setSavingNotes] = useState(false);
   const [beforePhotos, setBeforePhotos] = useState<string[]>([]);
@@ -207,6 +224,71 @@ export default function ManageOrderScreen() {
       );
     } finally {
       setUpdating(false);
+    }
+  };
+
+  // FEAT-03 — reject the request with a reason. Saves status='rejected' +
+  // rejection_reason, notifies the client (with the reason), then returns.
+  const resolvedRejectReason = (): string | null => {
+    if (!rejectReasonKey) return null;
+    if (rejectReasonKey === 'other') {
+      const custom = rejectCustomReason.trim();
+      return custom.length >= 10 ? custom : null;
+    }
+    const found = REJECT_REASONS.find((r) => r.key === rejectReasonKey);
+    return found ? (isRTL ? found.ar : found.en) : null;
+  };
+
+  const handleConfirmReject = async () => {
+    const reason = resolvedRejectReason();
+    if (!reason) {
+      Alert.alert(
+        isRTL ? 'تنبيه' : 'Notice',
+        isRTL
+          ? 'اختر سبب الرفض، وعند اختيار "أخرى" اكتب 10 أحرف على الأقل.'
+          : 'Pick a reason. If "Other", enter at least 10 characters.'
+      );
+      return;
+    }
+    try {
+      setSubmittingReject(true);
+      const { data, error } = await supabase
+        .from('orders')
+        .update({
+          status: 'rejected',
+          rejection_reason: reason,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', id as string)
+        .select()
+        .single();
+      if (error) throw error;
+
+      // Notify the client with the rejection reason (FEAT-01).
+      if (data?.user_id) {
+        void notifyUsers(data.user_id, {
+          title: isRTL ? 'تم رفض طلبك' : 'Request rejected',
+          body: reason,
+          data: { screen: 'order-details', orderId: data.id },
+        });
+      }
+
+      setOrder((prev) => (prev ? ({ ...prev, status: 'rejected', rejection_reason: reason } as any) : prev));
+      setRejectModalVisible(false);
+      setRejectReasonKey(null);
+      setRejectCustomReason('');
+      Alert.alert(
+        isRTL ? 'تم الرفض' : 'Rejected',
+        isRTL ? 'تم رفض الطلب وإبلاغ العميل.' : 'The request was rejected and the client notified.',
+        [{ text: isRTL ? 'حسناً' : 'OK', onPress: () => safeBack('/(technician)') }]
+      );
+    } catch (e: any) {
+      Alert.alert(
+        isRTL ? 'خطأ' : 'Error',
+        isRTL ? 'تعذّر رفض الطلب' : 'Could not reject the request'
+      );
+    } finally {
+      setSubmittingReject(false);
     }
   };
 
@@ -350,6 +432,16 @@ export default function ManageOrderScreen() {
     try {
       setSubmittingQuote(true);
       await requests.setQuote(id as string, price, quoteNotes.trim() || undefined);
+      // FEAT-08 — persist the accounting-only spare parts cost. Best-effort:
+      // never block the quote on it. This value is never shown to the client.
+      const spareCost = Number(sparePartsCost);
+      if (!Number.isNaN(spareCost) && spareCost > 0) {
+        const { error: spareErr } = await supabase
+          .from('orders')
+          .update({ spare_parts_cost: spareCost })
+          .eq('id', id as string);
+        if (spareErr) logger.warn('spare_parts_cost update failed', spareErr);
+      }
       // Optimistically reflect the quoted state on this screen immediately,
       // even before the realtime subscription fires, so the "awaiting
       // customer approval" card shows up right away.
@@ -360,6 +452,7 @@ export default function ManageOrderScreen() {
       );
       setQuotePrice('');
       setQuoteNotes('');
+      setSparePartsCost('');
       Alert.alert(
         isRTL ? 'تم إرسال السعر ✓' : 'Quote sent ✓',
         isRTL
@@ -538,6 +631,28 @@ export default function ManageOrderScreen() {
                   textAlign: isRTL ? 'right' : 'left',
                 }}
               />
+              {/* FEAT-08 — spare parts cost, accounting only. Never shown to
+                  the client; feeds the admin accounting dashboard. */}
+              <Text style={{ color: COLORS.textSecondary, fontSize: 12.5, marginBottom: 6, textAlign: isRTL ? 'right' : 'left' }}>
+                {isRTL ? 'تكلفة قطع الغيار (للمحاسبة فقط)' : 'Spare parts cost (accounting only)'}
+              </Text>
+              <TextInput
+                value={sparePartsCost}
+                onChangeText={(v) => setSparePartsCost(v.replace(/[^0-9.]/g, ''))}
+                keyboardType="numeric"
+                placeholder={isRTL ? '0.00 ريال' : '0.00 SAR'}
+                placeholderTextColor={COLORS.textSecondary}
+                style={{
+                  borderWidth: 1,
+                  borderColor: COLORS.border,
+                  borderRadius: BORDER_RADIUS.m,
+                  padding: SPACING.m,
+                  fontSize: 15,
+                  color: COLORS.text,
+                  marginBottom: SPACING.m,
+                  textAlign: isRTL ? 'right' : 'left',
+                }}
+              />
               <TouchableOpacity
                 style={[styles.actionButton, { backgroundColor: COLORS.primary }]}
                 onPress={handleSubmitQuote}
@@ -649,6 +764,23 @@ export default function ManageOrderScreen() {
                 ))
               )}
             </View>
+
+            {/* FEAT-03 — reject the request (with a reason) while it's still
+                pending and unassigned to this technician. */}
+            {order.status === 'pending' && (
+              <TouchableOpacity
+                style={[styles.rejectButton]}
+                onPress={() => setRejectModalVisible(true)}
+                disabled={updating}
+                accessibilityRole="button"
+                accessibilityLabel={isRTL ? 'رفض الطلب' : 'Reject request'}
+              >
+                <MaterialCommunityIcons name="close-circle-outline" size={20} color="#DC2626" />
+                <Text style={styles.rejectButtonText}>
+                  {isRTL ? 'رفض الطلب' : 'Reject request'}
+                </Text>
+              </TouchableOpacity>
+            )}
           </View>
         )}
 
@@ -1047,6 +1179,89 @@ export default function ManageOrderScreen() {
         onPick={pickPhotos}
         isRTL={isRTL}
       />
+
+      {/* FEAT-03 — reject reason bottom sheet */}
+      <Modal
+        visible={rejectModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setRejectModalVisible(false)}
+      >
+        <View style={styles.rejectSheetOverlay}>
+          <View style={[styles.rejectSheet, { backgroundColor: COLORS.card }]}>
+            <Text style={[styles.rejectSheetTitle, { color: COLORS.text }]}>
+              {isRTL ? 'سبب الرفض' : 'Rejection reason'}
+            </Text>
+            {REJECT_REASONS.map((r) => {
+              const selected = rejectReasonKey === r.key;
+              return (
+                <TouchableOpacity
+                  key={r.key}
+                  style={[
+                    styles.rejectOption,
+                    { borderColor: selected ? COLORS.primary : COLORS.border, backgroundColor: selected ? COLORS.primary + '12' : 'transparent' },
+                  ]}
+                  onPress={() => setRejectReasonKey(r.key)}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected }}
+                >
+                  <MaterialCommunityIcons
+                    name={selected ? 'radiobox-marked' : 'radiobox-blank'}
+                    size={20}
+                    color={selected ? COLORS.primary : COLORS.textSecondary}
+                  />
+                  <Text style={[styles.rejectOptionText, { color: COLORS.text }]}>
+                    {isRTL ? r.ar : r.en}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+
+            {rejectReasonKey === 'other' && (
+              <TextInput
+                value={rejectCustomReason}
+                onChangeText={setRejectCustomReason}
+                placeholder={isRTL ? 'اكتب السبب (10 أحرف على الأقل)' : 'Type the reason (min 10 characters)'}
+                placeholderTextColor={COLORS.textSecondary}
+                multiline
+                style={{
+                  borderWidth: 1,
+                  borderColor: COLORS.border,
+                  borderRadius: BORDER_RADIUS.m,
+                  padding: SPACING.m,
+                  fontSize: 14,
+                  color: COLORS.text,
+                  minHeight: 70,
+                  marginTop: 4,
+                  marginBottom: 8,
+                  textAlign: isRTL ? 'right' : 'left',
+                }}
+              />
+            )}
+
+            <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', gap: 10, marginTop: 8 }}>
+              <TouchableOpacity
+                style={[styles.rejectConfirmBtn, { backgroundColor: '#DC2626', flex: 1, opacity: submittingReject ? 0.7 : 1 }]}
+                onPress={handleConfirmReject}
+                disabled={submittingReject}
+              >
+                {submittingReject ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={styles.rejectConfirmText}>{isRTL ? 'تأكيد الرفض' : 'Confirm rejection'}</Text>
+                )}
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.rejectCancelBtn, { borderColor: COLORS.border, flex: 1 }]}
+                onPress={() => setRejectModalVisible(false)}
+                disabled={submittingReject}
+              >
+                <Text style={[styles.rejectCancelText, { color: COLORS.text }]}>{isRTL ? 'إلغاء' : 'Cancel'}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -1217,4 +1432,60 @@ const makeStyles = (isRTL: boolean) => StyleSheet.create({
     marginLeft: SPACING.s,
     fontSize: 16,
   },
+  // FEAT-03 reject UI
+  rejectButton: {
+    flexDirection: isRTL ? 'row-reverse' : 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: SPACING.m,
+    borderRadius: BORDER_RADIUS.m,
+    borderWidth: 1,
+    borderColor: '#DC2626',
+    backgroundColor: '#DC262610',
+    marginTop: SPACING.s,
+  },
+  rejectButtonText: { color: '#DC2626', fontWeight: '800', fontSize: 15 },
+  rejectSheetOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    justifyContent: 'flex-end',
+  },
+  rejectSheet: {
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: SPACING.lg,
+    paddingBottom: SPACING.xl,
+  },
+  rejectSheetTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    marginBottom: SPACING.m,
+    textAlign: isRTL ? 'right' : 'left',
+  },
+  rejectOption: {
+    flexDirection: isRTL ? 'row-reverse' : 'row',
+    alignItems: 'center',
+    gap: 10,
+    borderWidth: 1,
+    borderRadius: BORDER_RADIUS.m,
+    padding: SPACING.m,
+    marginBottom: SPACING.s,
+  },
+  rejectOptionText: { flex: 1, fontSize: 14.5, fontWeight: '600', textAlign: isRTL ? 'right' : 'left' },
+  rejectConfirmBtn: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: SPACING.m,
+    borderRadius: BORDER_RADIUS.m,
+  },
+  rejectConfirmText: { color: '#fff', fontWeight: '800', fontSize: 15 },
+  rejectCancelBtn: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: SPACING.m,
+    borderRadius: BORDER_RADIUS.m,
+    borderWidth: 1,
+  },
+  rejectCancelText: { fontWeight: '800', fontSize: 15 },
 });

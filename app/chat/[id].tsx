@@ -84,7 +84,25 @@ export default function ChatScreen() {
     loadData();
     const subscription = chat.subscribeToMessages(id as string, (message) => {
       setMessages((prev) => {
+        // Already have the real row (e.g. duplicate realtime event) — no-op.
         if (prev.some((m) => m.id === message.id)) return prev;
+        // The sender optimistically rendered a `temp-` bubble. When the real
+        // row arrives over realtime, swap it in place instead of appending a
+        // second bubble — that double-render (real + faded temp) was the
+        // "ghost duplicate with a white overlay" bug.
+        const tempIdx = prev.findIndex(
+          (m) =>
+            m.is_temp &&
+            m.sender_id === message.sender_id &&
+            (message.attachment_type
+              ? m.attachment_type === message.attachment_type
+              : !m.attachment_type && (m.content ?? '') === (message.content ?? ''))
+        );
+        if (tempIdx !== -1) {
+          const next = [...prev];
+          next[tempIdx] = message;
+          return next;
+        }
         return [...prev, message];
       });
       setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 80);

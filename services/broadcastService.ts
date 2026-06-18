@@ -1,5 +1,6 @@
 import { supabase } from './supabaseClient';
 import { logger } from '../utils/logger';
+import { notifyAudience } from './notifyService';
 
 export type BroadcastCategory = 'announcement' | 'promo' | 'update' | 'maintenance';
 export type BroadcastAudience = 'all' | 'customers' | 'technicians';
@@ -58,24 +59,22 @@ export const sendBroadcast = async (
   if (error) throw error;
   const broadcast = data as Broadcast;
 
-  // Resolve targets and fan out to Expo's push API. Done client-side here
-  // because we don't yet have a dedicated worker / edge function — but the
-  // RPC is admin-only, so this only runs when the admin sends.
+  // Fan out server-side via the `push-dispatch` Edge Function. It resolves
+  // recipient tokens with the service role (so RLS / token visibility is not a
+  // problem) and returns accurate sent/failed counts plus the distinct Expo
+  // ticket errors, which surface the *real* delivery failure reason.
   let sent = 0;
   let failed = 0;
   try {
-    const { data: targets, error: tErr } = await supabase.rpc('broadcast_targets', {
-      p_audience: broadcast.audience,
+    const result = await notifyAudience(broadcast.audience, {
+      title: broadcast.title,
+      body: broadcast.body,
+      data: { type: 'broadcast', category: broadcast.category, ...(broadcast.data ?? {}) },
     });
-    if (tErr) {
-      logger.warn('broadcast_targets failed', tErr);
-    } else {
-      const tokens: string[] = (targets ?? [])
-        .map((r: any) => r.push_token as string)
-        .filter((t: string) => typeof t === 'string' && t.startsWith('ExponentPushToken'));
-      const result = await pushToExpo(tokens, broadcast);
-      sent = result.sent;
-      failed = result.failed;
+    sent = result.sent;
+    failed = result.failed;
+    if (result.errors?.length) {
+      logger.warn('broadcast push errors', result.errors);
     }
   } catch (e) {
     logger.warn('broadcast push fan-out failed', e);
@@ -107,54 +106,3 @@ export const listBroadcasts = async (): Promise<Broadcast[]> => {
   return (data ?? []) as Broadcast[];
 };
 
-// Expo Push API caps each request at 100 messages. Chunk + count.
-const EXPO_BATCH_SIZE = 100;
-const EXPO_URL = 'https://exp.host/--/api/v2/push/send';
-
-const pushToExpo = async (
-  tokens: string[],
-  b: Pick<Broadcast, 'title' | 'body' | 'data' | 'category'>
-): Promise<{ sent: number; failed: number }> => {
-  if (tokens.length === 0) return { sent: 0, failed: 0 };
-  let sent = 0;
-  let failed = 0;
-  for (let i = 0; i < tokens.length; i += EXPO_BATCH_SIZE) {
-    const slice = tokens.slice(i, i + EXPO_BATCH_SIZE);
-    const messages = slice.map((to) => ({
-      to,
-      sound: 'default',
-      title: b.title,
-      body: b.body,
-      data: { type: 'broadcast', category: b.category, ...(b.data ?? {}) },
-    }));
-    try {
-      const res = await fetch(EXPO_URL, {
-        method: 'POST',
-        headers: {
-          Accept: 'application/json',
-          'Accept-Encoding': 'gzip, deflate',
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(messages),
-      });
-      if (!res.ok) {
-        failed += slice.length;
-        continue;
-      }
-      const json = (await res.json()) as { data?: Array<{ status?: string }> };
-      const tickets = json?.data ?? [];
-      // Expo returns one ticket per message; "ok" → sent, anything else → failed.
-      for (const t of tickets) {
-        if (t.status === 'ok') sent += 1;
-        else failed += 1;
-      }
-      // Any missing tickets count as failed.
-      if (tickets.length < slice.length) {
-        failed += slice.length - tickets.length;
-      }
-    } catch {
-      failed += slice.length;
-    }
-  }
-  return { sent, failed };
-};

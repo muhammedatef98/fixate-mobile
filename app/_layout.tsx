@@ -10,6 +10,7 @@ import { isAdminUser } from '../constants/admin';
 import { OrdersProvider } from '../contexts/OrdersContext';
 import { LoyaltyProvider } from '../contexts/LoyaltyContext';
 import { useRouter, useSegments } from 'expo-router';
+import * as Notifications from 'expo-notifications';
 import { supabase } from '../lib/supabase';
 import ErrorBoundary from '../components/ErrorBoundary';
 import OfflineBanner from '../components/OfflineBanner';
@@ -179,6 +180,44 @@ function RootLayoutContent() {
     }
   }, [user, userProfile, profileLoaded, segments, loading]);
 
+  // Deep-link on notification tap. Every push carries a `data` payload with a
+  // `screen` and the relevant ids (see notifyService usage). Tapping a push —
+  // whether the app was foregrounded, backgrounded, or cold-started — routes
+  // the user straight to the right screen.
+  useEffect(() => {
+    const routeFromData = (data: any) => {
+      if (!data) return;
+      const orderId = data.orderId as string | undefined;
+      switch (data.screen) {
+        case 'chat':
+          if (orderId) router.push(`/chat/${orderId}` as any);
+          break;
+        case 'order-details':
+          if (orderId) router.push(`/order-details?id=${orderId}` as any);
+          break;
+        case 'available-orders':
+          router.push('/(technician)/available-orders' as any);
+          break;
+        case 'notifications':
+          router.push('/notifications' as any);
+          break;
+        default:
+          if (orderId) router.push(`/order-details?id=${orderId}` as any);
+      }
+    };
+
+    // Cold start: app opened by tapping a notification.
+    Notifications.getLastNotificationResponseAsync().then((response) => {
+      if (response) routeFromData(response.notification.request.content.data);
+    });
+
+    // Warm taps while the app is running / backgrounded.
+    const sub = Notifications.addNotificationResponseReceivedListener((response) => {
+      routeFromData(response.notification.request.content.data);
+    });
+    return () => sub.remove();
+  }, [router]);
+
   // RTL is handled per-screen via manual `isRTL ? 'row-reverse' : 'row'`
   // conditionals and `textAlign: isRTL ? 'right' : 'left'`. We deliberately
   // do NOT call I18nManager.forceRTL here — that would double-flip every
@@ -237,11 +276,13 @@ function RootLayoutContent() {
             headerShown: false,
           }}
         />
+        {/* Chat renders its own rich in-screen header (avatar, participant
+            name, call + view-job actions). Hiding the Stack header avoids a
+            second, redundant bar stacked on top of it (FEAT-06). */}
         <Stack.Screen
           name="chat/[id]"
           options={{
-            title: language === 'ar' ? 'المحادثة' : 'Chat',
-            headerShown: true,
+            headerShown: false,
           }}
         />
         <Stack.Screen name="market-detail" options={{ headerShown: false }} />
@@ -297,6 +338,13 @@ function RootLayoutContent() {
         />
         <Stack.Screen name="admin-otp-provider" options={{ headerShown: false, ...SHEET_ANIM }} />
         <Stack.Screen name="admin-support" options={{ headerShown: false, ...SNAP_ANIM }} />
+        {/* These screens render their own AdminScreenHeader; suppress the
+            default Stack header so there's exactly one bar (FEAT-06). */}
+        <Stack.Screen name="admin-billing" options={{ headerShown: false, ...SNAP_ANIM }} />
+        <Stack.Screen name="admin-team" options={{ headerShown: false, ...SNAP_ANIM }} />
+        <Stack.Screen name="admin-accounting" options={{ headerShown: false, ...FADE_UP_ANIM }} />
+        {/* Privacy renders its own in-screen header. */}
+        <Stack.Screen name="privacy" options={{ headerShown: false }} />
         <Stack.Screen
           name="admin-user-verifications"
           options={{ headerShown: false, ...SNAP_ANIM }}

@@ -1,6 +1,35 @@
 import { supabase } from './supabase';
 import { logger } from '../utils/logger';
 import { subscribeUnique } from '../utils/realtimeChannel';
+import { notifyUsers, notifyAudience } from '../services/notifyService';
+
+// Arabic labels for the push body when an order status changes (FEAT-01).
+const STATUS_LABEL_AR: Record<string, string> = {
+  accepted: 'تم قبول طلبك',
+  picking_up: 'الفني في طريقه لاستلام جهازك',
+  diagnosing: 'جاري فحص جهازك',
+  quoted: 'تم إرسال عرض السعر',
+  awaiting_payment: 'بإنتظار الدفع',
+  waiting_parts: 'بانتظار قطع الغيار',
+  repairing: 'جاري إصلاح جهازك',
+  testing: 'جاري اختبار جهازك',
+  delivering: 'جاري توصيل جهازك',
+  completed: 'تم اكتمال طلبك',
+  cancelled: 'تم إلغاء طلبك',
+  rejected: 'تم رفض طلبك',
+};
+
+// Fire-and-forget push helper — never let a push failure block the action.
+const pushOrderToClient = (
+  clientId: string | null | undefined,
+  title: string,
+  body: string,
+  orderId: string,
+  screen: 'order-details' | 'chat' = 'order-details'
+) => {
+  if (!clientId) return;
+  void notifyUsers(clientId, { title, body, data: { screen, orderId } });
+};
 
 // Database Types (matching Supabase schema)
 export interface User {
@@ -162,6 +191,15 @@ export const requests = {
       .single();
 
     if (orderError) throw orderError;
+
+    // Notify all technicians that a new request is available (FEAT-01).
+    if (order) {
+      void notifyAudience('technicians', {
+        title: 'طلب صيانة جديد 🛠️',
+        body: `${order.device_brand || 'جهاز'} ${order.device_model || ''} — ${order.issue_description || 'طلب صيانة جديد'}`.trim(),
+        data: { screen: 'available-orders', orderId: order.id },
+      });
+    }
     return order;
   },
 
@@ -265,6 +303,16 @@ export const requests = {
       .single();
 
     if (error) throw error;
+
+    // Notify the client that a technician accepted their request (FEAT-01).
+    if (data) {
+      pushOrderToClient(
+        data.user_id,
+        'تم قبول طلبك ✅',
+        'قام أحد الفنيين بقبول طلب الصيانة الخاص بك.',
+        data.id
+      );
+    }
     return data;
   },
 
@@ -277,6 +325,16 @@ export const requests = {
       .select()
       .single();
     if (error) throw error;
+
+    // Notify the client whenever the technician advances the status (FEAT-01).
+    if (data) {
+      pushOrderToClient(
+        data.user_id,
+        'تحديث حالة الطلب',
+        STATUS_LABEL_AR[status as string] ?? 'تم تحديث حالة طلبك',
+        data.id
+      );
+    }
     return data;
   },
 
@@ -304,7 +362,16 @@ export const requests = {
         .eq('id', id)
         .select()
         .maybeSingle();
-      if (!error && data) return data;
+      if (!error && data) {
+        // Notify the client that a price quote is ready (FEAT-01).
+        pushOrderToClient(
+          data.user_id,
+          'عرض سعر جديد 💰',
+          `تم إرسال عرض سعر بقيمة ${price} ر.س لطلبك. بانتظار موافقتك.`,
+          data.id
+        );
+        return data;
+      }
       lastError = error;
       logger.warn('setQuote attempt failed, falling back', { payload: Object.keys(payload), error });
     }
@@ -389,6 +456,40 @@ export const chat = {
       .single();
 
     if (error) throw error;
+
+    // Notify the other party of the new message (FEAT-01). Resolve who the
+    // recipient is from the order (customer vs technician) and exclude the
+    // sender so they never get a push for their own message.
+    void (async () => {
+      try {
+        const { data: order } = await supabase
+          .from('orders')
+          .select('user_id, technician_id')
+          .eq('id', orderId)
+          .single();
+        if (!order) return;
+        const recipient =
+          order.user_id === user.id ? order.technician_id : order.user_id;
+        if (!recipient) return;
+        const preview = attachment
+          ? attachment.type === 'image'
+            ? '📷 صورة'
+            : '📍 موقع'
+          : content;
+        await notifyUsers(
+          recipient,
+          {
+            title: 'رسالة جديدة 💬',
+            body: preview || 'لديك رسالة جديدة',
+            data: { screen: 'chat', orderId },
+          },
+          user.id
+        );
+      } catch (e) {
+        logger.warn('chat push notify failed', e);
+      }
+    })();
+
     return data;
   },
 

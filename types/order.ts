@@ -14,7 +14,9 @@ export type OrderStatus =
   | 'testing'
   | 'delivering'
   | 'completed'
-  | 'cancelled';
+  | 'cancelled'
+  // Technician declined the request, with a reason saved on the order (FEAT-03).
+  | 'rejected';
 
 // Fulfillment / hand-over modes a customer can choose:
 //   mobile           – the technician comes to the customer's location
@@ -232,6 +234,7 @@ export const ORDER_STATUS_LABELS_AR: Record<OrderStatus, string> = {
   delivering: 'قيد التسليم',
   completed: 'مكتمل',
   cancelled: 'ملغي',
+  rejected: 'مرفوض',
 };
 
 export const ACTIVE_STATUSES: OrderStatus[] = [
@@ -268,7 +271,8 @@ export const ORDER_STATUS_LABELS_EN: Record<OrderStatus, string> = {
   delivering: 'Delivering',
   completed: 'Completed',
   cancelled: 'Cancelled',
+  rejected: 'Rejected',
 };
 
 export const isTerminalStatus = (status: OrderStatus): boolean =>
-  status === 'completed' || status === 'cancelled';
+  status === 'completed' || status === 'cancelled' || status === 'rejected';

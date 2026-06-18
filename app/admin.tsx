@@ -593,6 +593,12 @@ export default function AdminDashboardScreen() {
           onPress={() => router.push('/admin-reports' as any)}
         />
         <AdminActionCard
+          icon="calculator-variant-outline" iconColor="#16a34a"
+          title={isRTL ? 'المحاسبة' : 'Accounting'}
+          subtitle={isRTL ? 'الإيرادات، تكلفة القطع، صافي الربح وأرباح الفنيين' : 'Revenue, parts cost, net profit & technician earnings'}
+          onPress={() => router.push('/admin-accounting' as any)}
+        />
+        <AdminActionCard
           icon="star-outline" iconColor="#f59e0b"
           title={isRTL ? 'التقييمات والتعليقات' : 'Ratings & Reviews'}
           subtitle={isRTL ? 'متابعة تقييمات العملاء للفنيين' : 'Review customer ratings of technicians'}

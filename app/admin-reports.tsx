@@ -49,20 +49,27 @@ import { supabase } from '../services/supabaseClient';
 
 // Selectable reporting windows. Time-bound metrics (orders, revenue,
 // discounts) respect this; cumulative snapshots (users, technicians) do not.
-type RangeKey = '7d' | '30d' | 'month' | 'all' | 'custom';
+// FEAT-10 — range options aligned with the admin-orders filter bar:
+// Today / This week / This month / This year / Custom.
+type RangeKey = 'today' | 'week' | 'month' | 'year' | 'custom';
 const RANGES: { key: RangeKey; ar: string; en: string }[] = [
-  { key: '7d', ar: 'آخر ٧ أيام', en: 'Last 7 days' },
-  { key: '30d', ar: 'آخر ٣٠ يوم', en: 'Last 30 days' },
+  { key: 'today', ar: 'اليوم', en: 'Today' },
+  { key: 'week', ar: 'هذا الأسبوع', en: 'This week' },
   { key: 'month', ar: 'هذا الشهر', en: 'This month' },
-  { key: 'all', ar: 'كل الوقت', en: 'All time' },
+  { key: 'year', ar: 'هذا العام', en: 'This year' },
   { key: 'custom', ar: 'مخصص', en: 'Custom' },
 ];
 
 const rangeSince = (key: RangeKey, customFromIso?: string | null): string | null => {
   const now = new Date();
-  if (key === '7d') return new Date(now.getTime() - 7 * 86400000).toISOString();
-  if (key === '30d') return new Date(now.getTime() - 30 * 86400000).toISOString();
+  if (key === 'today') {
+    const d = new Date(now);
+    d.setHours(0, 0, 0, 0);
+    return d.toISOString();
+  }
+  if (key === 'week') return new Date(now.getTime() - 7 * 86400000).toISOString();
   if (key === 'month') return new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+  if (key === 'year') return new Date(now.getFullYear(), 0, 1).toISOString();
   if (key === 'custom') return customFromIso ?? null;
   return null;
 };
@@ -148,7 +155,7 @@ export default function AdminReportsScreen() {
   const [data, setData] = useState<ReportData | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [range, setRange] = useState<RangeKey>('30d');
+  const [range, setRange] = useState<RangeKey>('month');
   const [exporting, setExporting] = useState(false);
   const [customFrom, setCustomFrom] = useState<string>(daysAgoIso(30));
   const [customTo, setCustomTo] = useState<string>(todayIso());

@@ -263,5 +263,21 @@
     "approve": "Approve",
     "reject": "Reject",
     "archive": "Archive"
-  }
+  },
+  "orderStatus": {
+    "awaiting_payment": "Awaiting payment",
+    "rejected": "Rejected"
+  },
+  "rejection": {
+    "title": "Rejection reason",
+    "confirm": "Confirm rejection",
+    "cancel": "Cancel",
+    "reason_parts_unavailable": "Spare parts not currently available",
+    "reason_out_of_area": "Outside service area",
+    "reason_too_far": "Location is too far",
+    "reason_irreparable": "Device cannot be repaired",
+    "reason_other": "Other",
+    "notice": "Request rejected"
+  },
+  "spare_parts_cost_label": "Spare Parts Cost"
 }

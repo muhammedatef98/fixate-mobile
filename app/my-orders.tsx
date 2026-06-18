@@ -58,7 +58,7 @@ const ORDER_STATUS_CONFIG = {
     progress: 55,
   },
   awaiting_payment: {
-    ar: 'بانتظار الدفع',
+    ar: 'بإنتظار الدفع',
     en: 'Awaiting payment',
     icon: 'credit-card-clock',
     color: '#0EA5E9',
@@ -106,6 +106,13 @@ const ORDER_STATUS_CONFIG = {
     color: '#EF4444',
     progress: 0,
   },
+  rejected: {
+    ar: 'مرفوض',
+    en: 'Rejected',
+    icon: 'cancel',
+    color: '#EF4444',
+    progress: 0,
+  },
 };
 
 export default function MyOrdersScreen() {
@@ -135,9 +142,9 @@ export default function MyOrdersScreen() {
   const getFilteredOrders = () => {
     switch (filter) {
       case 'active':
-        return orders.filter(o => !['completed', 'cancelled'].includes(o.status));
+        return orders.filter(o => !['completed', 'cancelled', 'rejected'].includes(o.status));
       case 'completed':
-        return orders.filter(o => ['completed', 'cancelled'].includes(o.status));
+        return orders.filter(o => ['completed', 'cancelled', 'rejected'].includes(o.status));
       default:
         return orders;
     }
@@ -156,7 +163,7 @@ export default function MyOrdersScreen() {
         {/* Header with Status */}
         <View style={[styles.statusBadge, { backgroundColor: `${statusConfig.color}15`, alignSelf: 'flex-start', marginBottom: SPACING.md }]}>
           <MaterialCommunityIcons name={statusConfig.icon as any} size={14} color={statusConfig.color} />
-          <Text style={[styles.statusText, { color: statusConfig.color }]}>
+          <Text style={[styles.statusText, { color: statusConfig.color }]} numberOfLines={1}>
             {isRTL ? statusConfig.ar : statusConfig.en}
           </Text>
         </View>
@@ -408,10 +415,17 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING.xs,
     borderRadius: BORDER_RADIUS.sm,
     gap: SPACING.xs,
+    // Android measures Arabic text in a flex row narrower than its content,
+    // clipping "قيد الانتظار" down to "قيد". Letting the badge keep its
+    // natural width (no shrink, no wrap) fixes the truncation on Android
+    // without affecting iOS.
+    flexShrink: 0,
+    flexWrap: 'nowrap',
   },
   statusText: {
     fontSize: 12,
     fontWeight: '600',
+    flexShrink: 0,
   },
   issueText: {
     fontSize: 14,

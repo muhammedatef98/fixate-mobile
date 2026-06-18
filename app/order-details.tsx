@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,9 @@ import {
   StatusBar,
   Alert,
   TextInput,
+  Animated,
+  Easing,
+  AccessibilityInfo,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { MaterialIcons, MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
@@ -72,6 +75,64 @@ export default function OrderDetailsScreen() {
   const [feePreview, setFeePreview] = useState<{ total: number; inspection: number; return: number } | null>(null);
 
   const styles = makeStyles(isRTL);
+
+  // FEAT-04/05 — refs + animation state for the status hero and stepper.
+  const timelineRef = useRef<ScrollView>(null);
+  const statusAnim = useRef(new Animated.Value(1)).current;
+  const statusTranslate = useRef(new Animated.Value(0)).current;
+  const prevStatusRef = useRef<string | null>(null);
+  const [reduceMotion, setReduceMotion] = useState(false);
+
+  // Approx width of one stepper item: circle (38) + connector block (28 + 12).
+  const STEP_ITEM_WIDTH = 78;
+
+  useEffect(() => {
+    AccessibilityInfo.isReduceMotionEnabled().then(setReduceMotion).catch(() => {});
+  }, []);
+
+  // FEAT-04 — animate the status hero + stepper whenever the status changes
+  // (detected via the realtime subscription that calls setOrder). New content
+  // fades in with a slight upward translate. Skipped under reduced motion.
+  useEffect(() => {
+    if (!order) return;
+    const changed = prevStatusRef.current && prevStatusRef.current !== order.status;
+    if (changed && !reduceMotion) {
+      statusAnim.setValue(0);
+      statusTranslate.setValue(8);
+      Animated.parallel([
+        Animated.timing(statusAnim, {
+          toValue: 1,
+          duration: 200,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+        Animated.timing(statusTranslate, {
+          toValue: 0,
+          duration: 200,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }
+    prevStatusRef.current = order.status;
+  }, [order?.status, reduceMotion]);
+
+  // FEAT-05 — on load / status change, scroll the horizontal stepper so the
+  // active stage is in view rather than the far end of the bar. RTL reverses
+  // the stage order (stage 1 on the right), so the active index is mirrored.
+  useEffect(() => {
+    if (!order) return;
+    const steps = ORDER_TIMELINE.filter((s) => s.status !== 'cancelled');
+    const cur = Math.min(
+      steps.findIndex((s) => s.status === order.status),
+      steps.length - 1
+    );
+    if (cur < 0) return;
+    const orderedIndex = isRTL ? steps.length - 1 - cur : cur;
+    const x = Math.max(0, orderedIndex * STEP_ITEM_WIDTH - STEP_ITEM_WIDTH);
+    const t = setTimeout(() => timelineRef.current?.scrollTo({ x, animated: true }), 350);
+    return () => clearTimeout(t);
+  }, [order?.status, isRTL]);
 
   useEffect(() => {
     if (!order) return;
@@ -244,6 +305,7 @@ export default function OrderDetailsScreen() {
       delivering: '#10B981',
       completed: '#10B981',
       cancelled: '#EF4444',
+      rejected: '#EF4444',
     };
     return colors[status] || '#6B7280';
   };
@@ -272,7 +334,9 @@ export default function OrderDetailsScreen() {
   }
 
   const currentStepIndex = getCurrentStepIndex();
-  const isCancelled = order.status === 'cancelled';
+  // Treat rejected like cancelled for the happy-path timeline (hidden); the
+  // dedicated rejection notice card renders the reason instead (FEAT-03).
+  const isCancelled = order.status === 'cancelled' || order.status === 'rejected';
   const statusColor = getStatusColor(order.status);
   const hasFinalPrice = !!(order as any).final_price && order.status !== 'quoted';
   const orderFulfillment = (order as any).fulfillment_type ?? order.service_type;
@@ -312,22 +376,32 @@ export default function OrderDetailsScreen() {
       </View>
 
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        {/* Prominent status hero */}
-        <View style={[styles.heroStatus, { backgroundColor: statusColor }]}>
+        {/* Prominent status hero (FEAT-04 animated on status change) */}
+        <Animated.View
+          style={[
+            styles.heroStatus,
+            { backgroundColor: statusColor, opacity: statusAnim, transform: [{ translateY: statusTranslate }] },
+          ]}
+        >
           <MaterialCommunityIcons
-            name={(ORDER_TIMELINE.find(t => t.status === order.status)?.icon as any) || 'progress-clock'}
+            name={
+              (ORDER_TIMELINE.find(t => t.status === order.status)?.icon as any) ||
+              (order.status === 'rejected' ? 'close-octagon' : 'progress-clock')
+            }
             size={36}
             color="#fff"
           />
           <Text style={styles.heroStatusLabel}>
             {isRTL
-              ? ORDER_TIMELINE.find(t => t.status === order.status)?.arLabel
-              : ORDER_TIMELINE.find(t => t.status === order.status)?.enLabel}
+              ? ORDER_TIMELINE.find(t => t.status === order.status)?.arLabel ??
+                (order.status === 'rejected' ? 'مرفوض' : '')
+              : ORDER_TIMELINE.find(t => t.status === order.status)?.enLabel ??
+                (order.status === 'rejected' ? 'Rejected' : '')}
           </Text>
           <Text style={styles.heroStatusOrderId}>
             {(order as any).order_number ?? `#${order.id?.slice(0, 8)}`}
           </Text>
-        </View>
+        </Animated.View>
 
         {!isCancelled &&
           order.technician_id &&
@@ -356,54 +430,91 @@ export default function OrderDetailsScreen() {
             visibleSteps.findIndex((s) => s.status === order.status),
             visibleSteps.length - 1,
           );
+          // FEAT-05 — compute the per-step nodes in logical order (so the
+          // completed / current / line-fill logic stays correct), then reverse
+          // the rendered order for RTL so stage 1 sits on the right and the
+          // progress flows leftward. Layout direction stays a plain 'row', which
+          // keeps scroll offsets predictable for the initial-scroll effect.
+          const nodes = visibleSteps.map((step, index) => {
+            const isCompleted = visibleCurrent >= 0 && index <= visibleCurrent;
+            const isCurrent = index === visibleCurrent;
+            const isLast = index === visibleSteps.length - 1;
+            const lineFilled = visibleCurrent >= 0 && index < visibleCurrent;
+            return (
+              <View key={step.status} style={styles.timelineItem}>
+                <View
+                  style={[
+                    styles.timelineCircle,
+                    {
+                      backgroundColor: isCompleted ? getStatusColor(step.status) : COLORS.border,
+                      borderColor: isCurrent ? getStatusColor(step.status) : 'transparent',
+                      borderWidth: isCurrent ? 3 : 0,
+                    },
+                  ]}
+                >
+                  <MaterialCommunityIcons
+                    name={step.icon as any}
+                    size={18}
+                    color={isCompleted ? '#fff' : COLORS.textSecondary}
+                  />
+                </View>
+                {!isLast && (
+                  <View
+                    style={[
+                      styles.timelineLine,
+                      { backgroundColor: lineFilled ? getStatusColor(step.status) : COLORS.border },
+                    ]}
+                  />
+                )}
+              </View>
+            );
+          });
+          const orderedNodes = isRTL ? [...nodes].reverse() : nodes;
           return (
-            <View style={[styles.timelineCard, { backgroundColor: COLORS.card }, SHADOWS.small]}>
+            <Animated.View
+              style={[
+                styles.timelineCard,
+                { backgroundColor: COLORS.card, opacity: statusAnim, transform: [{ translateY: statusTranslate }] },
+                SHADOWS.small,
+              ]}
+            >
               <ScrollView
+                ref={timelineRef}
                 horizontal
                 showsHorizontalScrollIndicator={false}
-                contentContainerStyle={[
-                  styles.timelineScroll,
-                  { flexDirection: isRTL ? 'row-reverse' : 'row' },
-                ]}
+                contentContainerStyle={styles.timelineScroll}
               >
-                {visibleSteps.map((step, index) => {
-                  const isCompleted = visibleCurrent >= 0 && index <= visibleCurrent;
-                  const isCurrent = index === visibleCurrent;
-                  const isLast = index === visibleSteps.length - 1;
-                  const lineFilled = visibleCurrent >= 0 && index < visibleCurrent;
-                  return (
-                    <View key={step.status} style={styles.timelineItem}>
-                      <View
-                        style={[
-                          styles.timelineCircle,
-                          {
-                            backgroundColor: isCompleted ? getStatusColor(step.status) : COLORS.border,
-                            borderColor: isCurrent ? getStatusColor(step.status) : 'transparent',
-                            borderWidth: isCurrent ? 3 : 0,
-                          },
-                        ]}
-                      >
-                        <MaterialCommunityIcons
-                          name={step.icon as any}
-                          size={18}
-                          color={isCompleted ? '#fff' : COLORS.textSecondary}
-                        />
-                      </View>
-                      {!isLast && (
-                        <View
-                          style={[
-                            styles.timelineLine,
-                            { backgroundColor: lineFilled ? getStatusColor(step.status) : COLORS.border },
-                          ]}
-                        />
-                      )}
-                    </View>
-                  );
-                })}
+                {orderedNodes}
               </ScrollView>
-            </View>
+            </Animated.View>
           );
         })()}
+
+        {/* FEAT-03 — rejection notice shown to the client when a technician
+            declined the request, with the reason they provided. */}
+        {order.status === 'rejected' && (
+          <View style={[styles.card, { backgroundColor: '#FEF2F2', borderColor: '#FECACA', borderWidth: 1 }, SHADOWS.small]}>
+            <View style={[styles.cardHeader, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+              <MaterialCommunityIcons name="close-octagon" size={24} color="#DC2626" />
+              <Text style={[styles.cardTitle, { color: '#991B1B' }]}>
+                {isRTL ? 'تم رفض الطلب' : 'Request rejected'}
+              </Text>
+            </View>
+            <Text
+              style={{
+                color: '#7F1D1D',
+                fontSize: 15,
+                lineHeight: 22,
+                marginTop: 8,
+                textAlign: isRTL ? 'right' : 'left',
+                writingDirection: isRTL ? 'rtl' : 'ltr',
+              }}
+            >
+              {(order as any).rejection_reason ||
+                (isRTL ? 'تم رفض الطلب من قبل الفني.' : 'This request was rejected by the technician.')}
+            </Text>
+          </View>
+        )}
 
         {/* Device Information Card */}
         <View style={[styles.card, { backgroundColor: COLORS.card }, SHADOWS.small]}>
