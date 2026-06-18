@@ -1,11 +1,7 @@
-# pnpm 9 in workspace mode requires `packages:` to be declared whenever a
-# pnpm-workspace.yaml exists. Without it, `pnpm store path` (used by CI to
-# locate the cache directory) errors with "packages field missing or
-# empty" and the cache + install + typecheck + test steps all skip. This
-# repo is a single-package app, so the workspace contains just the root.
 packages:
-  - '.'
+  - .
 
 onlyBuiltDependencies:
   - '@firebase/util'
   - protobufjs
+  - '@sentry/cli'
