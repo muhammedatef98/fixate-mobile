@@ -1,6 +1,6 @@
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
-import { Platform } from 'react-native';
+import { NativeModules, Platform } from 'react-native';
 import { supabase } from './supabase';
 import { logger } from '../utils/logger';
 
@@ -13,10 +13,19 @@ import { logger } from '../utils/logger';
 // level): a static import evaluates the native `RNFBAppModule` at launch and
 // throws "Native module RNFBAppModule not found" in any binary that doesn't
 // bundle the Firebase pods (Expo Go, or a dev client built before the plugin
-// was added), crashing the whole app. We require it on demand and fall back to
-// expo-notifications' getDevicePushTokenAsync() when it's unavailable — on
-// Android that still yields a raw FCM token.
+// was added), crashing the whole app.
+//
+// Even a lazy require() of the package triggers that same throw (RNFB calls
+// TurboModuleRegistry.getEnforcing at import), which surfaces as a dev-mode
+// error overlay. So we first probe NativeModules.RNFBAppModule — a plain,
+// non-throwing lookup — and only require the package when the native module is
+// actually present. Otherwise we fall back to expo-notifications'
+// getDevicePushTokenAsync() (a raw FCM token on Android).
 function loadMessaging(): null | (() => any) {
+  if (!NativeModules.RNFBAppModule) {
+    logger.info('[PushToken] Firebase native module absent — using device-token fallback');
+    return null;
+  }
   try {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const mod = require('@react-native-firebase/messaging');
