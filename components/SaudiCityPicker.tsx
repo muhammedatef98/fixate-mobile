@@ -9,7 +9,6 @@ import {
   StyleSheet,
   Pressable,
   ActivityIndicator,
-  Platform,
   Keyboard,
   Dimensions,
 } from 'react-native';
@@ -91,30 +90,37 @@ export default function SaudiCityPicker({
   const [keyboardHeight, setKeyboardHeight] = useState(0);
 
   useEffect(() => {
-    if (!open) return;
-    const showEvt = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
-    const hideEvt = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
-    const showSub = Keyboard.addListener(showEvt, (e) =>
+    // `keyboardDidShow`/`keyboardDidHide` fire after the keyboard frame is
+    // final, so endCoordinates.height is the real height on both platforms.
+    const showSub = Keyboard.addListener('keyboardDidShow', (e) =>
       setKeyboardHeight(e.endCoordinates?.height ?? 0)
     );
-    const hideSub = Keyboard.addListener(hideEvt, () => setKeyboardHeight(0));
+    const hideSub = Keyboard.addListener('keyboardDidHide', () => setKeyboardHeight(0));
     return () => {
       showSub.remove();
       hideSub.remove();
     };
-  }, [open]);
+  }, []);
 
-  // Combined height of the handle + header + search bar inside the sheet.
-  const SHEET_CHROME = 150;
-  const screenH = Dimensions.get('window').height;
+  // Dynamic list height — the list shrinks to exactly the gap between the
+  // search bar and the top of the keyboard, so results are ALWAYS visible.
+  const screenHeight = Dimensions.get('window').height;
+  const BOTTOM_SHEET_HEADER = 60; // handle + title row
+  const SEARCH_BAR = 56;
+  const SAFE_BOTTOM = insets.bottom || 16;
   const kbOpen = keyboardHeight > 0;
-  const topLimit = insets.top + 16;
-  // When the keyboard is up, cap the list so the WHOLE sheet (chrome + list)
-  // fits in the space above it; otherwise use a comfortable 85%-screen sheet.
   const listMaxHeight = kbOpen
-    ? Math.max(160, screenH - keyboardHeight - topLimit - SHEET_CHROME - insets.bottom - 20)
-    : Math.round(screenH * 0.85) - SHEET_CHROME;
-  const sheetMaxHeight = kbOpen ? screenH - keyboardHeight - topLimit : Math.round(screenH * 0.85);
+    ? Math.max(
+        140,
+        screenHeight - keyboardHeight - BOTTOM_SHEET_HEADER - SEARCH_BAR - SAFE_BOTTOM - 20
+      )
+    : Math.round(screenHeight * 0.7);
+  // The sheet is also lifted to sit directly on top of the keyboard (a
+  // bottom-anchored sheet would otherwise stay behind it on iOS), and capped so
+  // its top never runs past the safe area.
+  const sheetMaxHeight = kbOpen
+    ? screenHeight - keyboardHeight - insets.top - 16
+    : Math.round(screenHeight * 0.85);
 
   // Load coverage data when the sheet opens (serviceable mode only).
   // We keep `data` cached on the component instance so re-opens are

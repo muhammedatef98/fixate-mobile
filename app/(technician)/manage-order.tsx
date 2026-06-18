@@ -545,6 +545,8 @@ export default function ManageOrderScreen() {
   }
 
   const nextActions = getNextActions();
+  // Terminal states — no call/contact actions once the order is closed (Fix 2).
+  const isTerminal = ['rejected', 'cancelled', 'completed'].includes(order.status);
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: COLORS.background }]}>
@@ -841,7 +843,7 @@ export default function ManageOrderScreen() {
               </Text>
             </TouchableOpacity>
 
-            {order.customer_phone && (
+            {!isTerminal && order.customer_phone && (
               <TouchableOpacity
                 style={[styles.chatButton, { backgroundColor: '#10B981', flex: 1 }, SHADOWS.small]}
                 onPress={() => Linking.openURL(`tel:${order.customer_phone}`)}

@@ -8,7 +8,7 @@ import BottomNav from '../../components/BottomNav';
 import ErrorState from '../../components/ErrorState';
 import { SkeletonOrderCard } from '../../components/SkeletonLoader';
 import { logger } from '../../utils/logger';
-import { fmtRequestDateTime } from '../../utils/dateFormat';
+import { fmtMyRequestDate } from '../../utils/dateFormat';
 import { getColors, getShadows, BORDER_RADIUS } from '../../constants/theme';
 import { getFriendlyError } from '../../utils/errorMessages';
 import { RTLIonicon } from '../../components/RTLIcon';
@@ -237,9 +237,9 @@ export default function OrdersScreen() {
           <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
             {orders.map((order) => {
               const status = getStatusInfo(order.status);
-              // Full creation date + time, Arabic Gregorian (Miladi), shown on
-              // the card so the client sees when they placed the request.
-              const dateTimeStr = fmtRequestDateTime(order.created_at, isRTL);
+              // Exact format "١٨ يونيو، ٢٠٢٦ - ١١:٢٠ ص" (Arabic-Indic,
+              // Gregorian, no weekday) so the client sees when they placed it.
+              const dateTimeStr = fmtMyRequestDate(order.created_at, isRTL);
               return (
                 <PressableScale
                   key={order.id}

@@ -430,7 +430,8 @@ export default function ChatScreen() {
               <MaterialCommunityIcons name="clipboard-text-outline" size={18} color={COLORS.primary} />
             </TouchableOpacity>
           ) : null}
-          {otherPartyPhone ? (
+          {/* Call hidden once the technician's chat is locked (terminal order). */}
+          {otherPartyPhone && !chatLocked ? (
             <TouchableOpacity
               onPress={() => Linking.openURL(`tel:${otherPartyPhone}`)}
               style={[styles.callBtn, { backgroundColor: COLORS.primary + '15' }]}

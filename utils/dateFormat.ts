@@ -88,6 +88,41 @@ export function fmtRequestDateTime(
 }
 
 /**
+ * Client "My Requests" date format — EXACTLY:
+ *   "١٨ يونيو، ٢٠٢٦ - ١١:٢٠ ص"
+ * Arabic-Indic numerals, Arabic month name, Arabic AM/PM (ص/م), Gregorian
+ * calendar, no weekday, no seconds, " - " between date and time. Assembled from
+ * formatToParts so the comma + separator are exact regardless of locale data.
+ * English locale falls back to a clean standard format.
+ */
+export function fmtMyRequestDate(
+  v: string | number | Date | null | undefined,
+  isRTL = false,
+): string {
+  if (v == null || v === '') return '';
+  try {
+    const d = v instanceof Date ? v : new Date(v);
+    if (!Number.isFinite(d.getTime())) return '';
+    const dtf = new Intl.DateTimeFormat(isRTL ? 'ar-SA' : 'en-GB', {
+      calendar: 'gregory',
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+    });
+    if (!isRTL) return dtf.format(d);
+    const parts = dtf.formatToParts(d);
+    const get = (t: Intl.DateTimeFormatPartTypes) =>
+      parts.find((p) => p.type === t)?.value ?? '';
+    return `${get('day')} ${get('month')}، ${get('year')} - ${get('hour')}:${get('minute')} ${get('dayPeriod')}`;
+  } catch {
+    return String(v);
+  }
+}
+
+/**
  * Format a number for admin screens (counts, money). Arabic locale uses
  * Arabic-Indic digits via 'ar-EG'.
  */

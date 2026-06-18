@@ -171,9 +171,12 @@ export default function ActiveJobScreen() {
               <TouchableOpacity style={styles.actionIcon} onPress={() => router.push(`/chat/${id}`)}>
                 <MaterialIcons name="chat" size={24} color={COLORS.primary} />
               </TouchableOpacity>
-              <TouchableOpacity style={styles.actionIcon} onPress={handleCall}>
-                <Ionicons name="call" size={24} color={COLORS.primary} />
-              </TouchableOpacity>
+              {/* Call hidden on terminal orders (completed/rejected/cancelled) — Fix 2. */}
+              {!['rejected', 'cancelled', 'completed'].includes(order?.status) && (
+                <TouchableOpacity style={styles.actionIcon} onPress={handleCall}>
+                  <Ionicons name="call" size={24} color={COLORS.primary} />
+                </TouchableOpacity>
+              )}
               <TouchableOpacity style={styles.actionIcon} onPress={handleNavigate}>
                 <FontAwesome5 name="directions" size={24} color={COLORS.primary} />
               </TouchableOpacity>
