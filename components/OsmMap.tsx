@@ -5,8 +5,23 @@ import React, {
   useRef,
   useEffect,
 } from 'react';
-import { View, StyleSheet, type ViewStyle, type StyleProp } from 'react-native';
-import { WebView, type WebViewMessageEvent } from 'react-native-webview';
+import { View, Text, StyleSheet, type ViewStyle, type StyleProp } from 'react-native';
+import type { WebViewMessageEvent } from 'react-native-webview';
+
+// react-native-webview ships a native module (RNCWebViewModule). If the
+// installed native binary was built before this dependency was added, importing
+// it throws at module-eval ("RNCWebViewModule could not be found") — which takes
+// down EVERY screen that renders a map (request, order-details, track) and drops
+// them from the router. Require it lazily + defensively so those screens keep
+// working; the map area shows a clear hint instead of crashing. A native rebuild
+// restores the real map.
+let WebView: any = null;
+try {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  WebView = require('react-native-webview').WebView;
+} catch {
+  WebView = null;
+}
 
 /**
  * Keyless map built on a WebView + Leaflet + OpenStreetMap tiles.
@@ -103,7 +118,7 @@ const OsmMap = forwardRef<OsmMapHandle, OsmMapProps>(function OsmMap(
   { latitude, longitude, zoom = 15, interactive = false, onMoveEnd, onReady, markers = [], style },
   ref,
 ) {
-  const webRef = useRef<WebView>(null);
+  const webRef = useRef<any>(null);
 
   // Build the HTML once. Programmatic changes go through injectJavaScript so
   // the WebView never reloads (which would reset the user's pan/zoom).
@@ -141,6 +156,21 @@ const OsmMap = forwardRef<OsmMapHandle, OsmMapProps>(function OsmMap(
     }
   };
 
+  // Native module missing (binary predates react-native-webview). Render a
+  // graceful placeholder instead of crashing the whole screen.
+  if (!WebView) {
+    return (
+      <View style={[styles.container, styles.fallback, style]}>
+        <Text style={styles.fallbackText}>
+          الخريطة غير متاحة في هذا الإصدار{'\n'}Map unavailable in this build
+        </Text>
+        <Text style={styles.fallbackHint}>
+          أعد بناء التطبيق لتفعيل الخريطة · Rebuild the app to enable the map
+        </Text>
+      </View>
+    );
+  }
+
   return (
     <View style={[styles.container, style]}>
       <WebView
@@ -163,6 +193,14 @@ const OsmMap = forwardRef<OsmMapHandle, OsmMapProps>(function OsmMap(
 const styles = StyleSheet.create({
   container: { flex: 1, overflow: 'hidden' },
   webview: { flex: 1, backgroundColor: 'transparent' },
+  fallback: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#e8eef2',
+    padding: 16,
+  },
+  fallbackText: { color: '#334155', fontSize: 14, fontWeight: '700', textAlign: 'center' },
+  fallbackHint: { color: '#64748b', fontSize: 12, textAlign: 'center', marginTop: 8 },
 });
 
 export default OsmMap;
