@@ -7,7 +7,6 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
     "description": "منصة صيانة الأجهزة الإلكترونية في السعودية - إصلاح أجهزتك بسرعة وسهولة مع فنيين محترفين في موقعك",
-    "privacy": "https://fixate.site/privacy",
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
@@ -71,10 +70,6 @@
       },
       "package": "com.fixatee.app",
       "googleServicesFile": "./google-services.json",
-      "notification": {
-        "icon": "./assets/notification-icon.png",
-        "color": "#10b981"
-      },
       "permissions": [
         "android.permission.ACCESS_FINE_LOCATION",
         "android.permission.ACCESS_COARSE_LOCATION",
@@ -87,15 +82,15 @@
       ],
       "blockedPermissions": [
         "android.permission.RECORD_AUDIO"
-      ],
-      "statusBar": {
-        "hidden": true
-      },
-      "androidNavigationBar": {
-        "visible": "sticky-immersive",
-        "barStyle": "dark-content",
-        "backgroundColor": "#ffffff"
-      }
+      ]
+    },
+    "androidStatusBar": {
+      "hidden": true
+    },
+    "androidNavigationBar": {
+      "visible": "sticky-immersive",
+      "barStyle": "dark-content",
+      "backgroundColor": "#ffffff"
     },
     "web": {
       "favicon": "./assets/favicon.png",
