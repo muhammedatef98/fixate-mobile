@@ -39,37 +39,12 @@ function RootLayoutContent() {
   useEffect(() => {
     if (loading) return;
 
-    // Auth screens that should auto-redirect logged-in users away
-    // (login forms shouldn't show if you're already logged in). role-selection
-    // is intentionally NOT in this set — a logged-in user landing there can
-    // pick which side of the app they want to enter, which is critical for
-    // testing both flows from one account.
-    //
-    // forgot-password is also intentionally NOT in this set. The recovery
-    // flow calls supabase.auth.verifyOtp({ type: 'recovery' }), which
-    // establishes a *real* session before the user has set a new password.
-    // If we redirected away on that session, the new-password step would
-    // flash for a moment then disappear and the technician would land on
-    // /(technician) without ever updating their password.
     const REDIRECT_AWAY_IF_LOGGED_IN = new Set([
       'login', 'signup', 'auth', 'technician-auth',
       'login-otp', 'email-auth', 'onboarding',
     ]);
     const PROTECTED_GROUPS = new Set(['(customer)', '(technician)', 'request']);
 
-    // The user's CHOICE on role-selection determines which auth screen they
-    // landed on. That choice is the authoritative routing intent — it
-    // overrides the role stored on their profile from a previous session.
-    //
-    // Without this, a user who once signed up as a technician would always
-    // be funnelled back into /(technician) on subsequent customer logins,
-    // because `userProfile.role === 'technician'` would force the
-    // technician branch even when they explicitly tapped "Login as
-    // customer" and arrived via /login-otp.
-    //
-    // /technician-auth is the only explicit technician entry point in the
-    // app today; every other auth surface (login-otp, email-auth, auth,
-    // signup, login) is a customer-side entry point.
     const TECHNICIAN_AUTH_SOURCES = new Set(['technician-auth']);
     const CUSTOMER_AUTH_SOURCES = new Set([
       'login', 'signup', 'auth', 'login-otp', 'email-auth',
@@ -80,11 +55,6 @@ function RootLayoutContent() {
     const isProtectedRoute = !!first && PROTECTED_GROUPS.has(first);
 
     if (user && inAuthFlow) {
-      // CRITICAL: don't auto-redirect until we know the role. userProfile loads
-      // asynchronously after the session is established; if we routed on a
-      // null profile we'd dump every user into /(customer) regardless of
-      // whether they were a technician — that's the "I tap technician portal,
-      // it sends me to customer portal" bug.
       if (userProfile === null) return;
       const wantsTechnician = !!first && TECHNICIAN_AUTH_SOURCES.has(first);
       const wantsCustomer = !!first && CUSTOMER_AUTH_SOURCES.has(first);
@@ -92,13 +62,6 @@ function RootLayoutContent() {
         (user as any)?.phone ?? (userProfile as any)?.phone ?? null;
       const adminByPhone = isAdminPhone(phone);
 
-      // Resolution order:
-      //   1. Admin phone → /admin (system-level, always wins).
-      //   2. Explicit customer auth source → /(customer) — honours the
-      //      user's choice even if their profile role is technician.
-      //   3. Explicit technician auth source → /(technician).
-      //   4. Fallback to profile-stored role for routes like /onboarding
-      //      where there's no role-binding auth source.
       const target = adminByPhone
         ? '/admin'
         : wantsCustomer
@@ -116,12 +79,6 @@ function RootLayoutContent() {
       router.replace('/role-selection');
     }
 
-    // Route-level admin gate — applies to every admin segment (the bare
-    // /admin hub plus all admin-* detail screens). Only the account whose
-    // phone matches ADMIN_PHONE may render any admin surface. Anyone else
-    // is bounced back to the customer home before the screen mounts.
-    // This is defence-in-depth on top of useAdminGuard inside each
-    // admin-* screen.
     const isAdminSegment =
       !!first && (first === 'admin' || first.startsWith('admin-'));
     if (isAdminSegment) {
@@ -129,8 +86,6 @@ function RootLayoutContent() {
         router.replace('/role-selection');
         return;
       }
-      // Wait for the profile to land so we can read the phone without
-      // a false negative on first paint.
       if (userProfile === null) return;
       const phone =
         (user as any)?.phone ?? (userProfile as any)?.phone ?? null;
@@ -140,15 +95,6 @@ function RootLayoutContent() {
     }
   }, [user, userProfile, segments, loading]);
 
-  // RTL is handled per-screen via manual `isRTL ? 'row-reverse' : 'row'`
-  // conditionals and `textAlign: isRTL ? 'right' : 'left'`. We deliberately
-  // do NOT call I18nManager.forceRTL here — that would double-flip every
-  // `row-reverse` back into LTR — and we don't apply `direction: 'rtl'`
-  // on the root container for the same reason.
-
-  // App-wide lockout: a suspended/blocked user cannot use any feature.
-  // We only gate once the profile has actually loaded (null = still loading)
-  // so we never flash the lockout screen during a normal session start.
   const accountStatus = (userProfile as any)?.account_status;
   if (
     !loading &&
@@ -244,6 +190,15 @@ function RootLayoutContent() {
         <Stack.Screen name="admin-ratings" options={{ headerShown: false }} />
         <Stack.Screen name="admin-users" options={{ headerShown: false }} />
         <Stack.Screen name="admin-platform-settings" options={{ headerShown: false }} />
+        <Stack.Screen name="admin-community" options={{ headerShown: false }} />
+        <Stack.Screen name="admin-offers" options={{ headerShown: false }} />
+        <Stack.Screen name="admin-billing" options={{ headerShown: false }} />
+        <Stack.Screen name="admin-team" options={{ headerShown: false }} />
+        <Stack.Screen name="admin-accounting" options={{ headerShown: false }} />
+        <Stack.Screen name="admin-service-areas" options={{ headerShown: false }} />
+        <Stack.Screen name="admin-user-verifications" options={{ headerShown: false }} />
+        <Stack.Screen name="privacy" options={{ headerShown: false }} />
+        <Stack.Screen name="terms" options={{ headerShown: false }} />
       </Stack>
     </View>
   );
