@@ -22,7 +22,7 @@ import { translations } from '../constants/translations';
 import { auth } from '../lib/supabase';
 import { RTLMaterialIcon } from '../components/RTLIcon';
 import { getFriendlyError } from '../utils/errorMessages';
-import { signInWithGoogle } from '../services/googleAuthService';
+import { signInWithGoogle, isGoogleSignInAvailable } from '../services/googleAuthService';
 
 export default function AuthScreen() {
   const router = useRouter();
@@ -269,36 +269,44 @@ export default function AuthScreen() {
               )}
             </TouchableOpacity>
 
-            {/* Divider */}
-            <View style={styles.dividerRow}>
-              <View style={styles.dividerLine} />
-              <Text style={styles.dividerText}>
-                {language === 'ar' ? 'أو' : 'OR'}
-              </Text>
-              <View style={styles.dividerLine} />
-            </View>
-
-            {/* Google Sign-In Button */}
-            <TouchableOpacity
-              style={[styles.googleButton, SHADOWS.neuFlat]}
-              onPress={handleGoogleSignIn}
-              disabled={googleLoading}
-              accessibilityLabel={language === 'ar' ? 'تسجيل الدخول بـ Google' : 'Sign in with Google'}
-            >
-              {googleLoading ? (
-                <ActivityIndicator color={COLORS.text} />
-              ) : (
-                <>
-                  <View style={styles.googleIconContainer}>
-                    {/* Google G icon via SVG path colours */}
-                    <Text style={styles.googleIconText}>G</Text>
-                  </View>
-                  <Text style={styles.googleButtonText}>
-                    {language === 'ar' ? 'المتابعة بـ Google' : 'Continue with Google'}
+            {/* Google Sign-In — only shown when the native module is present
+                in this binary (a dev client / store build compiled with
+                @react-native-google-signin). Hidden in Expo Go or older builds
+                so users never tap a button that can't work. */}
+            {isGoogleSignInAvailable() && (
+              <>
+                {/* Divider */}
+                <View style={styles.dividerRow}>
+                  <View style={styles.dividerLine} />
+                  <Text style={styles.dividerText}>
+                    {language === 'ar' ? 'أو' : 'OR'}
                   </Text>
-                </>
-              )}
-            </TouchableOpacity>
+                  <View style={styles.dividerLine} />
+                </View>
+
+                {/* Google Sign-In Button */}
+                <TouchableOpacity
+                  style={[styles.googleButton, SHADOWS.neuFlat]}
+                  onPress={handleGoogleSignIn}
+                  disabled={googleLoading}
+                  accessibilityLabel={language === 'ar' ? 'تسجيل الدخول بـ Google' : 'Sign in with Google'}
+                >
+                  {googleLoading ? (
+                    <ActivityIndicator color={COLORS.text} />
+                  ) : (
+                    <>
+                      <View style={styles.googleIconContainer}>
+                        {/* Google G icon via SVG path colours */}
+                        <Text style={styles.googleIconText}>G</Text>
+                      </View>
+                      <Text style={styles.googleButtonText}>
+                        {language === 'ar' ? 'المتابعة بـ Google' : 'Continue with Google'}
+                      </Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              </>
+            )}
 
             {/* Back Button */}
             <TouchableOpacity
