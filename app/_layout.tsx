@@ -1,24 +1,21 @@
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect, useState } from 'react';
-import { View, ActivityIndicator, I18nManager } from 'react-native';
-import AnimatedSplash from '../components/AnimatedSplash';
+import { useEffect } from 'react';
+import { View, ActivityIndicator } from 'react-native';
 import { RequestProvider } from '../contexts/RequestContext';
 import { ThemeProvider } from '../contexts/ThemeContext';
 import { AppProvider, useApp } from '../contexts/AppContext';
 import { AuthProvider, useAuth } from '../contexts/AuthContext';
-import { isAdminUser } from '../constants/admin';
+import { isAdminPhone } from '../constants/admin';
 import { OrdersProvider } from '../contexts/OrdersContext';
 import { LoyaltyProvider } from '../contexts/LoyaltyContext';
 import { useRouter, useSegments } from 'expo-router';
-import * as Notifications from 'expo-notifications';
 import { supabase } from '../lib/supabase';
 import ErrorBoundary from '../components/ErrorBoundary';
 import OfflineBanner from '../components/OfflineBanner';
 import BlockedScreen from '../components/BlockedScreen';
 import {
   useFonts,
-  IBMPlexSansArabic_300Light,
   IBMPlexSansArabic_400Regular,
   IBMPlexSansArabic_500Medium,
   IBMPlexSansArabic_600SemiBold,
@@ -26,59 +23,16 @@ import {
 } from '@expo-google-fonts/ibm-plex-sans-arabic';
 import { applyAppFontToText } from '../utils/applyFont';
 import { initSentry } from '../services/sentryService';
+import { configureGoogleSignIn } from '../services/googleAuthService';
 import { useOtaUpdates } from '../hooks/useOtaUpdates';
 import '../i18n';
-import * as Sentry from '@sentry/react-native';
-
-// All direction handling is done manually in JS (`isRTL ? 'row-reverse' : 'row'`),
-// which assumes the native layout engine stays LTR. On devices whose system
-// language is RTL (e.g. Arabic), React Native enables native RTL by default,
-// double-flipping every manually-mirrored style. Lock native layout to LTR so
-// the JS-level direction logic is the single source of truth.
-I18nManager.allowRTL(false);
-I18nManager.forceRTL(false);
-
-Sentry.init({
-  dsn: 'https://5a3e562f125bc31dc84d11938d9fba36@o4511510384672768.ingest.us.sentry.io/4511510403219456',
-  sendDefaultPii: true,
-  enableLogs: false,
-  environment: __DEV__ ? 'development' : 'production',
-});
-
-// Install the global IBM Plex Sans Arabic override at module-load time.
-// This runs once when _layout.tsx is first evaluated, before any screen
-// component is imported, so every <Text> / <TextInput> in the app picks
-// up the font from its very first render — including the splash boot
-// before fonts even finish loading (Text without the right family loads
-// the next paint correctly once useFonts resolves).
-applyAppFontToText();
 
 initSentry();
-
-// Reusable screen-transition presets. Keeping each one short (<220ms) so
-// nothing ever feels sluggish; variety comes from the *style* of motion,
-// not the duration.
-const SHEET_ANIM = {
-  animation: 'slide_from_bottom' as const,
-  animationDuration: 220,
-  gestureDirection: 'vertical' as const,
-};
-const FADE_ANIM = {
-  animation: 'fade' as const,
-  animationDuration: 180,
-};
-const FADE_UP_ANIM = {
-  animation: 'fade_from_bottom' as const,
-  animationDuration: 200,
-};
-const SNAP_ANIM = {
-  animation: 'simple_push' as const,
-  animationDuration: 160,
-};
+configureGoogleSignIn();
 
 function RootLayoutContent() {
   const { language } = useApp();
-  const { user, userProfile, profileLoaded, loading } = useAuth();
+  const { user, userProfile, loading } = useAuth();
   const segments = useSegments();
   const router = useRouter();
 
@@ -98,13 +52,8 @@ function RootLayoutContent() {
     // flash for a moment then disappear and the technician would land on
     // /(technician) without ever updating their password.
     const REDIRECT_AWAY_IF_LOGGED_IN = new Set([
-      'login',
-      'signup',
-      'auth',
-      'technician-auth',
-      'login-otp',
-      'email-auth',
-      'onboarding',
+      'login', 'signup', 'auth', 'technician-auth',
+      'login-otp', 'email-auth', 'onboarding',
     ]);
     const PROTECTED_GROUPS = new Set(['(customer)', '(technician)', 'request']);
 
@@ -122,31 +71,35 @@ function RootLayoutContent() {
     // app today; every other auth surface (login-otp, email-auth, auth,
     // signup, login) is a customer-side entry point.
     const TECHNICIAN_AUTH_SOURCES = new Set(['technician-auth']);
-    const CUSTOMER_AUTH_SOURCES = new Set(['login', 'signup', 'auth', 'login-otp', 'email-auth']);
+    const CUSTOMER_AUTH_SOURCES = new Set([
+      'login', 'signup', 'auth', 'login-otp', 'email-auth',
+    ]);
 
     const first = segments[0] as string | undefined;
     const inAuthFlow = !!first && REDIRECT_AWAY_IF_LOGGED_IN.has(first);
     const isProtectedRoute = !!first && PROTECTED_GROUPS.has(first);
 
     if (user && inAuthFlow) {
-      // CRITICAL: wait for the profile fetch to SETTLE (not to be non-null).
-      // A brand-new signup has a session but no public.users row yet —
-      // `userProfile === null` is permanent for them and would freeze
-      // routing forever. We instead wait on `profileLoaded`, which flips
-      // true the moment the fetch returns regardless of result.
-      if (!profileLoaded) return;
+      // CRITICAL: don't auto-redirect until we know the role. userProfile loads
+      // asynchronously after the session is established; if we routed on a
+      // null profile we'd dump every user into /(customer) regardless of
+      // whether they were a technician — that's the "I tap technician portal,
+      // it sends me to customer portal" bug.
+      if (userProfile === null) return;
       const wantsTechnician = !!first && TECHNICIAN_AUTH_SOURCES.has(first);
       const wantsCustomer = !!first && CUSTOMER_AUTH_SOURCES.has(first);
-      const adminByClaim = isAdminUser(user);
+      const phone =
+        (user as any)?.phone ?? (userProfile as any)?.phone ?? null;
+      const adminByPhone = isAdminPhone(phone);
 
       // Resolution order:
-      //   1. Admin (JWT app_metadata.is_admin) → /admin (system-level, always wins).
+      //   1. Admin phone → /admin (system-level, always wins).
       //   2. Explicit customer auth source → /(customer) — honours the
       //      user's choice even if their profile role is technician.
       //   3. Explicit technician auth source → /(technician).
       //   4. Fallback to profile-stored role for routes like /onboarding
       //      where there's no role-binding auth source.
-      const target = adminByClaim
+      const target = adminByPhone
         ? '/admin'
         : wantsCustomer
           ? '/(customer)'
@@ -164,60 +117,28 @@ function RootLayoutContent() {
     }
 
     // Route-level admin gate — applies to every admin segment (the bare
-    // /admin hub plus all admin-* detail screens). Only users whose JWT
-    // carries app_metadata.is_admin (server-controlled) may render any
-    // admin surface. Anyone else is bounced back to the customer home
-    // before the screen mounts. Defence-in-depth on top of useAdminGuard
-    // inside each admin-* screen.
-    const isAdminSegment = !!first && (first === 'admin' || first.startsWith('admin-'));
+    // /admin hub plus all admin-* detail screens). Only the account whose
+    // phone matches ADMIN_PHONE may render any admin surface. Anyone else
+    // is bounced back to the customer home before the screen mounts.
+    // This is defence-in-depth on top of useAdminGuard inside each
+    // admin-* screen.
+    const isAdminSegment =
+      !!first && (first === 'admin' || first.startsWith('admin-'));
     if (isAdminSegment) {
       if (!user) {
         router.replace('/role-selection');
         return;
       }
-      if (!isAdminUser(user)) {
+      // Wait for the profile to land so we can read the phone without
+      // a false negative on first paint.
+      if (userProfile === null) return;
+      const phone =
+        (user as any)?.phone ?? (userProfile as any)?.phone ?? null;
+      if (!isAdminPhone(phone)) {
         router.replace('/(customer)');
       }
     }
-  }, [user, userProfile, profileLoaded, segments, loading]);
-
-  // Deep-link on notification tap. Every push carries a `data` payload with a
-  // `screen` and the relevant ids (see notifyService usage). Tapping a push —
-  // whether the app was foregrounded, backgrounded, or cold-started — routes
-  // the user straight to the right screen.
-  useEffect(() => {
-    const routeFromData = (data: any) => {
-      if (!data) return;
-      const orderId = data.orderId as string | undefined;
-      switch (data.screen) {
-        case 'chat':
-          if (orderId) router.push(`/chat/${orderId}` as any);
-          break;
-        case 'order-details':
-          if (orderId) router.push(`/order-details?id=${orderId}` as any);
-          break;
-        case 'available-orders':
-          router.push('/(technician)/available-orders' as any);
-          break;
-        case 'notifications':
-          router.push('/notifications' as any);
-          break;
-        default:
-          if (orderId) router.push(`/order-details?id=${orderId}` as any);
-      }
-    };
-
-    // Cold start: app opened by tapping a notification.
-    Notifications.getLastNotificationResponseAsync().then((response) => {
-      if (response) routeFromData(response.notification.request.content.data);
-    });
-
-    // Warm taps while the app is running / backgrounded.
-    const sub = Notifications.addNotificationResponseReceivedListener((response) => {
-      routeFromData(response.notification.request.content.data);
-    });
-    return () => sub.remove();
-  }, [router]);
+  }, [user, userProfile, segments, loading]);
 
   // RTL is handled per-screen via manual `isRTL ? 'row-reverse' : 'row'`
   // conditionals and `textAlign: isRTL ? 'right' : 'left'`. We deliberately
@@ -229,7 +150,11 @@ function RootLayoutContent() {
   // We only gate once the profile has actually loaded (null = still loading)
   // so we never flash the lockout screen during a normal session start.
   const accountStatus = (userProfile as any)?.account_status;
-  if (!loading && !!user && (accountStatus === 'suspended' || accountStatus === 'blocked')) {
+  if (
+    !loading &&
+    !!user &&
+    (accountStatus === 'suspended' || accountStatus === 'blocked')
+  ) {
     return <BlockedScreen status={accountStatus} />;
   }
 
@@ -247,29 +172,31 @@ function RootLayoutContent() {
             fontWeight: 'bold',
           },
           headerBackTitle: language === 'ar' ? 'رجوع' : 'Back',
-          // Per-screen overrides below pick the right transition style
-          // (horizontal slide for detail screens, slide-up for sheet-like
-          // screens, fade for hubs/auth). This default catches anything
-          // that doesn't opt in.
           animation: language === 'ar' ? 'slide_from_left' : 'slide_from_right',
-          animationDuration: 180,
-          animationTypeForReplace: 'push',
+          animationDuration: 250,
           gestureEnabled: true,
           gestureDirection: 'horizontal',
         }}
       >
-        <Stack.Screen name="index" options={{ headerShown: false, ...FADE_ANIM }} />
-        <Stack.Screen name="onboarding" options={{ headerShown: false, ...FADE_ANIM }} />
-        <Stack.Screen name="role-selection" options={{ headerShown: false, ...FADE_ANIM }} />
-        <Stack.Screen name="(customer)" options={{ headerShown: false, ...FADE_ANIM }} />
-        <Stack.Screen name="(technician)" options={{ headerShown: false, ...FADE_ANIM }} />
-        <Stack.Screen name="request" options={{ headerShown: false, ...SHEET_ANIM }} />
-        <Stack.Screen name="calculator" options={{ headerShown: false, ...SHEET_ANIM }} />
-        <Stack.Screen name="contact" options={{ headerShown: false, ...FADE_UP_ANIM }} />
-        <Stack.Screen name="chatbot" options={{ headerShown: false, ...SHEET_ANIM }} />
-        <Stack.Screen name="auth" options={{ headerShown: false, ...FADE_ANIM }} />
-        {/* Detail screens drilled into from a list — default horizontal slide */}
+        <Stack.Screen name="index" options={{ headerShown: false }} />
+        <Stack.Screen name="onboarding" options={{ headerShown: false }} />
+        <Stack.Screen name="role-selection" options={{ headerShown: false }} />
+        <Stack.Screen name="(customer)" options={{ headerShown: false }} />
+        <Stack.Screen name="(technician)" options={{ headerShown: false }} />
+        <Stack.Screen name="request" options={{ headerShown: false }} />
+        <Stack.Screen name="calculator" options={{ headerShown: false }} />
+        <Stack.Screen name="contact" options={{ headerShown: false }} />
+        <Stack.Screen name="chatbot" options={{ headerShown: false }} />
+        <Stack.Screen name="auth" options={{ headerShown: false }} />
         <Stack.Screen name="track/[id]" options={{ title: 'تتبع الطلب' }} />
+        <Stack.Screen name="profile" options={{ title: 'الملف الشخصي' }} />
+        <Stack.Screen
+          name="technician-auth"
+          options={{
+            title: language === 'ar' ? 'تسجيل دخول الفني' : 'Technician Login',
+            headerShown: false,
+          }}
+        />
         <Stack.Screen
           name="order-details"
           options={{
@@ -277,105 +204,54 @@ function RootLayoutContent() {
             headerShown: false,
           }}
         />
-        {/* Chat renders its own rich in-screen header (avatar, participant
-            name, call + view-job actions). Hiding the Stack header avoids a
-            second, redundant bar stacked on top of it (FEAT-06). */}
         <Stack.Screen
           name="chat/[id]"
           options={{
-            headerShown: false,
+            title: language === 'ar' ? 'المحادثة' : 'Chat',
+            headerShown: true,
           }}
         />
+        <Stack.Screen name="addresses" options={{ headerShown: false }} />
+        <Stack.Screen name="wallet" options={{ headerShown: false }} />
+        <Stack.Screen name="notifications-settings" options={{ headerShown: false }} />
+        <Stack.Screen name="settings" options={{ headerShown: false }} />
+        <Stack.Screen name="technician-onboarding" options={{ headerShown: false }} />
+        <Stack.Screen name="login-otp" options={{ headerShown: false }} />
+        <Stack.Screen name="email-auth" options={{ headerShown: false }} />
+        <Stack.Screen name="forgot-password" options={{ headerShown: false }} />
+        <Stack.Screen name="admin-verifications" options={{ headerShown: false }} />
+        <Stack.Screen name="loyalty" options={{ headerShown: false }} />
+        <Stack.Screen name="admin-discount-codes" options={{ headerShown: false }} />
+        <Stack.Screen name="admin-market" options={{ headerShown: false }} />
+        <Stack.Screen name="market" options={{ headerShown: false }} />
+        <Stack.Screen name="market-new" options={{ headerShown: false }} />
         <Stack.Screen name="market-detail" options={{ headerShown: false }} />
         <Stack.Screen name="market-chat" options={{ headerShown: false }} />
+        <Stack.Screen name="market-messages" options={{ headerShown: false }} />
+        <Stack.Screen name="my-listings" options={{ headerShown: false }} />
+        <Stack.Screen name="admin-broadcasts" options={{ headerShown: false }} />
+        <Stack.Screen name="admin-reports" options={{ headerShown: false }} />
         <Stack.Screen name="admin-order-detail" options={{ headerShown: false }} />
-
-        {/* Sheet-like screens that come up from the bottom for a softer feel */}
-        <Stack.Screen name="profile" options={{ title: 'الملف الشخصي', ...SHEET_ANIM }} />
-        <Stack.Screen name="edit-profile" options={{ headerShown: false, ...SHEET_ANIM }} />
-        <Stack.Screen name="addresses" options={{ headerShown: false, ...SHEET_ANIM }} />
-        <Stack.Screen name="wallet" options={{ headerShown: false, ...SHEET_ANIM }} />
-        <Stack.Screen name="settings" options={{ headerShown: false, ...SHEET_ANIM }} />
-        <Stack.Screen
-          name="notifications-settings"
-          options={{ headerShown: false, ...SHEET_ANIM }}
-        />
-        <Stack.Screen name="notifications" options={{ headerShown: false, ...SHEET_ANIM }} />
-        <Stack.Screen name="payment" options={{ headerShown: false, ...SHEET_ANIM }} />
-        <Stack.Screen name="market-new" options={{ headerShown: false, ...SHEET_ANIM }} />
-        <Stack.Screen name="loyalty" options={{ headerShown: false, ...FADE_UP_ANIM }} />
-
-        {/* Auth screens cross-fade — feels less stack-like during onboarding */}
-        <Stack.Screen
-          name="technician-auth"
-          options={{
-            title: language === 'ar' ? 'تسجيل دخول الفني' : 'Technician Login',
-            headerShown: false,
-            ...FADE_ANIM,
-          }}
-        />
-        <Stack.Screen name="technician-onboarding" options={{ headerShown: false, ...FADE_ANIM }} />
-        <Stack.Screen name="login-otp" options={{ headerShown: false, ...FADE_ANIM }} />
-        <Stack.Screen name="email-auth" options={{ headerShown: false, ...FADE_ANIM }} />
-        <Stack.Screen name="forgot-password" options={{ headerShown: false, ...FADE_ANIM }} />
-
-        {/* Admin hub fades in; admin lists keep the snappy horizontal slide */}
-        <Stack.Screen name="admin" options={{ headerShown: false, ...FADE_ANIM }} />
-        <Stack.Screen name="admin-orders" options={{ headerShown: false, ...SNAP_ANIM }} />
-        <Stack.Screen name="admin-users" options={{ headerShown: false, ...SNAP_ANIM }} />
-        <Stack.Screen name="admin-market" options={{ headerShown: false, ...SNAP_ANIM }} />
-        <Stack.Screen name="admin-verifications" options={{ headerShown: false, ...SNAP_ANIM }} />
-        <Stack.Screen name="admin-broadcasts" options={{ headerShown: false, ...SNAP_ANIM }} />
-        <Stack.Screen name="admin-reports" options={{ headerShown: false, ...FADE_UP_ANIM }} />
-        <Stack.Screen name="admin-ratings" options={{ headerShown: false, ...SNAP_ANIM }} />
-        <Stack.Screen name="admin-discount-codes" options={{ headerShown: false, ...SNAP_ANIM }} />
-        <Stack.Screen
-          name="admin-platform-settings"
-          options={{ headerShown: false, ...SHEET_ANIM }}
-        />
-        <Stack.Screen
-          name="admin-payment-gateway"
-          options={{ headerShown: false, ...SHEET_ANIM }}
-        />
-        <Stack.Screen name="admin-otp-provider" options={{ headerShown: false, ...SHEET_ANIM }} />
-        <Stack.Screen name="admin-support" options={{ headerShown: false, ...SNAP_ANIM }} />
-        {/* These screens render their own AdminScreenHeader; suppress the
-            default Stack header so there's exactly one bar (FEAT-06). */}
-        <Stack.Screen name="admin-billing" options={{ headerShown: false, ...SNAP_ANIM }} />
-        <Stack.Screen name="admin-team" options={{ headerShown: false, ...SNAP_ANIM }} />
-        <Stack.Screen name="admin-accounting" options={{ headerShown: false, ...FADE_UP_ANIM }} />
-        {/* Privacy renders its own in-screen header. */}
-        <Stack.Screen name="privacy" options={{ headerShown: false }} />
-        <Stack.Screen
-          name="admin-user-verifications"
-          options={{ headerShown: false, ...SNAP_ANIM }}
-        />
-        {/* These two screens have their own in-screen header. Without
-            headerShown:false they inherit the default green Stack header
-            and render two stacked back bars. */}
-        <Stack.Screen name="admin-service-areas" options={{ headerShown: false, ...SNAP_ANIM }} />
-        <Stack.Screen name="terms" options={{ headerShown: false }} />
+        <Stack.Screen name="admin-payment-gateway" options={{ headerShown: false }} />
+        <Stack.Screen name="admin-otp-provider" options={{ headerShown: false }} />
+        <Stack.Screen name="payment" options={{ headerShown: false }} />
+        <Stack.Screen name="notifications" options={{ headerShown: false }} />
+        <Stack.Screen name="admin" options={{ headerShown: false }} />
+        <Stack.Screen name="edit-profile" options={{ headerShown: false }} />
         <Stack.Screen name="support-chat" options={{ headerShown: false }} />
-        <Stack.Screen name="verify-identity" options={{ headerShown: false, ...SHEET_ANIM }} />
-
-        {/* Customer-side browse screens */}
-        <Stack.Screen name="market" options={{ headerShown: false, ...FADE_UP_ANIM }} />
-        <Stack.Screen name="my-listings" options={{ headerShown: false, ...SNAP_ANIM }} />
-        <Stack.Screen name="market-messages" options={{ headerShown: false, ...SNAP_ANIM }} />
+        <Stack.Screen name="admin-support" options={{ headerShown: false }} />
+        <Stack.Screen name="admin-orders" options={{ headerShown: false }} />
+        <Stack.Screen name="admin-ratings" options={{ headerShown: false }} />
+        <Stack.Screen name="admin-users" options={{ headerShown: false }} />
+        <Stack.Screen name="admin-platform-settings" options={{ headerShown: false }} />
       </Stack>
     </View>
   );
 }
 
-export default Sentry.wrap(function RootLayout() {
+export default function RootLayout() {
   useOtaUpdates();
-  // FEATURE-2 — animated splash overlay shown over the app on cold start.
-  const [splashDone, setSplashDone] = useState(false);
-  // Load every weight we map to in utils/applyFont.getAppFontFamily.
-  // Missing weights cause iOS to silently fall back to the system font when
-  // a Text uses fontWeight: '300'/'500'/'600' etc.
   const [fontsLoaded] = useFonts({
-    IBMPlexSansArabic_300Light,
     IBMPlexSansArabic_400Regular,
     IBMPlexSansArabic_500Medium,
     IBMPlexSansArabic_600SemiBold,
@@ -384,18 +260,13 @@ export default Sentry.wrap(function RootLayout() {
 
   if (!fontsLoaded) {
     return (
-      <View
-        style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' }}
-      >
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' }}>
         <ActivityIndicator size="large" color="#10B981" />
       </View>
     );
   }
 
-  // applyAppFontToText() already ran at module-load time at the top of
-  // this file. The helper is idempotent so an extra call here would be
-  // harmless, but doing it at module-load gives us the install before
-  // any screen module is even imported.
+  applyAppFontToText();
 
   return (
     <ErrorBoundary>
@@ -412,7 +283,6 @@ export default Sentry.wrap(function RootLayout() {
           </OrdersProvider>
         </AuthProvider>
       </AppProvider>
-      {!splashDone && <AnimatedSplash onFinish={() => setSplashDone(true)} />}
     </ErrorBoundary>
   );
-});
+}

@@ -22,6 +22,7 @@ import { translations } from '../constants/translations';
 import { auth } from '../lib/supabase';
 import { RTLMaterialIcon } from '../components/RTLIcon';
 import { getFriendlyError } from '../utils/errorMessages';
+import { signInWithGoogle } from '../services/googleAuthService';
 
 export default function AuthScreen() {
   const router = useRouter();
@@ -41,8 +42,8 @@ export default function AuthScreen() {
   const [specialization, setSpecialization] = useState('');
   const [experience, setExperience] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
 
   const handleAuth = async () => {
     if (!email || !password || (!isLogin && !name)) {
@@ -58,18 +59,15 @@ export default function AuthScreen() {
     setLoading(true);
     try {
       if (isLogin) {
-        // Login
         await auth.signIn(email, password);
         Alert.alert(
           (t as any).success || 'Success',
           language === 'ar' ? 'تم تسجيل الدخول بنجاح!' : 'Logged in successfully!'
         );
-        // Navigate based on user role
         const user = await auth.getCurrentUser();
         const userType = user?.user_metadata?.role || userRole;
         router.replace(userType === 'technician' ? '/(technician)' : '/(customer)');
       } else {
-        // Sign up
         await auth.signUp(email, password, name, userRole);
         Alert.alert(
           (t as any).success || 'Success',
@@ -87,7 +85,23 @@ export default function AuthScreen() {
     }
   };
 
-  // Guest mode removed — every user must sign in or create an account.
+  const handleGoogleSignIn = async () => {
+    setGoogleLoading(true);
+    try {
+      await signInWithGoogle();
+      // AuthContext will pick up the new Supabase session and _layout.tsx
+      // routing logic will redirect to the correct screen automatically.
+    } catch (error: any) {
+      Alert.alert(
+        language === 'ar' ? 'خطأ' : 'Error',
+        language === 'ar'
+          ? 'فشل تسجيل الدخول بـ Google. حاول مرة أخرى.'
+          : 'Google sign-in failed. Please try again.'
+      );
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
 
   const styles = createStyles(COLORS, SHADOWS, isRTL);
 
@@ -155,7 +169,6 @@ export default function AuthScreen() {
                 />
               </View>
 
-              {/* Phone Input (Technician only) */}
               {userRole === 'technician' && (
                 <View style={[styles.inputContainer, SHADOWS.neuFlat]}>
                   <MaterialIcons name="phone" size={20} color={COLORS.textSecondary} />
@@ -171,7 +184,6 @@ export default function AuthScreen() {
                 </View>
               )}
 
-              {/* Specialization Input (Technician only) */}
               {userRole === 'technician' && (
                 <View style={[styles.inputContainer, SHADOWS.neuFlat]}>
                   <MaterialIcons name="build" size={20} color={COLORS.textSecondary} />
@@ -186,7 +198,6 @@ export default function AuthScreen() {
                 </View>
               )}
 
-              {/* Experience Input (Technician only) */}
               {userRole === 'technician' && (
                 <View style={[styles.inputContainer, SHADOWS.neuFlat]}>
                   <MaterialIcons name="work" size={20} color={COLORS.textSecondary} />
@@ -233,7 +244,7 @@ export default function AuthScreen() {
               />
               <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
                 <MaterialIcons 
-                  name={showPassword ? "visibility" : "visibility-off"} 
+                  name={showPassword ? 'visibility' : 'visibility-off'} 
                   size={20} 
                   color={COLORS.textSecondary} 
                 />
@@ -258,16 +269,47 @@ export default function AuthScreen() {
               )}
             </TouchableOpacity>
 
+            {/* Divider */}
+            <View style={styles.dividerRow}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerText}>
+                {language === 'ar' ? 'أو' : 'OR'}
+              </Text>
+              <View style={styles.dividerLine} />
+            </View>
+
+            {/* Google Sign-In Button */}
+            <TouchableOpacity
+              style={[styles.googleButton, SHADOWS.neuFlat]}
+              onPress={handleGoogleSignIn}
+              disabled={googleLoading}
+              accessibilityLabel={language === 'ar' ? 'تسجيل الدخول بـ Google' : 'Sign in with Google'}
+            >
+              {googleLoading ? (
+                <ActivityIndicator color={COLORS.text} />
+              ) : (
+                <>
+                  <View style={styles.googleIconContainer}>
+                    {/* Google G icon via SVG path colours */}
+                    <Text style={styles.googleIconText}>G</Text>
+                  </View>
+                  <Text style={styles.googleButtonText}>
+                    {language === 'ar' ? 'المتابعة بـ Google' : 'Continue with Google'}
+                  </Text>
+                </>
+              )}
+            </TouchableOpacity>
+
             {/* Back Button */}
-            <TouchableOpacity accessibilityRole="button" accessibilityLabel={isRTL ? 'رجوع' : 'Back'}
+            <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel={isRTL ? 'رجوع' : 'Back'}
               style={styles.backButton}
               onPress={() => router.back()}
             >
               <RTLMaterialIcon name="arrow-back" size={24} color={COLORS.textSecondary} />
             </TouchableOpacity>
           </View>
-
-          {/* Social sign-in removed. Email/password and phone OTP are the only paths. */}
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -332,7 +374,7 @@ const createStyles = (COLORS: any, SHADOWS: any, isRTL: boolean) => StyleSheet.c
     borderRadius: BORDER_RADIUS.md,
   },
   toggleButtonActive: {
-    backgroundColor: COLORS.background, // Neumorphic pressed state handled by shadow
+    backgroundColor: COLORS.background,
   },
   toggleText: {
     fontSize: 14,
@@ -369,6 +411,55 @@ const createStyles = (COLORS: any, SHADOWS: any, isRTL: boolean) => StyleSheet.c
     color: '#FFF',
     fontSize: 18,
     fontWeight: 'bold',
+  },
+  dividerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: SPACING.md,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: COLORS.border ?? COLORS.textLight,
+    opacity: 0.4,
+  },
+  dividerText: {
+    marginHorizontal: SPACING.sm,
+    fontSize: 13,
+    color: COLORS.textSecondary,
+    fontWeight: '500',
+  },
+  googleButton: {
+    flexDirection: isRTL ? 'row-reverse' : 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.background,
+    borderRadius: BORDER_RADIUS.md,
+    height: 50,
+    borderWidth: 1,
+    borderColor: COLORS.border ?? '#E0E0E0',
+    gap: SPACING.sm,
+  },
+  googleIconContainer: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#fff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+  },
+  googleIconText: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#4285F4',
+    lineHeight: 16,
+  },
+  googleButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: COLORS.text,
   },
   backButton: {
     alignItems: 'center',
