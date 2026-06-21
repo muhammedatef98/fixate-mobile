@@ -24,6 +24,9 @@ export default function BottomNav(_props: { currentRoute?: string } = {}) {
   const navItems = isRTL ? [...NAV_ITEMS].reverse() : NAV_ITEMS;
   const styles = makeStyles(COLORS, isDark);
 
+  // The root ScreenFrame (app/_layout.tsx) applies the Android bottom inset, so
+  // this bar uses a plain fixed offset; on Android it is lifted above the
+  // system nav bar by that frame. iOS keeps its existing 30px offset.
   return (
     <View style={styles.container}>
       <View style={styles.floatingBar}>

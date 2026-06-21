@@ -20,7 +20,7 @@ import { useApp } from '../../contexts/AppContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { translations } from '../../constants/translations';
 import * as orderService from '../../services/orderService';
-import { subscribeToPendingOrders } from '../../services/realtimeService';
+import { subscribeToPendingOrders, subscribeToAvailableOrderRemovals } from '../../services/realtimeService';
 import { supabase } from '../../services/supabaseClient';
 import { safeBack } from '../../utils/navigation';
 import { ISSUE_CATEGORIES, getIssueCategory } from '../../constants/issueCategories';
@@ -106,10 +106,19 @@ export default function AvailableOrdersScreen() {
     loadOrders();
     getTechnicianLocation();
 
-    // subscribeToPendingOrders now returns its own cleanup callable.
-    return subscribeToPendingOrders((order) => {
+    // New pending orders appear instantly (RLS allows technicians to SELECT
+    // pending+unassigned orders, so postgres_changes INSERT is delivered).
+    const cleanupAdd = subscribeToPendingOrders((order) => {
       setOrders((prev) => (prev.some((o) => o.id === order.id) ? prev : [order, ...prev]));
     });
+    // Accepted/cancelled orders disappear instantly via the broadcast topic.
+    const cleanupRemove = subscribeToAvailableOrderRemovals((orderId) => {
+      setOrders((prev) => prev.filter((o) => o.id !== orderId));
+    });
+    return () => {
+      cleanupAdd();
+      cleanupRemove();
+    };
   }, []);
 
   const getTechnicianLocation = async () => {
@@ -178,24 +187,39 @@ export default function AvailableOrdersScreen() {
         );
         return;
       }
+      // Atomic, race-safe accept: assignOrderToTechnician runs a conditional
+      // UPDATE (... WHERE status='pending' AND technician_id IS NULL) and
+      // throws "Order is no longer available" if another technician got there
+      // first. It already sets status='accepted', so no second update needed.
       await orderService.assignOrderToTechnician(orderId, user.id);
-      await orderService.updateOrderStatus(orderId, 'accepted');
-      
+
+      // Remove it from this technician's list immediately (the broadcast also
+      // removes it from every other technician's list).
+      setOrders((prev) => prev.filter((o) => o.id !== orderId));
+
       Alert.alert(
         language === 'ar' ? 'نجح!' : 'Success!',
         language === 'ar' ? 'تم قبول الطلب بنجاح' : 'Order accepted successfully'
       );
-      
+
       // Navigate to manage order screen
       router.push({
         pathname: '/(technician)/manage-order',
         params: { id: orderId }
       });
-    } catch (error) {
+    } catch (error: any) {
       logger.error('Error accepting order:', error);
+      // Distinguish the race-loss case so the technician gets a clear message
+      // and the stale card is pulled from their list.
+      const lostRace = String(error?.message ?? '').includes('no longer available');
+      if (lostRace) {
+        setOrders((prev) => prev.filter((o) => o.id !== orderId));
+      }
       Alert.alert(
         language === 'ar' ? 'خطأ' : 'Error',
-        language === 'ar' ? 'حدث خطأ أثناء قبول الطلب' : 'An error occurred while accepting the order'
+        lostRace
+          ? (language === 'ar' ? 'هذا الطلب لم يعد متاحاً، قَبِله فني آخر.' : 'This order is no longer available — another technician took it.')
+          : (language === 'ar' ? 'حدث خطأ أثناء قبول الطلب' : 'An error occurred while accepting the order')
       );
     }
   };

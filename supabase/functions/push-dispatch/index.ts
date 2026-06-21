@@ -26,7 +26,9 @@
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 
 const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send';
+const EXPO_RECEIPTS_URL = 'https://exp.host/--/api/v2/push/getReceipts';
 const EXPO_CHUNK = 100; // Expo accepts up to 100 messages per request.
+const RECEIPT_CHUNK = 1000; // Expo accepts up to 1000 receipt ids per request.
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -45,9 +47,14 @@ interface PushRequest {
   data?: Record<string, unknown>;
 }
 
+// A deliverable Expo push token is fully bracketed: "ExponentPushToken[...]"
+// (or the "ExpoPushToken[...]" variant). A prefix-only / truncated value such
+// as "ExponentPushToken[" passes a naive startsWith() check but makes Expo
+// reject the ENTIRE batch with HTTP 400 — so require the closing bracket and a
+// non-empty body, and forbid stray whitespace.
+const EXPO_TOKEN_RE = /^Expo(nent)?PushToken\[[^\]\s]+\]$/;
 const isExpoToken = (t: unknown): t is string =>
-  typeof t === 'string' &&
-  (t.startsWith('ExponentPushToken[') || t.startsWith('ExpoPushToken['));
+  typeof t === 'string' && EXPO_TOKEN_RE.test(t.trim());
 
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
@@ -136,12 +143,22 @@ Deno.serve(async (req: Request) => {
     let failed = invalidTokens.length;
     const errors: string[] = invalidTokens.length ? ['not_expo_token'] : [];
     const deadTokens: string[] = [];
+    // Maps an accepted ticket's receipt id → the token it was sent to, so a
+    // later receipt error (DeviceNotRegistered) can be traced back and pruned.
+    const ticketToToken: Record<string, string> = {};
 
-    // --- Send in chunks via the Expo Push API. -----------------------------
+    // --- Send via the Expo Push API. ---------------------------------------
     const expoAccessToken = Deno.env.get('EXPO_ACCESS_TOKEN'); // optional
-    for (let i = 0; i < expoTokens.length; i += EXPO_CHUNK) {
-      const chunk = expoTokens.slice(i, i + EXPO_CHUNK);
-      const messages = chunk.map((to) => ({
+
+    // Send one batch of tokens. Expo validates the whole request as a unit, so
+    // a single malformed token makes the ENTIRE batch fail with HTTP 400 — the
+    // root cause of `broadcast push errors ["http_400"]`. When that happens we
+    // bisect the batch to isolate the culprit, prune it, and still deliver to
+    // every good token, instead of dropping the whole broadcast on the floor.
+    const sendBatch = async (batch: string[]): Promise<void> => {
+      if (batch.length === 0) return;
+
+      const messages = batch.map((to) => ({
         to,
         title,
         body,
@@ -151,8 +168,9 @@ Deno.serve(async (req: Request) => {
         channelId: 'default',
       }));
 
+      let res: Response;
       try {
-        const res = await fetch(EXPO_PUSH_URL, {
+        res = await fetch(EXPO_PUSH_URL, {
           method: 'POST',
           headers: {
             Accept: 'application/json',
@@ -164,40 +182,136 @@ Deno.serve(async (req: Request) => {
           },
           body: JSON.stringify(messages),
         });
+      } catch (e) {
+        // Network-level failure (not a token problem) — count and move on.
+        failed += batch.length;
+        errors.push(msg(e));
+        return;
+      }
+
+      const out = await res.json().catch(() => null);
+
+      // Batch-level rejection: non-2xx (typically HTTP 400) or a top-level
+      // `errors` array. Expo validates the whole request as a unit, so the most
+      // common real-world cause here is PUSH_TOO_MANY_EXPERIENCE_IDS — tokens
+      // belonging to more than one Expo project mixed into one request (e.g.
+      // after the EAS projectId changed). Bisecting eventually produces
+      // single-project sub-requests that succeed.
+      const topError = out?.errors?.[0];
+      const batchRejected = !res.ok || !out || (out.errors?.length ?? 0) > 0;
+      if (batchRejected) {
+        if (batch.length > 1) {
+          const mid = Math.floor(batch.length / 2);
+          await sendBatch(batch.slice(0, mid));
+          await sendBatch(batch.slice(mid));
+          return;
+        }
+
+        // Down to a single token and still rejected. Only prune it if the error
+        // is specific to the token itself ("...is not a valid Expo push
+        // token"); other 400s (rate limits, transient/project issues) are NOT
+        // the token's fault, so log loudly and count failed without deleting a
+        // potentially-good token.
+        failed += 1;
+        const code = topError?.code || `http_${res.status}`;
+        const message: string = topError?.message || '';
+        errors.push(code);
+        const tokenIsInvalid = /not a valid expo push token/i.test(message);
+        if (tokenIsInvalid) {
+          deadTokens.push(batch[0]);
+          console.error(
+            `push-dispatch: dropping invalid token (${code}): ${batch[0]}`
+          );
+        } else {
+          console.error(
+            `push-dispatch: batch rejected for token ${batch[0]} — ` +
+              `code=${code} message=${message || `http_${res.status}`} ` +
+              `(kept; not a token-format error)`
+          );
+        }
+        return;
+      }
+
+      // Per-message tickets, in the same order as the request.
+      const tickets = Array.isArray(out.data) ? out.data : [];
+      tickets.forEach((ticket: any, idx: number) => {
+        if (ticket?.status === 'ok') {
+          sent += 1;
+          // Remember which token this receipt id belongs to so we can audit
+          // its delivery outcome via the receipts API below.
+          if (ticket?.id && batch[idx]) {
+            ticketToToken[ticket.id] = batch[idx];
+          }
+        } else {
+          failed += 1;
+          const code = ticket?.details?.error || ticket?.message || 'error';
+          errors.push(code);
+          // A dead/uninstalled token — clear it so we stop retrying it.
+          if (code === 'DeviceNotRegistered' && batch[idx]) {
+            deadTokens.push(batch[idx]);
+          }
+        }
+      });
+    };
+
+    for (let i = 0; i < expoTokens.length; i += EXPO_CHUNK) {
+      await sendBatch(expoTokens.slice(i, i + EXPO_CHUNK));
+    }
+
+    // --- Check delivery receipts. ------------------------------------------
+    // A send ticket only confirms Expo *accepted* the message for delivery.
+    // The real outcome (DeviceNotRegistered, InvalidCredentials, MessageTooBig,
+    // …) surfaces later via the receipts API. Poll it so dead tokens get pruned
+    // and credential/config errors are logged loudly instead of swallowed.
+    const receiptIds = Object.keys(ticketToToken);
+    for (let i = 0; i < receiptIds.length; i += RECEIPT_CHUNK) {
+      const idChunk = receiptIds.slice(i, i + RECEIPT_CHUNK);
+      try {
+        const res = await fetch(EXPO_RECEIPTS_URL, {
+          method: 'POST',
+          headers: {
+            Accept: 'application/json',
+            'Content-Type': 'application/json',
+            ...(expoAccessToken
+              ? { Authorization: `Bearer ${expoAccessToken}` }
+              : {}),
+          },
+          body: JSON.stringify({ ids: idChunk }),
+        });
 
         const out = await res.json().catch(() => null);
-
-        if (!res.ok || !out) {
-          failed += chunk.length;
-          errors.push(`http_${res.status}`);
+        if (!res.ok || !out?.data) {
+          errors.push(`receipts_http_${res.status}`);
           continue;
         }
 
-        // Top-level request error (e.g. auth / payload problem).
-        if (out.errors?.length) {
-          failed += chunk.length;
-          for (const e of out.errors) errors.push(e?.code || 'request_error');
-          continue;
-        }
+        // Receipts not yet processed simply won't appear in `data` — that's
+        // fine, the token stays as-is and we'll learn its fate on a later send.
+        for (const [id, receipt] of Object.entries<any>(out.data)) {
+          if (receipt?.status !== 'error') continue;
 
-        // Per-message tickets, in the same order as the request.
-        const tickets = Array.isArray(out.data) ? out.data : [];
-        tickets.forEach((ticket: any, idx: number) => {
-          if (ticket?.status === 'ok') {
-            sent += 1;
+          // This token was counted as sent on the ticket, but delivery failed.
+          sent = Math.max(0, sent - 1);
+          failed += 1;
+          const code = receipt?.details?.error || receipt?.message || 'receipt_error';
+          errors.push(code);
+
+          if (code === 'DeviceNotRegistered') {
+            // Dead/uninstalled device — prune so we stop retrying it.
+            const tok = ticketToToken[id];
+            if (tok) deadTokens.push(tok);
           } else {
-            failed += 1;
-            const code = ticket?.details?.error || ticket?.message || 'error';
-            errors.push(code);
-            // A dead/uninstalled token — clear it so we stop retrying it.
-            if (code === 'DeviceNotRegistered' && chunk[idx]) {
-              deadTokens.push(chunk[idx]);
-            }
+            // InvalidCredentials, MessageTooBig, MessageRateExceeded, … are
+            // config/payload problems, NOT dead tokens. Log them separately so
+            // they don't get silently swallowed (and don't delete the token).
+            console.error(
+              `push-dispatch: receipt error code=${code} id=${id} ` +
+                `details=${JSON.stringify(receipt?.details ?? {})}`
+            );
           }
-        });
+        }
       } catch (e) {
-        failed += chunk.length;
-        errors.push(msg(e));
+        errors.push(`receipts_${msg(e)}`);
       }
     }
 

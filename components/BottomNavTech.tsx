@@ -32,18 +32,16 @@ type TabItem = {
 };
 
 // Four tabs, deliberately non-overlapping:
-//   Home    → daily dashboard + status toggle (also has Available/Mine toggle
-//             for the technician's quick-glance "what's open vs. mine" view,
-//             so a dedicated Requests tab would duplicate that surface).
-//   Jobs    → focused list of the technician's accepted/in-progress work.
-//   Chats   → customer conversations across jobs — high-value standalone
-//             surface where mid-job communication actually happens.
-//   Profile → identity, ratings, settings.
+//   Home      → daily dashboard + status toggle and the Available/Mine jobs
+//               toggle (so the technician's open vs. accepted work lives here).
+//   Chats     → customer conversations across jobs.
+//   Community → technicians-only forum (posts, threaded comments, likes).
+//   Account   → identity, ratings, settings.
 const NAV_ITEMS: TabItem[] = [
-  { path: '/(technician)',          segment: '',          icon: 'grid-outline',         activeIcon: 'grid',         labelAr: 'الرئيسية', labelEn: 'Home' },
-  { path: '/(technician)/my-orders', segment: 'my-orders', icon: 'briefcase-outline',    activeIcon: 'briefcase',    labelAr: 'أعمالي',   labelEn: 'Jobs' },
-  { path: '/(technician)/chats',    segment: 'chats',     icon: 'chatbubbles-outline',  activeIcon: 'chatbubbles',  labelAr: 'محادثات',  labelEn: 'Chats' },
-  { path: '/(technician)/profile',  segment: 'profile',   icon: 'person-outline',       activeIcon: 'person',       labelAr: 'حسابي',    labelEn: 'Profile' },
+  { path: '/(technician)',           segment: '',          icon: 'grid-outline',        activeIcon: 'grid',        labelAr: 'الرئيسية', labelEn: 'Home' },
+  { path: '/(technician)/chats',     segment: 'chats',     icon: 'chatbubbles-outline', activeIcon: 'chatbubbles', labelAr: 'محادثات',  labelEn: 'Chats' },
+  { path: '/(technician)/community', segment: 'community', icon: 'people-outline',       activeIcon: 'people',      labelAr: 'المجتمع',  labelEn: 'Community' },
+  { path: '/(technician)/profile',   segment: 'profile',   icon: 'person-outline',      activeIcon: 'person',      labelAr: 'حسابي',    labelEn: 'My Account' },
 ];
 
 export default function BottomNavTech(_props: { currentRoute?: string } = {}) {
@@ -64,6 +62,9 @@ export default function BottomNavTech(_props: { currentRoute?: string } = {}) {
   const navItems = isRTL ? [...NAV_ITEMS].reverse() : NAV_ITEMS;
   const styles = makeStyles(COLORS, isDark);
 
+  // The root ScreenFrame (app/_layout.tsx) applies the Android bottom inset, so
+  // this bar uses a plain fixed offset and is lifted above the system nav bar
+  // by that frame. iOS keeps its existing 30px offset.
   return (
     <View style={styles.container} pointerEvents="box-none">
       <View style={styles.floatingBar}>

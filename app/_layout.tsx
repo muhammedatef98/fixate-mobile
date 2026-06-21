@@ -186,6 +186,8 @@ function RootLayoutContent() {
         <Stack.Screen name="admin-ratings" options={{ headerShown: false }} />
         <Stack.Screen name="admin-users" options={{ headerShown: false }} />
         <Stack.Screen name="admin-platform-settings" options={{ headerShown: false }} />
+        <Stack.Screen name="admin-community" options={{ headerShown: false }} />
+        <Stack.Screen name="admin-offers" options={{ headerShown: false }} />
         <Stack.Screen name="admin-billing" options={{ headerShown: false }} />
         <Stack.Screen name="admin-team" options={{ headerShown: false }} />
         <Stack.Screen name="admin-accounting" options={{ headerShown: false }} />

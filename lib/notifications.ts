@@ -30,6 +30,23 @@ function resolveProjectId(): string | undefined {
   );
 }
 
+/**
+ * A storable push token is either an Expo push token ("ExponentPushToken[...]"
+ * / "ExpoPushToken[...]") or — defensively — a raw FCM/APNs registration token
+ * (a long opaque string with no whitespace). Empty strings, `null`,
+ * `undefined`, and obvious junk are rejected so we never persist a value that
+ * makes the server-side fan-out fail. See `push-dispatch`'s matching guard.
+ */
+const EXPO_TOKEN_RE = /^Expo(nent)?PushToken\[[^\]\s]+\]$/;
+function isValidPushToken(token: unknown): token is string {
+  if (typeof token !== 'string') return false;
+  const t = token.trim();
+  if (t.length === 0) return false;
+  if (EXPO_TOKEN_RE.test(t)) return true;
+  // Raw FCM/APNs fallback: a single opaque token of meaningful length.
+  return t.length >= 32 && !/\s/.test(t);
+}
+
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowAlert: true,
@@ -39,6 +56,28 @@ Notifications.setNotificationHandler({
     shouldShowList: true,
   }),
 });
+
+/**
+ * Create the Android 'default' notification channel. Android 8+ silently drops
+ * any notification whose channel doesn't exist, and `push-dispatch` sends every
+ * push with `channelId: 'default'` — so this channel MUST exist before the first
+ * push arrives. Idempotent and safe to call repeatedly; a no-op on iOS. Call it
+ * once at app startup (see app/_layout.tsx) so delivery never depends on the
+ * user having reached the post-login registration step first.
+ */
+export async function ensureAndroidNotificationChannel(): Promise<void> {
+  if (Platform.OS !== 'android') return;
+  try {
+    await Notifications.setNotificationChannelAsync('default', {
+      name: 'default',
+      importance: Notifications.AndroidImportance.MAX,
+      vibrationPattern: [0, 250, 250, 250],
+      lightColor: '#10b981',
+    });
+  } catch (e) {
+    logger.warn('[PushChannel] failed to create default channel', e);
+  }
+}
 
 export const notificationManager = {
   /**
@@ -66,14 +105,7 @@ export const notificationManager = {
     }
 
     // Android needs a notification channel before tokens deliver visibly.
-    if (Platform.OS === 'android') {
-      await Notifications.setNotificationChannelAsync('default', {
-        name: 'default',
-        importance: Notifications.AndroidImportance.MAX,
-        vibrationPattern: [0, 250, 250, 250],
-        lightColor: '#10b981',
-      });
-    }
+    await ensureAndroidNotificationChannel();
 
     try {
       const projectId = resolveProjectId();
@@ -96,7 +128,28 @@ export const notificationManager = {
    * service-role `push-dispatch` function can resolve it for fan-out.
    */
   saveTokenToProfile: async (userId: string, token: string) => {
+    // Never overwrite a stored token with junk. On a simulator / denied
+    // permission `registerForPushNotificationsAsync` returns null, but guard
+    // here too so a bad value can't reach the DB and poison the broadcast.
+    if (!isValidPushToken(token)) {
+      logger.warn('[PushToken] refusing to store invalid token', { token });
+      return;
+    }
+
     try {
+      // Only write when the value actually changed. This avoids clobbering a
+      // valid token (and churning push_updated_at) on every launch, and stops
+      // a transient bad read from overwriting good data.
+      const { data: existing } = await supabase
+        .from('users')
+        .select('push_token')
+        .eq('id', userId)
+        .maybeSingle();
+
+      if (existing?.push_token === token) {
+        return; // unchanged — nothing to do.
+      }
+
       const { error } = await supabase
         .from('users')
         .update({ push_token: token, push_updated_at: new Date().toISOString() })

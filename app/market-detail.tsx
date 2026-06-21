@@ -15,6 +15,7 @@ import {
   Alert,
   Linking,
   Share,
+  Modal,
   NativeScrollEvent,
   NativeSyntheticEvent,
 } from 'react-native';
@@ -45,6 +46,17 @@ import {
   type UserCard,
 } from '../services/marketService';
 import { formatAppDateOnly } from '../lib/formatDate';
+import { toWhatsAppPhone } from '../utils/validation';
+import { submitMarketReport } from '../services/marketReportsService';
+
+// Fixed set of report reasons (Arabic strings stored verbatim in the DB).
+const REPORT_REASONS = [
+  'محتوى مسيء أو غير لائق',
+  'إعلان مكرر أو سبام',
+  'سعر أو معلومات مضللة',
+  'منتج مسروق أو مزور',
+  'أخرى',
+];
 
 const { width: SCREEN_W } = Dimensions.get('window');
 const HERO_H = Math.round(SCREEN_W * 0.78);
@@ -123,6 +135,12 @@ export default function MarketDetailScreen() {
   const [viewerOpen, setViewerOpen] = useState(false);
   const [viewerIndex, setViewerIndex] = useState(0);
   const heroRef = useRef<ScrollView>(null);
+
+  // Report sheet state
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportReason, setReportReason] = useState<string | null>(null);
+  const [reportDetails, setReportDetails] = useState('');
+  const [reporting, setReporting] = useState(false);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -204,14 +222,29 @@ export default function MarketDetailScreen() {
     if (!listing?.contact_phone) return;
     Linking.openURL(`tel:${listing.contact_phone}`);
   };
-  const handleWhatsAppSeller = () => {
+  const handleWhatsAppSeller = async () => {
     if (!listing?.contact_phone) return;
-    const digits = listing.contact_phone.replace(/[^\d]/g, '');
+    // wa.me requires the number in international format (digits only, no "+"),
+    // with the Saudi 966 country code. Local numbers like 0512345678 must be
+    // converted to 966512345678 or WhatsApp rejects the link.
+    const digits = toWhatsAppPhone(listing.contact_phone);
+    if (!digits) {
+      Alert.alert(isRTL ? 'رقم غير صالح' : 'Invalid number');
+      return;
+    }
     const text = encodeURIComponent(
       (isRTL ? 'مرحباً، رأيت إعلانك في Fixate: ' : 'Hi, I saw your Fixate listing: ') +
       (listing?.title ?? '')
     );
-    Linking.openURL(`https://wa.me/${digits}?text=${text}`);
+    const url = `https://wa.me/${digits}?text=${text}`;
+    try {
+      await Linking.openURL(url);
+    } catch {
+      Alert.alert(
+        isRTL ? 'تعذّر فتح واتساب' : "Couldn't open WhatsApp",
+        isRTL ? 'تأكد من تثبيت تطبيق واتساب.' : 'Make sure WhatsApp is installed.'
+      );
+    }
   };
   const handleSendMessage = () => {
     if (!user) {
@@ -234,13 +267,37 @@ export default function MarketDetailScreen() {
     } catch {/* user cancelled */}
   };
   const handleReport = () => {
-    Alert.alert(
-      isRTL ? 'الإبلاغ عن الإعلان' : 'Report listing',
-      isRTL
-        ? 'سيراجع فريق Fixate هذا الإعلان. شكراً لمساعدتك في الحفاظ على سوق آمن.'
-        : 'The Fixate team will review this listing. Thanks for keeping the market safe.',
-      [{ text: 'OK' }]
-    );
+    if (!user) {
+      Alert.alert(isRTL ? 'تسجيل الدخول مطلوب' : 'Login required');
+      return;
+    }
+    setReportReason(null);
+    setReportDetails('');
+    setReportOpen(true);
+  };
+
+  const submitReport = async () => {
+    if (!listing || !reportReason || reporting) return;
+    setReporting(true);
+    try {
+      await submitMarketReport({
+        listing_id: listing.id,
+        reason: reportReason,
+        details: reportDetails,
+      });
+      setReportOpen(false);
+      Alert.alert(
+        isRTL ? 'تم الإبلاغ' : 'Report sent',
+        isRTL ? 'تم إرسال البلاغ، سنراجعه قريباً' : 'Your report was sent. We will review it soon.'
+      );
+    } catch (e: any) {
+      Alert.alert(
+        isRTL ? 'تعذّر إرسال البلاغ' : 'Could not send report',
+        e?.message ?? String(e)
+      );
+    } finally {
+      setReporting(false);
+    }
   };
   const runOwnerAction = async (
     fn: () => Promise<MarketListing>,
@@ -734,6 +791,90 @@ export default function MarketDetailScreen() {
         initialIndex={viewerIndex}
         onClose={() => setViewerOpen(false)}
       />
+
+      {/* Report listing bottom sheet */}
+      <Modal
+        visible={reportOpen}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setReportOpen(false)}
+      >
+        <KeyboardAvoidingView
+          style={styles.reportBackdrop}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
+          <TouchableOpacity style={StyleSheet.absoluteFill} onPress={() => setReportOpen(false)} />
+          <View style={[styles.reportSheet, { backgroundColor: COLORS.card }]}>
+            <View style={[styles.reportHandle, { backgroundColor: COLORS.border }]} />
+            <Text style={styles.reportTitle}>{isRTL ? 'الإبلاغ عن هذا الإعلان' : 'Report this listing'}</Text>
+            <Text style={styles.reportSubtitle}>{isRTL ? 'اختر سبب الإبلاغ:' : 'Choose a reason:'}</Text>
+
+            {REPORT_REASONS.map((reason) => {
+              const selected = reportReason === reason;
+              return (
+                <TouchableOpacity
+                  key={reason}
+                  style={styles.reportOption}
+                  onPress={() => setReportReason(reason)}
+                  activeOpacity={0.7}
+                  accessibilityRole="radio"
+                  accessibilityState={{ checked: selected }}
+                >
+                  <Ionicons
+                    name={selected ? 'radio-button-on' : 'radio-button-off'}
+                    size={20}
+                    color={selected ? COLORS.primary : COLORS.textSecondary}
+                  />
+                  <Text style={styles.reportOptionText}>{reason}</Text>
+                </TouchableOpacity>
+              );
+            })}
+
+            <TextInput
+              value={reportDetails}
+              onChangeText={setReportDetails}
+              placeholder={isRTL ? 'تفاصيل إضافية…' : 'Additional details…'}
+              placeholderTextColor={COLORS.textSecondary}
+              multiline
+              style={[
+                styles.reportInput,
+                {
+                  color: COLORS.text,
+                  borderColor: COLORS.border,
+                  backgroundColor: COLORS.background,
+                  textAlign: isRTL ? 'right' : 'left',
+                },
+              ]}
+            />
+
+            <View style={styles.reportActions}>
+              <TouchableOpacity
+                style={[styles.reportCancel, { borderColor: COLORS.border }]}
+                onPress={() => setReportOpen(false)}
+                disabled={reporting}
+              >
+                <Text style={[styles.reportCancelText, { color: COLORS.text }]}>
+                  {isRTL ? 'إلغاء' : 'Cancel'}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.reportSubmit,
+                  { backgroundColor: COLORS.primary, opacity: !reportReason || reporting ? 0.5 : 1 },
+                ]}
+                onPress={submitReport}
+                disabled={!reportReason || reporting}
+              >
+                {reporting ? (
+                  <ActivityIndicator color="#fff" size="small" />
+                ) : (
+                  <Text style={styles.reportSubmitText}>{isRTL ? 'إرسال البلاغ' : 'Send report'}</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -1256,4 +1397,59 @@ const createStyles = (C: any, isRTL: boolean) =>
     sendBtn: {
       width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center',
     },
+
+    // Report listing bottom sheet
+    reportBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.4)' },
+    reportSheet: {
+      paddingHorizontal: SPACING.lg,
+      paddingTop: 10,
+      paddingBottom: Platform.OS === 'ios' ? 28 : 16,
+      borderTopLeftRadius: 22,
+      borderTopRightRadius: 22,
+    },
+    reportHandle: { width: 40, height: 4, borderRadius: 2, alignSelf: 'center', marginBottom: 12 },
+    reportTitle: {
+      color: C.text, fontWeight: '800', fontSize: 17, marginBottom: 4,
+      textAlign: isRTL ? 'right' : 'left', writingDirection: isRTL ? 'rtl' : 'ltr',
+    },
+    reportSubtitle: {
+      color: C.textSecondary, fontSize: 13, fontWeight: '600', marginBottom: 8,
+      textAlign: isRTL ? 'right' : 'left',
+    },
+    reportOption: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
+      gap: 10,
+      paddingVertical: 11,
+    },
+    reportOptionText: {
+      flex: 1, color: C.text, fontSize: 14, fontWeight: '600',
+      textAlign: isRTL ? 'right' : 'left', writingDirection: isRTL ? 'rtl' : 'ltr',
+    },
+    reportInput: {
+      borderWidth: 1,
+      borderRadius: BORDER_RADIUS.md,
+      paddingHorizontal: 12,
+      paddingTop: 10,
+      paddingBottom: 10,
+      fontSize: 14,
+      minHeight: 80,
+      textAlignVertical: 'top',
+      marginTop: 8,
+    },
+    reportActions: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      gap: 10,
+      marginTop: 16,
+    },
+    reportCancel: {
+      flex: 1, paddingVertical: 13, alignItems: 'center', justifyContent: 'center',
+      borderRadius: BORDER_RADIUS.md, borderWidth: 1.5,
+    },
+    reportCancelText: { fontWeight: '800', fontSize: 14 },
+    reportSubmit: {
+      flex: 1.6, paddingVertical: 13, alignItems: 'center', justifyContent: 'center',
+      borderRadius: BORDER_RADIUS.md,
+    },
+    reportSubmitText: { color: '#fff', fontWeight: '800', fontSize: 14 },
   });

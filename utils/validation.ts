@@ -282,6 +282,31 @@ export const normalizeSaudiPhone = (phone: string): string => {
 };
 
 /**
+ * Convert any Saudi phone number into the bare international format that
+ * `https://wa.me/<number>` expects: digits only, no `+`, no spaces/dashes,
+ * with the `966` country code. Local numbers starting with `0` (e.g.
+ * `0512345678`) have the leading zero replaced by `966`.
+ *
+ *   0512345678   -> 966512345678
+ *   +966512345678 -> 966512345678
+ *   512345678    -> 966512345678
+ *
+ * Returns an empty string when no usable digits are present.
+ */
+export const toWhatsAppPhone = (phone: string | null | undefined): string => {
+  if (!phone) return '';
+  // Reuse the canonical normalizer, then drop the leading "+" so the value
+  // is pure digits as required by the wa.me URL scheme.
+  const normalized = normalizeSaudiPhone(String(phone));
+  let digits = normalized.replace(/[^\d]/g, '');
+  // Defensive fallback for inputs the normalizer left in local form
+  // (a bare local number that still starts with 0).
+  if (digits.startsWith('0')) digits = '966' + digits.slice(1);
+  if (!digits.startsWith('966') && digits.length >= 9) digits = '966' + digits;
+  return digits;
+};
+
+/**
  * Validate price (must be positive number)
  */
 export const validatePrice = (price: number | string): { valid: boolean; message: string } => {

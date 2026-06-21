@@ -167,6 +167,21 @@ export const uploadMarketMedia = async (
 };
 
 /**
+ * Upload a single technician-community post image to the public `community`
+ * bucket. Storage RLS requires the first path segment to be the uploader's
+ * user id. Returns the public URL to store in community_posts.image_url.
+ */
+export const uploadCommunityImage = async (
+  userId: string,
+  uri: string
+): Promise<string> => {
+  const folder = `${userId}/${Date.now()}`;
+  const url = await uploadOne('community', folder, uri, 0);
+  if (!url) throw new Error('Image upload failed');
+  return url;
+};
+
+/**
  * Upload a profile photo to the public `avatars` bucket. The storage RLS
  * policy requires the first path segment to be the user's id. Returns the
  * public URL ready to store in users.avatar_url.

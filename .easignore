@@ -1,0 +1,8 @@
+# Build artifacts that must never be bundled into the build context / upload.
+fixate-ios-production.ipa
+fixate-android-production.aab
+*.ipa
+*.aab
+# Local helper scripts for resilient EAS submits (not part of the app).
+scripts/android-build-retry.sh
+scripts/wait-builds.sh

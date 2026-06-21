@@ -203,11 +203,21 @@ export function AdminFilterChips<T extends string>({
   const { language, isDark } = useApp();
   const COLORS = getColors(isDark);
   const isRTL = language === 'ar';
+  const scrollRef = React.useRef<ScrollView>(null);
 
   return (
     <ScrollView
+      ref={scrollRef}
       horizontal
       showsHorizontalScrollIndicator={false}
+      // RTL-correct opening position: with `row-reverse` the first chip ("الكل")
+      // sits at the rightmost edge, but a horizontal ScrollView still opens at
+      // offset 0 (the left). Jumping to the content end on layout makes the row
+      // open showing the first/main chips on the right, as RTL users expect.
+      // No-op when the chips fit without scrolling.
+      onContentSizeChange={() => {
+        if (isRTL) scrollRef.current?.scrollToEnd({ animated: false });
+      }}
       // Fixed-height container prevents the bar from jittering when chip
       // counts update (e.g. "Pending (12)" → "Pending (3)" used to shift
       // the row height by 1–2px because padding was driving height).

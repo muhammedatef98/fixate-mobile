@@ -40,8 +40,16 @@ export default function ContactScreen() {
     Linking.openURL(`mailto:${CONTACT_INFO.email}`);
   };
 
-  const handleWhatsApp = () => {
-    Linking.openURL(`whatsapp://send?phone=${CONTACT_INFO.whatsapp}`);
+  const handleWhatsApp = async () => {
+    // Use the universal wa.me link (digits-only international number) — it
+    // opens the app when installed and falls back to the web client
+    // otherwise, unlike the whatsapp:// scheme which fails on some devices.
+    const digits = CONTACT_INFO.whatsapp.replace(/[^\d]/g, '');
+    try {
+      await Linking.openURL(`https://wa.me/${digits}`);
+    } catch {
+      // no-op: nothing else we can do if WhatsApp isn't available
+    }
   };
 
   const handleChatBot = () => {

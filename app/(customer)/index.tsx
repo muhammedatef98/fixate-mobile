@@ -9,6 +9,7 @@ import {
   Dimensions,
   Animated,
   StatusBar,
+  Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -18,6 +19,8 @@ import { useAuth } from '../../contexts/AuthContext';
 import BottomNav from '../../components/BottomNav';
 import Sidebar from '../../components/Sidebar';
 import { supabase } from '../../services/supabaseClient';
+import { ORDER_STATUS_LABELS_AR, ORDER_STATUS_LABELS_EN } from '../../types/order';
+import { formatAppDateOnly } from '../../lib/formatDate';
 import { logger } from '../../utils/logger';
 import { RTLIonicon, RTLMaterialIcon } from '../../components/RTLIcon';
 import { PressableScale, AnimatedTouchable } from '../../components/ui/PressableScale';
@@ -56,6 +59,32 @@ const QUICK_ACTIONS = [
     icon: 'map-marker-outline', accent: '#8B5CF6', route: '/addresses',
   },
 ];
+
+// Warranty length applied to every completed repair (months). Used to derive
+// the warranty-expiry date shown on the home "Repair warranty" card.
+const WARRANTY_MONTHS = 6;
+
+// Rotating weekly maintenance tips. The active tip is picked by ISO week
+// number so it changes once a week and is stable within the same week.
+// CATEGORY GUARD: tips must be about MOBILE PHONES, TABLETS or LAPTOPS ONLY —
+// never air conditioners, home appliances, TVs or any other category.
+const WEEKLY_TIPS: { ar: string; en: string }[] = [
+  { ar: 'لا تترك جوالك يشحن طوال الليل باستمرار للحفاظ على عمر البطارية.', en: "Avoid charging your phone overnight constantly to protect battery life." },
+  { ar: 'أبقِ نسبة شحن بطارية جهازك بين 20% و80% لإطالة عمرها.', en: 'Keep your device battery between 20% and 80% to extend its lifespan.' },
+  { ar: 'نظّف منفذ الشحن في جوالك من الغبار بفرشاة ناعمة لتجنب مشاكل الشحن.', en: "Clean your phone's charging port with a soft brush to avoid charging issues." },
+  { ar: 'حدّث نظام جوالك أو لابتوبك بانتظام لإصلاح الثغرات وتحسين الأداء.', en: 'Update your phone or laptop regularly to fix bugs and improve performance.' },
+  { ar: 'استخدم واقي شاشة وجراب جيد لجوالك أو تابلتك لتقليل أعطال السقوط.', en: 'Use a screen protector and a good case for your phone or tablet to reduce drop damage.' },
+  { ar: 'لا تشغّل اللابتوب على سطح ناعم كالسرير حتى لا تُسد فتحات التهوية.', en: "Don't use your laptop on soft surfaces like a bed — it blocks the air vents." },
+  { ar: 'أبعد جوالك ولابتوبك عن الحرارة العالية وأشعة الشمس المباشرة.', en: 'Keep your phone and laptop away from high heat and direct sunlight.' },
+  { ar: 'اعمل نسخة احتياطية لبيانات جوالك أسبوعياً تحسّباً لأي عطل مفاجئ.', en: "Back up your phone's data weekly in case of a sudden failure." },
+];
+
+const getWeeklyTip = () => {
+  const now = new Date();
+  const start = new Date(now.getFullYear(), 0, 1);
+  const week = Math.floor((now.getTime() - start.getTime()) / (7 * 24 * 60 * 60 * 1000));
+  return WEEKLY_TIPS[week % WEEKLY_TIPS.length];
+};
 
 const TRUST_POINTS = [
   { ar: 'ضمان 6 أشهر', en: '6-month warranty', sub_ar: 'على كل إصلاح', sub_en: 'On every repair', icon: 'shield-check', color: '#10b981' },
@@ -124,7 +153,7 @@ export default function CustomerHomeScreen() {
       // for returning customers (raises repeat-rate without nagging).
       const { data } = await supabase
         .from('orders')
-        .select('id, device_brand, device_model, issue_description, status, estimated_price, created_at')
+        .select('id, device_brand, device_model, issue_description, status, estimated_price, created_at, updated_at')
         .eq('user_id', user.id)
         .eq('status', 'completed')
         .order('created_at', { ascending: false })
@@ -152,6 +181,32 @@ export default function CustomerHomeScreen() {
   };
 
   const styles = makeStyles(COLORS, isRTL, SHADOWS);
+
+  // ── Derived data for the home action cards (FEAT-06) ──────────────
+  const statusLabels = isRTL ? ORDER_STATUS_LABELS_AR : ORDER_STATUS_LABELS_EN;
+  const activeStatusLabel = activeOrder
+    ? (statusLabels[activeOrder.status as keyof typeof statusLabels] ??
+       (isRTL ? 'قيد المتابعة' : 'In progress'))
+    : null;
+
+  // Warranty expiry = completion date + WARRANTY_MONTHS. We use updated_at as
+  // the completion proxy (orders flip to "completed" on their last update).
+  const warrantyExpiry = (() => {
+    const base = recentOrder?.updated_at ?? recentOrder?.created_at;
+    if (!base) return null;
+    const d = new Date(base);
+    if (Number.isNaN(d.getTime())) return null;
+    d.setMonth(d.getMonth() + WARRANTY_MONTHS);
+    return d;
+  })();
+  const warrantyActive = !!warrantyExpiry && warrantyExpiry.getTime() > Date.now();
+  // Gregorian (Miladi) only — formatAppDateOnly pins the gregory calendar so
+  // the expiry never renders as a Hijri date (ar-SA defaults to Hijri on
+  // Hermes, which is why we must not use toLocaleDateString here).
+  const warrantyLabel = warrantyExpiry ? formatAppDateOnly(warrantyExpiry, isRTL) : null;
+
+  const weeklyTip = getWeeklyTip();
+
   const greeting = (() => {
     const h = new Date().getHours();
     if (h < 12) return isRTL ? 'صباح الخير' : 'Good morning';
@@ -303,40 +358,115 @@ export default function CustomerHomeScreen() {
             <RTLIonicon name="chevron-forward" size={20} color={COLORS.primary} />
           </AnimatedTouchable>
 
-          {/* Quick Actions — fast access to the things customers do most
-              (FEAT-02, replaces the old "Last order" widget). */}
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.quickRow}
-          >
-            {[
-              { id: 'new', icon: 'plus-circle', accent: '#10B981', labelAr: 'طلب صيانة جديد', labelEn: 'New repair', route: '/request', badge: 0 },
-              { id: 'orders', icon: 'clipboard-text-clock-outline', accent: '#3B82F6', labelAr: 'طلباتي', labelEn: 'My requests', route: '/(customer)/orders', badge: 0 },
-              { id: 'chats', icon: 'message-text-outline', accent: '#8B5CF6', labelAr: 'المحادثات', labelEn: 'Chats', route: '/(customer)/orders', badge: 0 },
-              { id: 'quotes', icon: 'cash-multiple', accent: '#F59E0B', labelAr: 'عروض الأسعار', labelEn: 'Quotes', route: '/(customer)/orders', badge: pendingQuotes },
-            ].map((q) => (
-              <PressableScale
-                key={q.id}
-                onPress={() => router.push(q.route as any)}
-                style={[styles.quickCard, { backgroundColor: COLORS.card, borderColor: COLORS.border }]}
-                accessibilityRole="button"
-                accessibilityLabel={isRTL ? q.labelAr : q.labelEn}
-              >
-                <View style={[styles.quickIcon, { backgroundColor: q.accent + '18' }]}>
-                  <MaterialCommunityIcons name={q.icon as any} size={24} color={q.accent} />
-                  {q.badge > 0 && (
-                    <View style={styles.quickBadge}>
-                      <Text style={styles.quickBadgeText}>{q.badge}</Text>
-                    </View>
-                  )}
+          {/* Quick Actions — six distinct, genuinely useful cards (FEAT-06).
+              Each has its own icon, color accent and destination/inline info
+              rather than all pointing at the orders screen. */}
+          <View style={styles.actionGrid}>
+            {/* 1 — Track my order (status + progress hint) */}
+            <PressableScale
+              onPress={() =>
+                router.push(activeOrder ? `/order-details?id=${activeOrder.id}` : '/(customer)/orders')
+              }
+              style={[styles.actionCard, { backgroundColor: COLORS.card, borderColor: COLORS.border }]}
+              accessibilityRole="button"
+              accessibilityLabel={isRTL ? 'تتبع طلبي' : 'Track my order'}
+            >
+              <View style={[styles.actionIcon, { backgroundColor: '#3B82F6' + '18' }]}>
+                <MaterialCommunityIcons name="map-marker-path" size={22} color="#3B82F6" />
+              </View>
+              <Text style={[styles.actionTitle, { color: COLORS.text }]} numberOfLines={1}>
+                {isRTL ? 'تتبع طلبي' : 'Track my order'}
+              </Text>
+              {activeOrder ? (
+                <View style={styles.actionStatusRow}>
+                  <View style={[styles.actionDot, { backgroundColor: '#3B82F6' }]} />
+                  <Text style={[styles.actionSub, { color: '#3B82F6' }]} numberOfLines={1}>
+                    {activeStatusLabel}
+                  </Text>
                 </View>
-                <Text style={[styles.quickLabel, { color: COLORS.text }]} numberOfLines={1}>
-                  {isRTL ? q.labelAr : q.labelEn}
+              ) : (
+                <Text style={[styles.actionSub, { color: COLORS.textSecondary }]} numberOfLines={1}>
+                  {isRTL ? 'لا يوجد طلب نشط' : 'No active order'}
                 </Text>
-              </PressableScale>
-            ))}
-          </ScrollView>
+              )}
+            </PressableScale>
+
+            {/* 2 — Tip of the week (inline, taps to expand) */}
+            <PressableScale
+              onPress={() =>
+                Alert.alert(isRTL ? 'نصيحة الأسبوع' : 'Tip of the week', isRTL ? weeklyTip.ar : weeklyTip.en)
+              }
+              style={[styles.actionCard, { backgroundColor: COLORS.card, borderColor: COLORS.border }]}
+              accessibilityRole="button"
+              accessibilityLabel={isRTL ? 'نصيحة الأسبوع' : 'Tip of the week'}
+            >
+              <View style={[styles.actionIcon, { backgroundColor: '#10B981' + '18' }]}>
+                <MaterialCommunityIcons name="lightbulb-on-outline" size={22} color="#10B981" />
+              </View>
+              <Text style={[styles.actionTitle, { color: COLORS.text }]} numberOfLines={1}>
+                {isRTL ? 'نصيحة الأسبوع' : 'Tip of the week'}
+              </Text>
+              <Text style={[styles.actionSub, { color: COLORS.textSecondary }]} numberOfLines={2}>
+                {isRTL ? weeklyTip.ar : weeklyTip.en}
+              </Text>
+            </PressableScale>
+
+            {/* 3 — Repair warranty (status + expiry of last repair) */}
+            <PressableScale
+              onPress={() =>
+                recentOrder
+                  ? router.push(`/order-details?id=${recentOrder.id}`)
+                  : Alert.alert(
+                      isRTL ? 'ضمان الإصلاح' : 'Repair warranty',
+                      isRTL
+                        ? 'كل إصلاح يشمل ضمان 6 أشهر. سيظهر تاريخ الانتهاء هنا بعد أول إصلاح مكتمل.'
+                        : 'Every repair includes a 6-month warranty. The expiry date shows here after your first completed repair.'
+                    )
+              }
+              style={[styles.actionCard, { backgroundColor: COLORS.card, borderColor: COLORS.border }]}
+              accessibilityRole="button"
+              accessibilityLabel={isRTL ? 'ضمان الإصلاح' : 'Repair warranty'}
+            >
+              <View style={[styles.actionIcon, { backgroundColor: '#8B5CF6' + '18' }]}>
+                <MaterialCommunityIcons name="shield-check-outline" size={22} color="#8B5CF6" />
+              </View>
+              <Text style={[styles.actionTitle, { color: COLORS.text }]} numberOfLines={1}>
+                {isRTL ? 'ضمان الإصلاح' : 'Repair warranty'}
+              </Text>
+              {warrantyLabel ? (
+                <Text
+                  style={[styles.actionSub, { color: warrantyActive ? '#10B981' : COLORS.textSecondary }]}
+                  numberOfLines={1}
+                >
+                  {warrantyActive
+                    ? (isRTL ? `ساري حتى ${warrantyLabel}` : `Valid until ${warrantyLabel}`)
+                    : (isRTL ? 'منتهي الضمان' : 'Warranty expired')}
+                </Text>
+              ) : (
+                <Text style={[styles.actionSub, { color: COLORS.textSecondary }]} numberOfLines={1}>
+                  {isRTL ? 'ضمان 6 أشهر' : '6-month warranty'}
+                </Text>
+              )}
+            </PressableScale>
+
+            {/* 4 — Offers & discounts (opens the offers screen) */}
+            <PressableScale
+              onPress={() => router.push('/(customer)/offers')}
+              style={[styles.actionCard, { backgroundColor: COLORS.card, borderColor: COLORS.border }]}
+              accessibilityRole="button"
+              accessibilityLabel={isRTL ? 'عروض وخصومات' : 'Offers & discounts'}
+            >
+              <View style={[styles.actionIcon, { backgroundColor: '#EC4899' + '18' }]}>
+                <MaterialCommunityIcons name="tag-multiple-outline" size={22} color="#EC4899" />
+              </View>
+              <Text style={[styles.actionTitle, { color: COLORS.text }]} numberOfLines={1}>
+                {isRTL ? 'عروض وخصومات' : 'Offers & discounts'}
+              </Text>
+              <Text style={[styles.actionSub, { color: COLORS.textSecondary }]} numberOfLines={1}>
+                {isRTL ? 'تصفّح أحدث العروض' : 'Browse the latest deals'}
+              </Text>
+            </PressableScale>
+          </View>
 
           {/* Section: Choose your device */}
           <View style={styles.sectionHead}>
@@ -417,7 +547,9 @@ export default function CustomerHomeScreen() {
             ))}
           </View>
 
-          {/* AI assistant card — instant answers, can hand off to support */}
+          {/* AI assistant card — instant answers, can hand off to support.
+              (The separate "Need help?" support card was removed; the
+              assistant itself routes to support when needed.) */}
           <AnimatedTouchable
             onPress={() => router.push('/chatbot')}
             style={[styles.supportCard, { backgroundColor: COLORS.card, borderColor: COLORS.border, marginBottom: 12 }]}
@@ -434,27 +566,6 @@ export default function CustomerHomeScreen() {
               </Text>
               <Text style={[styles.supportSub, { color: COLORS.textSecondary }]}>
                 {isRTL ? 'إجابات فورية لأسئلتك الشائعة' : 'Instant answers to common questions'}
-              </Text>
-            </View>
-            <RTLMaterialIcon name="chevron-right" size={20} color={COLORS.primary} />
-          </AnimatedTouchable>
-
-          {/* Support card */}
-          <AnimatedTouchable
-            onPress={() => router.push('/support-chat')}
-            style={[styles.supportCard, { backgroundColor: COLORS.primary + '10', borderColor: COLORS.primary + '30' }]}
-            activeOpacity={0.85}
-            accessibilityRole="button"
-          >
-            <View style={[styles.supportIcon, { backgroundColor: COLORS.primary }]}>
-              <Ionicons name="chatbubble-ellipses" size={20} color="#fff" />
-            </View>
-            <View style={{ flex: 1, marginHorizontal: 12 }}>
-              <Text style={[styles.supportTitle, { color: COLORS.text }]}>
-                {isRTL ? 'تحتاج مساعدة؟' : 'Need help?'}
-              </Text>
-              <Text style={[styles.supportSub, { color: COLORS.textSecondary }]}>
-                {isRTL ? 'تواصل مع فريق الدعم مباشرة' : 'Chat with our support team'}
               </Text>
             </View>
             <RTLMaterialIcon name="chevron-right" size={20} color={COLORS.primary} />
@@ -632,43 +743,58 @@ const makeStyles = (C: any, isRTL: boolean, SHADOWS: any) =>
 
     // Recent activity card
     // FEAT-02 Quick Actions row
-    quickRow: {
+    // Home action cards (FEAT-06): a responsive 2-column grid of distinct
+    // cards, each with its own icon, accent and status/info line.
+    actionGrid: {
       flexDirection: isRTL ? 'row-reverse' : 'row',
+      flexWrap: 'wrap',
       gap: 12,
-      paddingBottom: 4,
       marginBottom: 24,
     },
-    quickCard: {
-      width: 104,
+    actionCard: {
+      width: (width - SPACING.m * 2 - 12) / 2,
+      minHeight: 116,
       borderRadius: BORDER_RADIUS.md,
       borderWidth: 1,
-      paddingVertical: 16,
-      paddingHorizontal: 10,
-      alignItems: 'center',
+      padding: 14,
+      alignItems: isRTL ? 'flex-end' : 'flex-start',
       ...SHADOWS.small,
     },
-    quickIcon: {
-      width: 48,
-      height: 48,
-      borderRadius: 24,
+    actionIcon: {
+      width: 44,
+      height: 44,
+      borderRadius: 14,
       alignItems: 'center',
       justifyContent: 'center',
       marginBottom: 10,
     },
-    quickBadge: {
-      position: 'absolute',
-      top: -4,
-      right: -4,
-      minWidth: 20,
-      height: 20,
-      borderRadius: 10,
-      paddingHorizontal: 5,
-      backgroundColor: '#EF4444',
-      alignItems: 'center',
-      justifyContent: 'center',
+    actionTitle: {
+      fontSize: 14,
+      fontWeight: '800',
+      marginBottom: 4,
+      textAlign: isRTL ? 'right' : 'left',
+      alignSelf: 'stretch',
     },
-    quickBadgeText: { color: '#fff', fontSize: 11, fontWeight: '800' },
-    quickLabel: { fontSize: 12.5, fontWeight: '700', textAlign: 'center' },
+    actionSub: {
+      fontSize: 12,
+      fontWeight: '600',
+      lineHeight: 17,
+      textAlign: isRTL ? 'right' : 'left',
+      alignSelf: 'stretch',
+    },
+    actionStatusRow: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
+      gap: 6,
+      alignSelf: 'stretch',
+    },
+    actionDot: { width: 7, height: 7, borderRadius: 4 },
+    actionBadge: {
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+      borderRadius: 999,
+    },
+    actionBadgeText: { fontSize: 11, fontWeight: '800' },
     recentCard: {
       borderRadius: BORDER_RADIUS.md,
       padding: 16,

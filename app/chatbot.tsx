@@ -84,11 +84,11 @@ const FAQS: Faq[] = [
   },
   {
     id: 'area',
-    q_ar: 'ما المناطق المغطاة؟',
+    q_ar: 'ما هي مناطق الخدمة؟',
     q_en: 'Which areas do you cover?',
-    a_ar: 'الخدمة متاحة حالياً في القطيف بالمنطقة الشرقية، ونعمل على توسيع التغطية قريباً.',
-    a_en: 'Service is currently available in Al Qatif, Eastern Province. We are expanding coverage soon.',
-    keywords: ['area', 'location', 'city', 'cover', 'qatif', 'منطقة', 'مدينة', 'موقع', 'القطيف', 'تغطية'],
+    a_ar: 'نخدم مدناً في جميع مناطق المملكة الـ13. عند إنشاء طلب تختار منطقتك ومدينتك وحيّك، ويتم ربط الموقع بالخريطة لتحديده بدقة. التغطية تتوسّع باستمرار.',
+    a_en: 'We cover cities across all 13 regions of Saudi Arabia. When you create a request you pick your region, city and neighborhood, and the location is linked to the map for accuracy. Coverage keeps expanding.',
+    keywords: ['area', 'areas', 'location', 'city', 'cover', 'coverage', 'region', 'منطقة', 'مناطق', 'مدينة', 'مدن', 'موقع', 'تغطية', 'خدمة'],
   },
   {
     id: 'pickup',
@@ -118,9 +118,97 @@ const FAQS: Faq[] = [
     id: 'technician',
     q_ar: 'كيف أصبح فنياً معكم؟',
     q_en: 'How do I become a technician?',
-    a_ar: 'سجّل كفني من شاشة اختيار الدور، أكمل بياناتك ووثائقك، وبعد اعتماد الفريق ستبدأ باستقبال الطلبات.',
-    a_en: 'Sign up as a technician from the role-selection screen, complete your details and documents, and once the team approves you, you can start receiving jobs.',
-    keywords: ['technician', 'join', 'work', 'apply', 'فني', 'انضمام', 'توظيف', 'اعمل'],
+    a_ar: 'يمكنك التسجيل كفني من خلال تطبيق Fixate، أدخل بياناتك وتخصصك ومنطقتك، وسيتم مراجعة طلبك من قِبل الإدارة والموافقة عليه.',
+    a_en: 'You can register as a technician through the Fixate app — enter your details, specialty and region, and your application will be reviewed and approved by the admin team.',
+    keywords: ['technician', 'join', 'work', 'apply', 'become', 'فني', 'فنياً', 'فنيا', 'انضمام', 'توظيف', 'اعمل', 'أصبح'],
+  },
+  {
+    id: 'cannot_fix',
+    q_ar: 'ماذا لو لم يتمكن الفني من إصلاح الجهاز؟',
+    q_en: "What if the technician can't fix my device?",
+    a_ar: 'إذا تعذّر الإصلاح فلن تدفع تكلفة الإصلاح. الفحص مجاني دائماً، وإن كان العطل غير قابل للإصلاح سيوضّح لك الفني السبب والخيارات المتاحة.',
+    a_en: "If the device can't be repaired you won't pay any repair cost — inspection is always free. The technician will explain why and what your options are.",
+    keywords: ['cannot', "can't", 'fail', 'unfixable', 'not fixed', 'يصلح', 'يصلحه', 'يتمكن', 'فشل', 'تعذر', 'مايصير'],
+  },
+  {
+    id: 'cancel',
+    q_ar: 'هل يمكنني إلغاء الطلب؟',
+    q_en: 'Can I cancel my order?',
+    a_ar: 'نعم، يمكنك إلغاء الطلب من «طلباتي» قبل بدء الإصلاح دون أي رسوم. بعد الموافقة على عرض السعر وبدء العمل قد تُطبّق رسوم القطع المستخدمة.',
+    a_en: 'Yes — you can cancel from "My Requests" before the repair starts at no charge. After you approve a quote and work begins, charges for used parts may apply.',
+    keywords: ['cancel', 'cancellation', 'إلغاء', 'الغاء', 'ألغي', 'الغي', 'إلغ'],
+  },
+  {
+    id: 'rate',
+    q_ar: 'كيف أقيّم الفني؟',
+    q_en: 'How do I rate the technician?',
+    a_ar: 'بعد اكتمال الطلب يظهر لك خيار التقييم في تفاصيل الطلب — امنح نجوماً واكتب ملاحظتك. تقييمك يساعدنا على رفع جودة الخدمة.',
+    a_en: 'After an order is completed a rating option appears in the order details — give stars and leave a note. Your feedback helps us keep quality high.',
+    keywords: ['rate', 'rating', 'review', 'stars', 'feedback', 'تقييم', 'أقيم', 'اقيم', 'نجوم', 'تقييمات'],
+  },
+  {
+    id: 'hours',
+    q_ar: 'هل الخدمة متاحة على مدار الساعة؟',
+    q_en: 'Is the service available 24/7?',
+    a_ar: 'يمكنك إرسال طلبك في أي وقت عبر التطبيق. تُنفَّذ الزيارات خلال ساعات العمل، ويصلك الفني في أقرب موعد متاح حسب منطقتك.',
+    a_en: 'You can submit a request any time in the app. Visits are carried out during working hours, and a technician reaches you at the earliest available slot for your area.',
+    keywords: ['24', '24/7', 'hours', 'always', 'anytime', 'ساعة', 'الساعة', 'مدار', 'دوام', 'وقت'],
+  },
+  {
+    id: 'devices',
+    q_ar: 'ما الأجهزة التي تدعمها Fixate؟',
+    q_en: 'Which devices does Fixate support?',
+    a_ar: 'ندعم الجوّالات، اللابتوبات، الأجهزة اللوحية (التابلت)، الساعات الذكية وأجهزة الألعاب. اختر نوع جهازك عند إنشاء الطلب.',
+    a_en: 'We support phones, laptops, tablets, smartwatches and gaming devices. Pick your device type when creating a request.',
+    keywords: ['device', 'devices', 'support', 'phone', 'laptop', 'tablet', 'watch', 'gaming', 'أجهزة', 'جهاز', 'جوال', 'لابتوب', 'تابلت', 'ساعة', 'ألعاب', 'تدعم'],
+  },
+  {
+    id: 'parts_genuine',
+    q_ar: 'هل قطع الغيار أصلية؟',
+    q_en: 'Are the spare parts genuine?',
+    a_ar: 'نحرص على استخدام قطع غيار أصلية أو عالية الجودة، ويوضّح لك الفني نوع القطعة وسعرها ضمن عرض السعر قبل الموافقة.',
+    a_en: 'We use genuine or high-quality parts, and the technician specifies the part type and price within the quote before you approve.',
+    keywords: ['genuine', 'original', 'part', 'parts', 'quality', 'قطع', 'قطعة', 'أصلية', 'اصلية', 'غيار', 'جودة'],
+  },
+  {
+    id: 'reschedule',
+    q_ar: 'هل أستطيع تغيير موعد الزيارة؟',
+    q_en: 'Can I change the visit time?',
+    a_ar: 'نعم، يمكنك التنسيق مع الفني عبر المحادثة داخل الطلب لتغيير الموعد بما يناسبك قبل وصوله.',
+    a_en: "Yes — coordinate with the technician through the in-order chat to reschedule before they arrive.",
+    keywords: ['reschedule', 'change time', 'appointment', 'موعد', 'تغيير', 'أجل', 'تأجيل', 'الزيارة'],
+  },
+  {
+    id: 'discount',
+    q_ar: 'هل توجد أكواد خصم؟',
+    q_en: 'Are there discount codes?',
+    a_ar: 'نطرح عروضاً وأكواد خصم من وقت لآخر. تابع قسم العروض في التطبيق وأدخل الكود عند الدفع للاستفادة منه.',
+    a_en: 'We run offers and discount codes from time to time. Check the offers section in the app and enter the code at checkout to use it.',
+    keywords: ['discount', 'promo', 'coupon', 'code', 'offer', 'offers', 'خصم', 'كود', 'أكواد', 'عرض', 'عروض', 'كوبون'],
+  },
+  {
+    id: 'account',
+    q_ar: 'كيف أنشئ حساباً أو أسجّل الدخول؟',
+    q_en: 'How do I create an account or log in?',
+    a_ar: 'يمكنك التسجيل والدخول برقم جوالك السعودي عبر رمز التحقق، أو بالبريد الإلكتروني. لن تحتاج لإعادة الإدخال في كل مرة.',
+    a_en: 'You can sign up and log in with your Saudi phone number via an OTP code, or with your email. You stay signed in between visits.',
+    keywords: ['account', 'login', 'log in', 'sign up', 'register', 'otp', 'حساب', 'تسجيل', 'دخول', 'تسجل', 'رمز'],
+  },
+  {
+    id: 'invoice',
+    q_ar: 'هل أحصل على فاتورة؟',
+    q_en: 'Do I get an invoice?',
+    a_ar: 'نعم، بعد إتمام الدفع تُتاح لك فاتورة بتفاصيل الخدمة والقطع داخل تفاصيل الطلب.',
+    a_en: 'Yes — once payment is complete an invoice with the service and parts breakdown is available in your order details.',
+    keywords: ['invoice', 'receipt', 'bill', 'فاتورة', 'إيصال', 'ايصال', 'فواتير'],
+  },
+  {
+    id: 'data_safety',
+    q_ar: 'هل بياناتي وجهازي بأمان؟',
+    q_en: 'Is my data and device safe?',
+    a_ar: 'فنيونا معتمدون ومراجَعون من الإدارة. ننصح بعمل نسخة احتياطية لبياناتك قبل أي إصلاح، ونتعامل مع جهازك بسرية واحترافية.',
+    a_en: 'Our technicians are verified and admin-approved. We recommend backing up your data before any repair, and we handle your device confidentially and professionally.',
+    keywords: ['data', 'privacy', 'safe', 'secure', 'security', 'بيانات', 'خصوصية', 'أمان', 'امان', 'سرية', 'آمن'],
   },
 ];
 
@@ -157,6 +245,33 @@ export default function ChatbotScreen() {
     return () => clearTimeout(t);
   }, [messages]);
 
+  // Token-boundary keyword match. The old logic used naive `includes`, which
+  // matched substrings across word boundaries — e.g. "مع‌كم" (with you) hit
+  // the price FAQ's "كم" keyword, so "كيف أصبح فنياً معكم؟" returned the
+  // wrong (pricing) answer. We now tokenize the message and require a token
+  // to *equal or start with* the keyword (single words), or match the whole
+  // phrase (multi-word keywords). The FAQ with the most hits wins.
+  const matchFaq = (msg: string): Faq | null => {
+    const tokens = msg.split(/[^\p{L}\p{N}]+/u).filter(Boolean);
+    let best: Faq | null = null;
+    let bestScore = 0;
+    for (const f of FAQS) {
+      let score = 0;
+      for (const raw of f.keywords) {
+        const k = raw.toLowerCase();
+        const hit = k.includes(' ')
+          ? msg.includes(k)
+          : tokens.some((t) => t === k || (k.length >= 3 && t.startsWith(k)));
+        if (hit) score += 1;
+      }
+      if (score > bestScore) {
+        bestScore = score;
+        best = f;
+      }
+    }
+    return bestScore > 0 ? best : null;
+  };
+
   const findAnswer = (raw: string): { text: string; offerHandoff: boolean } => {
     const msg = raw.toLowerCase().trim();
     if (HANDOFF_KEYWORDS.some((k) => msg.includes(k))) {
@@ -167,7 +282,7 @@ export default function ChatbotScreen() {
         offerHandoff: true,
       };
     }
-    const hit = FAQS.find((f) => f.keywords.some((k) => msg.includes(k.toLowerCase())));
+    const hit = matchFaq(msg);
     if (hit) {
       return { text: isRTL ? hit.a_ar : hit.a_en, offerHandoff: false };
     }
@@ -206,7 +321,14 @@ export default function ChatbotScreen() {
   // open so the user can immediately tap another (FEAT-03).
   const handleQuickQuestion = (f: Faq) => {
     setActiveFaqId(f.id);
-    sendMessage(isRTL ? f.q_ar : f.q_en);
+    // Answer directly from the tapped FAQ instead of round-tripping through
+    // keyword matching — guarantees the right answer for the exact question.
+    const question = isRTL ? f.q_ar : f.q_en;
+    setMessages((prev) => [
+      ...prev,
+      { id: `${Date.now()}-user`, text: question, isBot: false, timestamp: new Date() },
+    ]);
+    setTimeout(() => pushBot(isRTL ? f.a_ar : f.a_en, false), 500);
   };
 
   return (

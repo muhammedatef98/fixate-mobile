@@ -8,15 +8,31 @@ import { useApp } from '../../contexts/AppContext';
 import { logger } from '../../utils/logger';
 import { safeBack } from '../../utils/navigation';
 import { formatAppDateOnly } from '../../lib/formatDate';
+import { AdminFilterChips, type AdminFilterChip } from '../../components/admin/AdminUI';
 
-// Color-coded per status: pending/accepted = orange, active = blue,
-// completed = green, rejected = red (see Fix 6d / Fix 7).
-const STATUS_TABS = [
-  { id: 'accepted', labelAr: 'مقبولة', labelEn: 'Accepted', color: '#F59E0B' },
-  { id: 'in_progress', labelAr: 'قيد التنفيذ', labelEn: 'In Progress', color: '#3B82F6' },
-  { id: 'completed', labelAr: 'مكتملة', labelEn: 'Completed', color: '#10B981' },
-  { id: 'rejected', labelAr: 'مرفوضة', labelEn: 'Rejected', color: '#EF4444' },
+// Status filter chips — same pill-chip style as the customer orders screen
+// (reuses AdminFilterChips). RTL order: الكل · مكتملة · قيد التنفيذ · مقبولة ·
+// مرفوضة · ملغاة. Each key maps directly to a real order status string.
+type OrderFilterKey = 'all' | 'completed' | 'in_progress' | 'accepted' | 'rejected' | 'cancelled';
+
+const ORDER_FILTERS: AdminFilterChip<OrderFilterKey>[] = [
+  { key: 'all', ar: 'الكل', en: 'All' },
+  { key: 'completed', ar: 'مكتملة', en: 'Completed' },
+  { key: 'in_progress', ar: 'قيد التنفيذ', en: 'In progress' },
+  { key: 'accepted', ar: 'مقبولة', en: 'Accepted' },
+  { key: 'rejected', ar: 'مرفوضة', en: 'Rejected' },
+  { key: 'cancelled', ar: 'ملغاة', en: 'Cancelled' },
 ];
+
+// Per-status badge config (label + colour). Color-coded: accepted = orange,
+// active = blue, completed = green, rejected/cancelled = red.
+const STATUS_CONFIG: Record<string, { labelAr: string; labelEn: string; color: string }> = {
+  accepted: { labelAr: 'مقبولة', labelEn: 'Accepted', color: '#F59E0B' },
+  in_progress: { labelAr: 'قيد التنفيذ', labelEn: 'In Progress', color: '#3B82F6' },
+  completed: { labelAr: 'مكتملة', labelEn: 'Completed', color: '#10B981' },
+  rejected: { labelAr: 'مرفوضة', labelEn: 'Rejected', color: '#EF4444' },
+  cancelled: { labelAr: 'ملغاة', labelEn: 'Cancelled', color: '#EF4444' },
+};
 
 export default function MyOrdersScreen() {
   const router = useRouter();
@@ -26,13 +42,14 @@ export default function MyOrdersScreen() {
   const isRTL = language === 'ar';
   const styles = makeStyles(isRTL);
 
-  const [selectedTab, setSelectedTab] = useState('accepted');
+  const [filter, setFilter] = useState<OrderFilterKey>('all');
   const [orders, setOrders] = useState<any[]>([]);
   const [refreshing, setRefreshing] = useState(false);
 
+  // Load all of the technician's orders once; the chips filter client-side.
   useEffect(() => {
     loadOrders();
-  }, [selectedTab]);
+  }, []);
 
   const loadOrders = async () => {
     try {
@@ -40,15 +57,16 @@ export default function MyOrdersScreen() {
       if (!user) return;
 
       const allOrders = await requests.getMyOrders();
-      const myOrders = allOrders.filter((o: any) => 
-        o.technician_id === user.id && o.status === selectedTab
-      );
-      
+      const myOrders = allOrders.filter((o: any) => o.technician_id === user.id);
+
       setOrders(myOrders);
     } catch (error) {
       logger.error('Error loading orders:', error);
     }
   };
+
+  // Derived view — chip key maps directly to the order status string.
+  const visibleOrders = filter === 'all' ? orders : orders.filter((o) => o.status === filter);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -67,7 +85,7 @@ export default function MyOrdersScreen() {
 
   const renderOrderCard = (order: any) => {
     if (!order || !order.id) return null;
-    const statusConfig = STATUS_TABS.find(t => t.id === order.status);
+    const statusConfig = STATUS_CONFIG[order.status];
     // A rejected order is final & read-only — mute the card and drop all
     // action buttons so it visually reads as "closed/ended" (Fix 7).
     const isRejected = order.status === 'rejected';
@@ -179,28 +197,8 @@ export default function MyOrdersScreen() {
         <View style={{ width: 24 }} />
       </View>
 
-      {/* Status Tabs */}
-      <View style={styles.tabs}>
-        {STATUS_TABS.map((tab) => (
-          <TouchableOpacity
-            key={tab.id}
-            style={[
-              styles.tab,
-              selectedTab === tab.id && { backgroundColor: `${tab.color}15` }
-            ]}
-            onPress={() => setSelectedTab(tab.id)}
-          >
-            <Text
-              style={[
-                styles.tabText,
-                { color: selectedTab === tab.id ? tab.color : COLORS.textSecondary }
-              ]}
-            >
-              {language === 'ar' ? tab.labelAr : tab.labelEn}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
+      {/* Status filter bar — admin-style pill chips */}
+      <AdminFilterChips filters={ORDER_FILTERS} value={filter} onChange={setFilter} />
 
       {/* Orders List */}
       <ScrollView
@@ -211,7 +209,7 @@ export default function MyOrdersScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
       >
-        {orders.length === 0 ? (
+        {visibleOrders.length === 0 ? (
           <View style={[styles.emptyState, { backgroundColor: COLORS.card }, SHADOWS.small]}>
             <MaterialCommunityIcons name="inbox" size={48} color={COLORS.textSecondary} />
             <Text style={[styles.emptyStateText, { color: COLORS.textSecondary }]}>
@@ -219,7 +217,7 @@ export default function MyOrdersScreen() {
             </Text>
           </View>
         ) : (
-          orders.map(renderOrderCard)
+          visibleOrders.map(renderOrderCard)
         )}
       </ScrollView>
     </SafeAreaView>
@@ -240,23 +238,6 @@ const makeStyles = (isRTL: boolean) => StyleSheet.create({
   headerTitle: {
     fontSize: 22,
     fontWeight: '800',
-  },
-  tabs: {
-    flexDirection: isRTL ? 'row-reverse' : 'row',
-    paddingHorizontal: SPACING.lg,
-    gap: SPACING.sm,
-    marginBottom: SPACING.md,
-  },
-  tab: {
-    flex: 1,
-    paddingVertical: SPACING.md,
-    paddingHorizontal: SPACING.sm,
-    borderRadius: BORDER_RADIUS.md,
-    alignItems: 'center',
-  },
-  tabText: {
-    fontSize: 13,
-    fontWeight: '600',
   },
   scrollView: {
     flex: 1,

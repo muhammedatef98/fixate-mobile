@@ -32,6 +32,9 @@ export default function MarketBottomTabs() {
   const tabs = isRTL ? [...MARKET_TABS].reverse() : MARKET_TABS;
   const styles = makeStyles(COLORS, isDark);
 
+  // The root ScreenFrame (app/_layout.tsx) applies the Android bottom inset, so
+  // this bar uses a plain fixed offset and is lifted above the system nav bar
+  // by that frame. iOS keeps its existing 30px offset.
   return (
     <View style={styles.container}>
       <View style={styles.floatingBar}>

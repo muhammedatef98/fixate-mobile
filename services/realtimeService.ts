@@ -1,6 +1,8 @@
+import type { RealtimeChannel } from '@supabase/supabase-js';
 import { Order } from './orderService';
 import { logger } from '../utils/logger';
 import { subscribeUnique } from '../utils/realtimeChannel';
+import { supabase } from './supabaseClient';
 
 /**
  * Realtime subscriptions for the orders table. All three helpers go
@@ -69,6 +71,60 @@ export const subscribeToOrderUpdates = (
       }
     )
   );
+};
+
+/**
+ * Listen for orders that have just LEFT the available pool (accepted by
+ * another technician, cancelled, etc.) so they can be removed from every
+ * technician's "available orders" list instantly.
+ *
+ * Why broadcast instead of postgres_changes: the technician RLS policy only
+ * grants SELECT on `status = 'pending' AND technician_id IS NULL`. The moment
+ * an order is accepted it stops matching that policy, so a `postgres_changes`
+ * UPDATE event is filtered out by Realtime authorization and never reaches
+ * the other technicians. A database trigger broadcasts the order id to the
+ * shared private `available-orders` topic, which is not row-RLS-gated, so
+ * every connected technician receives the removal in real time.
+ *
+ * @returns synchronous cleanup callable for a useEffect cleanup.
+ */
+export const subscribeToAvailableOrderRemovals = (
+  onRemove: (orderId: string) => void
+): (() => void) => {
+  let channel: RealtimeChannel | null = null;
+  let cancelled = false;
+
+  (async () => {
+    try {
+      // Sign the realtime socket so the private channel is authorized.
+      await supabase.realtime.setAuth();
+    } catch (e) {
+      logger.warn('realtime setAuth failed (available-orders)', e);
+    }
+    if (cancelled) return;
+    try {
+      channel = supabase
+        .channel('available-orders', { config: { private: true } })
+        .on('broadcast', { event: 'order_unavailable' }, (msg: any) => {
+          const id =
+            msg?.payload?.id ??
+            msg?.payload?.record?.id ??
+            msg?.payload?.old_record?.id;
+          if (id) onRemove(String(id));
+        })
+        .subscribe();
+    } catch (e) {
+      logger.warn('subscribeToAvailableOrderRemovals failed', e);
+    }
+  })();
+
+  return () => {
+    cancelled = true;
+    if (channel) {
+      supabase.removeChannel(channel);
+      channel = null;
+    }
+  };
 };
 
 /**

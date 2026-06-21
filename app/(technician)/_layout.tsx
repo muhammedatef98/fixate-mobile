@@ -22,9 +22,10 @@ import BottomNavTech from '../../components/BottomNavTech';
 const PERSISTENT_TAB_SEGMENTS = new Set<string>([
   '',                  // /(technician)            → group root, i.e. index
   'index',             // /(technician)/index      → some routers emit 'index'
-  'my-orders',         // Jobs tab
+  'my-orders',         // reachable sub-route (Jobs list) — keep bar visible
   'chats',             // Customer Chats tab
-  'profile',           // Profile tab
+  'community',         // Community tab
+  'profile',           // My Account tab
   // available-orders is no longer a tab but still reachable as a sub-route;
   // we keep the bar visible there so the technician can return to Home/Jobs
   // without a manual back navigation.
@@ -199,6 +200,7 @@ export default function TechnicianLayout() {
         <Stack.Screen name="job/[id]" />
         <Stack.Screen name="service-availability" options={{ headerShown: false }} />
         <Stack.Screen name="ratings" options={{ headerShown: false }} />
+        <Stack.Screen name="community" options={{ headerShown: false }} />
       </Stack>
       {showBottomNav && <BottomNavTech />}
     </View>

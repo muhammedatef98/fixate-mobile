@@ -42,6 +42,7 @@ import { supabase } from '../services/supabaseClient';
 import SkeletonLoader from '../components/SkeletonLoader';
 import MarketBottomTabs, { MARKET_TABS_HEIGHT } from '../components/MarketBottomTabs';
 import { AnimatedTouchable } from '../components/ui/PressableScale';
+import { AdminFilterChips, type AdminFilterChip } from '../components/admin/AdminUI';
 
 // Tiny SVG blurhash-equivalent placeholder used while the network image
 // streams in. expo-image fades the real image in over this, so cards never
@@ -69,6 +70,14 @@ const DEVICE_CHIPS: { id: DeviceType | 'all'; ar: string; en: string; icon: stri
   { id: 'all', ar: 'الكل', en: 'All', icon: 'view-grid' },
   ...MARKET_DEVICE_TYPES,
 ];
+
+// Same shape AdminFilterChips expects (key/ar/en) — lets the marketplace
+// category filter reuse the exact admin orders-management chip style.
+const DEVICE_FILTER_CHIPS: AdminFilterChip<DeviceType | 'all'>[] = DEVICE_CHIPS.map((c) => ({
+  key: c.id,
+  ar: c.ar,
+  en: c.en,
+}));
 
 const CONDITION_OPTS: { id: ListingCondition; ar: string; en: string }[] = [
   { id: 'new',         ar: 'جديد',        en: 'New' },
@@ -117,55 +126,6 @@ const timeAgo = (iso: string | undefined, isRTL: boolean): string => {
   return isRTL ? `قبل ${yr} س` : `${yr}y ago`;
 };
 
-/** A single device-filter chip. Its label color eases between secondary and
- *  primary as it becomes active, so the active state never snaps. The sliding
- *  pill (rendered by the parent) supplies the moving background indicator. */
-function DeviceChip({
-  chip,
-  active,
-  isRTL,
-  COLORS,
-  styles,
-  onPress,
-  onLayout,
-}: {
-  chip: { id: string; ar: string; en: string; icon: string };
-  active: boolean;
-  isRTL: boolean;
-  COLORS: ReturnType<typeof getColors>;
-  styles: any;
-  onPress: () => void;
-  onLayout: (e: LayoutChangeEvent) => void;
-}) {
-  const t = useRef(new Animated.Value(active ? 1 : 0)).current;
-  useEffect(() => {
-    Animated.timing(t, {
-      toValue: active ? 1 : 0,
-      duration: 200,
-      useNativeDriver: false,
-    }).start();
-  }, [active, t]);
-  const color = t.interpolate({
-    inputRange: [0, 1],
-    outputRange: [COLORS.textSecondary, COLORS.primary],
-  });
-  return (
-    <Pressable onPress={onPress} onLayout={onLayout} android_ripple={null as any} style={styles.deviceChip}>
-      <MaterialCommunityIcons
-        name={chip.icon as any}
-        size={17}
-        color={active ? COLORS.primary : COLORS.textSecondary}
-      />
-      <Animated.Text
-        style={[styles.deviceChipText, { color, fontWeight: active ? '800' : '700' }]}
-        numberOfLines={1}
-      >
-        {isRTL ? chip.ar : chip.en}
-      </Animated.Text>
-    </Pressable>
-  );
-}
-
 export default function MarketScreen() {
   const router = useRouter();
   const { language, isDark } = useApp();
@@ -193,6 +153,29 @@ export default function MarketScreen() {
   const [minPrice, setMinPrice] = useState('');
   const [maxPrice, setMaxPrice] = useState('');
   const [filtersOpen, setFiltersOpen] = useState(false);
+  // Snapshot of the filter values when the sheet opens, so "Cancel" (إلغاء)
+  // can restore them — filters are applied live as the user edits them.
+  const filtersSnapshot = useRef<{
+    sort: SortKey; condition: ListingCondition | null;
+    city: string; minPrice: string; maxPrice: string;
+  } | null>(null);
+
+  const openFilters = useCallback(() => {
+    filtersSnapshot.current = { sort, condition, city, minPrice, maxPrice };
+    setFiltersOpen(true);
+  }, [sort, condition, city, minPrice, maxPrice]);
+
+  const cancelFilters = useCallback(() => {
+    const s = filtersSnapshot.current;
+    if (s) {
+      setSort(s.sort);
+      setCondition(s.condition);
+      setCity(s.city);
+      setMinPrice(s.minPrice);
+      setMaxPrice(s.maxPrice);
+    }
+    setFiltersOpen(false);
+  }, []);
 
   const [listings, setListings] = useState<MarketListing[]>([]);
   // Map<seller_id, is_verified> — populated alongside `listings` so cards
@@ -203,53 +186,15 @@ export default function MarketScreen() {
   const [marketplaceEnabled, setMarketplaceEnabled] = useState(true);
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
   const [savedOnly, setSavedOnly] = useState(false);
-  const deviceStripRef = useRef<ScrollView>(null);
-
-  // Animated filter tabs: a sliding underline tracks the active chip, and the
-  // result grid fades in on every filter change. Chip x/width are measured via
-  // onLayout (chips are variable width), the underline animates to them, and
-  // `indicatorReady` avoids flashing it at 0,0 before the first measurement.
-  const chipLayouts = useRef<Record<string, { x: number; width: number }>>({});
-  const indicatorX = useRef(new Animated.Value(0)).current;
-  const indicatorW = useRef(new Animated.Value(0)).current;
-  const [indicatorReady, setIndicatorReady] = useState(false);
+  // The result grid fades in on every filter change (the active category is
+  // now indicated by the AdminFilterChips pill style rather than a sliding
+  // underline — see CHANGE 6).
   const listFade = useRef(new Animated.Value(1)).current;
 
-  const moveIndicatorTo = useCallback(
-    (id: string, animated: boolean) => {
-      const l = chipLayouts.current[id];
-      if (!l) return;
-      if (animated) {
-        Animated.parallel([
-          Animated.spring(indicatorX, { toValue: l.x, useNativeDriver: false, speed: 18, bounciness: 6 }),
-          Animated.spring(indicatorW, { toValue: l.width, useNativeDriver: false, speed: 18, bounciness: 6 }),
-        ]).start();
-      } else {
-        indicatorX.setValue(l.x);
-        indicatorW.setValue(l.width);
-      }
-      setIndicatorReady(true);
-    },
-    [indicatorX, indicatorW]
-  );
-
-  const onChipLayout = useCallback(
-    (id: string, e: LayoutChangeEvent) => {
-      const { x, width } = e.nativeEvent.layout;
-      chipLayouts.current[id] = { x, width };
-      // Position the underline under the active chip as soon as it's measured.
-      if (id === device) moveIndicatorTo(id, false);
-    },
-    [device, moveIndicatorTo]
-  );
-
-  // Slide the underline to the newly-active chip and fade the grid back in
-  // (opacity 0 → 1, ~150ms) whenever the device filter changes.
   useEffect(() => {
-    moveIndicatorTo(device, true);
     listFade.setValue(0);
     Animated.timing(listFade, { toValue: 1, duration: 150, useNativeDriver: true }).start();
-  }, [device, moveIndicatorTo, listFade]);
+  }, [device, listFade]);
 
   // Favorites are now per-user, stored server-side in `market_favorites`
   // with RLS gating reads/writes to the row owner. We reset the local set
@@ -636,7 +581,7 @@ export default function MarketScreen() {
           )}
         </View>
         <AnimatedTouchable
-          onPress={() => setFiltersOpen(true)}
+          onPress={() => openFilters()}
           style={[styles.filterBtn, activeFilterCount > 0 && { borderColor: COLORS.primary }]}
           accessibilityRole="button"
           accessibilityLabel={isRTL ? 'فلاتر' : 'Filters'}
@@ -658,48 +603,10 @@ export default function MarketScreen() {
           and had to scroll right to find "الكل / جوال / لابتوب". We now
           jump to the content-end on initial layout in RTL so the rail
           opens on the first/main categories. */}
-      <ScrollView
-        ref={deviceStripRef}
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.deviceStrip}
-        style={{ maxHeight: 64 }}
-        onContentSizeChange={(w) => {
-          if (isRTL && w > 0) {
-            // Defer one frame so layout settles before we scroll.
-            requestAnimationFrame(() => {
-              deviceStripRef.current?.scrollToEnd({ animated: false });
-            });
-          }
-        }}
-      >
-        {/* Sliding indicator pill — animates its x/width to sit under the
-            active chip. Rendered first (behind the chips) and the chips are
-            transparent so it reads as the active background. */}
-        <Animated.View
-          pointerEvents="none"
-          style={[
-            styles.deviceChipPill,
-            {
-              opacity: indicatorReady ? 1 : 0,
-              width: indicatorW,
-              transform: [{ translateX: indicatorX }],
-            },
-          ]}
-        />
-        {DEVICE_CHIPS.map((c) => (
-          <DeviceChip
-            key={c.id}
-            chip={c}
-            active={device === c.id}
-            isRTL={isRTL}
-            COLORS={COLORS}
-            styles={styles}
-            onPress={() => setDevice(c.id)}
-            onLayout={(e) => onChipLayout(c.id, e)}
-          />
-        ))}
-      </ScrollView>
+      {/* Category filter — reuses the exact admin orders-management pill-chip
+          style (AdminFilterChips) so the marketplace reads as one design
+          language with the admin screens (CHANGE 6). Filter logic unchanged. */}
+      <AdminFilterChips filters={DEVICE_FILTER_CHIPS} value={device} onChange={setDevice} />
 
       {/* Grid — fades in (opacity 0 → 1) on every filter change. */}
       <Animated.View style={{ flex: 1, opacity: listFade }}>
@@ -717,7 +624,7 @@ export default function MarketScreen() {
           <Text style={styles.emptyTitle}>
             {savedOnly
               ? (isRTL ? 'لا توجد محفوظات' : 'No saved listings yet')
-              : (isRTL ? 'لا توجد نتائج' : 'No results')}
+              : (isRTL ? 'لا توجد منتجات حالياً' : 'No products yet')}
           </Text>
           <Text style={styles.emptySub}>
             {savedOnly
@@ -751,7 +658,7 @@ export default function MarketScreen() {
                     : `${displayedListings.length} ${displayedListings.length === 1 ? 'result' : 'results'}`)}
             </Text>
             <AnimatedTouchable
-              onPress={() => setFiltersOpen(true)}
+              onPress={() => openFilters()}
               style={styles.sortChip}
               accessibilityRole="button"
             >
@@ -816,9 +723,9 @@ export default function MarketScreen() {
       <MarketBottomTabs />
 
       {/* Filter sheet */}
-      <Modal visible={filtersOpen} animationType="slide" transparent onRequestClose={() => setFiltersOpen(false)}>
+      <Modal visible={filtersOpen} animationType="slide" transparent onRequestClose={cancelFilters}>
         <View style={styles.modalBackdrop}>
-          <AnimatedTouchable style={StyleSheet.absoluteFill} onPress={() => setFiltersOpen(false)} />
+          <AnimatedTouchable style={StyleSheet.absoluteFill} onPress={cancelFilters} />
           <View style={[styles.sheet, { backgroundColor: COLORS.card }]}>
             <View style={[styles.sheetHandle, { backgroundColor: COLORS.border }]} />
             <Text style={styles.sheetTitle}>{isRTL ? 'تصفية النتائج' : 'Refine results'}</Text>
@@ -897,25 +804,46 @@ export default function MarketScreen() {
               })}
             </View>
 
-            <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', gap: 10, marginTop: 18 }}>
-              <AnimatedTouchable
-                style={[styles.sheetSecondary, { borderColor: COLORS.border }]}
-                onPress={() => {
-                  setCondition(null);
-                  setCity('');
-                  setMinPrice('');
-                  setMaxPrice('');
-                  setSort('newest');
-                }}
+            {/* Reset-all link — kept subtle so it never competes with the
+                primary Apply / Cancel actions below. */}
+            <TouchableOpacity
+              style={styles.sheetReset}
+              onPress={() => {
+                setCondition(null);
+                setCity('');
+                setMinPrice('');
+                setMaxPrice('');
+                setSort('newest');
+              }}
+              accessibilityRole="button"
+            >
+              <Ionicons name="refresh" size={15} color={COLORS.textSecondary} />
+              <Text style={[styles.sheetResetText, { color: COLORS.textSecondary }]}>
+                {isRTL ? 'مسح كل الفلاتر' : 'Clear all filters'}
+              </Text>
+            </TouchableOpacity>
+
+            <View style={styles.sheetActions}>
+              <TouchableOpacity
+                style={[styles.sheetSecondary, { borderColor: COLORS.border, backgroundColor: COLORS.background }]}
+                onPress={cancelFilters}
+                activeOpacity={0.85}
+                accessibilityRole="button"
+                accessibilityLabel={isRTL ? 'إلغاء' : 'Cancel'}
               >
-                <Text style={[styles.sheetSecondaryText, { color: COLORS.text }]}>{isRTL ? 'مسح' : 'Reset'}</Text>
-              </AnimatedTouchable>
-              <AnimatedTouchable
+                <Text style={[styles.sheetSecondaryText, { color: COLORS.text }]}>
+                  {isRTL ? 'إلغاء' : 'Cancel'}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
                 style={[styles.sheetPrimary, { backgroundColor: COLORS.primary }]}
                 onPress={() => setFiltersOpen(false)}
+                activeOpacity={0.85}
+                accessibilityRole="button"
+                accessibilityLabel={isRTL ? 'تطبيق' : 'Apply'}
               >
                 <Text style={styles.sheetPrimaryText}>{isRTL ? 'تطبيق' : 'Apply'}</Text>
-              </AnimatedTouchable>
+              </TouchableOpacity>
             </View>
           </View>
         </View>
@@ -1354,12 +1282,28 @@ const createStyles = (C: any, isRTL: boolean) =>
       borderWidth: 1, borderColor: C.border, borderRadius: BORDER_RADIUS.md,
       paddingHorizontal: 12, paddingVertical: 10, backgroundColor: C.background, fontSize: 14,
     },
+    sheetReset: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 6,
+      paddingVertical: 12,
+      marginTop: 14,
+    },
+    sheetResetText: { fontWeight: '700', fontSize: 13 },
+    sheetActions: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      gap: 12,
+      marginTop: 2,
+    },
     sheetSecondary: {
-      flex: 1, paddingVertical: 14, alignItems: 'center', borderRadius: BORDER_RADIUS.md, borderWidth: 1,
+      flex: 1, paddingVertical: 15, alignItems: 'center', justifyContent: 'center',
+      borderRadius: BORDER_RADIUS.md, borderWidth: 1.5,
     },
-    sheetSecondaryText: { fontWeight: '700' },
+    sheetSecondaryText: { fontWeight: '800', fontSize: 15 },
     sheetPrimary: {
-      flex: 2, paddingVertical: 14, alignItems: 'center', borderRadius: BORDER_RADIUS.md,
+      flex: 1.6, paddingVertical: 15, alignItems: 'center', justifyContent: 'center',
+      borderRadius: BORDER_RADIUS.md,
     },
-    sheetPrimaryText: { color: '#fff', fontWeight: '800' },
+    sheetPrimaryText: { color: '#fff', fontWeight: '800', fontSize: 15 },
   });

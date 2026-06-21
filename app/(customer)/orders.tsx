@@ -19,6 +19,38 @@ import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../services/supabaseClient';
 import { subscribeUnique } from '../../utils/realtimeChannel';
 import InvoiceDownloadButton from '../../components/InvoiceDownloadButton';
+import { AdminFilterChips, type AdminFilterChip } from '../../components/admin/AdminUI';
+
+// Status filter for the requests list — same pill-chip style as the admin
+// orders-management screen (reuses AdminFilterChips). Each key maps to a set
+// of order statuses so the six chips cover every status the app uses.
+type OrderFilterKey = 'all' | 'accepted' | 'in_progress' | 'completed' | 'rejected' | 'cancelled';
+
+const ORDER_FILTERS: AdminFilterChip<OrderFilterKey>[] = [
+  { key: 'all', ar: 'الكل', en: 'All' },
+  { key: 'accepted', ar: 'مقبولة', en: 'Accepted' },
+  { key: 'in_progress', ar: 'قيد التنفيذ', en: 'In progress' },
+  { key: 'completed', ar: 'مكتملة', en: 'Completed' },
+  { key: 'rejected', ar: 'مرفوضة', en: 'Rejected' },
+  { key: 'cancelled', ar: 'ملغاة', en: 'Cancelled' },
+];
+
+const IN_PROGRESS_STATUSES = [
+  'pending', 'picking_up', 'diagnosing', 'quoted', 'awaiting_payment',
+  'waiting_parts', 'repairing', 'testing', 'delivering',
+];
+
+const matchesOrderFilter = (status: string, key: OrderFilterKey): boolean => {
+  switch (key) {
+    case 'all': return true;
+    case 'accepted': return status === 'accepted';
+    case 'in_progress': return IN_PROGRESS_STATUSES.includes(status);
+    case 'completed': return status === 'completed';
+    case 'rejected': return status === 'rejected';
+    case 'cancelled': return status === 'cancelled';
+    default: return true;
+  }
+};
 
 export default function OrdersScreen() {
   const router = useRouter();
@@ -47,7 +79,7 @@ export default function OrdersScreen() {
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [filter, setFilter] = useState<'all' | 'active' | 'completed'>('all');
+  const [filter, setFilter] = useState<OrderFilterKey>('all');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [ratingOrder, setRatingOrder] = useState<{ id: string; technician_id: string | null } | null>(null);
 
@@ -60,7 +92,8 @@ export default function OrdersScreen() {
       Animated.timing(fadeAnim, { toValue: 1, duration: 300, useNativeDriver: true }),
       Animated.timing(slideAnim, { toValue: 0, duration: 300, useNativeDriver: true }),
     ]).start();
-  }, [filter]);
+    // Filtering is now client-side (see `visibleOrders`), so we load once.
+  }, []);
 
   // Realtime subscription replaces 5s polling. subscribeUnique guards
   // against the "callbacks after subscribe()" race on re-mount.
@@ -98,16 +131,9 @@ export default function OrdersScreen() {
         setLoading(false);
         return;
       }
+      // Load all of the user's orders; the status chips filter client-side.
       const data = await requests.getUserOrders();
-      let filteredData = data;
-      if (filter === 'active') {
-        filteredData = data.filter((o: any) =>
-          ['pending', 'accepted', 'picking_up', 'diagnosing', 'quoted', 'waiting_parts', 'repairing', 'testing', 'delivering'].includes(o.status)
-        );
-      } else if (filter === 'completed') {
-        filteredData = data.filter((o: any) => ['completed', 'cancelled'].includes(o.status));
-      }
-      setOrders(filteredData);
+      setOrders(data);
     } catch (error: any) {
       logger.error('Error loading orders:', error);
       setErrorMessage(getFriendlyError(error, language));
@@ -178,6 +204,9 @@ export default function OrdersScreen() {
 
   const styles = createStyles(COLORS, isRTL, SHADOWS);
 
+  // Client-side status filtering for the requests list (CHANGE 2).
+  const visibleOrders = orders.filter((o) => matchesOrderFilter(o.status, filter));
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={COLORS.background} />
@@ -186,19 +215,8 @@ export default function OrdersScreen() {
         <Text style={styles.headerTitle}>{isRTL ? 'طلباتي' : 'My Orders'}</Text>
       </View>
 
-      <View style={styles.filterBar}>
-        {['all', 'active', 'completed'].map((f) => (
-          <TouchableOpacity 
-            key={f} 
-            style={[styles.filterTab, filter === f && styles.activeFilterTab]}
-            onPress={() => setFilter(f as any)}
-          >
-            <Text style={[styles.filterText, filter === f && styles.activeFilterText]}>
-              {f === 'all' ? (isRTL ? 'الكل' : 'All') : f === 'active' ? (isRTL ? 'نشط' : 'Active') : (isRTL ? 'مكتمل' : 'Done')}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
+      {/* Status filter bar — admin-style pill chips (CHANGE 2) */}
+      <AdminFilterChips filters={ORDER_FILTERS} value={filter} onChange={setFilter} />
 
       <ScrollView 
         showsVerticalScrollIndicator={false} 
@@ -213,11 +231,13 @@ export default function OrdersScreen() {
           </View>
         ) : errorMessage ? (
           <ErrorState message={errorMessage} onRetry={loadOrders} />
-        ) : orders.length === 0 ? (
+        ) : visibleOrders.length === 0 ? (
           <View style={styles.emptyState}>
             <Ionicons name="construct-outline" size={80} color={COLORS.primary} />
             <Text style={styles.emptyText}>
-              {isRTL ? 'لا توجد طلبات بعد' : 'No orders yet'}
+              {orders.length === 0
+                ? (isRTL ? 'لا توجد طلبات بعد' : 'No orders yet')
+                : (isRTL ? 'لا توجد طلبات بهذه الحالة' : 'No orders with this status')}
             </Text>
             <Text style={[styles.emptyText, { fontSize: 13, color: COLORS.textSecondary, marginTop: 4 }]}>
               {isRTL ? 'اطلب فني الآن — يصلك خلال 30 دقيقة' : 'Request a technician — arrives within 30 minutes'}
@@ -235,7 +255,7 @@ export default function OrdersScreen() {
           </View>
         ) : (
           <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
-            {orders.map((order) => {
+            {visibleOrders.map((order) => {
               const status = getStatusInfo(order.status);
               // Exact format "١٨ يونيو، ٢٠٢٦ - ١١:٢٠ ص" (Arabic-Indic,
               // Gregorian, no weekday) so the client sees when they placed it.

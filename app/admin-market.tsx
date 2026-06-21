@@ -35,6 +35,33 @@ import {
   type MarketListing,
   type ListingStatus,
 } from '../services/marketService';
+import {
+  adminListMarketReports,
+  setMarketReportStatus,
+  type MarketReportRow,
+} from '../services/marketReportsService';
+import { AdminFilterChips, AdminStatusPill, type AdminFilterChip } from '../components/admin/AdminUI';
+
+type ReportStatusFilter = 'all' | 'pending' | 'reviewed' | 'dismissed';
+
+const REPORT_FILTERS: AdminFilterChip<ReportStatusFilter>[] = [
+  { key: 'all', ar: 'الكل', en: 'All' },
+  { key: 'pending', ar: 'معلّق', en: 'Pending' },
+  { key: 'reviewed', ar: 'تمت المراجعة', en: 'Reviewed' },
+  { key: 'dismissed', ar: 'مرفوض', en: 'Dismissed' },
+];
+
+const REPORT_STATUS_TONE: Record<MarketReportRow['status'], 'warning' | 'success' | 'neutral'> = {
+  pending: 'warning',
+  reviewed: 'success',
+  dismissed: 'neutral',
+};
+
+const REPORT_STATUS_LABEL: Record<MarketReportRow['status'], { ar: string; en: string }> = {
+  pending: { ar: 'معلّق', en: 'Pending' },
+  reviewed: { ar: 'تمت المراجعة', en: 'Reviewed' },
+  dismissed: { ar: 'مرفوض', en: 'Dismissed' },
+};
 
 const STATUS_META: Record<ListingStatus, { ar: string; en: string; color: string; icon: string }> = {
   draft:             { ar: 'مسودة',          en: 'Draft',          color: '#94A3B8', icon: 'file-document-outline' },
@@ -73,6 +100,12 @@ export default function AdminMarketScreen() {
   const [filter, setFilter] = useState<ListingStatus>('pending');
   const [busyId, setBusyId] = useState<string | null>(null);
 
+  // Top-level view switch: marketplace listings vs. listing reports.
+  const [view, setView] = useState<'listings' | 'reports'>('listings');
+  const [reports, setReports] = useState<MarketReportRow[]>([]);
+  const [reportsLoading, setReportsLoading] = useState(false);
+  const [reportFilter, setReportFilter] = useState<ReportStatusFilter>('all');
+
   // Inline prompt sheet (reject reason / archive reason / notes editor /
   // double-confirm hard delete). One state covers all four — keeps the JSX
   // surface tight while still allowing per-action labels.
@@ -93,6 +126,77 @@ export default function AdminMarketScreen() {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  const loadReports = useCallback(async () => {
+    setReportsLoading(true);
+    try {
+      setReports(await adminListMarketReports());
+    } catch (e: any) {
+      Alert.alert(isRTL ? 'خطأ' : 'Error', e?.message ?? String(e));
+    } finally {
+      setReportsLoading(false);
+      setRefreshing(false);
+    }
+  }, [isRTL]);
+
+  // Lazy-load reports the first time the admin opens that tab.
+  useEffect(() => {
+    if (view === 'reports' && reports.length === 0 && !reportsLoading) {
+      loadReports();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view]);
+
+  const onReportRowPress = (r: MarketReportRow) => {
+    Alert.alert(
+      isRTL ? 'إجراء على البلاغ' : 'Report action',
+      r.listing_title ?? (isRTL ? 'إعلان محذوف' : 'Deleted listing'),
+      [
+        {
+          text: isRTL ? 'تم المراجعة' : 'Mark reviewed',
+          onPress: async () => {
+            try {
+              await setMarketReportStatus(r.id, 'reviewed');
+              setReports((prev) =>
+                prev.map((x) => (x.id === r.id ? { ...x, status: 'reviewed' } : x))
+              );
+            } catch (e: any) {
+              Alert.alert(isRTL ? 'خطأ' : 'Error', e?.message ?? String(e));
+            }
+          },
+        },
+        {
+          text: isRTL ? 'رفض البلاغ' : 'Dismiss report',
+          onPress: async () => {
+            try {
+              await setMarketReportStatus(r.id, 'dismissed');
+              setReports((prev) =>
+                prev.map((x) => (x.id === r.id ? { ...x, status: 'dismissed' } : x))
+              );
+            } catch (e: any) {
+              Alert.alert(isRTL ? 'خطأ' : 'Error', e?.message ?? String(e));
+            }
+          },
+        },
+        {
+          text: isRTL ? 'حذف الإعلان' : 'Delete listing',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await adminHardDelete(r.listing_id);
+              // Cascade removed the report(s) for this listing on the server;
+              // drop every report pointing at it from the local list too.
+              setReports((prev) => prev.filter((x) => x.listing_id !== r.listing_id));
+              removeFromList(r.listing_id);
+            } catch (e: any) {
+              Alert.alert(isRTL ? 'خطأ' : 'Error', e?.message ?? String(e));
+            }
+          },
+        },
+        { text: isRTL ? 'إلغاء' : 'Cancel', style: 'cancel' },
+      ]
+    );
+  };
 
   const replaceInList = (next: MarketListing) =>
     setListings((prev) => prev.map((x) => (x.id === next.id ? next : x)));
@@ -247,11 +351,53 @@ export default function AdminMarketScreen() {
           rtl
         />
         <Text style={styles.title}>{isRTL ? 'إدارة السوق' : 'Marketplace'}</Text>
-        <TouchableOpacity onPress={() => { setRefreshing(true); load(); }}>
+        <TouchableOpacity
+          onPress={() => {
+            setRefreshing(true);
+            if (view === 'reports') loadReports(); else load();
+          }}
+        >
           <MaterialCommunityIcons name="refresh" size={22} color={COLORS.text} />
         </TouchableOpacity>
       </View>
 
+      {/* Top-level view switch: marketplace listings vs. listing reports. */}
+      <View style={styles.segment}>
+        {(['listings', 'reports'] as const).map((v) => {
+          const active = view === v;
+          return (
+            <TouchableOpacity
+              key={v}
+              style={[styles.segmentBtn, active && { backgroundColor: COLORS.primary }]}
+              onPress={() => setView(v)}
+              activeOpacity={0.85}
+            >
+              <Text style={[styles.segmentText, { color: active ? '#fff' : COLORS.textSecondary }]}>
+                {v === 'listings'
+                  ? (isRTL ? 'الإعلانات' : 'Listings')
+                  : (isRTL ? 'بلاغات الإعلانات' : 'Reports')}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+
+      {view === 'reports' ? (
+        <ReportsView
+          styles={styles}
+          COLORS={COLORS}
+          isRTL={isRTL}
+          loading={reportsLoading}
+          refreshing={refreshing}
+          reports={reports}
+          filter={reportFilter}
+          onChangeFilter={setReportFilter}
+          onRefresh={() => { setRefreshing(true); loadReports(); }}
+          onRowPress={onReportRowPress}
+          fmtDate={(v) => (v ? fmtAdminDate(v, isRTL) : '')}
+        />
+      ) : (
+      <>
       {/* Status filter strip — eight states, horizontally scrollable so the
           tiles stay legible on every device width. */}
       <ScrollView
@@ -439,6 +585,8 @@ export default function AdminMarketScreen() {
           })
         )}
       </ScrollView>
+      </>
+      )}
 
       {/* Reason / notes / hard-delete prompt */}
       <Modal
@@ -500,6 +648,84 @@ export default function AdminMarketScreen() {
   );
 }
 
+/**
+ * Reports tab — lists market_reports (newest first) with a status filter.
+ * Tapping a row opens the moderation action sheet (handled by the parent).
+ */
+function ReportsView(props: {
+  styles: any;
+  COLORS: any;
+  isRTL: boolean;
+  loading: boolean;
+  refreshing: boolean;
+  reports: MarketReportRow[];
+  filter: ReportStatusFilter;
+  onChangeFilter: (v: ReportStatusFilter) => void;
+  onRefresh: () => void;
+  onRowPress: (r: MarketReportRow) => void;
+  fmtDate: (v?: string | null) => string;
+}) {
+  const {
+    styles, COLORS, isRTL, loading, refreshing, reports,
+    filter, onChangeFilter, onRefresh, onRowPress, fmtDate,
+  } = props;
+
+  const visible = filter === 'all' ? reports : reports.filter((r) => r.status === filter);
+
+  return (
+    <>
+      <AdminFilterChips filters={REPORT_FILTERS} value={filter} onChange={onChangeFilter} />
+      <ScrollView
+        contentContainerStyle={{ padding: SPACING.lg, gap: SPACING.md, paddingBottom: 40 }}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} />
+        }
+      >
+        {loading && reports.length === 0 ? (
+          <ActivityIndicator color={COLORS.primary} style={{ marginTop: 40 }} />
+        ) : visible.length === 0 ? (
+          <View style={styles.empty}>
+            <MaterialCommunityIcons name="flag-outline" size={48} color={COLORS.textSecondary} />
+            <Text style={{ color: COLORS.textSecondary, marginTop: 8 }}>
+              {isRTL ? 'لا توجد بلاغات' : 'No reports'}
+            </Text>
+          </View>
+        ) : (
+          visible.map((r) => (
+            <TouchableOpacity
+              key={r.id}
+              style={styles.card}
+              activeOpacity={0.85}
+              onPress={() => onRowPress(r)}
+            >
+              <View style={styles.reportTopRow}>
+                <Text style={styles.reportListingTitle} numberOfLines={1}>
+                  {r.listing_title ?? (isRTL ? 'إعلان محذوف' : 'Deleted listing')}
+                </Text>
+                <AdminStatusPill
+                  label={isRTL ? REPORT_STATUS_LABEL[r.status].ar : REPORT_STATUS_LABEL[r.status].en}
+                  tone={REPORT_STATUS_TONE[r.status]}
+                />
+              </View>
+              <Text style={styles.reportReason} numberOfLines={2}>{r.reason}</Text>
+              {!!r.details && (
+                <Text style={styles.reportDetails} numberOfLines={2}>{r.details}</Text>
+              )}
+              <View style={styles.reportMetaRow}>
+                <MaterialCommunityIcons name="account-outline" size={13} color={COLORS.textSecondary} />
+                <Text style={styles.reportMetaText} numberOfLines={1}>
+                  {r.reporter_name ?? (isRTL ? 'مستخدم' : 'User')}
+                </Text>
+                <Text style={styles.reportMetaText}>· {fmtDate(r.created_at)}</Text>
+              </View>
+            </TouchableOpacity>
+          ))
+        )}
+      </ScrollView>
+    </>
+  );
+}
+
 const createStyles = (C: any, isRTL: boolean) => StyleSheet.create({
   container: { flex: 1, backgroundColor: C.background },
   header: {
@@ -510,6 +736,48 @@ const createStyles = (C: any, isRTL: boolean) => StyleSheet.create({
   },
   title: { fontSize: 20, fontWeight: '800', color: C.text },
   empty: { alignItems: 'center', justifyContent: 'center', padding: 50, gap: 6 },
+  segment: {
+    flexDirection: isRTL ? 'row-reverse' : 'row',
+    gap: 8,
+    paddingHorizontal: SPACING.lg,
+    paddingBottom: SPACING.sm,
+  },
+  segmentBtn: {
+    flex: 1,
+    paddingVertical: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: BORDER_RADIUS.md,
+    backgroundColor: C.card,
+    borderWidth: 1,
+    borderColor: C.border,
+  },
+  segmentText: { fontSize: 14, fontWeight: '800' },
+  reportTopRow: {
+    flexDirection: isRTL ? 'row-reverse' : 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  reportListingTitle: {
+    flex: 1, color: C.text, fontWeight: '800', fontSize: 15,
+    textAlign: isRTL ? 'right' : 'left',
+  },
+  reportReason: {
+    color: C.text, fontSize: 13, fontWeight: '700', marginTop: 6,
+    textAlign: isRTL ? 'right' : 'left',
+  },
+  reportDetails: {
+    color: C.textSecondary, fontSize: 12, marginTop: 3, lineHeight: 17,
+    textAlign: isRTL ? 'right' : 'left',
+  },
+  reportMetaRow: {
+    flexDirection: isRTL ? 'row-reverse' : 'row',
+    alignItems: 'center',
+    gap: 5,
+    marginTop: 8,
+    flexWrap: 'wrap',
+  },
+  reportMetaText: { color: C.textSecondary, fontSize: 11, fontWeight: '600' },
   statsRow: {
     flexDirection: isRTL ? 'row-reverse' : 'row',
     gap: 8,

@@ -611,6 +611,12 @@ export default function AdminDashboardScreen() {
           subtitle={isRTL ? 'إدارة المناطق، المدن، الأحياء ورسوم التوصيل' : 'Manage regions, cities, neighborhoods & delivery fees'}
           onPress={() => router.push('/admin-service-areas' as any)}
         />
+        <AdminActionCard
+          icon="sale" iconColor="#ec4899"
+          title={isRTL ? 'عروض وخصومات' : 'Offers & Discounts'}
+          subtitle={isRTL ? 'إنشاء وإدارة العروض الترويجية للعملاء' : 'Create & manage customer promotions'}
+          onPress={() => router.push('/admin-offers' as any)}
+        />
 
         {/* ── Communication ───────────────────────────────────────── */}
         <AdminSectionLabel icon="message-text-outline" text={isRTL ? 'التواصل' : 'Communication'} />
@@ -626,6 +632,12 @@ export default function AdminDashboardScreen() {
           title={isRTL ? 'الإشعارات العامة' : 'Broadcasts'}
           subtitle={isRTL ? 'إرسال إشعار لجميع المستخدمين' : 'Send a notification to all users'}
           onPress={() => router.push('/admin-broadcasts' as any)}
+        />
+        <AdminActionCard
+          icon="account-group-outline" iconColor="#6366f1"
+          title={isRTL ? 'مجتمع الفنيين' : 'Technician Community'}
+          subtitle={isRTL ? 'إدارة المنشورات والتعليقات والبلاغات' : 'Manage posts, comments & reports'}
+          onPress={() => router.push('/admin-community' as any)}
         />
 
         {/* ── Finance ─────────────────────────────────────────────── */}

@@ -487,6 +487,8 @@ export default function TechnicianHomeScreen() {
         </TouchableOpacity>
       </View>
 
+      {/* Community moved to its own bottom-nav tab (CHANGE 1). */}
+
       {/* Support bar removed (Fix 6a): redundant with the "الدعم الفني / Tech
           Support" entry in the technician profile tab; the dashboard now stays
           focused on operational widgets (stats, availability, jobs). */}
@@ -713,6 +715,22 @@ const createStyles = (COLORS: any, SHADOWS: any, isRTL: boolean) => StyleSheet.c
     marginTop: 4,
   },
   manageServicesText: { fontSize: 14, fontWeight: '700' },
+  communityCard: {
+    flexDirection: isRTL ? 'row-reverse' : 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginHorizontal: SPACING.md,
+    marginBottom: SPACING.md,
+    padding: SPACING.md,
+    borderRadius: BORDER_RADIUS.lg,
+    borderWidth: 1,
+  },
+  communityIcon: {
+    width: 46, height: 46, borderRadius: 14,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  communityTitle: { fontSize: 15, fontWeight: '800' },
+  communitySub: { fontSize: 12.5, marginTop: 2 },
   supportBar: {
     flexDirection: isRTL ? 'row-reverse' : 'row',
     alignItems: 'center',
