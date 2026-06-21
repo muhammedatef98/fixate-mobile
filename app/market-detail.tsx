@@ -114,6 +114,37 @@ const CONDITION_LABEL: Record<string, { ar: string; en: string }> = {
   for_parts:   { ar: 'قطع غيار', en: 'For parts' },
 };
 
+// Visual indent cap for nested replies (threading continues logically deeper).
+const MAX_COMMENT_DEPTH = 4;
+
+interface ListingCommentNode extends ListingComment {
+  replies: ListingCommentNode[];
+}
+
+/**
+ * Build a nested reply tree from the flat market-comment list (same threading
+ * model as the technician community). Top-level comments (parent_id null) are
+ * newest-first; replies stay chronological so each branch reads top-to-bottom.
+ * Orphans (deleted parent) are promoted to top level so nothing disappears.
+ */
+function buildListingCommentTree(flat: ListingComment[]): ListingCommentNode[] {
+  const byId = new Map<string, ListingCommentNode>();
+  for (const c of flat) byId.set(c.id, { ...c, replies: [] });
+  const roots: ListingCommentNode[] = [];
+  for (const node of byId.values()) {
+    const parent = node.parent_id ? byId.get(node.parent_id) : null;
+    if (parent) parent.replies.push(node);
+    else roots.push(node);
+  }
+  const sortChrono = (nodes: ListingCommentNode[]) => {
+    nodes.sort((a, b) => +new Date(a.created_at) - +new Date(b.created_at));
+    for (const n of nodes) sortChrono(n.replies);
+  };
+  sortChrono(roots);
+  roots.sort((a, b) => +new Date(b.created_at) - +new Date(a.created_at));
+  return roots;
+}
+
 export default function MarketDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -160,6 +191,16 @@ export default function MarketDetailScreen() {
   useEffect(() => { load(); }, [load]);
 
   const styles = useMemo(() => createStyles(COLORS, isRTL), [COLORS, isRTL]);
+
+  // Threaded comments (same model as the technician community).
+  const [collapsedComments, setCollapsedComments] = useState<Set<string>>(new Set());
+  const commentTree = useMemo(() => buildListingCommentTree(comments), [comments]);
+  const toggleCollapseComment = (id: string) =>
+    setCollapsedComments((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
 
   const isOwner = !!listing && listing.seller_id === user?.id;
   const status = listing?.status as ListingStatus | undefined;
@@ -208,7 +249,8 @@ export default function MarketDetailScreen() {
           onPress: async () => {
             try {
               await deleteComment(c.id);
-              setComments((prev) => prev.filter((x) => x.id !== c.id && x.parent_id !== c.id));
+              // Re-fetch so any cascade-deleted nested replies disappear too.
+              if (id) setComments(await listComments(id));
             } catch (e: any) {
               Alert.alert(isRTL ? 'خطأ' : 'Error', e?.message ?? String(e));
             }
@@ -428,6 +470,55 @@ export default function MarketDetailScreen() {
   const deviceLbl = listing?.device_type ? DEVICE_LABEL[listing.device_type]?.[isRTL ? 'ar' : 'en'] : null;
   const conditionLbl = listing?.condition ? CONDITION_LABEL[listing.condition]?.[isRTL ? 'ar' : 'en'] : null;
   const sellerName = seller?.name?.trim() || (isRTL ? 'بائع' : 'Seller');
+
+  // Recursive threaded comment renderer (mirrors the community feed).
+  const renderMarketComment = (node: ListingCommentNode, depth: number): React.ReactNode => {
+    const indent = Math.min(depth, MAX_COMMENT_DEPTH) * 14;
+    const isMine = node.user_id === user?.id;
+    const hasReplies = node.replies.length > 0;
+    const isCollapsed = collapsedComments.has(node.id);
+    return (
+      <View key={node.id} style={{ [isRTL ? 'paddingRight' : 'paddingLeft']: indent }}>
+        <View style={[styles.commentRow, depth > 0 && styles.commentThread]}>
+          <Avatar name={node.author_name} size={depth > 0 ? 28 : 32} />
+          <View style={{ flex: 1 }}>
+            <TouchableOpacity
+              onPress={() => hasReplies && toggleCollapseComment(node.id)}
+              activeOpacity={hasReplies ? 0.6 : 1}
+            >
+              <View style={styles.commentTopRow}>
+                <Text style={styles.commentAuthor}>
+                  {shortUserName(node.author_name, isRTL)}
+                  {hasReplies ? (
+                    <Text style={styles.commentCollapse}>
+                      {`   ${isCollapsed ? '▸' : '▾'} ${node.replies.length}`}
+                    </Text>
+                  ) : null}
+                </Text>
+                <Text style={styles.commentAgo}>{timeAgo(node.created_at, isRTL)}</Text>
+              </View>
+            </TouchableOpacity>
+            <Text style={styles.commentText}>{node.content}</Text>
+            <View style={styles.commentActions}>
+              <TouchableOpacity onPress={() => setReplyTo(node)}>
+                <Text style={[styles.commentAction, { color: COLORS.primary }]}>
+                  {isRTL ? 'رد' : 'Reply'}
+                </Text>
+              </TouchableOpacity>
+              {isMine && (
+                <TouchableOpacity onPress={() => handleDeleteComment(node)}>
+                  <Text style={[styles.commentAction, { color: '#EF4444' }]}>
+                    {isRTL ? 'حذف' : 'Delete'}
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
+        </View>
+        {!isCollapsed && hasReplies && node.replies.map((child) => renderMarketComment(child, depth + 1))}
+      </View>
+    );
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -697,56 +788,7 @@ export default function MarketDetailScreen() {
                     {isRTL ? 'لا توجد تعليقات بعد. كن أول من يعلّق.' : 'No comments yet. Be the first to comment.'}
                   </Text>
                 ) : (
-                  comments
-                    .filter((c) => !c.parent_id)
-                    .map((c) => {
-                      const replies = comments.filter((x) => x.parent_id === c.id);
-                      const isMine = c.user_id === user?.id;
-                      return (
-                        <View key={c.id}>
-                          <View style={styles.commentRow}>
-                            <Avatar name={c.author_name} size={32} />
-                            <View style={{ flex: 1 }}>
-                              <View style={styles.commentTopRow}>
-                                <Text style={styles.commentAuthor}>
-                                  {shortUserName(c.author_name, isRTL)}
-                                </Text>
-                                <Text style={styles.commentAgo}>{timeAgo(c.created_at, isRTL)}</Text>
-                              </View>
-                              <Text style={styles.commentText}>{c.content}</Text>
-                              <View style={styles.commentActions}>
-                                <TouchableOpacity onPress={() => setReplyTo(c)}>
-                                  <Text style={[styles.commentAction, { color: COLORS.primary }]}>
-                                    {isRTL ? 'رد' : 'Reply'}
-                                  </Text>
-                                </TouchableOpacity>
-                                {isMine && (
-                                  <TouchableOpacity onPress={() => handleDeleteComment(c)}>
-                                    <Text style={[styles.commentAction, { color: '#EF4444' }]}>
-                                      {isRTL ? 'حذف' : 'Delete'}
-                                    </Text>
-                                  </TouchableOpacity>
-                                )}
-                              </View>
-                            </View>
-                          </View>
-                          {replies.map((r) => (
-                            <View key={r.id} style={[styles.commentRow, styles.replyRow]}>
-                              <Avatar name={r.author_name} size={28} />
-                              <View style={{ flex: 1 }}>
-                                <View style={styles.commentTopRow}>
-                                  <Text style={styles.commentAuthor}>
-                                    {shortUserName(r.author_name, isRTL)}
-                                  </Text>
-                                  <Text style={styles.commentAgo}>{timeAgo(r.created_at, isRTL)}</Text>
-                                </View>
-                                <Text style={styles.commentText}>{r.content}</Text>
-                              </View>
-                            </View>
-                          ))}
-                        </View>
-                      );
-                    })
+                  commentTree.map((node) => renderMarketComment(node, 0))
                 )}
               </View>
             </View>
@@ -1352,6 +1394,15 @@ const createStyles = (C: any, isRTL: boolean) =>
       borderBottomColor: C.border,
     },
     replyRow: { paddingLeft: isRTL ? 0 : 28, paddingRight: isRTL ? 28 : 0, borderBottomWidth: 0, paddingVertical: 8 },
+    // Nested-reply thread line (mirrors the community threaded comments).
+    commentThread: {
+      borderBottomWidth: 0,
+      [isRTL ? 'borderRightWidth' : 'borderLeftWidth']: 1.5,
+      borderColor: C.border,
+      [isRTL ? 'paddingRight' : 'paddingLeft']: 8,
+      paddingVertical: 8,
+    },
+    commentCollapse: { color: C.primary, fontWeight: '700', fontSize: 11 },
     commentTopRow: {
       flexDirection: isRTL ? 'row-reverse' : 'row',
       alignItems: 'baseline',

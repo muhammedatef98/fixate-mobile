@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -27,6 +27,10 @@ import { RTLIonicon } from '../../components/RTLIcon';
 import { logger } from '../../utils/logger';
 import { buildCommentTree, type CommentSort } from '../../utils/buildCommentTree';
 import { getUnreadCount } from '../../utils/notifications';
+import { TECH_NAV_HEIGHT } from '../../components/BottomNavTech';
+
+// Feed ordering for the post list.
+type FeedSort = 'latest' | 'top';
 import {
   listPosts,
   createPost,
@@ -79,7 +83,10 @@ export default function CommunityScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState('');
   const [tagFilter, setTagFilter] = useState<CommunityTag | 'all'>('all');
+  const [feedSort, setFeedSort] = useState<FeedSort>('latest');
   const [unreadCount, setUnreadCount] = useState(0);
+  // RTL-correct opening position for the horizontal tag-filter row.
+  const tagScrollRef = useRef<ScrollView>(null);
 
   // Inline post editing (author only)
   const [editingPostId, setEditingPostId] = useState<string | null>(null);
@@ -128,12 +135,21 @@ export default function CommunityScreen() {
 
   const filteredPosts = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return posts.filter((p) => {
+    const list = posts.filter((p) => {
       if (tagFilter !== 'all' && p.tag !== tagFilter) return false;
       if (!q) return true;
       return p.content.toLowerCase().includes(q) || p.author_name.toLowerCase().includes(q);
     });
-  }, [posts, search, tagFilter]);
+    // 'top' = most engaged (likes + comments); 'latest' = newest first.
+    return [...list].sort((a, b) => {
+      if (feedSort === 'top') {
+        const ea = a.likes_count + a.comments_count;
+        const eb = b.likes_count + b.comments_count;
+        if (eb !== ea) return eb - ea;
+      }
+      return +new Date(b.created_at) - +new Date(a.created_at);
+    });
+  }, [posts, search, tagFilter, feedSort]);
 
   const commentTree = useMemo(() => buildCommentTree(comments, sort), [comments, sort]);
 
@@ -487,7 +503,16 @@ export default function CommunityScreen() {
       {/* Header */}
       <View style={styles.header}>
         <View style={{ width: 40 }} />
-        <Text style={styles.headerTitle}>{isRTL ? 'المجتمع' : 'Community'}</Text>
+        <View style={{ flex: 1, alignItems: 'center' }}>
+          <Text style={styles.headerTitle}>{isRTL ? 'مجتمع الفنيين' : 'Technician Community'}</Text>
+          {!loading && (
+            <Text style={styles.headerSubtitle}>
+              {isRTL
+                ? `${posts.length.toLocaleString('ar-SA')} منشور`
+                : `${posts.length} ${posts.length === 1 ? 'post' : 'posts'}`}
+            </Text>
+          )}
+        </View>
         <TouchableOpacity
           style={styles.bellBtn}
           onPress={() => router.push('/(technician)/notifications')}
@@ -517,32 +542,65 @@ export default function CommunityScreen() {
         />
       </View>
 
-      {/* Tag filter chips */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.tagFilterScroll}
-        contentContainerStyle={[
-          styles.tagFilterRow,
-          { flexDirection: isRTL ? 'row-reverse' : 'row' },
-        ]}
-      >
-        {TAG_FILTERS.map((t) => {
-          const active = tagFilter === t;
+      {/* Tag filter chips + feed sort */}
+      <View style={styles.filterBarRow}>
+        <ScrollView
+          ref={tagScrollRef}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          // RTL-correct: with row-reverse the first chip ("الكل") sits at the
+          // right edge, but a horizontal ScrollView opens at offset 0 (left).
+          // Jump to the content end on layout so the row opens on الكل/الأحدث.
+          onContentSizeChange={() => {
+            if (isRTL) tagScrollRef.current?.scrollToEnd({ animated: false });
+          }}
+          style={styles.tagFilterScroll}
+          contentContainerStyle={[
+            styles.tagFilterRow,
+            { flexDirection: isRTL ? 'row-reverse' : 'row' },
+          ]}
+        >
+          {TAG_FILTERS.map((t) => {
+            const active = tagFilter === t;
+            return (
+              <TouchableOpacity
+                key={t}
+                style={[styles.tagChip, active && styles.tagChipActive]}
+                onPress={() => setTagFilter(t)}
+                activeOpacity={0.85}
+              >
+                <Text style={[styles.tagChipText, active && styles.tagChipTextActive]}>
+                  {t === 'all' ? (isRTL ? 'الكل' : 'All') : t}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+      </View>
+
+      {/* Feed sort toggle */}
+      <View style={styles.feedSortRow}>
+        {(['latest', 'top'] as const).map((s) => {
+          const active = feedSort === s;
           return (
             <TouchableOpacity
-              key={t}
-              style={[styles.tagChip, active && styles.tagChipActive]}
-              onPress={() => setTagFilter(t)}
+              key={s}
+              style={[styles.feedSortChip, active && styles.feedSortChipActive]}
+              onPress={() => setFeedSort(s)}
               activeOpacity={0.85}
             >
-              <Text style={[styles.tagChipText, active && styles.tagChipTextActive]}>
-                {t === 'all' ? (isRTL ? 'الكل' : 'All') : t}
+              <Ionicons
+                name={s === 'latest' ? 'time-outline' : 'flame-outline'}
+                size={14}
+                color={active ? COLORS.primary : COLORS.textSecondary}
+              />
+              <Text style={[styles.feedSortText, active && styles.feedSortTextActive]}>
+                {s === 'latest' ? (isRTL ? 'الأحدث' : 'Latest') : (isRTL ? 'الأكثر تفاعلاً' : 'Top')}
               </Text>
             </TouchableOpacity>
           );
         })}
-      </ScrollView>
+      </View>
 
       {loading ? (
         <View style={styles.center}><ActivityIndicator color={COLORS.primary} /></View>
@@ -551,7 +609,7 @@ export default function CommunityScreen() {
           data={filteredPosts}
           keyExtractor={(p) => p.id}
           renderItem={renderPost}
-          contentContainerStyle={{ padding: SPACING.md, paddingBottom: 120 }}
+          contentContainerStyle={{ padding: SPACING.md, paddingBottom: TECH_NAV_HEIGHT + 80 }}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} />}
           ListEmptyComponent={
             <View style={styles.empty}>
@@ -566,7 +624,8 @@ export default function CommunityScreen() {
         />
       )}
 
-      {/* FAB — create post */}
+      {/* FAB — create post (raised above the floating nav bar, labeled pill
+          like the marketplace "Sell" button) */}
       <TouchableOpacity
         style={styles.fab}
         onPress={() => setComposerOpen(true)}
@@ -574,7 +633,10 @@ export default function CommunityScreen() {
         accessibilityRole="button"
         accessibilityLabel={isRTL ? 'إنشاء منشور' : 'Create post'}
       >
-        <Ionicons name="add" size={28} color="#fff" />
+        <View style={styles.fabIconWrap}>
+          <Ionicons name="add" size={18} color="#fff" />
+        </View>
+        <Text style={styles.fabText}>{isRTL ? 'بوست جديد' : 'New post'}</Text>
       </TouchableOpacity>
 
       {/* Create-post modal */}
@@ -734,7 +796,8 @@ const makeStyles = (C: any, isRTL: boolean) =>
       paddingHorizontal: SPACING.md,
       paddingVertical: 14,
     },
-    headerTitle: { flex: 1, fontSize: 18, fontWeight: '800', color: '#fff', textAlign: 'center' },
+    headerTitle: { fontSize: 18, fontWeight: '800', color: '#fff', textAlign: 'center' },
+    headerSubtitle: { fontSize: 11, fontWeight: '700', color: 'rgba(255,255,255,0.8)', marginTop: 2 },
     bellBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
     bellBadge: {
       position: 'absolute',
@@ -752,8 +815,31 @@ const makeStyles = (C: any, isRTL: boolean) =>
     },
     bellBadgeText: { color: '#fff', fontSize: 9, fontWeight: '800' },
 
-    tagFilterScroll: { maxHeight: 56, marginTop: SPACING.sm },
+    filterBarRow: { marginTop: SPACING.sm },
+    tagFilterScroll: { maxHeight: 56 },
     tagFilterRow: { paddingHorizontal: SPACING.md, gap: 8, alignItems: 'center' },
+
+    feedSortRow: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      gap: 8,
+      paddingHorizontal: SPACING.md,
+      marginTop: 4,
+      marginBottom: 2,
+    },
+    feedSortChip: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
+      gap: 5,
+      paddingHorizontal: 12,
+      height: 32,
+      borderRadius: 999,
+      backgroundColor: C.card,
+      borderWidth: 1,
+      borderColor: C.border,
+    },
+    feedSortChipActive: { borderColor: C.primary, backgroundColor: C.primary + '12' },
+    feedSortText: { color: C.textSecondary, fontWeight: '700', fontSize: 12.5 },
+    feedSortTextActive: { color: C.primary, fontWeight: '800' },
     tagChip: {
       paddingHorizontal: 14,
       height: 34,
@@ -850,14 +936,28 @@ const makeStyles = (C: any, isRTL: boolean) =>
 
     fab: {
       position: 'absolute',
-      bottom: 24,
-      [isRTL ? 'left' : 'right']: 20,
-      width: 58, height: 58, borderRadius: 29,
+      // Sit clear above the floating technician nav bar (was hidden behind it).
+      bottom: TECH_NAV_HEIGHT + 14,
+      [isRTL ? 'left' : 'right']: 18,
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
+      gap: 7,
+      paddingHorizontal: 16,
+      paddingVertical: 11,
+      borderRadius: 999,
       backgroundColor: C.primary,
-      alignItems: 'center', justifyContent: 'center',
-      shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 8,
-      elevation: 6,
+      borderWidth: 2,
+      borderColor: 'rgba(255,255,255,0.35)',
+      shadowColor: C.primary,
+      shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.45, shadowRadius: 16,
+      elevation: 10,
     },
+    fabIconWrap: {
+      width: 22, height: 22, borderRadius: 11,
+      backgroundColor: 'rgba(255,255,255,0.22)',
+      alignItems: 'center', justifyContent: 'center',
+    },
+    fabText: { color: '#fff', fontWeight: '900', fontSize: 13.5, letterSpacing: 0.3 },
 
     modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
     modalSheet: {
