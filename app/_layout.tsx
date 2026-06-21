@@ -6,7 +6,7 @@ import { RequestProvider } from '../contexts/RequestContext';
 import { ThemeProvider } from '../contexts/ThemeContext';
 import { AppProvider, useApp } from '../contexts/AppContext';
 import { AuthProvider, useAuth } from '../contexts/AuthContext';
-import { isAdminPhone } from '../constants/admin';
+import { isAdminUser } from '../constants/admin';
 import { OrdersProvider } from '../contexts/OrdersContext';
 import { LoyaltyProvider } from '../contexts/LoyaltyContext';
 import { useRouter, useSegments } from 'expo-router';
@@ -58,9 +58,7 @@ function RootLayoutContent() {
       if (userProfile === null) return;
       const wantsTechnician = !!first && TECHNICIAN_AUTH_SOURCES.has(first);
       const wantsCustomer = !!first && CUSTOMER_AUTH_SOURCES.has(first);
-      const phone =
-        (user as any)?.phone ?? (userProfile as any)?.phone ?? null;
-      const adminByPhone = isAdminPhone(phone);
+      const adminByPhone = isAdminUser(user);
 
       const target = adminByPhone
         ? '/admin'
@@ -87,9 +85,7 @@ function RootLayoutContent() {
         return;
       }
       if (userProfile === null) return;
-      const phone =
-        (user as any)?.phone ?? (userProfile as any)?.phone ?? null;
-      if (!isAdminPhone(phone)) {
+      if (!isAdminUser(user)) {
         router.replace('/(customer)');
       }
     }

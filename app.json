@@ -139,7 +139,8 @@
           }
         }
       ],
-      "@react-native-firebase/app"
+      "@react-native-firebase/app",
+      "@react-native-google-signin/google-signin"
     ],
     "updates": {
       "fallbackToCacheTimeout": 0,
