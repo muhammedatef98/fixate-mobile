@@ -26,8 +26,40 @@ import { supabase } from '../../services/supabaseClient';
 import { logger } from '../../utils/logger';
 import NotificationBell from '../../components/NotificationBell';
 import { formatAppDate } from '../../lib/formatDate';
+import { AdminFilterChips, type AdminFilterChip } from '../../components/admin/AdminUI';
 
 const { width } = Dimensions.get('window');
+
+// Status filter chips for the "My Orders" tab — same pill-chip style as the
+// customer orders screen (batch 2). RTL order: الكل · مكتملة · قيد التنفيذ ·
+// مقبولة · مرفوضة · ملغاة. "in_progress" maps to the whole active lifecycle.
+type OrderFilterKey = 'all' | 'completed' | 'in_progress' | 'accepted' | 'rejected' | 'cancelled';
+
+const ORDER_FILTERS: AdminFilterChip<OrderFilterKey>[] = [
+  { key: 'all', ar: 'الكل', en: 'All' },
+  { key: 'completed', ar: 'مكتملة', en: 'Completed' },
+  { key: 'in_progress', ar: 'قيد التنفيذ', en: 'In progress' },
+  { key: 'accepted', ar: 'مقبولة', en: 'Accepted' },
+  { key: 'rejected', ar: 'مرفوضة', en: 'Rejected' },
+  { key: 'cancelled', ar: 'ملغاة', en: 'Cancelled' },
+];
+
+const IN_PROGRESS_STATUSES = [
+  'pending', 'picking_up', 'diagnosing', 'quoted', 'awaiting_payment',
+  'waiting_parts', 'repairing', 'testing', 'delivering',
+];
+
+const matchesOrderFilter = (status: string, key: OrderFilterKey): boolean => {
+  switch (key) {
+    case 'all': return true;
+    case 'accepted': return status === 'accepted';
+    case 'in_progress': return IN_PROGRESS_STATUSES.includes(status);
+    case 'completed': return status === 'completed';
+    case 'rejected': return status === 'rejected';
+    case 'cancelled': return status === 'cancelled';
+    default: return true;
+  }
+};
 
 export default function TechnicianHomeScreen() {
   const router = useRouter();
@@ -42,6 +74,8 @@ export default function TechnicianHomeScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState<'available' | 'my-orders'>('available');
+  // Client-side status filter for the "My Orders" tab.
+  const [myOrdersFilter, setMyOrdersFilter] = useState<OrderFilterKey>('all');
   // Overall technician availability for repair work — separate from
   // per-service availability. Backed by technicians.is_available; degrades
   // gracefully (local-only) if the column/row isn't ready yet.
@@ -347,6 +381,9 @@ export default function TechnicianHomeScreen() {
 
   const styles = createStyles(COLORS, SHADOWS, isRTL);
 
+  // "My Orders" tab, filtered by the selected status chip (client-side).
+  const visibleMyOrders = myOrders.filter((o) => matchesOrderFilter(o.status, myOrdersFilter));
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={COLORS.background} />
@@ -528,6 +565,11 @@ export default function TechnicianHomeScreen() {
         </TouchableOpacity>
       </View>
 
+      {/* Status filter chips — only for the "My Orders" tab */}
+      {activeTab === 'my-orders' && (
+        <AdminFilterChips filters={ORDER_FILTERS} value={myOrdersFilter} onChange={setMyOrdersFilter} />
+      )}
+
       {/* Orders List */}
       <Animated.View style={[styles.content, { opacity: fadeAnim }]}>
         {loading ? (
@@ -556,8 +598,8 @@ export default function TechnicianHomeScreen() {
                 renderEmptyState()
               )
             ) : (
-              myOrders.length > 0 ? (
-                myOrders.map(order => renderOrderCard(order, false))
+              visibleMyOrders.length > 0 ? (
+                visibleMyOrders.map(order => renderOrderCard(order, false))
               ) : (
                 renderEmptyState()
               )
