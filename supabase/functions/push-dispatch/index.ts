@@ -73,6 +73,37 @@ Deno.serve(async (req: Request) => {
     const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const admin = createClient(supabaseUrl, serviceKey);
 
+    // --- Authorization: audience-wide sends are gated. ---------------------
+    // Targeted sends — explicit `tokens` (incl. push-to-self) and `userIds`
+    // (order-flow counterparty notifications) — stay open to any authenticated
+    // caller. Segment broadcasts are gated:
+    //   • 'all' / 'customers' → admin only (app_metadata.is_admin === true, or
+    //     app_metadata.roles including 'admin'; same rule as constants/admin.ts).
+    //   • 'technicians'       → admin, OR the owner of the order referenced by
+    //     data.orderId. This keeps the customer→technicians "new order" push
+    //     working without letting anyone spam all technicians at will.
+    if (payload.audience) {
+      const caller = await getCaller(req, admin);
+      let allowed = caller?.isAdmin === true;
+
+      if (!allowed && payload.audience === 'technicians') {
+        const orderId = (payload.data as Record<string, unknown> | undefined)?.orderId;
+        allowed =
+          !!caller?.userId &&
+          typeof orderId === 'string' &&
+          orderId.length > 0 &&
+          (await callerOwnsOrder(admin, caller.userId, orderId));
+      }
+
+      if (!allowed) {
+        console.warn(
+          `push-dispatch: rejected audience send (audience=${payload.audience} ` +
+            `caller=${caller?.userId ?? 'anon'} admin=${caller?.isAdmin ?? false})`
+        );
+        return json({ error: 'forbidden: not authorized for this audience' }, 403);
+      }
+    }
+
     // --- Stats mode: counts only, no send. ---------------------------------
     if (payload.mode === 'stats') {
       const [{ count: totalUsers }, { count: withToken }] = await Promise.all([
@@ -334,6 +365,57 @@ Deno.serve(async (req: Request) => {
     return json({ error: msg(e) }, 500);
   }
 });
+
+/**
+ * Resolve the caller from their JWT (sent as the Authorization header by
+ * supabase.functions.invoke) into { userId, isAdmin }. Admin is the server-set
+ * claim app_metadata.is_admin === true, or app_metadata.roles containing
+ * 'admin' — never a client-writable field. Returns null on any failure
+ * (missing header, invalid token, lookup error) so callers deny by default.
+ */
+async function getCaller(
+  req: Request,
+  admin: any
+): Promise<{ userId: string; isAdmin: boolean } | null> {
+  try {
+    const authHeader = req.headers.get('Authorization') ?? '';
+    const jwt = authHeader.replace(/^Bearer\s+/i, '').trim();
+    if (!jwt) return null;
+    const { data, error } = await admin.auth.getUser(jwt);
+    if (error || !data?.user) return null;
+    const meta = (data.user.app_metadata ?? {}) as Record<string, unknown>;
+    const roles = meta.roles;
+    const isAdmin =
+      meta.is_admin === true ||
+      (Array.isArray(roles) && roles.includes('admin'));
+    return { userId: data.user.id as string, isAdmin };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * True when `userId` owns the given order — used to authorize the
+ * customer→technicians "new order" broadcast without granting blanket
+ * audience access. Service-role read, so RLS never hides the row.
+ */
+async function callerOwnsOrder(
+  admin: any,
+  userId: string,
+  orderId: string
+): Promise<boolean> {
+  try {
+    const { data, error } = await admin
+      .from('orders')
+      .select('id')
+      .eq('id', orderId)
+      .eq('user_id', userId)
+      .maybeSingle();
+    return !error && !!data;
+  } catch {
+    return false;
+  }
+}
 
 /** Null out push_token rows whose token value is in `values`. */
 async function clearTokens(admin: any, values: string[]): Promise<void> {

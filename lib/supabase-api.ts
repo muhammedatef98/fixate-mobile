@@ -393,6 +393,18 @@ export const requests = {
       .select()
       .single();
     if (error) throw error;
+
+    // Notify the technician of the customer's decision on their quote (FEAT-01).
+    if (data) {
+      pushOrderToClient(
+        data.technician_id,
+        accept ? 'تم قبول عرض السعر ✅' : 'تم رفض عرض السعر ❌',
+        accept
+          ? 'وافق العميل على عرض السعر الخاص بك.'
+          : 'رفض العميل عرض السعر الخاص بك.',
+        data.id
+      );
+    }
     return data;
   },
 

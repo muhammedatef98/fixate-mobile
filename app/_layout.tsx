@@ -23,6 +23,7 @@ import {
   IBMPlexSansArabic_700Bold,
 } from '@expo-google-fonts/ibm-plex-sans-arabic';
 import { applyAppFontToText } from '../utils/applyFont';
+import { ensureAndroidNotificationChannel } from '../lib/notifications';
 import { initSentry } from '../services/sentryService';
 import { configureGoogleSignIn } from '../services/googleAuthService';
 import { useOtaUpdates } from '../hooks/useOtaUpdates';
@@ -209,6 +210,15 @@ export default function RootLayout() {
     IBMPlexSansArabic_600SemiBold,
     IBMPlexSansArabic_700Bold,
   });
+
+  // Create the Android 'default' notification channel at app startup, before
+  // (and independent of) login. Android 8+ silently drops any push whose
+  // channel doesn't exist, and `push-dispatch` sends every message with
+  // channelId: 'default' — so the channel must exist as early as possible,
+  // not only after the post-login token registration runs. No-op on iOS.
+  useEffect(() => {
+    void ensureAndroidNotificationChannel();
+  }, []);
 
   if (!fontsLoaded) {
     return (

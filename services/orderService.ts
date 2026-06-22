@@ -2,9 +2,40 @@ import { supabase } from './supabaseClient';
 import { logger } from '../utils/logger';
 import { validatePrice, validateCoordinates, validateDescription } from '../utils/validation';
 import type { Order, CreateOrderData, OrderStatus } from '../types/order';
-import { notifyAudience } from './notifyService';
+import { notifyAudience, notifyUsers } from './notifyService';
 
 export type { Order, CreateOrderData, OrderStatus } from '../types/order';
+
+// Arabic labels for the push body when an order status changes (FEAT-01).
+// Mirrors STATUS_LABEL_AR in lib/supabase-api.ts so both order paths notify
+// the customer with the same wording.
+const STATUS_LABEL_AR: Record<string, string> = {
+  accepted: 'تم قبول طلبك',
+  picking_up: 'الفني في طريقه لاستلام جهازك',
+  diagnosing: 'جاري فحص جهازك',
+  quoted: 'تم إرسال عرض السعر',
+  awaiting_payment: 'بإنتظار الدفع',
+  waiting_parts: 'بانتظار قطع الغيار',
+  repairing: 'جاري إصلاح جهازك',
+  testing: 'جاري اختبار جهازك',
+  delivering: 'جاري توصيل جهازك',
+  completed: 'تم اكتمال طلبك',
+  cancelled: 'تم إلغاء طلبك',
+  rejected: 'تم رفض طلبك',
+};
+
+// Fire-and-forget push helper — never let a push failure block the action.
+// Same pattern as pushOrderToClient in lib/supabase-api.ts.
+const pushOrderToClient = (
+  clientId: string | null | undefined,
+  title: string,
+  body: string,
+  orderId: string,
+  screen: 'order-details' | 'chat' = 'order-details'
+) => {
+  if (!clientId) return;
+  void notifyUsers(clientId, { title, body, data: { screen, orderId } });
+};
 
 export const createOrder = async (userId: string, orderData: CreateOrderData): Promise<Order> => {
   if (!userId) throw new Error('User ID is required');
@@ -133,6 +164,14 @@ export const assignOrderToTechnician = async (
     throw error;
   }
   if (!data) throw new Error('Order is no longer available');
+
+  // Notify the customer that a technician accepted their request (FEAT-01).
+  pushOrderToClient(
+    data.user_id,
+    'تم قبول طلبك ✅',
+    'قام أحد الفنيين بقبول طلب الصيانة الخاص بك.',
+    data.id
+  );
   return data;
 };
 
@@ -149,6 +188,16 @@ export const updateOrderStatus = async (
   if (error) {
     logger.warn('Update order status error', error);
     throw error;
+  }
+
+  // Notify the customer whenever the status advances (FEAT-01).
+  if (data) {
+    pushOrderToClient(
+      data.user_id,
+      'تحديث حالة الطلب',
+      STATUS_LABEL_AR[status as string] ?? 'تم تحديث حالة طلبك',
+      data.id
+    );
   }
   return data;
 };
@@ -207,6 +256,16 @@ export const setTechnicianQuote = async (
     logger.warn('setTechnicianQuote error', res.error);
     throw res.error;
   }
+
+  // Notify the customer that a price quote is ready (FEAT-01).
+  if (res.data) {
+    pushOrderToClient(
+      res.data.user_id,
+      'وصلك عرض سعر جديد 💰',
+      `تم إرسال عرض سعر بقيمة ${price} ر.س لطلبك. بانتظار موافقتك.`,
+      res.data.id
+    );
+  }
   return res.data;
 };
 
@@ -228,6 +287,18 @@ export const respondToQuote = async (
   if (error) {
     logger.warn('respondToQuote error', error);
     throw error;
+  }
+
+  // Notify the technician of the customer's decision on their quote (FEAT-01).
+  if (data) {
+    pushOrderToClient(
+      data.technician_id,
+      accept ? 'تم قبول عرض السعر ✅' : 'تم رفض عرض السعر ❌',
+      accept
+        ? 'وافق العميل على عرض السعر الخاص بك.'
+        : 'رفض العميل عرض السعر الخاص بك.',
+      data.id
+    );
   }
   return data;
 };
