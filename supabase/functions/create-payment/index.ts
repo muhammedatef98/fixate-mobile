@@ -1,3 +1,4 @@
+// @ts-nocheck — Deno runtime
 // Supabase Edge Function: create-payment
 // Creates a Stripe PaymentIntent and inserts a row in public.payments.
 // Requires secrets: STRIPE_SECRET_KEY, STRIPE_PUBLISHABLE_KEY
