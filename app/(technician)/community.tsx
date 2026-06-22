@@ -217,7 +217,7 @@ export default function CommunityScreen() {
       isRTL ? 'خيارات المنشور' : 'Post options',
       undefined,
       [
-        { text: isRTL ? 'تعديل البوست' : 'Edit post', onPress: () => startEdit(post) },
+        { text: isRTL ? 'تعديل المنشور' : 'Edit post', onPress: () => startEdit(post) },
         {
           text: isRTL ? 'حذف' : 'Delete',
           style: 'destructive',
@@ -636,7 +636,7 @@ export default function CommunityScreen() {
         <View style={styles.fabIconWrap}>
           <Ionicons name="add" size={18} color="#fff" />
         </View>
-        <Text style={styles.fabText}>{isRTL ? 'بوست جديد' : 'New post'}</Text>
+        <Text style={styles.fabText}>{isRTL ? 'منشور جديد' : 'New post'}</Text>
       </TouchableOpacity>
 
       {/* Create-post modal */}
@@ -817,7 +817,9 @@ const makeStyles = (C: any, isRTL: boolean) =>
 
     filterBarRow: { marginTop: SPACING.sm },
     tagFilterScroll: { maxHeight: 56 },
-    tagFilterRow: { paddingHorizontal: SPACING.md, gap: 8, alignItems: 'center' },
+    // flexGrow lets the row fill the scroll width so the row-reverse chips pack
+    // to the RIGHT edge (RTL) instead of bunching on the left when they fit.
+    tagFilterRow: { flexGrow: 1, paddingHorizontal: SPACING.md, gap: 8, alignItems: 'center' },
 
     feedSortRow: {
       flexDirection: isRTL ? 'row-reverse' : 'row',

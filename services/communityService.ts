@@ -68,19 +68,31 @@ const fetchAuthors = async (ids: string[]): Promise<Map<string, { name: string; 
   const map = new Map<string, { name: string; specialty: string }>();
   const unique = Array.from(new Set(ids)).filter(Boolean);
   if (unique.length === 0) return map;
-  const { data, error } = await supabase
-    .from('technicians')
-    .select('user_id, name, specialization')
-    .in('user_id', unique);
-  if (error) {
-    logger.warn('community fetchAuthors failed', error);
-    return map;
+
+  // Prefer the user's registered account name (public_user_cards → users.name),
+  // which is the name they signed up with; fall back to the technicians-table
+  // name. The technicians row still supplies the specialty line.
+  const [techRes, cardRes] = await Promise.all([
+    supabase.from('technicians').select('user_id, name, specialization').in('user_id', unique),
+    supabase.from('public_user_cards').select('id, name').in('id', unique),
+  ]);
+  if (techRes.error) logger.warn('community fetchAuthors (technicians) failed', techRes.error);
+  if (cardRes.error) logger.warn('community fetchAuthors (user cards) failed', cardRes.error);
+
+  const accountName = new Map<string, string>();
+  for (const c of (cardRes.data ?? []) as { id: string; name: string | null }[]) {
+    accountName.set(c.id, (c.name ?? '').trim());
   }
-  for (const t of (data ?? []) as TechnicianLite[]) {
+
+  for (const t of (techRes.data ?? []) as TechnicianLite[]) {
     map.set(t.user_id, {
-      name: t.name?.trim() || '',
+      name: accountName.get(t.user_id) || t.name?.trim() || '',
       specialty: Array.isArray(t.specialization) ? t.specialization.filter(Boolean).join('، ') : '',
     });
+  }
+  // Authors present only in public_user_cards (no technicians row yet).
+  for (const [id, name] of accountName) {
+    if (!map.has(id)) map.set(id, { name, specialty: '' });
   }
   return map;
 };

@@ -368,6 +368,9 @@ const styles = StyleSheet.create({
     maxHeight: 64,
   },
   chipsRow: {
+    // flexGrow lets the row fill the scroll width so RTL (row-reverse) chips
+    // pack to the right edge instead of bunching on the left when they fit.
+    flexGrow: 1,
     paddingHorizontal: SPACING.lg,
     paddingVertical: 10,
     gap: 8,
