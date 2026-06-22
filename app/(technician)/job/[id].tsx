@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, SafeAreaView, Linking, Platform, Alert, Animated } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Linking, Platform, Alert, Animated } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { COLORS, SPACING, SHADOWS } from '../../../constants/theme';
 import { MaterialIcons, Ionicons, FontAwesome5 } from '@expo/vector-icons';

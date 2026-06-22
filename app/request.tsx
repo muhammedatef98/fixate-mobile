@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, Image, Dimensions, TextInput, Animated, Alert, Keyboard, KeyboardAvoidingView, Platform, Modal, I18nManager, ActivityIndicator, FlatList } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Dimensions, TextInput, Animated, Alert, Keyboard, KeyboardAvoidingView, Platform, Modal, I18nManager, ActivityIndicator, FlatList } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { getColors, getShadows, SPACING, BORDER_RADIUS } from '../constants/theme';
 import { MaterialIcons, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';

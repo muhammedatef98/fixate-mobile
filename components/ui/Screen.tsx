@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, SafeAreaView, ScrollView, StatusBar, StyleSheet, ViewStyle } from 'react-native';
+import { View, ScrollView, StatusBar, StyleSheet, ViewStyle } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { getColors, SPACING } from '../../constants/theme';
 import { useApp } from '../../contexts/AppContext';
 

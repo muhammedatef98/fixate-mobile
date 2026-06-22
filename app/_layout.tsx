@@ -2,6 +2,7 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { View, ActivityIndicator } from 'react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { RequestProvider } from '../contexts/RequestContext';
 import { ThemeProvider } from '../contexts/ThemeContext';
 import { AppProvider, useApp } from '../contexts/AppContext';
@@ -221,7 +222,8 @@ export default function RootLayout() {
 
   return (
     <ErrorBoundary>
-      <AppProvider>
+      <SafeAreaProvider>
+        <AppProvider>
         <AuthProvider>
           <OrdersProvider>
             <LoyaltyProvider>
@@ -233,7 +235,8 @@ export default function RootLayout() {
             </LoyaltyProvider>
           </OrdersProvider>
         </AuthProvider>
-      </AppProvider>
+        </AppProvider>
+      </SafeAreaProvider>
     </ErrorBoundary>
   );
 }

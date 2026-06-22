@@ -44,7 +44,7 @@ export interface CommunityCommentNode extends CommunityComment {
 
 interface TechnicianLite {
   user_id: string;
-  name: string | null;
+  full_name: string | null;
   specialization: string[] | null;
 }
 
@@ -73,7 +73,7 @@ const fetchAuthors = async (ids: string[]): Promise<Map<string, { name: string; 
   // which is the name they signed up with; fall back to the technicians-table
   // name. The technicians row still supplies the specialty line.
   const [techRes, cardRes] = await Promise.all([
-    supabase.from('technicians').select('user_id, name, specialization').in('user_id', unique),
+    supabase.from('technicians').select('user_id, full_name, specialization').in('user_id', unique),
     supabase.from('public_user_cards').select('id, name').in('id', unique),
   ]);
   if (techRes.error) logger.warn('community fetchAuthors (technicians) failed', techRes.error);
@@ -86,7 +86,7 @@ const fetchAuthors = async (ids: string[]): Promise<Map<string, { name: string; 
 
   for (const t of (techRes.data ?? []) as TechnicianLite[]) {
     map.set(t.user_id, {
-      name: accountName.get(t.user_id) || t.name?.trim() || '',
+      name: accountName.get(t.user_id) || t.full_name?.trim() || '',
       specialty: Array.isArray(t.specialization) ? t.specialization.filter(Boolean).join('، ') : '',
     });
   }
