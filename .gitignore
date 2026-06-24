@@ -74,3 +74,6 @@ secrets/
 
 # Local EAS Android signing credentials (keystore passwords) — NEVER commit
 credentials.json
+*.ipa
+*.apk
+*.aab
