@@ -1,7 +1,9 @@
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
-import { View, ActivityIndicator } from 'react-native';
+import { View, ActivityIndicator, Platform } from 'react-native';
+import messaging from '@react-native-firebase/messaging';
+import * as Notifications from 'expo-notifications';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { RequestProvider } from '../contexts/RequestContext';
 import { ThemeProvider } from '../contexts/ThemeContext';
@@ -92,6 +94,34 @@ function RootLayoutContent() {
       }
     }
   }, [user, userProfile, segments, loading]);
+
+  // Hand FCM messages off to expo-notifications on Android. RNFirebase
+  // messaging otherwise registers its own listeners that intercept incoming
+  // pushes BEFORE expo-notifications sees them — foreground pushes get drawn
+  // by Firebase (bypassing our handler) and background pushes are swallowed by
+  // Firebase's headless JS service so expo-notifications never fires. By
+  // installing no-op handlers here we let expo-notifications' own FCM
+  // integration own display (it shows banners via the handler set in
+  // lib/notifications.ts). iOS uses APNs through expo-notifications directly and
+  // is intentionally untouched. Runs once.
+  useEffect(() => {
+    if (Platform.OS !== 'android') return;
+
+    // Background / quit-state messages: expo-notifications handles display.
+    // This handler exists only so RNFirebase doesn't complain about a missing
+    // background handler; keep it a no-op (log only) to avoid double display.
+    messaging().setBackgroundMessageHandler(async (remoteMessage) => {
+      console.log('[FCM Background]', remoteMessage?.notification?.title);
+    });
+
+    // Foreground messages: let expo-notifications show the banner via its
+    // configured notification handler (shouldShowBanner: true).
+    const unsubscribe = messaging().onMessage(async (remoteMessage) => {
+      console.log('[FCM Foreground]', remoteMessage?.notification?.title);
+    });
+
+    return unsubscribe;
+  }, []);
 
   const accountStatus = (userProfile as any)?.account_status;
   if (
@@ -217,7 +247,26 @@ export default function RootLayout() {
   // channelId: 'default' — so the channel must exist as early as possible,
   // not only after the post-login token registration runs. No-op on iOS.
   useEffect(() => {
-    void ensureAndroidNotificationChannel();
+    if (Platform.OS !== 'android') {
+      void ensureAndroidNotificationChannel();
+      return;
+    }
+    void (async () => {
+      await ensureAndroidNotificationChannel();
+      // Debug only: dump the registered Android channels so we can confirm
+      // 'default' exists with the expected importance, and detect pushes being
+      // routed to fallback channels (fcm_fallback_notification_channel /
+      // expo_notifications_fallback_notification_channel).
+      try {
+        const channels = await Notifications.getNotificationChannelsAsync();
+        console.log(
+          '[PushChannel] Android channels:',
+          channels.map((c) => ({ id: c.id, importance: c.importance }))
+        );
+      } catch (e) {
+        console.warn('[PushChannel] getNotificationChannelsAsync failed', e);
+      }
+    })();
   }, []);
 
   if (!fontsLoaded) {

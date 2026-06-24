@@ -69,6 +69,7 @@
         "backgroundColor": "#10b981"
       },
       "package": "com.fixatee.app",
+      "versionCode": 2,
       "googleServicesFile": "./google-services.json",
       "permissions": [
         "android.permission.ACCESS_FINE_LOCATION",
@@ -116,6 +117,7 @@
         {
           "icon": "./assets/notification-icon.png",
           "color": "#10b981",
+          "defaultChannel": "default",
           "sounds": []
         }
       ],
@@ -140,7 +142,9 @@
         }
       ],
       "@react-native-firebase/app",
-      "@react-native-google-signin/google-signin"
+      "@react-native-firebase/messaging",
+      "@react-native-google-signin/google-signin",
+      "./plugins/withFirebaseNotificationColorFix.js"
     ],
     "updates": {
       "fallbackToCacheTimeout": 0,

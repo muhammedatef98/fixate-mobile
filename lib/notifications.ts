@@ -68,10 +68,14 @@ export async function ensureAndroidNotificationChannel(): Promise<void> {
   if (Platform.OS !== 'android') return;
   try {
     await Notifications.setNotificationChannelAsync('default', {
-      name: 'default',
+      name: 'Fixate Notifications',
       importance: Notifications.AndroidImportance.MAX,
       vibrationPattern: [0, 250, 250, 250],
+      enableVibrate: true,
+      lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
       lightColor: '#10b981',
+      bypassDnd: false,
+      showBadge: true,
     });
   } catch (e) {
     logger.warn('[PushChannel] failed to create default channel', e);
@@ -135,6 +139,18 @@ export const notificationManager = {
       return;
     }
 
+    // Explicit production-visible signal for the Android double-registration
+    // race: if a non-Expo (raw FCM/APNs) token reaches here it will pass the
+    // permissive isValidPushToken() fallback but be rejected by push-dispatch's
+    // EXPO_TOKEN_RE, which then clears it. Log loudly so we can detect it in the
+    // field. healPushTokenIfNeeded() repairs such rows on next launch.
+    if (!EXPO_TOKEN_RE.test(token.trim())) {
+      logger.warn(
+        '[PushToken] storing a NON-Expo token (likely raw FCM) — push-dispatch will reject this',
+        { tokenPrefix: token.slice(0, 24) }
+      );
+    }
+
     try {
       // Only write when the value actually changed. This avoids clobbering a
       // valid token (and churning push_updated_at) on every launch, and stops
@@ -186,3 +202,45 @@ export const notificationManager = {
     }
   },
 };
+
+/**
+ * Startup self-heal for the Android Expo/Firebase double-registration race.
+ *
+ * When both expo-notifications and @react-native-firebase/messaging are active,
+ * a raw FCM registration token can occasionally land in public.users.push_token
+ * instead of an Expo push token. push-dispatch rejects anything that doesn't
+ * match EXPO_TOKEN_RE and DELETES the row's token, leaving the user with no
+ * pushes until they re-register. On Android only, this checks the stored token
+ * and — if it's not an Expo token — re-registers and overwrites it with a fresh
+ * Expo token. No-op on iOS. Safe to call on every login.
+ */
+export async function healPushTokenIfNeeded(userId: string): Promise<void> {
+  if (Platform.OS !== 'android') return;
+  try {
+    const { data } = await supabase
+      .from('users')
+      .select('push_token')
+      .eq('id', userId)
+      .maybeSingle();
+
+    const storedToken = data?.push_token;
+
+    // Nothing stored yet — normal registration path will handle it.
+    if (!storedToken) return;
+
+    if (!EXPO_TOKEN_RE.test(storedToken)) {
+      logger.warn('[PushHeal] stored token is invalid, re-registering', {
+        tokenPrefix: String(storedToken).slice(0, 20),
+      });
+      const freshToken = await notificationManager.registerForPushNotificationsAsync();
+      if (freshToken) {
+        // Clear first so saveTokenToProfile's unchanged-value short-circuit
+        // can't keep the bad value in place.
+        await supabase.from('users').update({ push_token: null }).eq('id', userId);
+        await notificationManager.saveTokenToProfile(userId, freshToken);
+      }
+    }
+  } catch (e) {
+    logger.warn('[PushHeal] failed', e);
+  }
+}

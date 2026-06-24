@@ -3,7 +3,7 @@ import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '../services/supabaseClient';
 import * as authService from '../services/authService';
 import * as userService from '../services/userService';
-import { notificationManager } from '../lib/notifications';
+import { notificationManager, healPushTokenIfNeeded } from '../lib/notifications';
 import { logger } from '../utils/logger';
 
 /**
@@ -17,6 +17,11 @@ async function registerPushForUser(userId: string): Promise<void> {
     if (token) {
       await notificationManager.saveTokenToProfile(userId, token);
     }
+    // Android-only self-heal: if a raw FCM token (from the Expo/Firebase
+    // double-registration race) is sitting in public.users.push_token,
+    // push-dispatch would reject and delete it. Re-register with a fresh Expo
+    // token so delivery isn't silently broken. No-op on iOS.
+    await healPushTokenIfNeeded(userId);
   } catch (e) {
     logger.warn('[PushToken] registration failed', e);
   }
