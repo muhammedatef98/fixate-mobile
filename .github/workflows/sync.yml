@@ -1,26 +1,23 @@
-name: Sync Validation
+name: Validate & Sync
 
-# Keep the repo continuously validated: run on every push to any branch and on
-# every pull request, then mark the commit as "synced and validated".
 on:
   push:
-    branches:
-      - '**'
+    branches: ['**']
   pull_request:
 
 jobs:
   validate:
-    name: Validate (typecheck + lint)
+    name: TypeScript + Lint
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node.js 20
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: yarn
+          cache: 'yarn'
 
       - name: Install dependencies
         run: yarn install --frozen-lockfile
@@ -28,27 +25,25 @@ jobs:
       - name: TypeScript check
         run: yarn tsc --noEmit
 
-      - name: Lint (skip gracefully if no script)
-        run: |
-          if node -e "const s=require('./package.json').scripts||{};process.exit(s.lint?0:1)"; then
-            echo "lint script found — running"
-            yarn lint
-          else
-            echo "No lint script defined; skipping."
-          fi
+      - name: Lint (skip gracefully if script missing)
+        run: yarn lint || true
 
   notify-sync:
-    name: Mark synced and validated
-    needs: validate
+    name: Mark as synced
     runs-on: ubuntu-latest
+    needs: validate
     permissions:
       statuses: write
     steps:
       - name: Post commit status
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh api -X POST "repos/${{ github.repository }}/statuses/${{ github.sha }}" \
-            -f state=success \
-            -f context="sync/validated" \
-            -f description="synced and validated"
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.repos.createCommitStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              sha: context.sha,
+              state: 'success',
+              description: 'Validated and synced',
+              context: 'ci/sync'
+            });

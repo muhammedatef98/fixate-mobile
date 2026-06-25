@@ -2,15 +2,11 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { View, ActivityIndicator, Platform } from 'react-native';
-import * as Notifications from 'expo-notifications';
-import messaging from '@react-native-firebase/messaging';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { getColors } from '../constants/theme';
 import { RequestProvider } from '../contexts/RequestContext';
 import { ThemeProvider } from '../contexts/ThemeContext';
 import { AppProvider, useApp } from '../contexts/AppContext';
 import { AuthProvider, useAuth } from '../contexts/AuthContext';
-import { isAdminUser } from '../constants/admin';
+import { isAdminPhone } from '../constants/admin';
 import { OrdersProvider } from '../contexts/OrdersContext';
 import { LoyaltyProvider } from '../contexts/LoyaltyContext';
 import { useRouter, useSegments } from 'expo-router';
@@ -26,18 +22,16 @@ import {
   IBMPlexSansArabic_700Bold,
 } from '@expo-google-fonts/ibm-plex-sans-arabic';
 import { applyAppFontToText } from '../utils/applyFont';
-import { ensureAndroidNotificationChannel } from '../lib/notifications';
 import { initSentry } from '../services/sentryService';
-import { configureGoogleSignIn } from '../services/googleAuthService';
 import { useOtaUpdates } from '../hooks/useOtaUpdates';
+import messaging from '@react-native-firebase/messaging';
+import { ensureAndroidNotificationChannel } from '../lib/notifications';
 import '../i18n';
 
 initSentry();
-configureGoogleSignIn();
 
 function RootLayoutContent() {
-  const { language, isDark } = useApp();
-  const C = getColors(isDark);
+  const { language } = useApp();
   const { user, userProfile, loading } = useAuth();
   const segments = useSegments();
   const router = useRouter();
@@ -45,12 +39,37 @@ function RootLayoutContent() {
   useEffect(() => {
     if (loading) return;
 
+    // Auth screens that should auto-redirect logged-in users away
+    // (login forms shouldn't show if you're already logged in). role-selection
+    // is intentionally NOT in this set — a logged-in user landing there can
+    // pick which side of the app they want to enter, which is critical for
+    // testing both flows from one account.
+    //
+    // forgot-password is also intentionally NOT in this set. The recovery
+    // flow calls supabase.auth.verifyOtp({ type: 'recovery' }), which
+    // establishes a *real* session before the user has set a new password.
+    // If we redirected away on that session, the new-password step would
+    // flash for a moment then disappear and the technician would land on
+    // /(technician) without ever updating their password.
     const REDIRECT_AWAY_IF_LOGGED_IN = new Set([
       'login', 'signup', 'auth', 'technician-auth',
       'login-otp', 'email-auth', 'onboarding',
     ]);
     const PROTECTED_GROUPS = new Set(['(customer)', '(technician)', 'request']);
 
+    // The user's CHOICE on role-selection determines which auth screen they
+    // landed on. That choice is the authoritative routing intent — it
+    // overrides the role stored on their profile from a previous session.
+    //
+    // Without this, a user who once signed up as a technician would always
+    // be funnelled back into /(technician) on subsequent customer logins,
+    // because `userProfile.role === 'technician'` would force the
+    // technician branch even when they explicitly tapped "Login as
+    // customer" and arrived via /login-otp.
+    //
+    // /technician-auth is the only explicit technician entry point in the
+    // app today; every other auth surface (login-otp, email-auth, auth,
+    // signup, login) is a customer-side entry point.
     const TECHNICIAN_AUTH_SOURCES = new Set(['technician-auth']);
     const CUSTOMER_AUTH_SOURCES = new Set([
       'login', 'signup', 'auth', 'login-otp', 'email-auth',
@@ -61,11 +80,25 @@ function RootLayoutContent() {
     const isProtectedRoute = !!first && PROTECTED_GROUPS.has(first);
 
     if (user && inAuthFlow) {
+      // CRITICAL: don't auto-redirect until we know the role. userProfile loads
+      // asynchronously after the session is established; if we routed on a
+      // null profile we'd dump every user into /(customer) regardless of
+      // whether they were a technician — that's the "I tap technician portal,
+      // it sends me to customer portal" bug.
       if (userProfile === null) return;
       const wantsTechnician = !!first && TECHNICIAN_AUTH_SOURCES.has(first);
       const wantsCustomer = !!first && CUSTOMER_AUTH_SOURCES.has(first);
-      const adminByPhone = isAdminUser(user);
+      const phone =
+        (user as any)?.phone ?? (userProfile as any)?.phone ?? null;
+      const adminByPhone = isAdminPhone(phone);
 
+      // Resolution order:
+      //   1. Admin phone → /admin (system-level, always wins).
+      //   2. Explicit customer auth source → /(customer) — honours the
+      //      user's choice even if their profile role is technician.
+      //   3. Explicit technician auth source → /(technician).
+      //   4. Fallback to profile-stored role for routes like /onboarding
+      //      where there's no role-binding auth source.
       const target = adminByPhone
         ? '/admin'
         : wantsCustomer
@@ -83,6 +116,12 @@ function RootLayoutContent() {
       router.replace('/role-selection');
     }
 
+    // Route-level admin gate — applies to every admin segment (the bare
+    // /admin hub plus all admin-* detail screens). Only the account whose
+    // phone matches ADMIN_PHONE may render any admin surface. Anyone else
+    // is bounced back to the customer home before the screen mounts.
+    // This is defence-in-depth on top of useAdminGuard inside each
+    // admin-* screen.
     const isAdminSegment =
       !!first && (first === 'admin' || first.startsWith('admin-'));
     if (isAdminSegment) {
@@ -90,13 +129,46 @@ function RootLayoutContent() {
         router.replace('/role-selection');
         return;
       }
+      // Wait for the profile to land so we can read the phone without
+      // a false negative on first paint.
       if (userProfile === null) return;
-      if (!isAdminUser(user)) {
+      const phone =
+        (user as any)?.phone ?? (userProfile as any)?.phone ?? null;
+      if (!isAdminPhone(phone)) {
         router.replace('/(customer)');
       }
     }
   }, [user, userProfile, segments, loading]);
 
+  // Register a no-op FCM background handler on Android.
+  // RNFirebase REQUIRES setBackgroundMessageHandler to be called or it
+  // logs a warning in production. We register it as a pure no-op so
+  // expo-notifications remains the sole owner of push display logic.
+  // iOS uses APNs via expo-notifications directly — intentionally untouched.
+  useEffect(() => {
+    if (Platform.OS !== 'android') return;
+    messaging().setBackgroundMessageHandler(async () => {
+      // No-op: expo-notifications handles all display.
+    });
+  }, []);
+
+  // Create the Android default notification channel at app startup,
+  // before and independent of login. Android 8+ silently drops any push
+  // whose channel doesn't exist. No-op on iOS.
+  useEffect(() => {
+    if (Platform.OS !== 'android') return;
+    void ensureAndroidNotificationChannel();
+  }, []);
+
+  // RTL is handled per-screen via manual `isRTL ? 'row-reverse' : 'row'`
+  // conditionals and `textAlign: isRTL ? 'right' : 'left'`. We deliberately
+  // do NOT call I18nManager.forceRTL here — that would double-flip every
+  // `row-reverse` back into LTR — and we don't apply `direction: 'rtl'`
+  // on the root container for the same reason.
+
+  // App-wide lockout: a suspended/blocked user cannot use any feature.
+  // We only gate once the profile has actually loaded (null = still loading)
+  // so we never flash the lockout screen during a normal session start.
   const accountStatus = (userProfile as any)?.account_status;
   if (
     !loading &&
@@ -108,12 +180,7 @@ function RootLayoutContent() {
 
   return (
     <View style={{ flex: 1 }}>
-      <StatusBar
-        style={isDark ? 'light' : 'dark'}
-        translucent={false}
-        hidden={false}
-        backgroundColor={C.background}
-      />
+      <StatusBar hidden={true} />
       <OfflineBanner />
       <Stack
         screenOptions={{
@@ -131,40 +198,93 @@ function RootLayoutContent() {
           gestureDirection: 'horizontal',
         }}
       >
-        <Stack.Screen name="index" options={{ headerShown: false }} />
-        <Stack.Screen name="onboarding" options={{ headerShown: false }} />
-        <Stack.Screen name="role-selection" options={{ headerShown: false }} />
-        <Stack.Screen name="(customer)" options={{ headerShown: false }} />
-        <Stack.Screen name="(technician)" options={{ headerShown: false }} />
-        <Stack.Screen name="request" options={{ headerShown: false }} />
-        <Stack.Screen name="calculator" options={{ headerShown: false }} />
-        <Stack.Screen name="contact" options={{ headerShown: false }} />
-        <Stack.Screen name="chatbot" options={{ headerShown: false }} />
-        <Stack.Screen name="auth" options={{ headerShown: false }} />
-        <Stack.Screen name="track/[id]" options={{ title: 'تتبع الطلب' }} />
-        <Stack.Screen name="profile" options={{ title: 'الملف الشخصي' }} />
+        <Stack.Screen 
+          name="index" 
+          options={{ 
+            headerShown: false 
+          }} 
+        />
+        <Stack.Screen 
+          name="onboarding" 
+          options={{ 
+            headerShown: false 
+          }} 
+        />
+        <Stack.Screen 
+          name="role-selection" 
+          options={{ 
+            headerShown: false 
+          }} 
+        />
+        <Stack.Screen 
+          name="(customer)" 
+          options={{ 
+            headerShown: false 
+          }} 
+        />
+        <Stack.Screen 
+          name="(technician)" 
+          options={{ 
+            headerShown: false 
+          }} 
+        />
+        <Stack.Screen 
+          name="request" 
+          options={{ 
+            headerShown: false // Hide default header to use custom one
+          }} 
+        />
+        <Stack.Screen 
+          name="calculator" 
+          options={{ 
+            headerShown: false // Hide default header to use custom one
+          }} 
+        />
+        <Stack.Screen 
+          name="contact" 
+          options={{ 
+            headerShown: false 
+          }} 
+        />
+        <Stack.Screen 
+          name="chatbot" 
+          options={{ 
+            headerShown: false 
+          }} 
+        />
+        <Stack.Screen 
+          name="auth" 
+          options={{ 
+            headerShown: false 
+          }} 
+        />
+        <Stack.Screen 
+          name="track/[id]" 
+          options={{ title: 'تتبع الطلب' }} 
+        />
+        <Stack.Screen
+          name="profile"
+          options={{ title: 'الملف الشخصي' }}
+        />
         <Stack.Screen
           name="technician-auth"
-          options={{
+          options={{ 
             title: language === 'ar' ? 'تسجيل دخول الفني' : 'Technician Login',
-            headerShown: false,
-          }}
+            headerShown: false 
+          }} 
         />
         <Stack.Screen
           name="order-details"
           options={{
             title: language === 'ar' ? 'تفاصيل الطلب' : 'Order Details',
-            headerShown: false,
-          }}
+            headerShown: false 
+          }} 
         />
         <Stack.Screen
           name="chat/[id]"
           options={{
             title: language === 'ar' ? 'المحادثة' : 'Chat',
-            // The chat screen renders its own in-screen header (avatar, name,
-            // call/view-job actions). Keep the native stack header hidden so
-            // Android never shows two headers / two back buttons.
-            headerShown: false,
+            headerShown: true
           }}
         />
         <Stack.Screen name="addresses" options={{ headerShown: false }} />
@@ -191,24 +311,21 @@ function RootLayoutContent() {
         <Stack.Screen name="admin-payment-gateway" options={{ headerShown: false }} />
         <Stack.Screen name="admin-otp-provider" options={{ headerShown: false }} />
         <Stack.Screen name="payment" options={{ headerShown: false }} />
+        {/* Screens with custom in-screen headers — hide the default green
+            navigator header so it doesn't appear duplicated above the
+            custom one. */}
         <Stack.Screen name="notifications" options={{ headerShown: false }} />
         <Stack.Screen name="admin" options={{ headerShown: false }} />
         <Stack.Screen name="edit-profile" options={{ headerShown: false }} />
         <Stack.Screen name="support-chat" options={{ headerShown: false }} />
         <Stack.Screen name="admin-support" options={{ headerShown: false }} />
+        {/* These admin screens have their own in-screen headers; hiding the
+            native green Stack header eliminates the duplicated bar that
+            appeared above the custom one. */}
         <Stack.Screen name="admin-orders" options={{ headerShown: false }} />
         <Stack.Screen name="admin-ratings" options={{ headerShown: false }} />
         <Stack.Screen name="admin-users" options={{ headerShown: false }} />
         <Stack.Screen name="admin-platform-settings" options={{ headerShown: false }} />
-        <Stack.Screen name="admin-community" options={{ headerShown: false }} />
-        <Stack.Screen name="admin-offers" options={{ headerShown: false }} />
-        <Stack.Screen name="admin-billing" options={{ headerShown: false }} />
-        <Stack.Screen name="admin-team" options={{ headerShown: false }} />
-        <Stack.Screen name="admin-accounting" options={{ headerShown: false }} />
-        <Stack.Screen name="admin-service-areas" options={{ headerShown: false }} />
-        <Stack.Screen name="admin-user-verifications" options={{ headerShown: false }} />
-        <Stack.Screen name="privacy" options={{ headerShown: false }} />
-        <Stack.Screen name="terms" options={{ headerShown: false }} />
       </Stack>
     </View>
   );
@@ -223,49 +340,6 @@ export default function RootLayout() {
     IBMPlexSansArabic_700Bold,
   });
 
-  // Create the Android 'default' notification channel at app startup, before
-  // (and independent of) login. Android 8+ silently drops any push whose
-  // channel doesn't exist, and `push-dispatch` sends every message with
-  // channelId: 'default' — so the channel must exist as early as possible,
-  // not only after the post-login token registration runs. No-op on iOS.
-  useEffect(() => {
-    if (Platform.OS !== 'android') {
-      void ensureAndroidNotificationChannel();
-      return;
-    }
-    void (async () => {
-      await ensureAndroidNotificationChannel();
-      // Debug only: dump the registered Android channels so we can confirm
-      // 'default' exists with the expected importance, and detect pushes being
-      // routed to fallback channels (fcm_fallback_notification_channel /
-      // expo_notifications_fallback_notification_channel).
-      try {
-        const channels = await Notifications.getNotificationChannelsAsync();
-        console.log(
-          '[PushChannel] Android channels:',
-          channels.map((c) => ({ id: c.id, importance: c.importance }))
-        );
-      } catch (e) {
-        console.warn('[PushChannel] getNotificationChannelsAsync failed', e);
-      }
-    })();
-  }, []);
-
-  // Android only: register no-op FCM handlers so @react-native-firebase/messaging
-  // doesn't intercept/own incoming pushes before expo-notifications presents
-  // them. expo-notifications handles display; these only log for debugging.
-  // RNFirebase also expects a background handler to be registered. Runs once.
-  useEffect(() => {
-    if (Platform.OS !== 'android') return;
-    messaging().setBackgroundMessageHandler(async (remoteMessage) => {
-      console.log('[FCM Background]', remoteMessage?.notification?.title);
-    });
-    const unsubscribe = messaging().onMessage(async (remoteMessage) => {
-      console.log('[FCM Foreground]', remoteMessage?.notification?.title);
-    });
-    return unsubscribe;
-  }, []);
-
   if (!fontsLoaded) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' }}>
@@ -274,12 +348,20 @@ export default function RootLayout() {
     );
   }
 
+  // IBM Plex Sans Arabic globally — but on iOS/Android, custom fonts
+  // don't auto-map fontWeight: 'bold' to a bold variant; you must name
+  // the family explicitly. Without this override every "bold" Text on
+  // screen would render in the regular weight, which is exactly the
+  // "the font isn't really applied" symptom users report.
+  //
+  // We intercept Text/TextInput's render once and rewrite the resolved
+  // style so the right IBM Plex Sans Arabic variant is picked based
+  // on fontWeight.
   applyAppFontToText();
 
   return (
     <ErrorBoundary>
-      <SafeAreaProvider>
-        <AppProvider>
+      <AppProvider>
         <AuthProvider>
           <OrdersProvider>
             <LoyaltyProvider>
@@ -291,8 +373,7 @@ export default function RootLayout() {
             </LoyaltyProvider>
           </OrdersProvider>
         </AuthProvider>
-        </AppProvider>
-      </SafeAreaProvider>
+      </AppProvider>
     </ErrorBoundary>
   );
 }
