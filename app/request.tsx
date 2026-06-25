@@ -8,7 +8,7 @@ import OsmMap, { type OsmMapHandle } from '../components/OsmMap';
 import * as Location from 'expo-location';
 import * as ImagePicker from 'expo-image-picker';
 import { useOrders } from '../contexts/OrdersContext';
-import { notificationManager } from '../lib/notifications';
+import { notifyAudience } from '../services/notifyService';
 import { BRANDS, searchBrands, searchModels, searchIssues, Brand, Issue } from '../constants/repairData';
 import { useApp } from '../contexts/AppContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -748,13 +748,15 @@ export default function RequestScreen() {
       // 3. Best-effort technician notification — never blocks success
       const cityMatch = address?.match(/,\s*([^,]+)$/);
       const targetCity = cityMatch ? cityMatch[1].trim() : 'Riyadh';
-      notificationManager
-        .notifyTechniciansInCity(targetCity, {
-          id: result.id,
-          device_brand: orderData.device_brand,
-          device_model: orderData.device_model,
-        })
-        .catch((e) => logger.warn('notify technicians failed', e));
+      notifyAudience('technicians', {
+        title: 'طلب صيانة جديد! 🛠️',
+        body: `طلب جديد: ${orderData.device_brand} ${orderData.device_model}`,
+        data: {
+          type: 'new_order',
+          orderId: result.id,
+          city: targetCity,
+        },
+      }).catch((e) => logger.warn('notify technicians failed', e));
 
       setIsSubmitting(false);
       setSubmitStage('idle');
