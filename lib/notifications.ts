@@ -43,6 +43,16 @@ function isValidPushToken(token: unknown): token is string {
   return typeof token === 'string' && EXPO_TOKEN_RE.test(token.trim());
 }
 
+/**
+ * A log-safe sample of a push token. Never log the full value — the bracketed
+ * body is effectively a delivery secret. We keep the `ExponentPushToken[`
+ * prefix (useful for shape verification) plus a few chars and the length.
+ */
+function tokenSample(t: string | null | undefined): string {
+  if (!t) return '<null>';
+  return t.length <= 24 ? t : `${t.slice(0, 24)}…(len=${t.length})`;
+}
+
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldPlaySound: true,
@@ -98,6 +108,11 @@ export const notificationManager = {
       const { status } = await Notifications.requestPermissionsAsync();
       finalStatus = status;
     }
+    // Production diagnostic: the #1 silent Android cause is a denied/undetermined
+    // POST_NOTIFICATIONS permission (Android 13+). Log both states every time.
+    console.log(
+      `[PushToken] permission (platform=${Platform.OS}): existing=${existingStatus} final=${finalStatus}`
+    );
     if (finalStatus !== 'granted') {
       logger.warn('[PushToken] permission not granted — skipping registration');
       return null;
@@ -108,16 +123,27 @@ export const notificationManager = {
 
     try {
       const projectId = resolveProjectId();
+      // Log the projectId every time: an Expo token is bound to ONE EAS project,
+      // and Expo relays to FCM using the credentials on THAT project. A wrong /
+      // missing projectId here is a common Android delivery cause.
+      console.log('[PushToken] using EAS projectId:', projectId ?? '<missing>');
       if (!projectId) {
-        logger.warn('[PushToken] EAS projectId missing from app config');
+        logger.warn(
+          '[PushToken] EAS projectId missing — getExpoPushTokenAsync may fail on Android'
+        );
       }
       const { data: token } = await Notifications.getExpoPushTokenAsync(
         projectId ? { projectId } : undefined
       );
-      console.log('[PushToken] registered (expo):', token);
+      console.log(
+        '[PushToken] getExpoPushTokenAsync OK — sample:',
+        tokenSample(token),
+        'expoShape:',
+        EXPO_TOKEN_RE.test(token ?? '')
+      );
       return token;
     } catch (e) {
-      logger.error('[PushToken] getExpoPushTokenAsync failed', e);
+      logger.error('[PushToken] getExpoPushTokenAsync FAILED', e);
       return null;
     }
   },
@@ -127,24 +153,15 @@ export const notificationManager = {
    * service-role `push-dispatch` function can resolve it for fan-out.
    */
   saveTokenToProfile: async (userId: string, token: string) => {
-    // Never overwrite a stored token with junk. On a simulator / denied
-    // permission `registerForPushNotificationsAsync` returns null, but guard
-    // here too so a bad value can't reach the DB and poison the broadcast.
+    // Never store a non-Expo token. `isValidPushToken` is now Expo-only, so this
+    // single guard is sufficient — `registerForPushNotificationsAsync` already
+    // returns only Expo tokens (or null), and push-dispatch rejects anything
+    // else. (The old raw-FCM fallback acceptance has been removed.)
     if (!isValidPushToken(token)) {
-      logger.warn('[PushToken] refusing to store invalid token', { token });
+      logger.warn('[PushToken] refusing to store non-Expo token', {
+        sample: tokenSample(token),
+      });
       return;
-    }
-
-    // Explicit production-visible signal for the Android double-registration
-    // race: if a non-Expo (raw FCM/APNs) token reaches here it will pass the
-    // permissive isValidPushToken() fallback but be rejected by push-dispatch's
-    // EXPO_TOKEN_RE, which then clears it. Log loudly so we can detect it in the
-    // field. healPushTokenIfNeeded() repairs such rows on next launch.
-    if (!EXPO_TOKEN_RE.test(token.trim())) {
-      logger.warn(
-        '[PushToken] storing a NON-Expo token (likely raw FCM) — push-dispatch will reject this',
-        { tokenPrefix: token.slice(0, 24) }
-      );
     }
 
     try {
@@ -158,6 +175,7 @@ export const notificationManager = {
         .maybeSingle();
 
       if (existing?.push_token === token) {
+        console.log('[PushToken] token unchanged for', userId, '— skipping write');
         return; // unchanged — nothing to do.
       }
 
@@ -166,9 +184,15 @@ export const notificationManager = {
         .update({ push_token: token, push_updated_at: new Date().toISOString() })
         .eq('id', userId);
       if (error) {
-        logger.warn('[PushToken] save to public.users failed', error);
+        logger.warn('[PushToken] save to public.users FAILED', error);
       } else {
-        console.log('[PushToken] saved to public.users for', userId);
+        // Confirms the row actually updated, with a log-safe token sample.
+        console.log(
+          '[PushToken] saved to public.users for',
+          userId,
+          '— sample:',
+          tokenSample(token)
+        );
       }
     } catch (e) {
       logger.warn('[PushToken] save threw', e);
@@ -200,15 +224,16 @@ export const notificationManager = {
 };
 
 /**
- * Startup self-heal for the Android Expo/Firebase double-registration race.
+ * Startup self-heal for legacy / non-Expo tokens on Android.
  *
- * When both expo-notifications and @react-native-firebase/messaging are active,
- * a raw FCM registration token can occasionally land in public.users.push_token
- * instead of an Expo push token. push-dispatch rejects anything that doesn't
- * match EXPO_TOKEN_RE and DELETES the row's token, leaving the user with no
- * pushes until they re-register. On Android only, this checks the stored token
- * and — if it's not an Expo token — re-registers and overwrites it with a fresh
- * Expo token. No-op on iOS. Safe to call on every login.
+ * Earlier builds (raw FCM-v1 flow, and a brief window where the client accepted
+ * non-Expo tokens) could have left a raw FCM/APNs token in
+ * public.users.push_token. push-dispatch rejects anything that doesn't match
+ * EXPO_TOKEN_RE and DELETES it, so the user gets no pushes until they
+ * re-register. This checks the stored token and — if it isn't an Expo token —
+ * re-registers and overwrites it with a fresh Expo token. The current code path
+ * only ever stores Expo tokens, so for healthy installs this is a cheap no-op;
+ * it exists to repair pre-existing bad rows. Android only, no-op on iOS.
  */
 export async function healPushTokenIfNeeded(userId: string): Promise<void> {
   if (Platform.OS !== 'android') return;
@@ -225,8 +250,8 @@ export async function healPushTokenIfNeeded(userId: string): Promise<void> {
     if (!storedToken) return;
 
     if (!EXPO_TOKEN_RE.test(storedToken)) {
-      logger.warn('[PushHeal] stored token is invalid, re-registering', {
-        tokenPrefix: String(storedToken).slice(0, 20),
+      logger.warn('[PushHeal] stored token is non-Expo, re-registering', {
+        sample: tokenSample(String(storedToken)),
       });
       const freshToken = await notificationManager.registerForPushNotificationsAsync();
       if (freshToken) {

@@ -3,6 +3,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { View, ActivityIndicator, Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
+import messaging from '@react-native-firebase/messaging';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { getColors } from '../constants/theme';
 import { RequestProvider } from '../contexts/RequestContext';
@@ -248,6 +249,21 @@ export default function RootLayout() {
         console.warn('[PushChannel] getNotificationChannelsAsync failed', e);
       }
     })();
+  }, []);
+
+  // Android only: register no-op FCM handlers so @react-native-firebase/messaging
+  // doesn't intercept/own incoming pushes before expo-notifications presents
+  // them. expo-notifications handles display; these only log for debugging.
+  // RNFirebase also expects a background handler to be registered. Runs once.
+  useEffect(() => {
+    if (Platform.OS !== 'android') return;
+    messaging().setBackgroundMessageHandler(async (remoteMessage) => {
+      console.log('[FCM Background]', remoteMessage?.notification?.title);
+    });
+    const unsubscribe = messaging().onMessage(async (remoteMessage) => {
+      console.log('[FCM Foreground]', remoteMessage?.notification?.title);
+    });
+    return unsubscribe;
   }, []);
 
   if (!fontsLoaded) {
