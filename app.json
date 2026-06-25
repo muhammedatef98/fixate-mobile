@@ -1,32 +1,32 @@
 {
   "expo": {
     "name": "Fixate",
-    "slug": "fixate",
+    "slug": "fixatee",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
     "description": "منصة صيانة الأجهزة الإلكترونية في السعودية - إصلاح أجهزتك بسرعة وسهولة مع فنيين محترفين في موقعك",
+    "privacy": "https://fixate.site/privacy",
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
     "assetBundlePatterns": [
-      "assets/**/*"
+      "**/*"
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.fixate.app",
+      "bundleIdentifier": "com.fixatee.app",
       "buildNumber": "1",
-      "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {
         "UIViewControllerBasedStatusBarAppearance": false,
         "UIStatusBarHidden": true,
-        "NSCameraUsageDescription": "يستخدم Fixate الكاميرا لتصوير الجهاز المعطل ووثائق التحقق للفنيين.",
-        "NSPhotoLibraryUsageDescription": "يستخدم Fixate مكتبة الصور لاختيار صور الجهاز المعطل ومستندات التحقق.",
-        "NSPhotoLibraryAddUsageDescription": "يحفظ Fixate الصور المتعلقة بالطلبات في مكتبة الصور عند الطلب.",
-        "NSLocationWhenInUseUsageDescription": "يستخدم Fixate موقعك لتحديد عنوان الخدمة وتمكين تتبع الفني المباشر.",
+        "NSCameraUsageDescription": "يستخدم Fixatee الكاميرا لتصوير الجهاز المعطل ووثائق التحقق للفنيين.",
+        "NSPhotoLibraryUsageDescription": "يستخدم Fixatee مكتبة الصور لاختيار صور الجهاز المعطل ومستندات التحقق.",
+        "NSPhotoLibraryAddUsageDescription": "يحفظ Fixatee الصور المتعلقة بالطلبات في مكتبة الصور عند الطلب.",
+        "NSLocationWhenInUseUsageDescription": "يستخدم Fixatee موقعك لتحديد عنوان الخدمة وتمكين تتبع الفني المباشر.",
         "ITSAppUsesNonExemptEncryption": false,
         "LSApplicationQueriesSchemes": [
           "tel",
@@ -65,13 +65,11 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon-foreground.png",
-        "backgroundColor": "#55B685"
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#10b981"
       },
       "package": "com.fixatee.app",
-      "versionCode": 2,
-      "softwareKeyboardLayoutMode": "resize",
-      "googleServicesFile": "./google-services.json",
+      "versionCode": 1,
       "permissions": [
         "android.permission.ACCESS_FINE_LOCATION",
         "android.permission.ACCESS_COARSE_LOCATION",
@@ -84,18 +82,15 @@
       ],
       "blockedPermissions": [
         "android.permission.RECORD_AUDIO"
-      ]
-    },
-    "androidStatusBar": {
-      "hidden": false,
-      "translucent": false,
-      "barStyle": "dark-content",
-      "backgroundColor": "#ffffff"
-    },
-    "androidNavigationBar": {
-      "visible": "sticky-immersive",
-      "barStyle": "dark-content",
-      "backgroundColor": "#ffffff"
+      ],
+      "statusBar": {
+        "hidden": true
+      },
+      "androidNavigationBar": {
+        "visible": "sticky-immersive",
+        "barStyle": "dark-content",
+        "backgroundColor": "#ffffff"
+      }
     },
     "web": {
       "favicon": "./assets/favicon.png",
@@ -106,25 +101,17 @@
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "السماح لـ Fixate بالوصول إلى موقعك لتحديد عنوان الخدمة."
+          "locationWhenInUsePermission": "السماح لـ Fixatee بالوصول إلى موقعك لتحديد عنوان الخدمة."
         }
       ],
       [
         "expo-image-picker",
         {
-          "photosPermission": "يحتاج Fixate إلى الوصول إلى صورك لرفع صور الجهاز المعطل ووثائق التحقق.",
-          "cameraPermission": "يحتاج Fixate إلى الكاميرا لتصوير الجهاز المعطل ووثائق التحقق."
+          "photosPermission": "يحتاج Fixatee إلى الوصول إلى صورك لرفع صور الجهاز المعطل ووثائق التحقق.",
+          "cameraPermission": "يحتاج Fixatee إلى الكاميرا لتصوير الجهاز المعطل ووثائق التحقق."
         }
       ],
-      [
-        "expo-notifications",
-        {
-          "icon": "./assets/notification-icon.png",
-          "color": "#10b981",
-          "defaultChannel": "default",
-          "sounds": []
-        }
-      ],
+      "expo-notifications",
       "expo-font",
       "expo-web-browser",
       "expo-secure-store",
@@ -136,32 +123,25 @@
           "project": "react-native"
         }
       ],
-      [
-        "expo-build-properties",
-        {
-          "ios": {
-            "useFrameworks": "static",
-            "buildReactNativeFromSource": true
-          }
-        }
-      ],
+      "@sentry/react-native",
       "@react-native-firebase/app",
       "@react-native-firebase/messaging",
-      "@react-native-google-signin/google-signin",
       "./plugins/withFirebaseNotificationColorFix.js"
     ],
     "updates": {
       "fallbackToCacheTimeout": 0,
-      "url": "https://u.expo.dev/a680cf7b-b1aa-468f-9bd7-6cd9f9e35726"
+      "url": "https://u.expo.dev/2499a02f-3849-4712-a374-d1dc6546af1e"
     },
-    "runtimeVersion": "1.0.1",
-    "scheme": "fixate",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "scheme": "fixatee",
     "extra": {
       "router": {
         "origin": false
       },
       "eas": {
-        "projectId": "a680cf7b-b1aa-468f-9bd7-6cd9f9e35726"
+        "projectId": "2499a02f-3849-4712-a374-d1dc6546af1e"
       }
     },
     "owner": "muhammedatef98"
