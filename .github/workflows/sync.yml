@@ -1,0 +1,54 @@
+name: Sync Validation
+
+# Keep the repo continuously validated: run on every push to any branch and on
+# every pull request, then mark the commit as "synced and validated".
+on:
+  push:
+    branches:
+      - '**'
+  pull_request:
+
+jobs:
+  validate:
+    name: Validate (typecheck + lint)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: yarn
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: TypeScript check
+        run: yarn tsc --noEmit
+
+      - name: Lint (skip gracefully if no script)
+        run: |
+          if node -e "const s=require('./package.json').scripts||{};process.exit(s.lint?0:1)"; then
+            echo "lint script found — running"
+            yarn lint
+          else
+            echo "No lint script defined; skipping."
+          fi
+
+  notify-sync:
+    name: Mark synced and validated
+    needs: validate
+    runs-on: ubuntu-latest
+    permissions:
+      statuses: write
+    steps:
+      - name: Post commit status
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh api -X POST "repos/${{ github.repository }}/statuses/${{ github.sha }}" \
+            -f state=success \
+            -f context="sync/validated" \
+            -f description="synced and validated"

@@ -1,0 +1,49 @@
+name: PR Safety Check
+
+# Android-only changes must not drag iOS files along. If a PR into main touches
+# any Android-specific file AND any ios/ file, post a warning comment so a
+# reviewer can confirm the iOS change is intentional.
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  ios-guard:
+    name: Android/iOS cross-change guard
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect Android + iOS changes
+        id: detect
+        run: |
+          BASE='${{ github.event.pull_request.base.sha }}'
+          HEAD='${{ github.event.pull_request.head.sha }}'
+          FILES="$(git diff --name-only "$BASE" "$HEAD")"
+          echo "Changed files:"
+          echo "$FILES"
+
+          ANDROID="$(echo "$FILES" | grep -E '^(lib/notifications\.ts|app/_layout\.tsx|app\.json)$' || true)"
+          IOS="$(echo "$FILES" | grep -E '^ios/' || true)"
+
+          if [ -n "$ANDROID" ] && [ -n "$IOS" ]; then
+            echo "warn=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "warn=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Warn on mixed Android + iOS changes
+        if: steps.detect.outputs.warn == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh pr comment "${{ github.event.pull_request.number }}" --body \
+          "⚠️ **Android/iOS cross-change detected.** This PR modifies Android-specific files (\`lib/notifications.ts\` / \`app/_layout.tsx\` / \`app.json\`) **and** files under \`ios/\`. Android-only changes should not touch iOS — please confirm the iOS change is intentional before merging."
