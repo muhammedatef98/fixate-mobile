@@ -503,17 +503,17 @@ const makeStyles = (COLORS: any, isRTL: boolean, SHADOWS: any) => StyleSheet.cre
     paddingVertical: SPACING.sm,
   },
   categoryChip: {
-    flexDirection: 'row',
+    flexDirection: isRTL ? 'row-reverse' : 'row',
     alignItems: 'center',
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.sm,
     borderRadius: 20,
-    marginRight: SPACING.sm,
+    marginEnd: SPACING.sm,
     backgroundColor: COLORS.cardAlt,
   },
   categoryText: {
     fontSize: 14,
-    marginLeft: SPACING.xs,
+    marginStart: SPACING.xs,
     color: COLORS.textSecondary,
   },
   categoryTextActive: {
@@ -545,7 +545,7 @@ const makeStyles = (COLORS: any, isRTL: boolean, SHADOWS: any) => StyleSheet.cre
     marginBottom: SPACING.md,
   },
   orderHeader: {
-    flexDirection: 'row',
+    flexDirection: isRTL ? 'row-reverse' : 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
     marginBottom: SPACING.md,
@@ -554,9 +554,9 @@ const makeStyles = (COLORS: any, isRTL: boolean, SHADOWS: any) => StyleSheet.cre
     flex: 1,
   },
   categoryBadge: {
-    flexDirection: 'row',
+    flexDirection: isRTL ? 'row-reverse' : 'row',
     alignItems: 'center',
-    alignSelf: 'flex-start',
+    alignSelf: isRTL ? 'flex-end' : 'flex-start',
     paddingHorizontal: SPACING.sm,
     paddingVertical: SPACING.xs,
     borderRadius: 12,
@@ -565,7 +565,7 @@ const makeStyles = (COLORS: any, isRTL: boolean, SHADOWS: any) => StyleSheet.cre
   categoryBadgeText: {
     fontSize: 12,
     fontWeight: '600',
-    marginLeft: SPACING.xs,
+    marginStart: SPACING.xs,
   },
   orderDevice: {
     fontSize: 18,
@@ -573,7 +573,7 @@ const makeStyles = (COLORS: any, isRTL: boolean, SHADOWS: any) => StyleSheet.cre
     color: COLORS.text,
   },
   distanceBadge: {
-    flexDirection: 'row',
+    flexDirection: isRTL ? 'row-reverse' : 'row',
     alignItems: 'center',
     backgroundColor: COLORS.primary + '20',
     paddingHorizontal: SPACING.sm,
@@ -584,7 +584,7 @@ const makeStyles = (COLORS: any, isRTL: boolean, SHADOWS: any) => StyleSheet.cre
     fontSize: 12,
     fontWeight: '600',
     color: COLORS.primary,
-    marginLeft: SPACING.xs,
+    marginStart: SPACING.xs,
   },
   orderDescription: {
     fontSize: 14,
@@ -605,7 +605,7 @@ const makeStyles = (COLORS: any, isRTL: boolean, SHADOWS: any) => StyleSheet.cre
     textAlign: isRTL ? 'right' : 'left',
   },
   orderFooter: {
-    flexDirection: 'row',
+    flexDirection: isRTL ? 'row-reverse' : 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginTop: SPACING.md,

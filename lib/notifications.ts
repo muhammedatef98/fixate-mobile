@@ -31,20 +31,16 @@ function resolveProjectId(): string | undefined {
 }
 
 /**
- * A storable push token is either an Expo push token ("ExponentPushToken[...]"
- * / "ExpoPushToken[...]") or — defensively — a raw FCM/APNs registration token
- * (a long opaque string with no whitespace). Empty strings, `null`,
- * `undefined`, and obvious junk are rejected so we never persist a value that
- * makes the server-side fan-out fail. See `push-dispatch`'s matching guard.
+ * A storable push token MUST be an Expo push token ("ExponentPushToken[...]" /
+ * "ExpoPushToken[...]"). Push delivery goes through the Expo Push API and
+ * `push-dispatch` rejects (and clears) anything that doesn't match this exact
+ * shape — so the client must never persist a raw FCM/APNs registration token,
+ * which would poison public.users.push_token and silently break Android
+ * delivery. This guard mirrors `push-dispatch`'s server-side regex.
  */
 const EXPO_TOKEN_RE = /^Expo(nent)?PushToken\[[^\]\s]+\]$/;
 function isValidPushToken(token: unknown): token is string {
-  if (typeof token !== 'string') return false;
-  const t = token.trim();
-  if (t.length === 0) return false;
-  if (EXPO_TOKEN_RE.test(t)) return true;
-  // Raw FCM/APNs fallback: a single opaque token of meaningful length.
-  return t.length >= 32 && !/\s/.test(t);
+  return typeof token === 'string' && EXPO_TOKEN_RE.test(token.trim());
 }
 
 Notifications.setNotificationHandler({

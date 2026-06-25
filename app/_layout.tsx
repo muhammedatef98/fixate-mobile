@@ -2,9 +2,9 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { View, ActivityIndicator, Platform } from 'react-native';
-import messaging from '@react-native-firebase/messaging';
 import * as Notifications from 'expo-notifications';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { getColors } from '../constants/theme';
 import { RequestProvider } from '../contexts/RequestContext';
 import { ThemeProvider } from '../contexts/ThemeContext';
 import { AppProvider, useApp } from '../contexts/AppContext';
@@ -35,7 +35,8 @@ initSentry();
 configureGoogleSignIn();
 
 function RootLayoutContent() {
-  const { language } = useApp();
+  const { language, isDark } = useApp();
+  const C = getColors(isDark);
   const { user, userProfile, loading } = useAuth();
   const segments = useSegments();
   const router = useRouter();
@@ -95,34 +96,6 @@ function RootLayoutContent() {
     }
   }, [user, userProfile, segments, loading]);
 
-  // Hand FCM messages off to expo-notifications on Android. RNFirebase
-  // messaging otherwise registers its own listeners that intercept incoming
-  // pushes BEFORE expo-notifications sees them — foreground pushes get drawn
-  // by Firebase (bypassing our handler) and background pushes are swallowed by
-  // Firebase's headless JS service so expo-notifications never fires. By
-  // installing no-op handlers here we let expo-notifications' own FCM
-  // integration own display (it shows banners via the handler set in
-  // lib/notifications.ts). iOS uses APNs through expo-notifications directly and
-  // is intentionally untouched. Runs once.
-  useEffect(() => {
-    if (Platform.OS !== 'android') return;
-
-    // Background / quit-state messages: expo-notifications handles display.
-    // This handler exists only so RNFirebase doesn't complain about a missing
-    // background handler; keep it a no-op (log only) to avoid double display.
-    messaging().setBackgroundMessageHandler(async (remoteMessage) => {
-      console.log('[FCM Background]', remoteMessage?.notification?.title);
-    });
-
-    // Foreground messages: let expo-notifications show the banner via its
-    // configured notification handler (shouldShowBanner: true).
-    const unsubscribe = messaging().onMessage(async (remoteMessage) => {
-      console.log('[FCM Foreground]', remoteMessage?.notification?.title);
-    });
-
-    return unsubscribe;
-  }, []);
-
   const accountStatus = (userProfile as any)?.account_status;
   if (
     !loading &&
@@ -134,7 +107,12 @@ function RootLayoutContent() {
 
   return (
     <View style={{ flex: 1 }}>
-      <StatusBar hidden={true} />
+      <StatusBar
+        style={isDark ? 'light' : 'dark'}
+        translucent={false}
+        hidden={false}
+        backgroundColor={C.background}
+      />
       <OfflineBanner />
       <Stack
         screenOptions={{
@@ -182,7 +160,10 @@ function RootLayoutContent() {
           name="chat/[id]"
           options={{
             title: language === 'ar' ? 'المحادثة' : 'Chat',
-            headerShown: true,
+            // The chat screen renders its own in-screen header (avatar, name,
+            // call/view-job actions). Keep the native stack header hidden so
+            // Android never shows two headers / two back buttons.
+            headerShown: false,
           }}
         />
         <Stack.Screen name="addresses" options={{ headerShown: false }} />

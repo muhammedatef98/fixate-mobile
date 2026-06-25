@@ -8,12 +8,12 @@ import {
   FlatList,
   KeyboardAvoidingView,
   Platform,
-  SafeAreaView,
   ActivityIndicator,
   Alert,
   Linking,
   Image,
 } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -94,6 +94,7 @@ export default function ChatScreen() {
   const [viewerIndex, setViewerIndex] = useState(0);
 
   const flatListRef = useRef<FlatList>(null);
+  const insets = useSafeAreaInsets();
   useScrollToEndOnKeyboard(flatListRef);
 
   useEffect(() => {
@@ -384,7 +385,7 @@ export default function ChatScreen() {
     : (isRTL ? QUICK_REPLIES_CUSTOMER_AR : QUICK_REPLIES_CUSTOMER_EN);
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView edges={['top']} style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => safeBack('/(customer)/orders')} style={styles.backBtn}>
@@ -445,7 +446,10 @@ export default function ChatScreen() {
           behind it. */}
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        // iOS pads above the keyboard; Android relies on adjustResize
+        // (app.json softwareKeyboardLayoutMode: "resize"). 'height' fought
+        // adjustResize and could leave the composer covered.
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 88 : 0}
       >
       {/* Messages */}
@@ -493,14 +497,14 @@ export default function ChatScreen() {
 
       {/* Input — replaced by a read-only banner when the chat is locked. */}
       {chatLocked ? (
-        <View style={[styles.lockedBanner, { backgroundColor: COLORS.card, borderTopColor: COLORS.border }]}>
+        <View style={[styles.lockedBanner, { backgroundColor: COLORS.card, borderTopColor: COLORS.border, paddingBottom: 16 + insets.bottom }]}>
           <Ionicons name="lock-closed" size={16} color={COLORS.textSecondary} />
           <Text style={[styles.lockedBannerText, { color: COLORS.textSecondary }]}>
             {lockedBannerLabel(order?.status, isRTL)}
           </Text>
         </View>
       ) : (
-      <View style={[styles.inputBar, { backgroundColor: COLORS.card, borderTopColor: COLORS.border }]}>
+      <View style={[styles.inputBar, { backgroundColor: COLORS.card, borderTopColor: COLORS.border, paddingBottom: 8 + insets.bottom }]}>
           {/* Attachment menu — image + location */}
           <TouchableOpacity
             onPress={sendImage}

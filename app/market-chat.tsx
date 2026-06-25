@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  SafeAreaView,
   StatusBar,
   FlatList,
   TextInput,
@@ -14,6 +13,7 @@ import {
   Alert,
   Image,
 } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../contexts/AppContext';
@@ -71,6 +71,7 @@ export default function MarketChatScreen() {
     params.counterpartyName ?? ''
   );
   const listRef = useRef<FlatList<MarketMessage>>(null);
+  const insets = useSafeAreaInsets();
   useScrollToEndOnKeyboard(listRef);
   const channelRef = useRef<any>(null);
 
@@ -212,7 +213,7 @@ export default function MarketChatScreen() {
   const effectiveListingId = params.listingId || thread?.listing_id || '';
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView edges={['top']} style={styles.container}>
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.headerBtn}>
@@ -263,7 +264,10 @@ export default function MarketChatScreen() {
 
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        // iOS pads above the keyboard; Android relies on adjustResize
+        // (app.json softwareKeyboardLayoutMode: "resize"). 'height' fought
+        // adjustResize and could leave the composer covered.
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 88 : 0}
       >
         {loading ? (
@@ -349,7 +353,7 @@ export default function MarketChatScreen() {
           />
         )}
 
-        <View style={styles.inputBar}>
+        <View style={[styles.inputBar, { paddingBottom: 10 + insets.bottom }]}>
           <TextInput
             style={[styles.input, { color: COLORS.text, textAlign: isRTL ? 'right' : 'left' }]}
             value={input}

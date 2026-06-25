@@ -5,10 +5,10 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  SafeAreaView,
   Dimensions,
   StatusBar,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { COLORS, SPACING, SHADOWS } from '../../constants/theme';
 import { MaterialIcons, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -60,6 +60,8 @@ export default function CustomerHomeScreen() {
     ? (isRTL ? ORDER_STATUS_LABELS_AR : ORDER_STATUS_LABELS_EN)[activeOrder.status]
     : '';
   const isPending = activeOrder?.status === 'pending';
+
+  const styles = makeStyles(isRTL);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -173,18 +175,21 @@ export default function CustomerHomeScreen() {
         {/* ── Quick actions: My Orders / Market / Track ───── */}
         <View style={styles.quickRow}>
           <QuickAction
+            styles={styles}
             icon="clipboard-text-outline"
             label={isRTL ? 'طلباتي' : 'My Orders'}
             color="#3B82F6"
             onPress={() => router.push('/(customer)/orders')}
           />
           <QuickAction
+            styles={styles}
             icon="storefront-outline"
             label={isRTL ? 'السوق' : 'Market'}
             color="#F59E0B"
             onPress={() => router.push('/market')}
           />
           <QuickAction
+            styles={styles}
             icon="map-marker-path"
             label={isRTL ? 'تتبّع الطلب' : 'Track Order'}
             color="#10B981"
@@ -238,7 +243,7 @@ export default function CustomerHomeScreen() {
                 name={promo.icon as any}
                 size={120}
                 color="rgba(255,255,255,0.18)"
-                style={{ position: 'absolute', right: -16, top: -16 }}
+                style={{ position: 'absolute', [isRTL ? 'left' : 'right']: -16, top: -16 }}
               />
               <View style={styles.promoContent}>
                 <Text style={styles.promoTitle}>{isRTL ? promo.title : promo.titleEn}</Text>
@@ -252,8 +257,8 @@ export default function CustomerHomeScreen() {
   );
 }
 
-function QuickAction({ icon, label, color, onPress }: {
-  icon: any; label: string; color: string; onPress: () => void;
+function QuickAction({ styles, icon, label, color, onPress }: {
+  styles: ReturnType<typeof makeStyles>; icon: any; label: string; color: string; onPress: () => void;
 }) {
   return (
     <TouchableOpacity style={[styles.quickCard, SHADOWS.small]} activeOpacity={0.8} onPress={onPress}>
@@ -265,19 +270,19 @@ function QuickAction({ icon, label, color, onPress }: {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (isRTL: boolean) => StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
   scrollContent: { paddingBottom: SPACING.xxl },
   header: {
-    flexDirection: 'row',
+    flexDirection: isRTL ? 'row-reverse' : 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: SPACING.l,
     paddingTop: SPACING.xl,
     gap: SPACING.m,
   },
-  greeting: { fontSize: 22, fontWeight: 'bold', color: COLORS.text, marginBottom: 2 },
-  greetingSub: { fontSize: 13, color: COLORS.textSecondary },
+  greeting: { fontSize: 22, fontWeight: 'bold', color: COLORS.text, marginBottom: 2, textAlign: isRTL ? 'right' : 'left' },
+  greetingSub: { fontSize: 13, color: COLORS.textSecondary, textAlign: isRTL ? 'right' : 'left' },
   notificationBtn: {
     width: 44,
     height: 44,
@@ -289,7 +294,7 @@ const styles = StyleSheet.create({
     borderColor: COLORS.border,
   },
   searchContainer: {
-    flexDirection: 'row',
+    flexDirection: isRTL ? 'row-reverse' : 'row',
     alignItems: 'center',
     backgroundColor: COLORS.surface,
     marginHorizontal: SPACING.l,
@@ -311,12 +316,12 @@ const styles = StyleSheet.create({
     borderColor: COLORS.border,
     marginBottom: SPACING.l,
   },
-  orderStatusLine: { flexDirection: 'row', alignItems: 'center', marginBottom: SPACING.s, gap: 8 },
+  orderStatusLine: { flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', marginBottom: SPACING.s, gap: 8 },
   statusDot: { width: 9, height: 9, borderRadius: 5 },
-  orderStatusText: { fontSize: 14, fontWeight: 'bold', flex: 1 },
+  orderStatusText: { fontSize: 14, fontWeight: 'bold', flex: 1, textAlign: isRTL ? 'right' : 'left' },
   orderTrackLink: { fontSize: 13, color: COLORS.primary, fontWeight: '700' },
   divider: { height: 1, backgroundColor: COLORS.border, marginVertical: SPACING.s },
-  orderContent: { flexDirection: 'row', alignItems: 'center', gap: SPACING.m },
+  orderContent: { flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: SPACING.m },
   deviceIcon: {
     width: 44,
     height: 44,
@@ -326,8 +331,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   orderDetails: { flex: 1 },
-  deviceName: { fontSize: 16, fontWeight: 'bold', color: COLORS.text },
-  issueType: { fontSize: 13, color: COLORS.textSecondary, marginTop: 2 },
+  deviceName: { fontSize: 16, fontWeight: 'bold', color: COLORS.text, textAlign: isRTL ? 'right' : 'left' },
+  issueType: { fontSize: 13, color: COLORS.textSecondary, marginTop: 2, textAlign: isRTL ? 'right' : 'left' },
 
   welcomeHero: {
     marginHorizontal: SPACING.l,
@@ -337,11 +342,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: COLORS.border,
     marginBottom: SPACING.l,
-    alignItems: 'flex-start',
+    alignItems: isRTL ? 'flex-end' : 'flex-start',
     gap: 6,
   },
-  welcomeTitle: { fontSize: 17, fontWeight: 'bold', color: COLORS.text, marginTop: 6 },
-  welcomeSub: { fontSize: 13, color: COLORS.textSecondary },
+  welcomeTitle: { fontSize: 17, fontWeight: 'bold', color: COLORS.text, marginTop: 6, textAlign: isRTL ? 'right' : 'left' },
+  welcomeSub: { fontSize: 13, color: COLORS.textSecondary, textAlign: isRTL ? 'right' : 'left' },
 
   primaryCta: {
     marginHorizontal: SPACING.l,
@@ -349,7 +354,7 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.l,
   },
   primaryCtaGradient: {
-    flexDirection: 'row',
+    flexDirection: isRTL ? 'row-reverse' : 'row',
     alignItems: 'center',
     gap: SPACING.m,
     padding: SPACING.l,
@@ -363,11 +368,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  primaryCtaTitle: { color: '#fff', fontSize: 17, fontWeight: 'bold' },
-  primaryCtaSub: { color: 'rgba(255,255,255,0.9)', fontSize: 13, marginTop: 2 },
+  primaryCtaTitle: { color: '#fff', fontSize: 17, fontWeight: 'bold', textAlign: isRTL ? 'right' : 'left' },
+  primaryCtaSub: { color: 'rgba(255,255,255,0.9)', fontSize: 13, marginTop: 2, textAlign: isRTL ? 'right' : 'left' },
 
   quickRow: {
-    flexDirection: 'row',
+    flexDirection: isRTL ? 'row-reverse' : 'row',
     paddingHorizontal: SPACING.l,
     gap: SPACING.m,
     marginBottom: SPACING.xl,
@@ -392,17 +397,17 @@ const styles = StyleSheet.create({
   quickLabel: { fontSize: 13, fontWeight: '600', color: COLORS.text },
 
   sectionHeader: {
-    flexDirection: 'row',
+    flexDirection: isRTL ? 'row-reverse' : 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: SPACING.l,
     marginBottom: SPACING.m,
   },
-  sectionTitle: { fontSize: 18, fontWeight: 'bold', color: COLORS.text },
+  sectionTitle: { fontSize: 18, fontWeight: 'bold', color: COLORS.text, textAlign: isRTL ? 'right' : 'left' },
   seeAll: { fontSize: 14, color: COLORS.primary, fontWeight: '600' },
 
   servicesGrid: {
-    flexDirection: 'row',
+    flexDirection: isRTL ? 'row-reverse' : 'row',
     flexWrap: 'wrap',
     paddingHorizontal: SPACING.l,
     gap: SPACING.m,
@@ -431,7 +436,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
     padding: SPACING.l,
   },
-  promoContent: { alignItems: 'flex-start' },
-  promoTitle: { color: '#FFF', fontSize: 22, fontWeight: 'bold', marginBottom: 4 },
-  promoSubtitle: { color: 'rgba(255,255,255,0.9)', fontSize: 13 },
+  promoContent: { alignItems: isRTL ? 'flex-end' : 'flex-start' },
+  promoTitle: { color: '#FFF', fontSize: 22, fontWeight: 'bold', marginBottom: 4, textAlign: isRTL ? 'right' : 'left' },
+  promoSubtitle: { color: 'rgba(255,255,255,0.9)', fontSize: 13, textAlign: isRTL ? 'right' : 'left' },
 });

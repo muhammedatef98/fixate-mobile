@@ -5,7 +5,6 @@ import {
   StyleSheet,
   TextInput,
   TouchableOpacity,
-  SafeAreaView,
   StatusBar,
   KeyboardAvoidingView,
   Platform,
@@ -13,6 +12,7 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useApp } from '../contexts/AppContext';
@@ -38,6 +38,7 @@ export default function SupportChatScreen() {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const listRef = useRef<FlatList>(null);
+  const insets = useSafeAreaInsets();
   useScrollToEndOnKeyboard(listRef);
 
   useEffect(() => {
@@ -98,7 +99,7 @@ export default function SupportChatScreen() {
   const styles = makeStyles(COLORS, isRTL);
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView edges={['top']} style={styles.container}>
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
       <View style={styles.header}>
         <TouchableOpacity onPress={() => safeBack('/(customer)')} style={{ padding: 6 }}>
@@ -122,7 +123,11 @@ export default function SupportChatScreen() {
       ) : (
         <KeyboardAvoidingView
           style={{ flex: 1 }}
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          // iOS: pad above the keyboard. Android: rely on the window's
+          // adjustResize (app.json softwareKeyboardLayoutMode: "resize") so the
+          // composer is lifted by the OS. 'height' here fought adjustResize and
+          // left the input covered.
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           keyboardVerticalOffset={Platform.OS === 'ios' ? 88 : 0}
         >
           <FlatList
@@ -174,7 +179,7 @@ export default function SupportChatScreen() {
             }}
           />
 
-          <View style={[styles.inputBar, { backgroundColor: COLORS.card, borderTopColor: COLORS.border }]}>
+          <View style={[styles.inputBar, { backgroundColor: COLORS.card, borderTopColor: COLORS.border, paddingBottom: 8 + insets.bottom }]}>
             <TextInput
               value={input}
               onChangeText={setInput}

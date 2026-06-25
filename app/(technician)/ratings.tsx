@@ -203,7 +203,7 @@ const createStyles = (C: any, isRTL: boolean) => StyleSheet.create({
     fontWeight: '900',
     letterSpacing: -1,
   },
-  starsRow: { flexDirection: 'row', marginTop: 8 },
+  starsRow: { flexDirection: isRTL ? 'row-reverse' : 'row', marginTop: 8 },
   countText: { color: C.textSecondary, fontSize: 12, marginTop: 10, fontWeight: '600' },
   reviewCard: {
     backgroundColor: C.card,
