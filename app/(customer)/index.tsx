@@ -22,6 +22,7 @@ import { supabase } from '../../services/supabaseClient';
 import { ORDER_STATUS_LABELS_AR, ORDER_STATUS_LABELS_EN } from '../../types/order';
 import { formatAppDateOnly } from '../../lib/formatDate';
 import { logger } from '../../utils/logger';
+import { getWalletBalance } from '../../services/customerWalletService';
 import { RTLIonicon, RTLMaterialIcon } from '../../components/RTLIcon';
 import { PressableScale, AnimatedTouchable } from '../../components/ui/PressableScale';
 import { Skeleton } from '../../components/ui/Skeleton';
@@ -127,6 +128,7 @@ export default function CustomerHomeScreen() {
   const [activeOrder, setActiveOrder] = useState<any>(null);
   const [recentOrder, setRecentOrder] = useState<any>(null);
   const [pendingQuotes, setPendingQuotes] = useState(0);
+  const [walletBalance, setWalletBalance] = useState(0);
   const [loading, setLoading] = useState(true);
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(20)).current;
@@ -143,6 +145,7 @@ export default function CustomerHomeScreen() {
     (async () => {
       try {
         await Promise.allSettled([
+          user?.id ? getWalletBalance(user.id).then(setWalletBalance).catch(() => {}) : Promise.resolve(),
           user?.id ? loadActiveOrder() : Promise.resolve(),
           user?.id ? loadRecentOrder() : Promise.resolve(),
           user?.id ? loadPendingQuotes() : Promise.resolve(),
@@ -284,6 +287,32 @@ export default function CustomerHomeScreen() {
           <Text style={[styles.greetingSub, { color: COLORS.textSecondary }]}>
             {isRTL ? 'إصلاح احترافي لأجهزتك، أينما كنت' : 'Expert device repair, wherever you are'}
           </Text>
+
+          {/* Wallet balance pill (§15) */}
+          <TouchableOpacity
+            onPress={() => router.push('/wallet')}
+            activeOpacity={0.85}
+            accessibilityRole="button"
+            accessibilityLabel={isRTL ? 'محفظتي' : 'My wallet'}
+            style={{
+              flexDirection: isRTL ? 'row-reverse' : 'row',
+              alignItems: 'center',
+              gap: 8,
+              alignSelf: isRTL ? 'flex-end' : 'flex-start',
+              backgroundColor: COLORS.primary + '12',
+              borderWidth: 1,
+              borderColor: COLORS.primary + '30',
+              paddingHorizontal: 12,
+              paddingVertical: 8,
+              borderRadius: 999,
+              marginBottom: 16,
+            }}
+          >
+            <MaterialCommunityIcons name="wallet-outline" size={16} color={COLORS.primary} />
+            <Text style={{ color: COLORS.primary, fontWeight: '800', fontSize: 13.5 }}>
+              {isRTL ? `محفظتي: ${walletBalance.toFixed(2)} ر.س` : `Wallet: ${walletBalance.toFixed(2)} SAR`}
+            </Text>
+          </TouchableOpacity>
 
           {/* Primary CTA — the green action box under the welcome section */}
           <AnimatedTouchable

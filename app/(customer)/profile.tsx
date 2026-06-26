@@ -23,6 +23,7 @@ import { RTLIonicon } from '../../components/RTLIcon';
 import { PressableScale } from '../../components/ui/PressableScale';
 import Avatar from '../../components/Avatar';
 import { formatAppDateOnly } from '../../lib/formatDate';
+import { getWalletBalance } from '../../services/customerWalletService';
 
 interface MenuRow {
   id: string;
@@ -44,6 +45,7 @@ export default function ProfileScreen() {
   const SHADOWS = getShadows(isDark);
 
   const [stats, setStats] = useState({ total: 0, completed: 0, addresses: 0, spent: 0 });
+  const [walletBalance, setWalletBalance] = useState(0);
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(20)).current;
 
@@ -70,6 +72,7 @@ export default function ProfileScreen() {
         0
       );
       setStats({ total: total ?? 0, completed: completed ?? 0, addresses: addresses ?? 0, spent });
+      setWalletBalance(await getWalletBalance(user.id));
     } catch {}
   };
 
@@ -102,7 +105,7 @@ export default function ProfileScreen() {
     ...(loyaltyEnabled
       ? [{ id: 'loyalty', icon: 'star-outline', iconColor: '#f59e0b', labelAr: 'نقاط الولاء', labelEn: 'Loyalty points', hintAr: `${loyaltySummary.balance} نقطة متاحة`, hintEn: `${loyaltySummary.balance} points available` } as MenuRow]
       : []),
-    { id: 'wallet', icon: 'wallet-outline', labelAr: 'محفظتي', labelEn: 'Wallet', hintAr: 'سجل المدفوعات', hintEn: 'Payment history' },
+    { id: 'wallet', icon: 'wallet-outline', labelAr: 'محفظتي', labelEn: 'Wallet', hintAr: `الرصيد: ${walletBalance.toFixed(2)} ر.س`, hintEn: `Balance: ${walletBalance.toFixed(2)} SAR` },
     { id: 'addresses', icon: 'location-outline', labelAr: 'عناويني', labelEn: 'Addresses', hintAr: `${stats.addresses} ${isRTL ? 'عنوان محفوظ' : 'saved'}`, hintEn: `${stats.addresses} saved` },
     { id: 'edit', icon: 'person-circle-outline', labelAr: 'تعديل البيانات', labelEn: 'Edit profile', hintAr: 'الاسم، الجوال، الصورة', hintEn: 'Name, phone, photo' },
   ];

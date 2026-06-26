@@ -17,6 +17,8 @@ import { useAuth } from '../contexts/AuthContext';
 import { getColors, SPACING, BORDER_RADIUS } from '../constants/theme';
 import { RTLIonicon } from '../components/RTLIcon';
 import * as paymentService from '../services/paymentService';
+import * as customerWallet from '../services/customerWalletService';
+import { showToast } from '../utils/toast';
 import { getFriendlyError } from '../utils/errorMessages';
 import ErrorState from '../components/ErrorState';
 import { safeBack } from '../utils/navigation';
@@ -30,6 +32,8 @@ export default function WalletScreen() {
   const isRTL = language === 'ar';
 
   const [payments, setPayments] = useState<paymentService.Payment[]>([]);
+  const [balance, setBalance] = useState(0);
+  const [walletTxns, setWalletTxns] = useState<customerWallet.CustomerWalletTransaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -39,8 +43,14 @@ export default function WalletScreen() {
     try {
       setLoading(true);
       setErrorMsg(null);
-      const data = await paymentService.getMyPayments(user.id);
+      const [data, bal, txns] = await Promise.all([
+        paymentService.getMyPayments(user.id),
+        customerWallet.getWalletBalance(user.id),
+        customerWallet.listWalletTransactions(user.id),
+      ]);
       setPayments(data);
+      setBalance(bal);
+      setWalletTxns(txns);
     } catch (e: any) {
       setErrorMsg(getFriendlyError(e, language));
     } finally {
@@ -73,6 +83,15 @@ export default function WalletScreen() {
     }
   };
 
+  const onAddFunds = () => {
+    // TODO: integrate payment gateway for wallet top-ups.
+    showToast.info(
+      isRTL ? 'قريباً' : 'Coming soon',
+      isRTL ? 'إضافة الرصيد ستتوفر قريباً' : 'Adding funds will be available soon'
+    );
+  };
+
+  const sar = isRTL ? 'ر.س' : 'SAR';
   const styles = createStyles(COLORS, isRTL);
 
   return (
@@ -96,20 +115,58 @@ export default function WalletScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} />
         }
       >
+        {/* Wallet balance + add funds */}
         <View style={styles.balanceCard}>
           <Text style={styles.balanceLabel}>
-            {isRTL ? 'إجمالي المدفوعات' : 'Total spent'}
+            {isRTL ? 'رصيد المحفظة' : 'Wallet balance'}
           </Text>
           <Text style={styles.balanceValue}>
-            {totalSpent.toFixed(2)} {isRTL ? 'ر.س' : 'SAR'}
+            {balance.toFixed(2)} {sar}
           </Text>
-          <Text style={styles.balanceSub}>
-            {payments.length} {isRTL ? 'عملية' : 'transactions'}
-          </Text>
+          <TouchableOpacity style={styles.addFundsBtn} onPress={onAddFunds} accessibilityRole="button">
+            <MaterialCommunityIcons name="plus-circle-outline" size={18} color={COLORS.primary} />
+            <Text style={styles.addFundsText}>{isRTL ? 'إضافة رصيد' : 'Add funds'}</Text>
+          </TouchableOpacity>
         </View>
 
+        {/* Wallet ledger (credits / debits) */}
+        {walletTxns.length > 0 && (
+          <>
+            <Text style={styles.sectionTitle}>
+              {isRTL ? 'حركات المحفظة' : 'Wallet activity'}
+            </Text>
+            {walletTxns.map((t) => {
+              const credit = t.type === 'credit';
+              return (
+                <View key={t.id} style={styles.txnRow}>
+                  <View style={[styles.txnIcon, { backgroundColor: (credit ? COLORS.success : COLORS.error) + '15' }]}>
+                    <MaterialCommunityIcons
+                      name={credit ? 'arrow-down-circle' : 'arrow-up-circle'}
+                      size={22}
+                      color={credit ? COLORS.success : COLORS.error}
+                    />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.txnTitle} numberOfLines={1}>
+                      {t.description || (credit ? (isRTL ? 'إضافة رصيد' : 'Credit') : (isRTL ? 'خصم' : 'Debit'))}
+                    </Text>
+                    <Text style={styles.txnDate}>
+                      {t.created_at ? formatAppDateOnly(t.created_at, isRTL) : ''}
+                    </Text>
+                  </View>
+                  <Text style={[styles.txnAmount, { color: credit ? COLORS.success : COLORS.error }]}>
+                    {credit ? '+' : '-'}{Number(t.amount).toFixed(2)} {sar}
+                  </Text>
+                </View>
+              );
+            })}
+          </>
+        )}
+
+        {/* Payment history (kept) */}
         <Text style={styles.sectionTitle}>
-          {isRTL ? 'المعاملات الأخيرة' : 'Recent transactions'}
+          {isRTL ? 'سجل المدفوعات' : 'Payment history'}
+          {payments.length > 0 ? `  ·  ${totalSpent.toFixed(0)} ${sar}` : ''}
         </Text>
 
         {loading ? (
@@ -186,6 +243,17 @@ const createStyles = (C: any, isRTL: boolean) =>
     balanceLabel: { color: '#fff', opacity: 0.9, fontSize: 14 },
     balanceValue: { color: '#fff', fontSize: 36, fontWeight: 'bold', marginVertical: SPACING.sm },
     balanceSub: { color: '#fff', opacity: 0.8, fontSize: 12 },
+    addFundsBtn: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
+      gap: 6,
+      backgroundColor: '#fff',
+      paddingHorizontal: 16,
+      paddingVertical: 9,
+      borderRadius: 999,
+      marginTop: SPACING.sm,
+    },
+    addFundsText: { color: C.primary, fontWeight: '800', fontSize: 13.5 },
     sectionTitle: { fontSize: 16, fontWeight: 'bold', color: C.text, marginBottom: SPACING.md, textAlign: isRTL ? 'right' : 'left' },
     empty: { alignItems: 'center', paddingVertical: 40 },
     emptyTitle: { fontSize: 16, fontWeight: '600', color: C.text, marginTop: SPACING.md },
