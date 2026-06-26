@@ -39,6 +39,7 @@ import { safeBack } from '../../utils/navigation';
 import { RTLIonicon } from '../../components/RTLIcon';
 import ImageViewer from '../../components/ImageViewer';
 import ImagePickerSheet from '../../components/ImagePickerSheet';
+import SparePartRequestSheet from '../../components/SparePartRequestSheet';
 import { supabase } from '../../services/supabaseClient';
 import { uploadOrderMedia } from '../../services/storageService';
 import { resolveStorageUrls } from '../../utils/resolveStorageUrls';
@@ -125,6 +126,7 @@ export default function ManageOrderScreen() {
   const [resolvedAfter, setResolvedAfter] = useState<string[]>([]);
   const [photoSheetOpen, setPhotoSheetOpen] = useState(false);
   const [photoTarget, setPhotoTarget] = useState<'before' | 'after'>('before');
+  const [sparePartSheet, setSparePartSheet] = useState(false);
   const [uploadingPhotos, setUploadingPhotos] = useState(false);
 
   useEffect(() => {
@@ -911,6 +913,31 @@ export default function ManageOrderScreen() {
               {order.issue_description}
             </Text>
           </View>
+          {/* §12 — request a spare part from a supplier (accepted/active orders) */}
+          {!isTerminal && order.status !== 'pending' && (
+            <TouchableOpacity
+              onPress={() => setSparePartSheet(true)}
+              accessibilityRole="button"
+              accessibilityLabel={isRTL ? 'طلب قطعة غيار' : 'Request a spare part'}
+              style={{
+                flexDirection: isRTL ? 'row-reverse' : 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 8,
+                marginTop: 12,
+                paddingVertical: 12,
+                borderRadius: BORDER_RADIUS.md,
+                borderWidth: 1.5,
+                borderColor: COLORS.primary,
+                backgroundColor: COLORS.primary + '12',
+              }}
+            >
+              <MaterialCommunityIcons name="package-variant-closed" size={18} color={COLORS.primary} />
+              <Text style={{ color: COLORS.primary, fontWeight: '800', fontSize: 14 }}>
+                {isRTL ? 'طلب قطعة غيار' : 'Request a spare part'}
+              </Text>
+            </TouchableOpacity>
+          )}
           {/* Spare-part quality the customer chose — the technician must see
               this BEFORE accepting so they bring the right parts. */}
           {!!(order as any).spare_part_quality && SPARE_PART_LABELS[(order as any).spare_part_quality as SparePartQuality] && (
@@ -1221,6 +1248,17 @@ export default function ManageOrderScreen() {
         onClose={() => setPhotoSheetOpen(false)}
         onPick={pickPhotos}
         isRTL={isRTL}
+      />
+
+      {/* §12 — spare-part supplier sheet */}
+      <SparePartRequestSheet
+        visible={sparePartSheet}
+        onClose={() => setSparePartSheet(false)}
+        isRTL={isRTL}
+        COLORS={COLORS}
+        deviceBrand={order?.device_brand}
+        deviceModel={order?.device_model}
+        issueDescription={order?.issue_description}
       />
 
       {/* FEAT-03 — reject reason bottom sheet */}

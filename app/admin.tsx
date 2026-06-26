@@ -621,6 +621,12 @@ export default function AdminDashboardScreen() {
           onPress={() => router.push('/admin-ratings' as any)}
         />
         <AdminActionCard
+          icon="truck-outline" iconColor="#0ea5e9"
+          title={isRTL ? 'موردو قطع الغيار' : 'Spare-parts Suppliers'}
+          subtitle={isRTL ? 'إدارة موردي قطع الغيار للفنيين' : 'Manage spare-parts suppliers for technicians'}
+          onPress={() => router.push('/admin-suppliers' as any)}
+        />
+        <AdminActionCard
           icon="map-marker-radius" iconColor="#06b6d4"
           title={isRTL ? 'مناطق الخدمة' : 'Service Areas'}
           subtitle={isRTL ? 'إدارة المناطق، المدن، الأحياء ورسوم التوصيل' : 'Manage regions, cities, neighborhoods & delivery fees'}
