@@ -12,7 +12,6 @@ import {
   TextInput,
   Alert,
 } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useApp } from '../contexts/AppContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -31,14 +30,14 @@ import {
   type AccountingData,
   type AccountingRange,
 } from '../services/accountingService';
+import { getCommissionSettings, saveCommissionSettings } from '../services/commissionSettingsService';
 import { logger } from '../utils/logger';
 
 const CATEGORY_COLORS = ['#10B981', '#3B82F6', '#F59E0B', '#8B5CF6', '#EC4899', '#06B6D4', '#EF4444'];
-const COMMISSION_KEY = '@fixate/platform_commission_pct';
 
 export default function AdminAccountingScreen() {
   const { language, isDark } = useApp();
-  const { userProfile } = useAuth();
+  const { user, userProfile } = useAuth();
   const COLORS = getColors(isDark);
   const isRTL = language === 'ar';
   const styles = createStyles(COLORS, isRTL);
@@ -48,20 +47,37 @@ export default function AdminAccountingScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [exporting, setExporting] = useState(false);
-  // Configurable platform commission % (persisted locally).
-  const [commissionRate, setCommissionRate] = useState('0');
+  // Technician commission % (source of truth: commission_settings DB table).
+  // Platform share is derived as 100 - technician %.
+  const [techRate, setTechRate] = useState('80');
+  const [savingCommission, setSavingCommission] = useState(false);
 
   useEffect(() => {
-    AsyncStorage.getItem(COMMISSION_KEY).then((v) => {
-      if (v != null) setCommissionRate(v);
-    });
+    getCommissionSettings()
+      .then((s) => setTechRate(String(s.technicianPct)))
+      .catch(() => {});
   }, []);
 
-  const commissionPct = Math.max(0, Math.min(100, Number(commissionRate) || 0));
+  const technicianPct = Math.max(0, Math.min(100, Number(techRate) || 0));
+  const commissionPct = 100 - technicianPct; // platform share
   const onChangeCommission = (v: string) => {
+    // Keep digits + one decimal; clamp to 100 on the way in.
     const clean = v.replace(/[^0-9.]/g, '');
-    setCommissionRate(clean);
-    AsyncStorage.setItem(COMMISSION_KEY, clean).catch(() => {});
+    const num = Number(clean);
+    setTechRate(Number.isFinite(num) && num > 100 ? '100' : clean);
+  };
+  // Persist to the DB when the admin finishes editing (avoids a write per keystroke).
+  const commitCommission = async () => {
+    setSavingCommission(true);
+    try {
+      const saved = await saveCommissionSettings(technicianPct, user?.id);
+      setTechRate(String(saved.technicianPct));
+    } catch (e) {
+      logger.warn('saveCommissionSettings failed', e);
+      Alert.alert(isRTL ? 'خطأ' : 'Error', isRTL ? 'تعذّر حفظ نسبة العمولة' : 'Could not save the commission split');
+    } finally {
+      setSavingCommission(false);
+    }
   };
 
   const profileLoaded = userProfile !== null;
@@ -197,19 +213,50 @@ export default function AdminAccountingScreen() {
               ))}
             </View>
 
-            {/* Configurable platform commission % */}
-            <View style={[styles.commissionRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-              <Text style={styles.commissionLabel}>
-                {isRTL ? 'نسبة عمولة المنصة (%)' : 'Platform commission (%)'}
+            {/* Commission settings + period revenue split (§11) */}
+            <View style={styles.commissionCard}>
+              <Text style={styles.commissionTitle}>{isRTL ? 'إعدادات العمولة' : 'Commission settings'}</Text>
+
+              <View style={[styles.commissionRow2, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                <Text style={styles.commissionLabel}>{isRTL ? 'نسبة الفني (%)' : 'Technician (%)'}</Text>
+                <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 8 }}>
+                  {savingCommission && <ActivityIndicator size="small" color={COLORS.primary} />}
+                  <TextInput
+                    value={techRate}
+                    onChangeText={onChangeCommission}
+                    onEndEditing={commitCommission}
+                    onBlur={commitCommission}
+                    keyboardType="numeric"
+                    placeholder="80"
+                    placeholderTextColor={COLORS.textSecondary}
+                    style={styles.commissionInput}
+                  />
+                </View>
+              </View>
+
+              <View style={[styles.commissionRow2, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                <Text style={styles.commissionLabel}>{isRTL ? 'نسبة المنصة (%)' : 'Platform (%)'}</Text>
+                <Text style={styles.platformPctText}>{commissionPct}%</Text>
+              </View>
+
+              <View style={styles.splitDivider} />
+              <Text style={styles.splitHint}>
+                {isRTL ? 'توزيع إيرادات الفترة' : 'Revenue split for this period'}
               </Text>
-              <TextInput
-                value={commissionRate}
-                onChangeText={onChangeCommission}
-                keyboardType="numeric"
-                placeholder="0"
-                placeholderTextColor={COLORS.textSecondary}
-                style={styles.commissionInput}
-              />
+              <View style={[styles.splitRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                <View style={styles.splitTile}>
+                  <Text style={[styles.splitTileVal, { color: '#10B981' }]} numberOfLines={1}>
+                    {fmt((data.totalRevenue * technicianPct) / 100)} {sar}
+                  </Text>
+                  <Text style={styles.splitTileLbl}>{isRTL ? 'حصة الفنيين' : 'Technicians'}</Text>
+                </View>
+                <View style={styles.splitTile}>
+                  <Text style={[styles.splitTileVal, { color: '#8B5CF6' }]} numberOfLines={1}>
+                    {fmt((data.totalRevenue * commissionPct) / 100)} {sar}
+                  </Text>
+                  <Text style={styles.splitTileLbl}>{isRTL ? 'حصة المنصة' : 'Platform'}</Text>
+                </View>
+              </View>
             </View>
 
             {/* Revenue bar chart */}
@@ -294,6 +341,12 @@ export default function AdminAccountingScreen() {
                         {isRTL ? 'قطع غيار' : 'Parts'}: {fmt(r.spareParts)} · {isRTL ? 'صافي' : 'Net'}: {fmt(r.net)}
                       </Text>
                     )}
+                    {/* Per-order commission split (§11): total → tech → platform */}
+                    <Text style={[styles.txnSub, { textAlign: isRTL ? 'right' : 'left' }]} numberOfLines={1}>
+                      <Text style={{ color: '#10B981' }}>{isRTL ? 'فني' : 'Tech'} {fmt((r.amount * technicianPct) / 100)}</Text>
+                      {'  ·  '}
+                      <Text style={{ color: '#8B5CF6' }}>{isRTL ? 'منصة' : 'Platform'} {fmt((r.amount * commissionPct) / 100)}</Text>
+                    </Text>
                   </View>
                   <Text style={styles.txnAmount}>{fmt(r.amount)} {sar}</Text>
                 </View>
@@ -414,18 +467,33 @@ const createStyles = (C: any, isRTL: boolean) =>
       marginTop: 12,
     },
     exportTextAlt: { color: C.primary, fontWeight: '800', fontSize: 14 },
-    commissionRow: {
-      alignItems: 'center',
-      justifyContent: 'space-between',
+    commissionCard: {
       backgroundColor: C.card,
       borderRadius: 14,
       borderWidth: 1,
       borderColor: C.border,
       paddingHorizontal: 14,
-      paddingVertical: 10,
+      paddingVertical: 12,
       marginTop: 14,
-      gap: 12,
     },
+    commissionTitle: { color: C.text, fontSize: 14, fontWeight: '800', marginBottom: 8, textAlign: isRTL ? 'right' : 'left' },
+    commissionRow2: { alignItems: 'center', justifyContent: 'space-between', paddingVertical: 6, gap: 12 },
+    platformPctText: { color: '#8B5CF6', fontSize: 15, fontWeight: '900' },
+    splitDivider: { height: StyleSheet.hairlineWidth, backgroundColor: C.border, marginVertical: 10 },
+    splitHint: { color: C.textSecondary, fontSize: 11.5, fontWeight: '700', marginBottom: 8, textAlign: isRTL ? 'right' : 'left' },
+    splitRow: { gap: 10 },
+    splitTile: {
+      flex: 1,
+      backgroundColor: C.background,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: C.border,
+      paddingVertical: 10,
+      paddingHorizontal: 10,
+      alignItems: isRTL ? 'flex-end' : 'flex-start',
+    },
+    splitTileVal: { fontSize: 15, fontWeight: '900' },
+    splitTileLbl: { color: C.textSecondary, fontSize: 11, fontWeight: '700', marginTop: 3 },
     commissionLabel: { flex: 1, color: C.text, fontSize: 13.5, fontWeight: '700', textAlign: isRTL ? 'right' : 'left' },
     commissionInput: {
       width: 80,
