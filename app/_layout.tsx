@@ -24,7 +24,12 @@ import {
 import { applyAppFontToText } from '../utils/applyFont';
 import { initSentry } from '../services/sentryService';
 import { useOtaUpdates } from '../hooks/useOtaUpdates';
-import messaging from '@react-native-firebase/messaging';
+// NOTE: @react-native-firebase/messaging is required lazily inside an
+// Android-only effect below — a static top-level import runs on every platform
+// at module-eval and throws "RNFBAppModule not found" on any binary that lacks
+// the Firebase native module (e.g. iOS / a dev client), which would crash the
+// entire root layout (and AppProvider, → "useApp must be used within
+// AppProvider"). iOS uses APNs via expo-notifications and never needs it.
 import { ensureAndroidNotificationChannel } from '../lib/notifications';
 import '../i18n';
 
@@ -147,9 +152,18 @@ function RootLayoutContent() {
   // iOS uses APNs via expo-notifications directly — intentionally untouched.
   useEffect(() => {
     if (Platform.OS !== 'android') return;
-    messaging().setBackgroundMessageHandler(async () => {
-      // No-op: expo-notifications handles all display.
-    });
+    try {
+      // Lazy require so a binary without the Firebase native module degrades
+      // gracefully instead of crashing at module-eval. expo-notifications stays
+      // the sole owner of push display either way.
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const messaging = require('@react-native-firebase/messaging').default;
+      messaging().setBackgroundMessageHandler(async () => {
+        // No-op: expo-notifications handles all display.
+      });
+    } catch {
+      // Firebase messaging native module not present in this binary — skip.
+    }
   }, []);
 
   // Create the Android default notification channel at app startup,
