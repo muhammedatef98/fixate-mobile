@@ -62,14 +62,15 @@ const QUICK_ACTIONS = [
 
 // Warranty length applied to every completed repair (months). Used to derive
 // the warranty-expiry date shown on the home "Repair warranty" card.
-const WARRANTY_MONTHS = 6;
+// Fixate offers a full 1-year (12-month / 365-day) warranty on all repairs.
+const WARRANTY_MONTHS = 12;
 
-// Rotating weekly maintenance tips. The active tip is picked by ISO week
-// number so it changes once a week and is stable within the same week.
-// CATEGORY GUARD: tips must be about MOBILE PHONES, TABLETS or LAPTOPS ONLY —
-// never air conditioners, home appliances, TVs or any other category.
-const WEEKLY_TIPS: { ar: string; en: string }[] = [
-  { ar: 'لا تترك جوالك يشحن طوال الليل باستمرار للحفاظ على عمر البطارية.', en: "Avoid charging your phone overnight constantly to protect battery life." },
+// Rotating daily maintenance tips. The active tip is picked by the day-of-year
+// so it changes once a day at midnight and is stable for the whole day.
+// Covers all device categories Fixate services: phones, tablets, laptops,
+// TVs, washing machines and other home electronics.
+const DAILY_TIPS: { ar: string; en: string }[] = [
+  { ar: 'لا تترك جوالك يشحن طوال الليل باستمرار للحفاظ على عمر البطارية.', en: 'Avoid charging your phone overnight constantly to protect battery life.' },
   { ar: 'أبقِ نسبة شحن بطارية جهازك بين 20% و80% لإطالة عمرها.', en: 'Keep your device battery between 20% and 80% to extend its lifespan.' },
   { ar: 'نظّف منفذ الشحن في جوالك من الغبار بفرشاة ناعمة لتجنب مشاكل الشحن.', en: "Clean your phone's charging port with a soft brush to avoid charging issues." },
   { ar: 'حدّث نظام جوالك أو لابتوبك بانتظام لإصلاح الثغرات وتحسين الأداء.', en: 'Update your phone or laptop regularly to fix bugs and improve performance.' },
@@ -77,17 +78,39 @@ const WEEKLY_TIPS: { ar: string; en: string }[] = [
   { ar: 'لا تشغّل اللابتوب على سطح ناعم كالسرير حتى لا تُسد فتحات التهوية.', en: "Don't use your laptop on soft surfaces like a bed — it blocks the air vents." },
   { ar: 'أبعد جوالك ولابتوبك عن الحرارة العالية وأشعة الشمس المباشرة.', en: 'Keep your phone and laptop away from high heat and direct sunlight.' },
   { ar: 'اعمل نسخة احتياطية لبيانات جوالك أسبوعياً تحسّباً لأي عطل مفاجئ.', en: "Back up your phone's data weekly in case of a sudden failure." },
+  { ar: 'نظّف مروحة اللابتوب وفتحات التبريد كل بضعة أشهر لمنع ارتفاع الحرارة.', en: "Clean your laptop's fan and vents every few months to prevent overheating." },
+  { ar: 'لا تستخدم شواحن مقلّدة رخيصة؛ فقد تتلف البطارية أو لوحة الشحن.', en: 'Avoid cheap counterfeit chargers — they can damage the battery or charging board.' },
+  { ar: 'أغلق التطبيقات التي تعمل في الخلفية لتقليل استهلاك البطارية والحرارة.', en: 'Close background apps to reduce battery drain and heat.' },
+  { ar: 'امسح شاشة التلفزيون بقطعة قماش ميكروفايبر جافة فقط، دون رش الماء مباشرة.', en: 'Wipe your TV screen with a dry microfiber cloth only — never spray water directly on it.' },
+  { ar: 'لا تضع التلفزيون قريباً جداً من الجدار حتى يبقى هناك تهوية كافية خلفه.', en: 'Keep your TV a little away from the wall so there is enough airflow behind it.' },
+  { ar: 'استخدم منظّم تيار (UPS) لحماية التلفزيون والأجهزة من تذبذب الكهرباء.', en: 'Use a voltage regulator/UPS to protect your TV and appliances from power spikes.' },
+  { ar: 'نظّف فلتر الغسالة كل شهر لمنع انسداده وضعف التصريف.', en: "Clean your washing machine's filter monthly to prevent clogs and weak drainage." },
+  { ar: 'لا تملأ الغسالة فوق طاقتها؛ الحمولة الزائدة تُتلف المحرك والمحامل.', en: 'Never overload your washing machine — excess load wears out the motor and bearings.' },
+  { ar: 'اترك باب الغسالة مفتوحاً بعد كل غسلة ليجف الحوض ويمنع الروائح والعفن.', en: 'Leave the washer door open after each wash so the drum dries and avoids odor and mold.' },
+  { ar: 'استخدم كمية المنظّف الموصى بها فقط؛ الزيادة تترك رواسب داخل الغسالة.', en: 'Use only the recommended amount of detergent — too much leaves residue inside the machine.' },
+  { ar: 'افصل الأجهزة الكهربائية أثناء العواصف الرعدية لحمايتها من الصواعق.', en: 'Unplug electronics during thunderstorms to protect them from surges.' },
+  { ar: 'أعد تشغيل الراوتر مرة كل أسبوع للحفاظ على ثبات الإنترنت.', en: 'Restart your router once a week to keep your internet stable.' },
+  { ar: 'لا تترك التابلت في السيارة تحت الشمس؛ الحرارة تنتفخ البطارية.', en: 'Never leave a tablet in a hot car — heat can swell the battery.' },
+  { ar: 'استخدم خاصية الحماية من الماء بحذر؛ مقاومة الماء تضعف مع تقادم الجهاز.', en: 'Treat water resistance with care — it weakens as the device ages.' },
+  { ar: 'افحص كابلات الشحن دورياً واستبدل أي كابل مكشوف أو متآكل فوراً.', en: 'Inspect charging cables regularly and replace any frayed or exposed cable immediately.' },
+  { ar: 'خفّض سطوع الشاشة قليلاً لإطالة عمر البطارية وراحة عينيك.', en: 'Lower your screen brightness a bit to extend battery life and ease eye strain.' },
+  { ar: 'نظّف السماعات وفتحات المايك بفرشاة ناعمة جافة لتحسين جودة الصوت.', en: 'Clean speaker and mic grilles with a soft dry brush to keep sound clear.' },
+  { ar: 'لا تفصل الفلاش ميموري أو الهارد الخارجي أثناء نقل الملفات لتجنّب التلف.', en: 'Never unplug a USB drive or external disk mid-transfer to avoid corruption.' },
+  { ar: 'احفظ فاتورة وضمان أجهزتك في مكان واحد يسهل الرجوع إليه عند الصيانة.', en: 'Keep your devices’ invoices and warranties in one place for easy reference during service.' },
+  { ar: 'نظّف خلف الثلاجة وملف التبريد من الغبار لتعمل بكفاءة وتوفّر الكهرباء.', en: 'Dust the coils behind your fridge so it runs efficiently and saves power.' },
+  { ar: 'لا تضع أجهزة ثقيلة فوق التلفزيون أو اللابتوب لتفادي كسر الشاشة.', en: 'Never place heavy objects on a TV or laptop to avoid cracking the screen.' },
+  { ar: 'عند سقوط الجهاز في الماء، أطفئه فوراً ولا تشحنه وتواصل مع فني مختص.', en: 'If a device gets wet, power it off immediately, don’t charge it, and contact a technician.' },
 ];
 
-const getWeeklyTip = () => {
+const getDailyTip = () => {
   const now = new Date();
   const start = new Date(now.getFullYear(), 0, 1);
-  const week = Math.floor((now.getTime() - start.getTime()) / (7 * 24 * 60 * 60 * 1000));
-  return WEEKLY_TIPS[week % WEEKLY_TIPS.length];
+  const dayOfYear = Math.floor((now.getTime() - start.getTime()) / (24 * 60 * 60 * 1000));
+  return DAILY_TIPS[dayOfYear % DAILY_TIPS.length];
 };
 
 const TRUST_POINTS = [
-  { ar: 'ضمان 6 أشهر', en: '6-month warranty', sub_ar: 'على كل إصلاح', sub_en: 'On every repair', icon: 'shield-check', color: '#10b981' },
+  { ar: 'ضمان سنة كاملة', en: '1-year warranty', sub_ar: 'على كل إصلاح', sub_en: 'On every repair', icon: 'shield-check', color: '#10b981' },
   { ar: 'استلام وتوصيل', en: 'Pickup & delivery', sub_ar: 'من بابك', sub_en: 'From your door', icon: 'truck-fast-outline', color: '#3b82f6' },
   { ar: 'فنيون معتمدون', en: 'Verified technicians', sub_ar: 'مهارة موثوقة', sub_en: 'Trusted experts', icon: 'check-decagram', color: '#8b5cf6' },
 ];
@@ -205,7 +228,7 @@ export default function CustomerHomeScreen() {
   // Hermes, which is why we must not use toLocaleDateString here).
   const warrantyLabel = warrantyExpiry ? formatAppDateOnly(warrantyExpiry, isRTL) : null;
 
-  const weeklyTip = getWeeklyTip();
+  const dailyTip = getDailyTip();
 
   const greeting = (() => {
     const h = new Date().getHours();
@@ -391,23 +414,23 @@ export default function CustomerHomeScreen() {
               )}
             </PressableScale>
 
-            {/* 2 — Tip of the week (inline, taps to expand) */}
+            {/* 2 — Tip of the day (inline, taps to expand) */}
             <PressableScale
               onPress={() =>
-                Alert.alert(isRTL ? 'نصيحة الأسبوع' : 'Tip of the week', isRTL ? weeklyTip.ar : weeklyTip.en)
+                Alert.alert(isRTL ? 'نصيحة اليوم' : 'Tip of the day', isRTL ? dailyTip.ar : dailyTip.en)
               }
               style={[styles.actionCard, { backgroundColor: COLORS.card, borderColor: COLORS.border }]}
               accessibilityRole="button"
-              accessibilityLabel={isRTL ? 'نصيحة الأسبوع' : 'Tip of the week'}
+              accessibilityLabel={isRTL ? 'نصيحة اليوم' : 'Tip of the day'}
             >
               <View style={[styles.actionIcon, { backgroundColor: '#10B981' + '18' }]}>
                 <MaterialCommunityIcons name="lightbulb-on-outline" size={22} color="#10B981" />
               </View>
               <Text style={[styles.actionTitle, { color: COLORS.text }]} numberOfLines={1}>
-                {isRTL ? 'نصيحة الأسبوع' : 'Tip of the week'}
+                {isRTL ? 'نصيحة اليوم' : 'Tip of the day'}
               </Text>
               <Text style={[styles.actionSub, { color: COLORS.textSecondary }]} numberOfLines={2}>
-                {isRTL ? weeklyTip.ar : weeklyTip.en}
+                {isRTL ? dailyTip.ar : dailyTip.en}
               </Text>
             </PressableScale>
 
@@ -419,8 +442,8 @@ export default function CustomerHomeScreen() {
                   : Alert.alert(
                       isRTL ? 'ضمان الإصلاح' : 'Repair warranty',
                       isRTL
-                        ? 'كل إصلاح يشمل ضمان 6 أشهر. سيظهر تاريخ الانتهاء هنا بعد أول إصلاح مكتمل.'
-                        : 'Every repair includes a 6-month warranty. The expiry date shows here after your first completed repair.'
+                        ? 'كل إصلاح يشمل ضمان سنة كاملة. سيظهر تاريخ الانتهاء هنا بعد أول إصلاح مكتمل.'
+                        : 'Every repair includes a 1-year warranty. The expiry date shows here after your first completed repair.'
                     )
               }
               style={[styles.actionCard, { backgroundColor: COLORS.card, borderColor: COLORS.border }]}
@@ -444,7 +467,7 @@ export default function CustomerHomeScreen() {
                 </Text>
               ) : (
                 <Text style={[styles.actionSub, { color: COLORS.textSecondary }]} numberOfLines={1}>
-                  {isRTL ? 'ضمان 6 أشهر' : '6-month warranty'}
+                  {isRTL ? 'ضمان سنة كاملة' : '1-year warranty'}
                 </Text>
               )}
             </PressableScale>

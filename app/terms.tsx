@@ -81,7 +81,7 @@ export default function TermsScreen() {
 ## 10. الضمان
 
 10.1. يقدم الفني ضماناً على الإصلاحات حسب نوع الخدمة
-10.2. مدة الضمان تتراوح من 7 إلى 90 يوماً
+10.2. مدة الضمان سنة كاملة (12 شهراً / 365 يوماً) على جميع الإصلاحات المنفذة عبر Fixate
 10.3. الضمان لا يشمل الأضرار الناتجة عن سوء الاستخدام
 
 ## 11. المسؤولية
@@ -139,6 +139,64 @@ export default function TermsScreen() {
 7) يجب على العميل فحص الجهاز قبل مغادرة الورشة عند استلامه، وإلا فإن الورشة غير مسؤولة عن أي عطل آخر يظهر في الجهاز بعد مغادرته للورشة.
 
 8) الورشة غير مسؤولة عن فقدان أو تلف الجهاز بعد مضي 3 أشهر من عدم استلامه.
+
+## سياسة الضمان
+
+أ. تقدّم Fixate ضماناً لمدة سنة كاملة (12 شهراً / 365 يوماً) على جميع الإصلاحات المنفذة عبر المنصة، ويشمل العمل والقطع المستبدلة.
+
+ب. يبدأ سريان الضمان من تاريخ إتمام الإصلاح وتسليم الجهاز للعميل، ويظهر تاريخ انتهائه في تفاصيل الطلب.
+
+ج. لا يشمل الضمان الأضرار الناتجة عن سوء الاستخدام أو السقوط أو السوائل أو العبث بالجهاز بعد الإصلاح أو الإصلاح لدى جهة أخرى.
+
+د. لتفعيل الضمان يحتفظ العميل بفاتورة الإصلاح ويتواصل مع الدعم لمراجعة الحالة، وتُعاد المعالجة أو الإصلاح دون رسوم في الحالات المشمولة.
+
+## الخصوصية وحماية البيانات
+
+أ. نجمع فقط البيانات اللازمة لتقديم الخدمة: الاسم، رقم الجوال، البريد الإلكتروني، العنوان وموقع الخدمة، وتفاصيل الأجهزة والطلبات.
+
+ب. تُخزَّن البيانات بشكل آمن على بنية سحابية (Supabase) مع ضوابط وصول وتشفير أثناء النقل.
+
+ج. لا نبيع بياناتك الشخصية ولا نشاركها مع أطراف ثالثة إلا بالقدر اللازم لتنفيذ الخدمة أو حسبما يقتضيه النظام.
+
+د. يحق للمستخدم الاطلاع على بياناته أو تصحيحها أو حذف حسابه وبياناته نهائياً عبر خيار «حذف الحساب» داخل التطبيق أو بالتواصل مع support@fixate.site.
+
+هـ. نحتفظ بالسجلات اللازمة للفوترة والالتزامات النظامية للمدة التي يفرضها النظام فقط.
+
+## الدفع والاسترداد
+
+أ. طرق الدفع المتاحة: نقداً عند الإتمام، أو بالبطاقة الائتمانية/مدى، أو وسائل الدفع الإلكترونية المتاحة داخل التطبيق.
+
+ب. الفحص مجاني دائماً ولا تُفرض عليه أي رسوم.
+
+ج. يحق للعميل طلب الاسترداد إذا دفع مقابل إصلاح لم يُنفَّذ، أو عند ظهور خلل مشمول بالضمان ولم تتم معالجته.
+
+د. تُقدَّم طلبات الاسترداد عبر فريق الدعم خلال 14 يوماً من تاريخ المعاملة، وتُراجَع كل حالة على حدة.
+
+هـ. عند نشوء أي نزاع، يتولى فريق Fixate الوساطة بين العميل والفني للوصول إلى حل عادل، وما لم يُحل ودياً يُحال وفق القانون الساري.
+
+## اعتماد الفنيين وتقييمهم
+
+أ. يخضع كل فني لمراجعة واعتماد من إدارة Fixate قبل استقبال الطلبات، ويشمل ذلك التحقق من الهوية أو الإقامة والوثائق المطلوبة.
+
+ب. يُقيّم العملاء الفنيين بعد كل طلب من 1 إلى 5 نجوم، ويظهر متوسط التقييم على ملف الفني ويؤثر على أولويته في استلام الطلبات.
+
+ج. تُراقَب التقييمات المنخفضة المتكررة والبلاغات، وقد يؤدي ذلك إلى تعليق حساب الفني أو إنهائه.
+
+## حدود المسؤولية
+
+أ. تعمل Fixate كمنصة وساطة تربط العملاء بفنيين مستقلين، ولا تقدّم خدمة الإصلاح بنفسها.
+
+ب. إلى الحد الذي يسمح به النظام، لا تتحمل Fixate المسؤولية عن أي أضرار غير مباشرة أو تبعية أو خاصة ناتجة عن استخدام التطبيق أو الخدمات.
+
+ج. لا تتجاوز المسؤولية الإجمالية لـ Fixate — إن وُجدت — قيمة المبلغ المدفوع مقابل الطلب محل النزاع.
+
+د. يتحمل العميل مسؤولية عمل نسخة احتياطية لبياناته قبل الإصلاح، ولا تتحمل المنصة مسؤولية فقدان البيانات.
+
+## القانون الساري وتسوية النزاعات
+
+أ. تخضع هذه الشروط وتُفسَّر وفقاً لأنظمة المملكة العربية السعودية.
+
+ب. تُبذل المساعي لحل النزاعات ودياً عبر فريق الدعم، وما لم يتحقق ذلك تختص بنظرها الجهات القضائية المختصة في المملكة العربية السعودية.
 
 ## 18. الاتصال بنا
 
@@ -217,7 +275,7 @@ Welcome to Fixate ("the App"). By using this App, you agree to comply with these
 ## 10. Warranty
 
 10.1. Technicians provide warranty on repairs based on service type
-10.2. Warranty period ranges from 7 to 90 days
+10.2. The warranty period is a full year (12 months / 365 days) on all repairs performed through Fixate
 10.3. Warranty does not cover damage from misuse
 
 ## 11. Liability
@@ -275,6 +333,64 @@ The following terms apply when a device is received for repair and collected aft
 7) The customer must inspect the device before leaving the workshop upon collection; otherwise the workshop is not responsible for any other fault that appears in the device after they leave the workshop.
 
 8) The workshop is not responsible for loss of or damage to the device after 3 months from non-collection.
+
+## Warranty Policy
+
+a. Fixate provides a full one-year (12-month / 365-day) warranty on all repairs performed through the platform, covering both the labor and any replaced parts.
+
+b. The warranty starts from the date the repair is completed and the device is handed back to the customer, and its expiry date is shown in the order details.
+
+c. The warranty does not cover damage caused by misuse, drops, liquids, tampering with the device after the repair, or repairs carried out by a third party.
+
+d. To claim the warranty, the customer keeps the repair invoice and contacts support to review the case; covered cases are re-repaired or resolved at no charge.
+
+## Privacy & Data Protection
+
+a. We collect only the data necessary to provide the service: name, mobile number, email, address and service location, and device and order details.
+
+b. Data is stored securely on cloud infrastructure (Supabase) with access controls and encryption in transit.
+
+c. We do not sell your personal data and do not share it with third parties except as necessary to deliver the service or as required by law.
+
+d. Users may access or correct their data, or permanently delete their account and data, via the "Delete Account" option in the app or by contacting support@fixate.site.
+
+e. We retain only the records required for billing and legal obligations, for the period required by law.
+
+## Payment & Refunds
+
+a. Accepted payment methods: cash on completion, credit card / mada, or the electronic payment methods available in the app.
+
+b. Inspection is always free and is never charged for.
+
+c. Customers may request a refund if they paid for a repair that was not performed, or if a warranty-covered fault appeared and was not resolved.
+
+d. Refund requests are submitted through the support team within 14 days of the transaction date, and each case is reviewed individually.
+
+e. In the event of a dispute, the Fixate team mediates between the customer and the technician to reach a fair resolution; if not resolved amicably, it is escalated under the governing law.
+
+## Technician Vetting & Ratings
+
+a. Every technician is reviewed and approved by Fixate before receiving orders, including verification of national ID or Iqama and the required documents.
+
+b. Customers rate technicians from 1 to 5 stars after each order; the average rating is shown on the technician's profile and affects their priority for receiving orders.
+
+c. Repeated low ratings and reports are monitored and may lead to suspension or termination of the technician's account.
+
+## Limitation of Liability
+
+a. Fixate acts as an intermediary platform connecting customers with independent technicians and does not perform the repair itself.
+
+b. To the extent permitted by law, Fixate is not liable for any indirect, consequential or special damages arising from use of the app or the services.
+
+c. Fixate's total liability, if any, shall not exceed the amount paid for the order in dispute.
+
+d. The customer is responsible for backing up their data before a repair; the platform is not liable for data loss.
+
+## Governing Law & Dispute Resolution
+
+a. These terms are governed by and construed in accordance with the laws of the Kingdom of Saudi Arabia.
+
+b. Efforts are made to resolve disputes amicably through the support team; failing that, the competent courts of the Kingdom of Saudi Arabia shall have jurisdiction.
 
 ## 18. Contact Us
 

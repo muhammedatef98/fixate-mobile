@@ -114,7 +114,7 @@ const SERVICES: Service[] = [
 ];
 
 const FEATURES = [
-  { icon: 'shield-check', ar: 'ضمان 6 أشهر', en: '6-month warranty', color: '#10b981' },
+  { icon: 'shield-check', ar: 'ضمان سنة كاملة', en: '1-year warranty', color: '#10b981' },
   { icon: 'truck-fast-outline', ar: 'استلام مجاني', en: 'Free pickup', color: '#3b82f6' },
   { icon: 'cash-multiple', ar: 'أسعار شفّافة', en: 'Transparent pricing', color: '#f59e0b' },
   { icon: 'flash-outline', ar: 'خدمة في نفس اليوم', en: 'Same-day service', color: '#8b5cf6' },

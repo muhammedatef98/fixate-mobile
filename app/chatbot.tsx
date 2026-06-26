@@ -233,8 +233,8 @@ const FAQS: Faq[] = [
     cat: 'orders',
     q_ar: 'ما هو الضمان؟',
     q_en: 'What warranty do I get?',
-    a_ar: 'كل إصلاح يشمل ضمان ٦ أشهر على العمل والقطع المستبدلة.',
-    a_en: 'Every repair includes a 6-month warranty covering the work and any replaced parts.',
+    a_ar: 'كل إصلاح يشمل ضمان سنة كاملة (12 شهراً) على العمل والقطع المستبدلة.',
+    a_en: 'Every repair includes a full 1-year (12-month) warranty covering the work and any replaced parts.',
     keywords: ['warranty', 'guarantee', 'ضمان', 'كفالة'],
   },
   {
@@ -272,6 +272,33 @@ const FAQS: Faq[] = [
     a_ar: 'بعد اكتمال الطلب يظهر لك خيار التقييم — امنح نجوماً واكتب ملاحظتك. تقييمك يساعدنا على رفع جودة الخدمة.',
     a_en: 'After an order is completed a rating option appears — give stars and leave a note. Your feedback helps us keep quality high.',
     keywords: ['rate', 'rating', 'review', 'stars', 'feedback', 'تقييم', 'أقيم', 'اقيم', 'نجوم', 'تقييمات'],
+  },
+  {
+    id: 'rating_system',
+    cat: 'orders',
+    q_ar: 'كيف يعمل نظام تقييم الفنيين؟',
+    q_en: 'How does the technician rating system work?',
+    a_ar: 'بعد كل طلب مكتمل تقيّم الفني من ١ إلى ٥ نجوم. يُحسب للفني متوسط تقييماته ويظهر على ملفه، ويؤثر على ترتيبه وأولويته في استلام الطلبات. التقييمات المنخفضة المتكررة تُراجَع من الإدارة.',
+    a_en: 'After each completed order you rate the technician from 1 to 5 stars. Their average rating shows on their profile and affects their ranking and priority for receiving orders. Repeated low ratings are reviewed by the admin team.',
+    keywords: ['rating system', 'how rating', 'average', 'stars work', 'نظام التقييم', 'كيف التقييم', 'متوسط', 'تأثير التقييم'],
+  },
+  {
+    id: 'refund',
+    cat: 'orders',
+    q_ar: 'ما هي سياسة الاسترداد؟',
+    q_en: 'What is the refund policy?',
+    a_ar: 'إذا دفعت مقابل إصلاح ولم يتم تنفيذه، أو ظهر خلل في الإصلاح ضمن فترة الضمان (سنة كاملة)، تواصل مع الدعم لمراجعة حالتك واسترداد المبلغ أو إعادة الإصلاح مجاناً حسب الحالة. الفحص دائماً مجاني فلا استرداد عليه.',
+    a_en: 'If you paid for a repair that was not performed, or a fault appears within the warranty period (a full year), contact support to review your case for a refund or a free re-repair as appropriate. Inspection is always free, so there is nothing to refund there.',
+    keywords: ['refund', 'money back', 'return money', 'استرداد', 'استرجاع', 'فلوسي', 'إرجاع المبلغ'],
+  },
+  {
+    id: 'tech_late',
+    cat: 'orders',
+    q_ar: 'ماذا أفعل إذا تأخر الفني؟',
+    q_en: 'What if the technician is late?',
+    a_ar: 'تواصل مع الفني عبر المحادثة داخل الطلب أولاً لمعرفة سبب التأخير. وإن لم يصلك رد أو استمر التأخير، تواصل مع فريق الدعم وسنعيد توجيه طلبك لفني آخر دون أي رسوم إضافية.',
+    a_en: 'First message the technician through the in-order chat to check on the delay. If you get no reply or the delay continues, contact support and we will reassign your order to another technician at no extra charge.',
+    keywords: ['late', 'delay', 'not arrived', 'no show', 'تأخر', 'متأخر', 'تأخير', 'ما وصل', 'لم يصل'],
   },
 
   // ── Marketplace ───────────────────────────────────────────────────────
@@ -598,6 +625,27 @@ export default function ChatbotScreen() {
     setTimeout(() => pushBot(isRTL ? f.a_ar : f.a_en, false), 500);
   };
 
+  // Single message bubble (+ optional "talk to support" action). Shared so the
+  // greeting, the quick-questions panel and the live conversation can be laid
+  // out in the right order (greeting → questions → answers at the bottom).
+  const renderMessage = (m: Message) => (
+    <View key={m.id} style={{ width: '100%' }}>
+      <View style={[styles.bubble, m.isBot ? styles.botBubble : styles.userBubble]}>
+        <Text style={[styles.bubbleText, { color: m.isBot ? COLORS.text : '#fff' }]}>
+          {m.text}
+        </Text>
+      </View>
+      {m.offerHandoff && (
+        <TouchableOpacity style={styles.handoffBtn} onPress={goToSupport} activeOpacity={0.85}>
+          <Ionicons name="headset" size={16} color="#fff" />
+          <Text style={styles.handoffBtnText}>
+            {isRTL ? 'التحدث مع فريق الدعم' : 'Talk to the support team'}
+          </Text>
+        </TouchableOpacity>
+      )}
+    </View>
+  );
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" />
@@ -631,32 +679,15 @@ export default function ChatbotScreen() {
           contentContainerStyle={{ padding: SPACING.md }}
           keyboardShouldPersistTaps="handled"
         >
-          {messages.map((m) => (
-            <View key={m.id} style={{ width: '100%' }}>
-              <View
-                style={[
-                  styles.bubble,
-                  m.isBot ? styles.botBubble : styles.userBubble,
-                ]}
-              >
-                <Text style={[styles.bubbleText, { color: m.isBot ? COLORS.text : '#fff' }]}>
-                  {m.text}
-                </Text>
-              </View>
-              {m.offerHandoff && (
-                <TouchableOpacity style={styles.handoffBtn} onPress={goToSupport} activeOpacity={0.85}>
-                  <Ionicons name="headset" size={16} color="#fff" />
-                  <Text style={styles.handoffBtnText}>
-                    {isRTL ? 'التحدث مع فريق الدعم' : 'Talk to the support team'}
-                  </Text>
-                </TouchableOpacity>
-              )}
-            </View>
-          ))}
+          {/* Greeting first. */}
+          {messages.length > 0 && renderMessage(messages[0])}
 
           {/* Quick questions — grouped into collapsible sections. Tap a
               section header to expand it, then tap any question to get its
-              answer instantly. The list stays open so you can ask several. */}
+              answer instantly. The list stays open so you can ask several.
+              It sits ABOVE the live conversation so a tapped question's answer
+              is appended below it and scrollToEnd brings the answer into view
+              (instead of the answer being hidden above this panel). */}
           <View style={styles.quickWrap}>
             <Text style={styles.quickHint}>
               {isRTL ? 'اختر سؤالاً من الأقسام:' : 'Pick a question by section:'}
@@ -720,6 +751,11 @@ export default function ChatbotScreen() {
               );
             })}
           </View>
+
+          {/* Live conversation — questions you tap or type, and the bot's
+              answers, appear here BELOW the quick-questions panel so each new
+              answer lands at the bottom and scrolls into view. */}
+          {messages.slice(1).map(renderMessage)}
         </ScrollView>
 
         {/* Persistent transfer-to-support strip */}
