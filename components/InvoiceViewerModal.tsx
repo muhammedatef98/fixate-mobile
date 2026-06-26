@@ -8,7 +8,20 @@ import {
   ActivityIndicator,
   Platform,
 } from 'react-native';
-import { WebView } from 'react-native-webview';
+// react-native-webview ships a native module (RNCWebViewModule). On a dev
+// client or a binary built before this dependency was added, importing it
+// throws at module-eval ("RNCWebViewModule could not be found"), which would
+// crash EVERY screen that renders an invoice button (orders, my-orders,
+// order-details). Require it lazily + defensively — exactly like OsmMap — so
+// the viewer degrades to summary + Download/Share instead of taking the screen
+// down. A native rebuild restores the inline preview.
+let WebView: any = null;
+try {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  WebView = require('react-native-webview').WebView;
+} catch {
+  WebView = null;
+}
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { SPACING, BORDER_RADIUS } from '../constants/theme';
 import {
@@ -58,6 +71,9 @@ export default function InvoiceViewerModal({ orderId, isRTL, COLORS, visible, on
   const [error, setError] = useState<string | null>(null);
 
   const styles = makeStyles(COLORS, isRTL);
+  // Inline preview needs the native webview module; when it's absent we hide
+  // the "View" button and only offer Download/Share (which uses Print/Sharing).
+  const webViewAvailable = !!WebView;
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -152,7 +168,7 @@ export default function InvoiceViewerModal({ orderId, isRTL, COLORS, visible, on
             <MaterialCommunityIcons name="receipt-text-outline" size={48} color={COLORS.textSecondary} />
             <Text style={styles.errorText}>{error}</Text>
           </View>
-        ) : showFull && html ? (
+        ) : showFull && html && webViewAvailable ? (
           <WebView
             originWhitelist={['*']}
             source={{ html }}
@@ -177,9 +193,13 @@ export default function InvoiceViewerModal({ orderId, isRTL, COLORS, visible, on
                 />
               </View>
               <Text style={styles.hint}>
-                {isRTL
-                  ? 'اضغط «عرض» لمعاينة الفاتورة كاملة، أو «تنزيل / مشاركة» لحفظها كملف PDF.'
-                  : 'Tap "View" to preview the full invoice, or "Download / Share" to save it as a PDF.'}
+                {webViewAvailable
+                  ? (isRTL
+                      ? 'اضغط «عرض» لمعاينة الفاتورة كاملة، أو «تنزيل / مشاركة» لحفظها كملف PDF.'
+                      : 'Tap "View" to preview the full invoice, or "Download / Share" to save it as a PDF.')
+                  : (isRTL
+                      ? 'اضغط «تنزيل / مشاركة» لفتح الفاتورة كاملة كملف PDF.'
+                      : 'Tap "Download / Share" to open the full invoice as a PDF.')}
               </Text>
             </View>
           )
@@ -199,7 +219,7 @@ export default function InvoiceViewerModal({ orderId, isRTL, COLORS, visible, on
                   {isRTL ? 'رجوع' : 'Back'}
                 </Text>
               </TouchableOpacity>
-            ) : (
+            ) : webViewAvailable ? (
               <TouchableOpacity
                 style={[styles.btn, styles.btnSecondary]}
                 onPress={onView}
@@ -218,7 +238,7 @@ export default function InvoiceViewerModal({ orderId, isRTL, COLORS, visible, on
                   </>
                 )}
               </TouchableOpacity>
-            )}
+            ) : null}
 
             <TouchableOpacity
               style={[styles.btn, styles.btnPrimary, { backgroundColor: COLORS.primary }]}
