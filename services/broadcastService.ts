@@ -107,6 +107,17 @@ export const sendBroadcast = async (
   return { ...broadcast, sent_count: sent, failed_count: failed, recipients, sent_at: new Date().toISOString() };
 };
 
+/** Delete all broadcast history (§1A). Admin-gated by RLS. */
+export const clearBroadcastHistory = async (): Promise<void> => {
+  // A WHERE that matches all rows (created_at is always set) satisfies the
+  // PostgREST "no unfiltered delete" guard.
+  const { error } = await supabase
+    .from('broadcasts')
+    .delete()
+    .not('created_at', 'is', null);
+  if (error) throw error;
+};
+
 export const listBroadcasts = async (): Promise<Broadcast[]> => {
   const { data, error } = await supabase
     .from('broadcasts')

@@ -195,6 +195,28 @@ export default function AdminBroadcastsScreen() {
           contentContainerStyle={{ padding: SPACING.lg, gap: 16 }}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={COLORS.primary} />}
         >
+          {/* Quick links to history / scheduled / automations */}
+          <View style={styles.navRow}>
+            <NavTile
+              icon="history"
+              label={isRTL ? 'الإشعارات السابقة' : 'Previous'}
+              onPress={() => router.push('/admin-broadcast-history' as any)}
+              COLORS={COLORS}
+            />
+            <NavTile
+              icon="clock-outline"
+              label={isRTL ? 'مجدولة' : 'Scheduled'}
+              onPress={() => router.push('/admin-scheduled-notifications' as any)}
+              COLORS={COLORS}
+            />
+            <NavTile
+              icon="robot-outline"
+              label={isRTL ? 'أتمتة' : 'Automations'}
+              onPress={() => router.push('/admin-automations' as any)}
+              COLORS={COLORS}
+            />
+          </View>
+
           {/* Compose */}
           <View style={styles.card}>
             <Text style={styles.sectionTitle}>
@@ -267,46 +289,29 @@ export default function AdminBroadcastsScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* History */}
-          <Text style={styles.sectionTitleOutside}>
-            {isRTL ? 'الإشعارات السابقة' : 'Recent broadcasts'}
-          </Text>
-          {loading ? (
-            <ActivityIndicator color={COLORS.primary} />
-          ) : broadcasts.length === 0 ? (
-            <View style={[styles.card, { alignItems: 'center', gap: 6 }]}>
-              <MaterialCommunityIcons name="bullhorn-outline" size={40} color={COLORS.textSecondary} />
-              <Text style={{ color: COLORS.text, fontWeight: '700' }}>
-                {isRTL ? 'لم يتم إرسال أي إشعارات بعد' : 'No broadcasts sent yet'}
-              </Text>
-            </View>
-          ) : (
-            broadcasts.map((b) => (
-              <View key={b.id} style={styles.card}>
-                <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', justifyContent: 'space-between' }}>
-                  <Text style={styles.itemTitle} numberOfLines={1}>{b.title}</Text>
-                  <Text style={styles.itemDate}>
-                    {fmtAdminDate(b.created_at, isRTL)}
-                  </Text>
-                </View>
-                <Text style={styles.itemBody} numberOfLines={3}>{b.body}</Text>
-                <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
-                  <Pill text={audienceLabel(b.audience, isRTL)} COLORS={COLORS} />
-                  <Pill text={categoryLabel(b.category, isRTL)} COLORS={COLORS} />
-                  <Pill
-                    text={isRTL ? `أُرسل: ${b.sent_count}` : `Sent: ${b.sent_count}`}
-                    COLORS={COLORS}
-                  />
-                  {b.failed_count > 0 && (
-                    <Pill
-                      text={isRTL ? `فشل: ${b.failed_count}` : `Failed: ${b.failed_count}`}
-                      COLORS={COLORS}
-                      tone="error"
-                    />
-                  )}
-                </View>
+          {/* Most-recent few — full history lives behind the "Previous" tile. */}
+          {!loading && broadcasts.length > 0 && (
+            <>
+              <View style={[styles.rowBetween, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                <Text style={styles.sectionTitleOutside}>{isRTL ? 'الأحدث' : 'Latest'}</Text>
+                <TouchableOpacity onPress={() => router.push('/admin-broadcast-history' as any)}>
+                  <Text style={styles.linkText}>{isRTL ? 'عرض الكل' : 'View all'}</Text>
+                </TouchableOpacity>
               </View>
-            ))
+              {broadcasts.slice(0, 3).map((b) => (
+                <View key={b.id} style={styles.card}>
+                  <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', justifyContent: 'space-between' }}>
+                    <Text style={styles.itemTitle} numberOfLines={1}>{b.title}</Text>
+                    <Text style={styles.itemDate}>{fmtAdminDate(b.created_at, isRTL)}</Text>
+                  </View>
+                  <Text style={styles.itemBody} numberOfLines={2}>{b.body}</Text>
+                  <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
+                    <Pill text={audienceLabel(b.audience, isRTL)} COLORS={COLORS} />
+                    <Pill text={isRTL ? `أُرسل: ${b.sent_count}` : `Sent: ${b.sent_count}`} COLORS={COLORS} />
+                  </View>
+                </View>
+              ))}
+            </>
           )}
 
           {/* Push Debug (temporary) — verifies the FCM v1 end-to-end flow. */}
@@ -361,6 +366,31 @@ export default function AdminBroadcastsScreen() {
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
+  );
+}
+
+function NavTile({ icon, label, onPress, COLORS }: any) {
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      style={{
+        flex: 1,
+        backgroundColor: COLORS.card,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+        borderRadius: 14,
+        paddingVertical: 14,
+        alignItems: 'center',
+        gap: 6,
+      }}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+    >
+      <MaterialCommunityIcons name={icon} size={22} color={COLORS.primary} />
+      <Text style={{ color: COLORS.text, fontWeight: '700', fontSize: 11.5, textAlign: 'center' }} numberOfLines={1}>
+        {label}
+      </Text>
+    </TouchableOpacity>
   );
 }
 
@@ -433,6 +463,9 @@ const makeStyles = (C: any, isRTL: boolean) =>
     },
     sectionTitle: { color: C.text, fontWeight: '800', fontSize: 15, marginBottom: 10, textAlign: isRTL ? 'right' : 'left' },
     sectionTitleOutside: { color: C.text, fontWeight: '800', fontSize: 15, textAlign: isRTL ? 'right' : 'left' },
+    navRow: { flexDirection: isRTL ? 'row-reverse' : 'row', gap: 10 },
+    rowBetween: { justifyContent: 'space-between', alignItems: 'center' },
+    linkText: { color: C.primary, fontWeight: '800', fontSize: 13 },
     label: { color: C.textSecondary, fontWeight: '700', fontSize: 12, marginBottom: 6, textAlign: isRTL ? 'right' : 'left' },
     input: {
       borderWidth: 1,
