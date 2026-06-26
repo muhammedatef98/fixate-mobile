@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -27,6 +27,14 @@ import { safeBack } from '../utils/navigation';
 import * as Location from 'expo-location';
 import SaudiCityPicker from '../components/SaudiCityPicker';
 import { getRegionTree } from '../services/serviceAreasService';
+import OsmMap, { type OsmMapHandle } from '../components/OsmMap';
+import { searchPlaces, isGooglePlacesEnabled, type PlaceResult } from '../services/placesService';
+import { getCityCentroid, haversineKm } from '../utils/deliveryPricing';
+
+// Default map centre when an address has no saved pin yet (Riyadh).
+const DEFAULT_CENTER = { lat: 24.7136, lng: 46.6753 };
+// A pin within this distance of an enabled city's centroid is "in coverage".
+const SERVICE_RADIUS_KM = 50;
 
 export default function AddressesScreen() {
   const router = useRouter();
@@ -59,6 +67,17 @@ export default function AddressesScreen() {
   const [locating, setLocating] = useState(false);
   const [saving, setSaving] = useState(false);
 
+  // ── Map picker (§7) ──────────────────────────────────────────────────
+  const mapRef = useRef<OsmMapHandle>(null);
+  // Remount key bumped whenever the modal opens so the map recentres on the
+  // editing address's pin (OsmMap builds its HTML once per mount).
+  const [mapKey, setMapKey] = useState(0);
+  const [regionTree, setRegionTree] = useState<any[]>([]);
+  const [placeQuery, setPlaceQuery] = useState('');
+  const [placeResults, setPlaceResults] = useState<PlaceResult[]>([]);
+  const [searchingPlace, setSearchingPlace] = useState(false);
+  const suppressAutoSearchRef = useRef(false);
+
   const load = useCallback(async () => {
     if (!user?.id) return;
     try {
@@ -85,6 +104,7 @@ export default function AddressesScreen() {
     getRegionTree(true)
       .then((tree) => {
         if (cancelled || !tree || tree.length === 0) return;
+        setRegionTree(tree);
         const names = new Set<string>();
         for (const r of tree) {
           for (const c of r.cities) {
@@ -103,6 +123,104 @@ export default function AddressesScreen() {
     return enabledCityNames.has(city.trim().toLowerCase());
   };
 
+  // Set the dropped-pin location and reverse-geocode it to auto-fill the
+  // address / district / postal fields. Shared by the map drag handler, the
+  // place-search result and the GPS button.
+  const applyPickedLocation = async (lat: number, lng: number) => {
+    setLatitude(lat);
+    setLongitude(lng);
+    try {
+      const places = await Location.reverseGeocodeAsync({ latitude: lat, longitude: lng });
+      const p = places?.[0];
+      if (p) {
+        const street = (p.street ?? '').trim();
+        const name = (p.name ?? '').trim();
+        const composed =
+          [street, name].filter((s) => s && s !== street).join(' ').trim() || street || name;
+        if (composed) setAddress(composed);
+        if (p.district) setDistrict(p.district);
+        if (p.postalCode) setPostalCode(p.postalCode);
+        // City is preferably set from the detected coverage zone below; only
+        // seed it from the geocoder when nothing is set yet.
+        if (p.city) setCity((prev) => prev || p.city || '');
+      }
+    } catch {
+      // reverse geocode is best-effort
+    }
+  };
+
+  // Nearest enabled service city to the current pin (centroid lookup, same as
+  // the repair-request flow). Drives auto-fill of the city and the
+  // out-of-coverage warning. `null` when the pin is outside every zone.
+  const detectedCity = useMemo<any | null>(() => {
+    if (latitude == null || longitude == null || regionTree.length === 0) return null;
+    const cities = regionTree
+      .filter((r: any) => r.enabled !== false)
+      .flatMap((r: any) => r.cities.filter((c: any) => c.enabled !== false));
+    let best: any = null;
+    let bestKm = Infinity;
+    for (const c of cities) {
+      const centroid = getCityCentroid(c.name_en, c.name_ar);
+      if (!centroid) continue;
+      const km = haversineKm(centroid, { lat: latitude, lng: longitude });
+      if (km < bestKm) {
+        bestKm = km;
+        best = c;
+      }
+    }
+    return best && bestKm <= SERVICE_RADIUS_KM ? best : null;
+  }, [latitude, longitude, regionTree]);
+
+  // Sync the detected coverage city into the city field so saved addresses
+  // map to a configured zone.
+  useEffect(() => {
+    if (detectedCity) setCity(isRTL ? detectedCity.name_ar : detectedCity.name_en);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [detectedCity]);
+
+  const pinOutsideCoverage =
+    latitude != null && longitude != null && regionTree.length > 0 && !detectedCity;
+
+  const runPlaceSearch = async () => {
+    const q = placeQuery.trim();
+    if (!q || searchingPlace) return;
+    setSearchingPlace(true);
+    try {
+      const res = await searchPlaces(q, isRTL ? 'ar' : 'en');
+      setPlaceResults(res);
+    } catch {
+      setPlaceResults([]);
+    } finally {
+      setSearchingPlace(false);
+    }
+  };
+
+  // Search-as-you-type only when Google Places is configured (the native
+  // geocoder fallback is rate-limited, so it stays submit-driven).
+  useEffect(() => {
+    if (!modalOpen || !isGooglePlacesEnabled()) return;
+    if (suppressAutoSearchRef.current) {
+      suppressAutoSearchRef.current = false;
+      return;
+    }
+    const q = placeQuery.trim();
+    if (q.length < 3) {
+      setPlaceResults([]);
+      return;
+    }
+    const timer = setTimeout(runPlaceSearch, 450);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [placeQuery, modalOpen]);
+
+  const selectPlace = (pl: PlaceResult) => {
+    suppressAutoSearchRef.current = true;
+    setPlaceQuery(pl.name);
+    setPlaceResults([]);
+    mapRef.current?.recenter(pl.latitude, pl.longitude, 15);
+    applyPickedLocation(pl.latitude, pl.longitude);
+  };
+
   const resetForm = () => {
     setLabel('');
     setAddress('');
@@ -114,11 +232,14 @@ export default function AddressesScreen() {
     setAdditionalNo('');
     setLatitude(undefined);
     setLongitude(undefined);
+    setPlaceQuery('');
+    setPlaceResults([]);
   };
 
   const openNew = () => {
     setEditing(null);
     resetForm();
+    setMapKey((k) => k + 1);
     setModalOpen(true);
   };
 
@@ -134,6 +255,9 @@ export default function AddressesScreen() {
     setAdditionalNo((a as any).additional_no ?? '');
     setLatitude(a.latitude);
     setLongitude(a.longitude);
+    setPlaceQuery('');
+    setPlaceResults([]);
+    setMapKey((k) => k + 1);
     setModalOpen(true);
   };
 
@@ -147,19 +271,8 @@ export default function AddressesScreen() {
         return;
       }
       const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-      setLatitude(loc.coords.latitude);
-      setLongitude(loc.coords.longitude);
-      const places = await Location.reverseGeocodeAsync(loc.coords);
-      const p = places?.[0];
-      if (p) {
-        const street = (p.street ?? '').trim();
-        const name = (p.name ?? '').trim();
-        const composed = [street, name].filter((s) => s && s !== street).join(' ').trim() || street || name;
-        if (composed) setAddress(composed);
-        if (p.district) setDistrict(p.district);
-        if (p.city) setCity(p.city);
-        if (p.postalCode) setPostalCode(p.postalCode);
-      }
+      mapRef.current?.recenter(loc.coords.latitude, loc.coords.longitude, 15);
+      await applyPickedLocation(loc.coords.latitude, loc.coords.longitude);
     } catch (e: any) {
       Alert.alert(isRTL ? 'خطأ' : 'Error', getFriendlyError(e, language));
     } finally {
@@ -329,6 +442,91 @@ export default function AddressesScreen() {
                 <Text style={styles.modalTitle}>
                   {editing ? (isRTL ? 'تعديل العنوان' : 'Edit address') : isRTL ? 'إضافة عنوان' : 'New address'}
                 </Text>
+
+                {/* ── Map picker (§7) — search, drag the pin, auto-fill ──── */}
+                <View style={styles.searchRow}>
+                  <TextInput
+                    placeholder={isRTL ? 'ابحث عن مكان…' : 'Search for a place…'}
+                    placeholderTextColor={COLORS.textSecondary}
+                    value={placeQuery}
+                    onChangeText={setPlaceQuery}
+                    onSubmitEditing={runPlaceSearch}
+                    returnKeyType="search"
+                    style={[styles.input, { color: COLORS.text, borderColor: COLORS.border, flex: 1, marginBottom: 0 }]}
+                    textAlign={isRTL ? 'right' : 'left'}
+                  />
+                  <TouchableOpacity
+                    onPress={runPlaceSearch}
+                    disabled={searchingPlace}
+                    style={[styles.searchBtn, { backgroundColor: COLORS.primary }]}
+                    accessibilityRole="button"
+                    accessibilityLabel={isRTL ? 'بحث' : 'Search'}
+                  >
+                    {searchingPlace ? (
+                      <ActivityIndicator color="#fff" size="small" />
+                    ) : (
+                      <Ionicons name="search" size={18} color="#fff" />
+                    )}
+                  </TouchableOpacity>
+                </View>
+
+                {placeResults.length > 0 && (
+                  <View style={[styles.resultsBox, { borderColor: COLORS.border, backgroundColor: COLORS.background }]}>
+                    {placeResults.slice(0, 5).map((r, i) => (
+                      <TouchableOpacity
+                        key={`${r.latitude},${r.longitude},${i}`}
+                        onPress={() => selectPlace(r)}
+                        style={[styles.resultRow, i > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: COLORS.border }]}
+                        accessibilityRole="button"
+                      >
+                        <Ionicons name="location-outline" size={15} color={COLORS.primary} />
+                        <Text style={[styles.resultText, { color: COLORS.text }]} numberOfLines={2}>
+                          {r.name}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                )}
+
+                <View style={styles.mapWrap}>
+                  <OsmMap
+                    key={mapKey}
+                    ref={mapRef}
+                    latitude={latitude ?? DEFAULT_CENTER.lat}
+                    longitude={longitude ?? DEFAULT_CENTER.lng}
+                    zoom={latitude != null ? 15 : 11}
+                    interactive
+                    tapToPlace={Platform.OS === 'android'}
+                    onMoveEnd={applyPickedLocation}
+                    style={styles.map}
+                  />
+                  <View style={[styles.mapHint, { backgroundColor: COLORS.card }]}>
+                    <Ionicons name="information-circle-outline" size={13} color={COLORS.textSecondary} />
+                    <Text style={[styles.mapHintText, { color: COLORS.textSecondary }]} numberOfLines={1}>
+                      {isRTL ? 'حرّك الخريطة لضبط الدبوس على موقعك' : 'Move the map to set the pin on your location'}
+                    </Text>
+                  </View>
+                </View>
+
+                {pinOutsideCoverage ? (
+                  <View style={styles.coverageWarn}>
+                    <Ionicons name="alert-circle-outline" size={13} color="#B45309" />
+                    <Text style={styles.coverageWarnText}>
+                      {isRTL
+                        ? 'هذا الموقع خارج نطاق التغطية الحالية'
+                        : 'This location is outside current service coverage'}
+                    </Text>
+                  </View>
+                ) : detectedCity ? (
+                  <View style={[styles.coverageWarn, { backgroundColor: '#16A34A12', borderColor: '#16A34A30' }]}>
+                    <Ionicons name="checkmark-circle-outline" size={13} color="#16A34A" />
+                    <Text style={[styles.coverageWarnText, { color: '#16A34A' }]}>
+                      {isRTL
+                        ? `ضمن التغطية · ${detectedCity.name_ar}`
+                        : `In coverage · ${detectedCity.name_en}`}
+                    </Text>
+                  </View>
+                ) : null}
 
                 {/* Use my location — fills address/city/district/postal automatically */}
                 <TouchableOpacity
@@ -535,6 +733,33 @@ const createStyles = (C: any, isRTL: boolean) =>
       gap: SPACING.md,
     },
     modalTitle: { fontSize: 18, fontWeight: 'bold', color: C.text, textAlign: isRTL ? 'right' : 'left' },
+    searchRow: { flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
+    searchBtn: { width: 48, height: 48, borderRadius: BORDER_RADIUS.md, alignItems: 'center', justifyContent: 'center' },
+    resultsBox: { borderWidth: 1, borderRadius: BORDER_RADIUS.md, marginBottom: 8, overflow: 'hidden' },
+    resultRow: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
+      gap: 8,
+      paddingHorizontal: 12,
+      paddingVertical: 11,
+    },
+    resultText: { flex: 1, fontSize: 13, fontWeight: '600', textAlign: isRTL ? 'right' : 'left' },
+    mapWrap: { height: 200, borderRadius: BORDER_RADIUS.md, overflow: 'hidden', marginBottom: 10, position: 'relative' },
+    map: { flex: 1 },
+    mapHint: {
+      position: 'absolute',
+      bottom: 8,
+      alignSelf: 'center',
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
+      gap: 5,
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+      borderRadius: 999,
+      opacity: 0.95,
+      maxWidth: '92%',
+    },
+    mapHintText: { fontSize: 11, fontWeight: '700' },
     input: {
       borderWidth: 1,
       borderRadius: BORDER_RADIUS.md,
