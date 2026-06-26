@@ -182,6 +182,17 @@ export const uploadCommunityImage = async (
 };
 
 /**
+ * Upload an offer banner to the public `offers` bucket (admin only via storage
+ * RLS). Returns the public URL to store in offers.image_url.
+ */
+export const uploadOfferImage = async (uri: string): Promise<string> => {
+  const folder = `offers/${Date.now()}`;
+  const url = await uploadOne('offers', folder, uri, 0);
+  if (!url) throw new Error('Image upload failed');
+  return url;
+};
+
+/**
  * Upload a profile photo to the public `avatars` bucket. The storage RLS
  * policy requires the first path segment to be the user's id. Returns the
  * public URL ready to store in users.avatar_url.

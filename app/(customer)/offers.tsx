@@ -9,6 +9,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
+  Image,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -52,6 +53,9 @@ export default function OffersScreen() {
 
   const renderOffer = ({ item }: { item: Offer }) => (
     <View style={styles.card}>
+      {!!item.image_url && (
+        <Image source={{ uri: item.image_url }} style={styles.cardBanner} resizeMode="cover" />
+      )}
       <View style={styles.cardTop}>
         <View style={[styles.iconWrap, { backgroundColor: COLORS.primary + '18' }]}>
           <MaterialCommunityIcons name="sale" size={24} color={COLORS.primary} />
@@ -154,6 +158,7 @@ const makeStyles = (C: any, isRTL: boolean) =>
       borderRadius: 999,
     },
     discountText: { color: '#fff', fontWeight: '800', fontSize: 13 },
+    cardBanner: { width: '100%', height: 150, borderRadius: BORDER_RADIUS.md, marginBottom: 12, backgroundColor: C.border + '40' },
     cardTitle: { color: C.text, fontWeight: '800', fontSize: 16, textAlign: isRTL ? 'right' : 'left' },
     cardDesc: { color: C.textSecondary, fontSize: 13, lineHeight: 20, marginTop: 6, textAlign: isRTL ? 'right' : 'left' },
     validityRow: {

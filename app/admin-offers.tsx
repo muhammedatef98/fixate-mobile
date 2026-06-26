@@ -17,20 +17,26 @@ import {
   Platform,
 } from 'react-native';
 import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
+import { Image } from 'react-native';
 import { useApp } from '../contexts/AppContext';
 import { useIsAdmin } from '../hooks/useAdminGuard';
 import { getColors, SPACING, BORDER_RADIUS } from '../constants/theme';
 import { AdminScreenHeader, AdminEmptyState } from '../components/admin/AdminUI';
 import { formatAppDateOnly } from '../lib/formatDate';
 import { logger } from '../utils/logger';
+import { showToast } from '../utils/toast';
+import { uploadOfferImage } from '../services/storageService';
 import {
   adminListOffers,
   createOffer,
   updateOffer,
   setOfferActive,
   deleteOffer,
+  notifyOffer,
   type Offer,
 } from '../services/offersService';
+import type { PushAudience } from '../services/notifyService';
 
 interface FormState {
   id: string | null;
@@ -39,6 +45,10 @@ interface FormState {
   discount_pct: string;
   valid_until: string; // YYYY-MM-DD or ''
   is_active: boolean;
+  image_url: string | null;
+  imageLocalUri: string | null; // freshly picked, not yet uploaded
+  autoNotify: boolean;
+  audience: PushAudience;
 }
 
 const emptyForm: FormState = {
@@ -48,7 +58,17 @@ const emptyForm: FormState = {
   discount_pct: '',
   valid_until: '',
   is_active: true,
+  image_url: null,
+  imageLocalUri: null,
+  autoNotify: true,
+  audience: 'all',
 };
+
+const AUDIENCES: { key: PushAudience; ar: string; en: string }[] = [
+  { key: 'all', ar: 'الجميع', en: 'All' },
+  { key: 'customers', ar: 'العملاء', en: 'Customers' },
+  { key: 'technicians', ar: 'الفنيون', en: 'Technicians' },
+];
 
 export default function AdminOffersScreen() {
   const { language, isDark } = useApp();
@@ -102,8 +122,56 @@ export default function AdminOffersScreen() {
       discount_pct: o.discount_pct != null ? String(o.discount_pct) : '',
       valid_until: o.valid_until ? o.valid_until.slice(0, 10) : '',
       is_active: o.is_active,
+      image_url: o.image_url ?? null,
+      imageLocalUri: null,
+      // Default auto-notify OFF when editing so saving an edit doesn't re-blast
+      // a notification; the admin can flip it on or use "Send" on the card.
+      autoNotify: false,
+      audience: 'all',
     });
     setFormVisible(true);
+  };
+
+  const pickImage = async () => {
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) {
+      Alert.alert(isRTL ? 'إذن مرفوض' : 'Permission denied', isRTL ? 'فعّل إذن الصور من الإعدادات' : 'Enable photo permission in settings');
+      return;
+    }
+    const res = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [16, 9],
+      quality: 1,
+    });
+    if (!res.canceled && res.assets?.[0]?.uri) {
+      setForm((f) => ({ ...f, imageLocalUri: res.assets[0].uri }));
+    }
+  };
+
+  // Manual "send notification" for an existing offer (used when auto-notify was off).
+  const onSendNotification = (o: Offer) => {
+    Alert.alert(
+      isRTL ? 'إرسال إشعار' : 'Send notification',
+      isRTL ? 'إرسال إشعار بهذا العرض لجميع المستخدمين؟' : 'Send a notification about this offer to everyone?',
+      [
+        { text: isRTL ? 'إلغاء' : 'Cancel', style: 'cancel' },
+        {
+          text: isRTL ? 'إرسال' : 'Send',
+          onPress: async () => {
+            try {
+              const r = await notifyOffer(o, 'all');
+              showToast.success(
+                isRTL ? 'تم الإرسال' : 'Sent',
+                isRTL ? `وصل إلى ${r.recipients ?? r.sent} مستخدم` : `Reached ${r.recipients ?? r.sent} users`
+              );
+            } catch (e: any) {
+              Alert.alert(isRTL ? 'خطأ' : 'Error', e?.message ?? String(e));
+            }
+          },
+        },
+      ]
+    );
   };
 
   const onToggle = async (o: Offer) => {
@@ -161,20 +229,35 @@ export default function AdminOffersScreen() {
     }
     setSaving(true);
     try {
+      // Upload a freshly-picked banner first; keep the existing one otherwise.
+      let imageUrl = form.image_url;
+      if (form.imageLocalUri) {
+        imageUrl = await uploadOfferImage(form.imageLocalUri);
+      }
       const payload = {
         title: form.title,
         description: form.description,
         discount_pct: pct,
+        image_url: imageUrl,
         valid_until: validUntil,
         is_active: form.is_active,
       };
-      if (form.id) {
-        await updateOffer(form.id, payload);
-      } else {
-        await createOffer(payload);
-      }
+      const saved = form.id ? await updateOffer(form.id, payload) : await createOffer(payload);
       setFormVisible(false);
       await load();
+
+      // Auto-notify when enabled.
+      if (form.autoNotify) {
+        try {
+          const r = await notifyOffer(saved, form.audience);
+          showToast.success(
+            isRTL ? 'تم إرسال الإشعار' : 'Notification sent',
+            isRTL ? `وصل إلى ${r.recipients ?? r.sent} مستخدم` : `Reached ${r.recipients ?? r.sent} users`
+          );
+        } catch (e) {
+          logger.warn('offer auto-notify failed', e);
+        }
+      }
     } catch (e: any) {
       Alert.alert(isRTL ? 'خطأ' : 'Error', e?.message ?? String(e));
     } finally {
@@ -221,6 +304,9 @@ export default function AdminOffersScreen() {
           ) : (
             offers.map((o) => (
               <View key={o.id} style={styles.card}>
+                {!!o.image_url && (
+                  <Image source={{ uri: o.image_url }} style={styles.cardImage} resizeMode="cover" />
+                )}
                 <View style={styles.cardHeader}>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.title} numberOfLines={1}>{o.title}</Text>
@@ -245,6 +331,9 @@ export default function AdminOffersScreen() {
                     </Text>
                   )}
                   <View style={{ flex: 1 }} />
+                  <TouchableOpacity onPress={() => onSendNotification(o)} style={styles.iconBtn} accessibilityLabel={isRTL ? 'إرسال إشعار' : 'Send notification'}>
+                    <MaterialCommunityIcons name="bell-ring-outline" size={18} color={COLORS.primary} />
+                  </TouchableOpacity>
                   <TouchableOpacity onPress={() => openEdit(o)} style={styles.iconBtn}>
                     <MaterialCommunityIcons name="pencil-outline" size={18} color={COLORS.primary} />
                   </TouchableOpacity>
@@ -295,6 +384,26 @@ export default function AdminOffersScreen() {
                 multiline
               />
 
+              {/* Banner image */}
+              <Text style={styles.label}>{isRTL ? 'صورة العرض' : 'Offer image'}</Text>
+              <TouchableOpacity style={styles.imagePicker} onPress={pickImage} activeOpacity={0.85}>
+                {form.imageLocalUri || form.image_url ? (
+                  <Image source={{ uri: form.imageLocalUri ?? form.image_url ?? '' }} style={styles.imagePreview} resizeMode="cover" />
+                ) : (
+                  <View style={styles.imagePlaceholder}>
+                    <MaterialCommunityIcons name="image-plus" size={28} color={COLORS.textSecondary} />
+                    <Text style={styles.muted}>{isRTL ? 'اختر صورة (16:9)' : 'Pick an image (16:9)'}</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+              {(form.imageLocalUri || form.image_url) && (
+                <TouchableOpacity onPress={() => setForm((f) => ({ ...f, imageLocalUri: null, image_url: null }))}>
+                  <Text style={[styles.metaText, { color: '#EF4444', marginTop: 6, textAlign: isRTL ? 'right' : 'left' }]}>
+                    {isRTL ? 'إزالة الصورة' : 'Remove image'}
+                  </Text>
+                </TouchableOpacity>
+              )}
+
               <Text style={styles.label}>{isRTL ? 'نسبة الخصم %' : 'Discount %'}</Text>
               <TextInput
                 style={styles.input}
@@ -325,6 +434,35 @@ export default function AdminOffersScreen() {
                 />
               </View>
 
+              {/* Auto-notify + audience */}
+              <View style={styles.switchRow}>
+                <Text style={styles.label}>{isRTL ? 'إشعار تلقائي عند الحفظ' : 'Auto-notify on save'}</Text>
+                <Switch
+                  value={form.autoNotify}
+                  onValueChange={(v) => setForm((f) => ({ ...f, autoNotify: v }))}
+                  trackColor={{ false: COLORS.border, true: COLORS.primary }}
+                  thumbColor="#fff"
+                />
+              </View>
+              {form.autoNotify && (
+                <View style={[styles.audienceRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                  {AUDIENCES.map((a) => {
+                    const active = form.audience === a.key;
+                    return (
+                      <TouchableOpacity
+                        key={a.key}
+                        onPress={() => setForm((f) => ({ ...f, audience: a.key }))}
+                        style={[styles.audienceChip, active && { backgroundColor: COLORS.primary, borderColor: COLORS.primary }]}
+                      >
+                        <Text style={[styles.audienceChipText, { color: active ? '#fff' : COLORS.textSecondary }]}>
+                          {isRTL ? a.ar : a.en}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              )}
+
               <TouchableOpacity
                 style={[styles.saveBtn, saving && { opacity: 0.6 }]}
                 onPress={onSave}
@@ -353,7 +491,14 @@ const makeStyles = (C: any, isRTL: boolean) =>
       backgroundColor: C.card, borderRadius: BORDER_RADIUS.md, borderWidth: 1, borderColor: C.border,
       padding: SPACING.md, marginBottom: SPACING.sm,
     },
+    cardImage: { width: '100%', height: 130, borderRadius: BORDER_RADIUS.sm, marginBottom: 10, backgroundColor: C.border + '40' },
     cardHeader: { flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 10 },
+    imagePicker: { borderRadius: BORDER_RADIUS.md, borderWidth: 1, borderColor: C.border, overflow: 'hidden', backgroundColor: C.card },
+    imagePreview: { width: '100%', height: 150 },
+    imagePlaceholder: { height: 110, alignItems: 'center', justifyContent: 'center', gap: 6 },
+    audienceRow: { gap: 8, marginTop: 10 },
+    audienceChip: { flex: 1, paddingVertical: 9, borderRadius: 999, borderWidth: 1, borderColor: C.border, backgroundColor: C.card, alignItems: 'center' },
+    audienceChipText: { fontSize: 13, fontWeight: '700' },
     title: { color: C.text, fontWeight: '800', fontSize: 15, textAlign: isRTL ? 'right' : 'left' },
     desc: { color: C.textSecondary, fontSize: 12.5, marginTop: 2, textAlign: isRTL ? 'right' : 'left' },
     metaRow: { flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 8, marginTop: 12 },
