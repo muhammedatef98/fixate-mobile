@@ -22,6 +22,7 @@ import { getColors, getShadows, SPACING, BORDER_RADIUS } from '../../constants/t
 import { RTLIonicon } from '../../components/RTLIcon';
 import { PressableScale } from '../../components/ui/PressableScale';
 import Avatar from '../../components/Avatar';
+import { formatAppDateOnly } from '../../lib/formatDate';
 
 interface MenuRow {
   id: string;
@@ -42,7 +43,7 @@ export default function ProfileScreen() {
   const COLORS = getColors(isDark);
   const SHADOWS = getShadows(isDark);
 
-  const [stats, setStats] = useState({ total: 0, completed: 0, addresses: 0 });
+  const [stats, setStats] = useState({ total: 0, completed: 0, addresses: 0, spent: 0 });
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(20)).current;
 
@@ -57,12 +58,18 @@ export default function ProfileScreen() {
   const loadStats = async () => {
     if (!user?.id) return;
     try {
-      const [{ count: total }, { count: completed }, { count: addresses }] = await Promise.all([
+      const [{ count: total }, { count: completed }, { count: addresses }, { data: spentRows }] = await Promise.all([
         supabase.from('orders').select('*', { count: 'exact', head: true }).eq('user_id', user.id),
         supabase.from('orders').select('*', { count: 'exact', head: true }).eq('user_id', user.id).eq('status', 'completed'),
         supabase.from('user_addresses').select('*', { count: 'exact', head: true }).eq('user_id', user.id),
+        // Total amount spent = sum of completed-order prices (final, else estimate).
+        supabase.from('orders').select('final_price, estimated_price').eq('user_id', user.id).eq('status', 'completed'),
       ]);
-      setStats({ total: total ?? 0, completed: completed ?? 0, addresses: addresses ?? 0 });
+      const spent = (spentRows ?? []).reduce(
+        (sum: number, o: any) => sum + Number(o.final_price ?? o.estimated_price ?? 0),
+        0
+      );
+      setStats({ total: total ?? 0, completed: completed ?? 0, addresses: addresses ?? 0, spent });
     } catch {}
   };
 
@@ -142,6 +149,16 @@ export default function ProfileScreen() {
   const displayPhone =
     ((userProfile as { phone?: string | null } | null)?.phone ?? '').trim() ||
     ((user as { phone?: string | null } | null)?.phone ?? '').trim();
+  // "Account created on" — prefer the auth user's created_at (canonical),
+  // fall back to the profile row.
+  const createdIso =
+    ((user as { created_at?: string | null } | null)?.created_at ?? '') ||
+    ((userProfile as { created_at?: string | null } | null)?.created_at ?? '');
+  const memberSince = createdIso ? formatAppDateOnly(createdIso, isRTL) : null;
+  const spentLabel =
+    stats.spent > 0
+      ? stats.spent.toLocaleString(isRTL ? 'ar-SA' : 'en-US', { maximumFractionDigits: 0 })
+      : '0';
 
   return (
     <SafeAreaView style={styles.container}>
@@ -164,15 +181,23 @@ export default function ProfileScreen() {
             <View pointerEvents="none" style={[styles.heroOrb, styles.heroOrb2]} />
 
             <View style={styles.heroAvatarRow}>
-              <View style={styles.heroAvatarWrap}>
+              <TouchableOpacity
+                style={styles.heroAvatarWrap}
+                activeOpacity={0.85}
+                onPress={() => goto('/edit-profile')}
+                accessibilityRole="button"
+                accessibilityLabel={isRTL ? 'تغيير الصورة' : 'Change photo'}
+              >
                 <Avatar
                   name={displayName}
                   uri={userProfile?.avatar_url}
                   size={72}
                   style={styles.avatar}
                 />
-                <View style={[styles.heroAvatarDot, { borderColor: COLORS.primary }]} />
-              </View>
+                <View style={[styles.heroAvatarCam, { borderColor: COLORS.primary }]}>
+                  <Ionicons name="camera" size={11} color={COLORS.primary} />
+                </View>
+              </TouchableOpacity>
               <View style={styles.heroNameWrap}>
                 <Text style={styles.heroName} numberOfLines={1}>{displayName}</Text>
                 {(userProfile as any)?.is_verified ? (
@@ -220,6 +245,16 @@ export default function ProfileScreen() {
                   </Text>
                 </View>
               )}
+              {!!memberSince && (
+                <View style={styles.heroContactRow}>
+                  <View style={styles.heroContactIcon}>
+                    <Ionicons name="calendar-outline" size={13} color="#fff" />
+                  </View>
+                  <Text style={styles.heroContactText} numberOfLines={1}>
+                    {isRTL ? `عضو منذ ${memberSince}` : `Member since ${memberSince}`}
+                  </Text>
+                </View>
+              )}
             </View>
 
             <TouchableOpacity onPress={() => goto('/edit-profile')} style={styles.editPill}>
@@ -248,10 +283,10 @@ export default function ProfileScreen() {
               SHADOWS={SHADOWS}
             />
             <StatCard
-              icon="location-outline"
+              icon="cash-outline"
               color="#f59e0b"
-              label={isRTL ? 'العناوين' : 'Addresses'}
-              value={stats.addresses}
+              label={isRTL ? 'الإنفاق (ر.س)' : 'Spent (SAR)'}
+              value={spentLabel}
               COLORS={COLORS}
               SHADOWS={SHADOWS}
             />
@@ -292,7 +327,7 @@ interface StatCardProps {
   icon: keyof typeof Ionicons.glyphMap;
   color: string;
   label: string;
-  value: number;
+  value: number | string;
   COLORS: ReturnType<typeof getColors>;
   SHADOWS: ReturnType<typeof getShadows>;
 }
@@ -426,6 +461,18 @@ const makeStyles = (C: any, isRTL: boolean, SHADOWS: any) =>
       gap: 14,
     },
     heroAvatarWrap: { position: 'relative' },
+    heroAvatarCam: {
+      position: 'absolute',
+      [isRTL ? 'left' : 'right']: -2,
+      bottom: -2,
+      width: 22,
+      height: 22,
+      borderRadius: 11,
+      backgroundColor: '#fff',
+      borderWidth: 2,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
     heroAvatarDot: {
       position: 'absolute',
       [isRTL ? 'left' : 'right']: 2,

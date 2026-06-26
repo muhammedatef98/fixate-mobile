@@ -525,10 +525,25 @@ export default function AdminDashboardScreen() {
         {/* ── Recent activity feed (new) ──────────────────────────── */}
         {activity.length > 0 ? (
           <>
-            <AdminSectionLabel
-              icon="pulse"
-              text={isRTL ? 'النشاط الأخير' : 'Recent activity'}
-            />
+            <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+              <View style={{ flex: 1 }}>
+                <AdminSectionLabel
+                  icon="pulse"
+                  text={isRTL ? 'النشاط الأخير' : 'Recent activity'}
+                />
+              </View>
+              <TouchableOpacity
+                onPress={() => router.push('/admin-activity' as any)}
+                style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 2, paddingHorizontal: 8, paddingVertical: 4 }}
+                accessibilityRole="button"
+                accessibilityLabel={isRTL ? 'عرض كل النشاط' : 'View all activity'}
+              >
+                <Text style={{ color: COLORS.primary, fontWeight: '800', fontSize: 13 }}>
+                  {isRTL ? 'عرض الكل' : 'View all'}
+                </Text>
+                <MaterialCommunityIcons name={isRTL ? 'chevron-left' : 'chevron-right'} size={18} color={COLORS.primary} />
+              </TouchableOpacity>
+            </View>
             {activity.map((a) => (
               <AdminActivityRow
                 key={a.id}

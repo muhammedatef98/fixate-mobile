@@ -1,14 +1,17 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   SafeAreaView,
-  FlatList,
+  SectionList,
   TouchableOpacity,
   StatusBar,
   RefreshControl,
   ActivityIndicator,
+  LayoutAnimation,
+  Platform,
+  UIManager,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -44,6 +47,24 @@ const TYPE_META: Record<string, { icon: any; pack: IconPack; color: string }> = 
   general:  { icon: 'bell',                 pack: 'mci', color: '#64748B' },
 };
 const FALLBACK_META = TYPE_META.general;
+
+if (
+  Platform.OS === 'android' &&
+  UIManager.setLayoutAnimationEnabledExperimental
+) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
+const animateNext = () =>
+  LayoutAnimation.configureNext(LayoutAnimation.create(220, 'easeInEaseOut', 'opacity'));
+
+function dayBucket(iso: string): 0 | 1 | 2 {
+  const now = new Date();
+  const startToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const t = new Date(iso).getTime();
+  if (t >= startToday) return 0;
+  if (t >= startToday - 86400000) return 1;
+  return 2;
+}
 
 function timeAgo(iso: string, isRTL: boolean): string {
   const diff = Date.now() - new Date(iso).getTime();
@@ -93,9 +114,7 @@ export default function TechnicianNotificationsScreen() {
     const data = await fetchNotifications(user.id);
     setItems(data);
     setLoading(false);
-    if (data.some((n) => !n.is_read)) {
-      markAllAsRead(user.id).catch(() => undefined);
-    }
+    // Unread items stay highlighted until tapped or "Mark all as read".
   }, [user?.id]);
 
   useEffect(() => {
@@ -108,8 +127,30 @@ export default function TechnicianNotificationsScreen() {
     setRefreshing(false);
   };
 
+  const unreadCount = useMemo(() => items.filter((n) => !n.is_read).length, [items]);
+
+  const sections = useMemo(() => {
+    const buckets: AppNotification[][] = [[], [], []];
+    for (const n of items) buckets[dayBucket(n.created_at)].push(n);
+    const titles = isRTL ? ['اليوم', 'أمس', 'سابقاً'] : ['Today', 'Yesterday', 'Earlier'];
+    return buckets
+      .map((data, i) => ({ title: titles[i], data }))
+      .filter((s) => s.data.length > 0);
+  }, [items, isRTL]);
+
+  const handleMarkAll = () => {
+    if (!user?.id || unreadCount === 0) return;
+    animateNext();
+    setItems((prev) => prev.map((n) => (n.is_read ? n : { ...n, is_read: true })));
+    markAllAsRead(user.id).catch(() => undefined);
+  };
+
   const handlePress = (n: AppNotification) => {
-    if (!n.is_read) markAsRead(n.id).catch(() => undefined);
+    if (!n.is_read) {
+      animateNext();
+      setItems((prev) => prev.map((x) => (x.id === n.id ? { ...x, is_read: true } : x)));
+      markAsRead(n.id).catch(() => undefined);
+    }
     if (!n.related_id) return;
     // Technician deep links — orders open the technician manage-order
     // workflow, not the customer's order-details page.
@@ -167,7 +208,21 @@ export default function TechnicianNotificationsScreen() {
         <Text style={styles.headerTitle}>
           {isRTL ? 'إشعارات الفني' : 'Technician notifications'}
         </Text>
-        <View style={{ width: 40 }} />
+        {unreadCount > 0 ? (
+          <TouchableOpacity
+            onPress={handleMarkAll}
+            style={styles.markAllBtn}
+            accessibilityRole="button"
+            accessibilityLabel={isRTL ? 'تحديد الكل كمقروء' : 'Mark all as read'}
+          >
+            <Ionicons name="checkmark-done" size={16} color={COLORS.primary} />
+            <Text style={styles.markAllText} numberOfLines={1}>
+              {isRTL ? 'تحديد الكل' : 'Mark all'}
+            </Text>
+          </TouchableOpacity>
+        ) : (
+          <View style={{ width: 40 }} />
+        )}
       </View>
 
       {loading ? (
@@ -175,10 +230,14 @@ export default function TechnicianNotificationsScreen() {
           <ActivityIndicator size="large" color={COLORS.primary} />
         </View>
       ) : (
-        <FlatList
-          data={items}
+        <SectionList
+          sections={sections}
           keyExtractor={(n) => n.id}
           renderItem={renderItem}
+          renderSectionHeader={({ section }) => (
+            <Text style={styles.sectionHeader}>{section.title}</Text>
+          )}
+          stickySectionHeadersEnabled={false}
           contentContainerStyle={{ padding: SPACING.m, paddingBottom: 40, flexGrow: 1 }}
           showsVerticalScrollIndicator={false}
           refreshControl={
@@ -216,6 +275,25 @@ const makeStyles = (C: any, isRTL: boolean, SHADOWS: any) =>
     },
     backButton: { padding: 8 },
     headerTitle: { fontSize: 22, fontWeight: '800', color: C.text },
+    markAllBtn: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
+      gap: 4,
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+      borderRadius: 999,
+      backgroundColor: C.primary + '14',
+    },
+    markAllText: { fontSize: 12.5, fontWeight: '800', color: C.primary },
+    sectionHeader: {
+      fontSize: 13,
+      fontWeight: '800',
+      color: C.textSecondary,
+      textAlign: isRTL ? 'right' : 'left',
+      marginTop: 6,
+      marginBottom: 8,
+      marginHorizontal: 4,
+    },
     loader: { flex: 1, alignItems: 'center', justifyContent: 'center' },
     card: {
       flexDirection: isRTL ? 'row-reverse' : 'row',
