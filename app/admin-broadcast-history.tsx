@@ -91,7 +91,7 @@ export default function AdminBroadcastHistoryScreen() {
       <AdminScreenHeader
         title={isRTL ? 'الإشعارات السابقة' : 'Previous notifications'}
         subtitle={isRTL ? `${items.length} إشعار` : `${items.length} sent`}
-        rightIcon={items.length > 0 ? 'trash-can-outline' : undefined}
+        rightIcon={items.length > 0 ? 'trash-outline' : undefined}
         rightLabel={isRTL ? 'مسح السجل' : 'Clear'}
         onRightPress={items.length > 0 ? onClear : undefined}
       />

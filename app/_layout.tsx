@@ -6,7 +6,7 @@ import { RequestProvider } from '../contexts/RequestContext';
 import { ThemeProvider } from '../contexts/ThemeContext';
 import { AppProvider, useApp } from '../contexts/AppContext';
 import { AuthProvider, useAuth } from '../contexts/AuthContext';
-import { isAdminPhone } from '../constants/admin';
+import { isAdminUser } from '../constants/admin';
 import { OrdersProvider } from '../contexts/OrdersContext';
 import { LoyaltyProvider } from '../contexts/LoyaltyContext';
 import { useRouter, useSegments } from 'expo-router';
@@ -93,12 +93,11 @@ function RootLayoutContent() {
       if (userProfile === null) return;
       const wantsTechnician = !!first && TECHNICIAN_AUTH_SOURCES.has(first);
       const wantsCustomer = !!first && CUSTOMER_AUTH_SOURCES.has(first);
-      const phone =
-        (user as any)?.phone ?? (userProfile as any)?.phone ?? null;
-      const adminByPhone = isAdminPhone(phone);
+      // Admin is the server-set JWT claim app_metadata.is_admin (constants/admin.ts).
+      const adminByPhone = isAdminUser(user);
 
       // Resolution order:
-      //   1. Admin phone → /admin (system-level, always wins).
+      //   1. Admin → /admin (system-level, always wins).
       //   2. Explicit customer auth source → /(customer) — honours the
       //      user's choice even if their profile role is technician.
       //   3. Explicit technician auth source → /(technician).
@@ -122,11 +121,11 @@ function RootLayoutContent() {
     }
 
     // Route-level admin gate — applies to every admin segment (the bare
-    // /admin hub plus all admin-* detail screens). Only the account whose
-    // phone matches ADMIN_PHONE may render any admin surface. Anyone else
-    // is bounced back to the customer home before the screen mounts.
-    // This is defence-in-depth on top of useAdminGuard inside each
-    // admin-* screen.
+    // /admin hub plus all admin-* detail screens). Admin is the server-set JWT
+    // claim app_metadata.is_admin (see constants/admin.ts) — never a
+    // client-writable field. Anyone who is not an admin is bounced back to the
+    // customer home before the screen mounts. Defence-in-depth on top of
+    // useAdminGuard inside each admin-* screen.
     const isAdminSegment =
       !!first && (first === 'admin' || first.startsWith('admin-'));
     if (isAdminSegment) {
@@ -134,12 +133,7 @@ function RootLayoutContent() {
         router.replace('/role-selection');
         return;
       }
-      // Wait for the profile to land so we can read the phone without
-      // a false negative on first paint.
-      if (userProfile === null) return;
-      const phone =
-        (user as any)?.phone ?? (userProfile as any)?.phone ?? null;
-      if (!isAdminPhone(phone)) {
+      if (!isAdminUser(user)) {
         router.replace('/(customer)');
       }
     }

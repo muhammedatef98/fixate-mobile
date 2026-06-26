@@ -162,7 +162,7 @@ export default function AdminSuppliersScreen() {
       <AdminScreenHeader
         title={isRTL ? 'موردو قطع الغيار' : 'Spare-parts suppliers'}
         subtitle={isRTL ? `${suppliers.length} مورّد` : `${suppliers.length} suppliers`}
-        rightIcon="plus"
+        rightIcon="add"
         rightLabel={isRTL ? 'إضافة' : 'Add'}
         onRightPress={openNew}
       />
