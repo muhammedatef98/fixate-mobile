@@ -35,6 +35,8 @@ import { getPlatformSettings } from '../services/platformSettingsService';
 import { computeCancellationFee } from '../constants/fees';
 import { useLoyalty } from '../contexts/LoyaltyContext';
 import { resolveStorageUrls } from '../utils/resolveStorageUrls';
+import { getOrderTimeline, actorTypeLabel, type OrderTimelineEvent } from '../services/orderTimelineService';
+import { formatAppDate } from '../lib/formatDate';
 
 const ORDER_TIMELINE: { status: string; arLabel: string; enLabel: string; icon: string }[] = [
   { status: 'pending', arLabel: 'قيد الانتظار', enLabel: 'Pending', icon: 'clock-outline' },
@@ -73,6 +75,7 @@ export default function OrderDetailsScreen() {
   const [resolvedUrls, setResolvedUrls] = useState<string[]>([]);
   const [respondingQuote, setRespondingQuote] = useState(false);
   const [feePreview, setFeePreview] = useState<{ total: number; inspection: number; return: number } | null>(null);
+  const [timeline, setTimeline] = useState<OrderTimelineEvent[]>([]);
 
   const styles = makeStyles(isRTL);
 
@@ -89,6 +92,13 @@ export default function OrderDetailsScreen() {
   useEffect(() => {
     AccessibilityInfo.isReduceMotionEnabled().then(setReduceMotion).catch(() => {});
   }, []);
+
+  // §13 — load the detailed status-change timeline. Refreshes whenever the
+  // order's status changes (the trigger appends a new row server-side).
+  useEffect(() => {
+    if (!order?.id) return;
+    getOrderTimeline(order.id as string).then(setTimeline).catch(() => {});
+  }, [order?.id, order?.status]);
 
   // FEAT-04 — animate the status hero + stepper whenever the status changes
   // (detected via the realtime subscription that calls setOrder). New content
@@ -878,6 +888,47 @@ export default function OrderDetailsScreen() {
           </View>
         </View>
 
+        {/* §13 — detailed status-change history (who + when) */}
+        {timeline.length > 0 && (
+          <View style={[styles.historyCard, { backgroundColor: COLORS.card, borderColor: COLORS.border }]}>
+            <View style={[styles.historyHeader, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+              <MaterialCommunityIcons name="history" size={18} color={COLORS.primary} />
+              <Text style={[styles.historyTitle, { color: COLORS.text }]}>
+                {isRTL ? 'سجل حالة الطلب' : 'Order status history'}
+              </Text>
+            </View>
+            {timeline.map((ev, i) => {
+              const meta = ORDER_TIMELINE.find((s) => s.status === ev.status);
+              const label = meta ? (isRTL ? meta.arLabel : meta.enLabel) : ev.status;
+              const isLast = i === timeline.length - 1;
+              return (
+                <View key={ev.id} style={[styles.historyRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                  <View style={styles.historyRail}>
+                    <View style={[styles.historyDot, { backgroundColor: isLast ? COLORS.primary : COLORS.border }]} />
+                    {!isLast && <View style={[styles.historyLine, { backgroundColor: COLORS.border }]} />}
+                  </View>
+                  <View style={{ flex: 1, paddingBottom: isLast ? 0 : 14 }}>
+                    <Text style={[styles.historyStatus, { color: COLORS.text, textAlign: isRTL ? 'right' : 'left' }]}>
+                      {meta ? (
+                        <MaterialCommunityIcons name={meta.icon as any} size={13} color={COLORS.primary} />
+                      ) : null}{' '}
+                      {label}
+                    </Text>
+                    <Text style={[styles.historyMeta, { color: COLORS.textSecondary, textAlign: isRTL ? 'right' : 'left' }]}>
+                      {formatAppDate(ev.created_at, isRTL)} · {actorTypeLabel(ev.actor_type, isRTL)}
+                    </Text>
+                    {!!ev.note && (
+                      <Text style={[styles.historyNote, { color: COLORS.textSecondary, textAlign: isRTL ? 'right' : 'left' }]}>
+                        {ev.note}
+                      </Text>
+                    )}
+                  </View>
+                </View>
+              );
+            })}
+          </View>
+        )}
+
         {order.status === 'completed' && userType === 'customer' && (
           <View style={{ marginHorizontal: 16, marginBottom: 12 }}>
             <InvoiceDownloadButton orderId={order.id as string} isRTL={isRTL} COLORS={COLORS} />
@@ -1219,6 +1270,22 @@ const makeStyles = (isRTL: boolean) => StyleSheet.create({
   },
   priceLabel: { fontSize: 14, fontWeight: '500', textAlign: isRTL ? 'right' : 'left' },
   priceAmount: { fontSize: 20, fontWeight: 'bold' },
+  historyCard: {
+    marginHorizontal: 16,
+    marginBottom: 12,
+    borderRadius: BORDER_RADIUS.lg,
+    borderWidth: 1,
+    padding: 16,
+  },
+  historyHeader: { alignItems: 'center', gap: 8, marginBottom: 14 },
+  historyTitle: { fontSize: 15, fontWeight: '800' },
+  historyRow: { alignItems: 'stretch', gap: 12 },
+  historyRail: { width: 14, alignItems: 'center' },
+  historyDot: { width: 12, height: 12, borderRadius: 6, marginTop: 2 },
+  historyLine: { width: 2, flex: 1, marginTop: 2 },
+  historyStatus: { fontSize: 14, fontWeight: '800' },
+  historyMeta: { fontSize: 11.5, fontWeight: '600', marginTop: 3 },
+  historyNote: { fontSize: 12, marginTop: 3, lineHeight: 18 },
 
   actionContainer: {
     paddingHorizontal: 16,

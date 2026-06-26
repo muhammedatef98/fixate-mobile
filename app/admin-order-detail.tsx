@@ -25,6 +25,7 @@ import ImageViewer from '../components/ImageViewer';
 import { fmtAdminDate, fmtAdminDateTime, fmtAdminNumber } from '../utils/dateFormat';
 import { logger } from '../utils/logger';
 import { resolveStorageUrls } from '../utils/resolveStorageUrls';
+import { getOrderTimeline, actorTypeLabel, type OrderTimelineEvent } from '../services/orderTimelineService';
 
 const STATUS_META = (s: string, isRTL: boolean): { label: string; color: string } => {
   const map: Record<string, { ar: string; en: string; color: string }> = {
@@ -94,6 +95,7 @@ export default function AdminOrderDetailScreen() {
   const [resolvedMedia, setResolvedMedia] = useState<string[]>([]);
   const [resolvedBefore, setResolvedBefore] = useState<string[]>([]);
   const [resolvedAfter, setResolvedAfter] = useState<string[]>([]);
+  const [timeline, setTimeline] = useState<OrderTimelineEvent[]>([]);
 
   const profileLoaded = userProfile !== null;
   const { isAdmin } = useIsAdmin();
@@ -142,6 +144,12 @@ export default function AdminOrderDetailScreen() {
   useEffect(() => {
     if (profileLoaded && isAdmin) load();
   }, [profileLoaded, isAdmin, load]);
+
+  // §13 — load the order's status-change timeline (admin view).
+  useEffect(() => {
+    if (!order?.id) return;
+    getOrderTimeline(String(order.id)).then(setTimeline).catch(() => {});
+  }, [order?.id, order?.status]);
 
   if (!profileLoaded) {
     return (
@@ -315,6 +323,49 @@ export default function AdminOrderDetailScreen() {
               onOpen={(i: number) => setViewer({ images: resolvedAfter, index: i })}
               COLORS={COLORS} isRTL={isRTL} styles={styles}
             />
+          )}
+
+          {/* §13 — status-change timeline (who + when) */}
+          {timeline.length > 0 && (
+            <View style={{
+              marginTop: 8,
+              backgroundColor: COLORS.card,
+              borderRadius: BORDER_RADIUS.lg,
+              borderWidth: 1,
+              borderColor: COLORS.border,
+              padding: 16,
+            }}>
+              <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+                <MaterialCommunityIcons name="history" size={18} color={COLORS.primary} />
+                <Text style={{ fontSize: 15, fontWeight: '800', color: COLORS.text }}>
+                  {isRTL ? 'سجل حالة الطلب' : 'Order status history'}
+                </Text>
+              </View>
+              {timeline.map((ev, i) => {
+                const isLast = i === timeline.length - 1;
+                return (
+                  <View key={ev.id} style={{ flexDirection: isRTL ? 'row-reverse' : 'row', gap: 12, alignItems: 'stretch' }}>
+                    <View style={{ width: 14, alignItems: 'center' }}>
+                      <View style={{ width: 12, height: 12, borderRadius: 6, marginTop: 2, backgroundColor: isLast ? COLORS.primary : COLORS.border }} />
+                      {!isLast && <View style={{ width: 2, flex: 1, marginTop: 2, backgroundColor: COLORS.border }} />}
+                    </View>
+                    <View style={{ flex: 1, paddingBottom: isLast ? 0 : 14 }}>
+                      <Text style={{ fontSize: 14, fontWeight: '800', color: COLORS.text, textAlign: isRTL ? 'right' : 'left' }}>
+                        {STATUS_META(ev.status, isRTL).label}
+                      </Text>
+                      <Text style={{ fontSize: 11.5, fontWeight: '600', color: COLORS.textSecondary, marginTop: 3, textAlign: isRTL ? 'right' : 'left' }}>
+                        {fmtAdminDateTime(ev.created_at, isRTL)} · {actorTypeLabel(ev.actor_type, isRTL)}
+                      </Text>
+                      {!!ev.note && (
+                        <Text style={{ fontSize: 12, color: COLORS.textSecondary, marginTop: 3, textAlign: isRTL ? 'right' : 'left' }}>
+                          {ev.note}
+                        </Text>
+                      )}
+                    </View>
+                  </View>
+                );
+              })}
+            </View>
           )}
         </ScrollView>
       )}

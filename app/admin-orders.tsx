@@ -139,23 +139,42 @@ export default function AdminOrdersScreen() {
     }
   }, [isRTL]);
 
-  const confirmDeleteAll = useCallback(() => {
-    if (orders.length === 0) return;
+  // Two-step confirmation (§13): a first "are you sure?", then a final
+  // irreversible warning before the bulk delete actually runs.
+  const confirmDeleteAllFinal = useCallback(() => {
     Alert.alert(
-      isRTL ? 'تأكيد الحذف' : 'Confirm deletion',
+      isRTL ? 'تحذير أخير' : 'Final warning',
       isRTL
-        ? 'هل أنت متأكد أنك تريد حذف جميع الطلبات؟ لا يمكن التراجع عن هذا الإجراء.'
-        : 'Are you sure you want to delete all orders? This action cannot be undone.',
+        ? 'سيؤدي هذا إلى حذف جميع الطلبات نهائياً ولا يمكن التراجع عنه إطلاقاً. هل تريد المتابعة؟'
+        : 'This will permanently delete ALL orders and cannot be undone. Do you want to continue?',
       [
         { text: isRTL ? 'إلغاء' : 'Cancel', style: 'cancel' },
         {
-          text: isRTL ? 'حذف الكل' : 'Delete all',
+          text: isRTL ? 'نعم، احذف الكل' : 'Yes, delete all',
           style: 'destructive',
           onPress: performDeleteAll,
         },
       ]
     );
-  }, [isRTL, orders.length, performDeleteAll]);
+  }, [isRTL, performDeleteAll]);
+
+  const confirmDeleteAll = useCallback(() => {
+    if (orders.length === 0) return;
+    Alert.alert(
+      isRTL ? 'تأكيد الحذف' : 'Confirm deletion',
+      isRTL
+        ? 'هل أنت متأكد أنك تريد حذف جميع الطلبات؟'
+        : 'Are you sure you want to delete all orders?',
+      [
+        { text: isRTL ? 'إلغاء' : 'Cancel', style: 'cancel' },
+        {
+          text: isRTL ? 'متابعة' : 'Continue',
+          style: 'destructive',
+          onPress: confirmDeleteAllFinal,
+        },
+      ]
+    );
+  }, [isRTL, orders.length, confirmDeleteAllFinal]);
 
   const styles = createStyles(COLORS, isRTL);
 
