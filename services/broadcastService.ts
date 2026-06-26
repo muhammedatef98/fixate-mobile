@@ -1,6 +1,12 @@
 import { supabase } from './supabaseClient';
 import { logger } from '../utils/logger';
-import { notifyAudience } from './notifyService';
+import { notifySegment, type NotifyCategory } from './notifyService';
+
+// Map a broadcast category to the notification-preference category used for
+// opt-out filtering. Promos respect the "promotions" toggle; everything else
+// is treated as a system announcement.
+const toNotifyCategory = (c: BroadcastCategory): NotifyCategory =>
+  c === 'promo' ? 'promo' : 'announcement';
 
 export type BroadcastCategory = 'announcement' | 'promo' | 'update' | 'maintenance';
 export type BroadcastAudience = 'all' | 'customers' | 'technicians';
@@ -69,7 +75,11 @@ export const sendBroadcast = async (
   let failed = 0;
   let recipients = 0;
   try {
-    const result = await notifyAudience(broadcast.audience, {
+    // notify-segment also inserts an in-app notification for each recipient
+    // (so the broadcast shows in the bell) and skips users who opted out of
+    // the category.
+    const result = await notifySegment(broadcast.audience, {
+      category: toNotifyCategory(broadcast.category),
       title: broadcast.title,
       body: broadcast.body,
       data: { type: 'broadcast', category: broadcast.category, ...(broadcast.data ?? {}) },

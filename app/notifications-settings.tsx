@@ -26,9 +26,11 @@ const ROWS: Array<{ key: keyof Prefs; ar: string; en: string; descAr: string; de
   { key: 'push_enabled', ar: 'إشعارات الهاتف', en: 'Push notifications', descAr: 'تلقي إشعارات داخل التطبيق', descEn: 'Receive in-app push alerts' },
   { key: 'email_enabled', ar: 'البريد الإلكتروني', en: 'Email', descAr: 'الفواتير وملخصات الطلبات', descEn: 'Receipts and order summaries' },
   { key: 'sms_enabled', ar: 'الرسائل النصية', en: 'SMS', descAr: 'تأكيدات الطلب وتحديثات الفني', descEn: 'Order confirmations and technician updates' },
-  { key: 'order_updates', ar: 'تحديثات الطلبات', en: 'Order updates', descAr: 'حالة الإصلاح من القبول للتسليم', descEn: 'Repair status from accept to delivery' },
+  { key: 'order_updates', ar: 'تحديثات الطلبات', en: 'Order status updates', descAr: 'حالة الإصلاح من القبول للتسليم', descEn: 'Repair status from accept to delivery' },
+  { key: 'technician_arrival', ar: 'تنبيهات وصول الفني', en: 'Technician arrival alerts', descAr: 'تنبيه عند اقتراب الفني أو وصوله', descEn: 'Alert when the technician is on the way or arrives' },
   { key: 'technician_messages', ar: 'رسائل الفني', en: 'Technician messages', descAr: 'إشعارات المحادثة', descEn: 'Chat alerts' },
-  { key: 'promotions', ar: 'العروض والتخفيضات', en: 'Promotions', descAr: 'كوبونات وعروض موسمية', descEn: 'Coupons and seasonal offers' },
+  { key: 'promotions', ar: 'العروض والتخفيضات', en: 'Promotions & offers', descAr: 'كوبونات وعروض موسمية', descEn: 'Coupons and seasonal offers' },
+  { key: 'system_announcements', ar: 'إعلانات النظام', en: 'System announcements', descAr: 'تحديثات وإعلانات Fixate', descEn: 'Fixate updates and announcements' },
 ];
 
 export default function NotificationSettingsScreen() {

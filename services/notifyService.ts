@@ -68,6 +68,47 @@ export const notifyAudience = async (
   payload: PushPayload
 ): Promise<PushResult> => invoke({ audience, ...payload });
 
+export type NotifyCategory = 'promo' | 'announcement' | 'order' | 'arrival';
+
+export interface SegmentPayload extends PushPayload {
+  /** Category for preference filtering (opt-out) + in-app notification type. */
+  category?: NotifyCategory;
+  /** In-app notification type override (defaults from category). */
+  type?: string;
+  /** Deep-link target id stored on the in-app notification row. */
+  relatedId?: string;
+}
+
+export interface SegmentResult extends PushResult {
+  /** Number of in-app notification rows inserted (bell). */
+  inApp?: number;
+}
+
+/**
+ * Audience notification via the `notify-segment` Edge Function: filters out
+ * users who opted out of the category, inserts an in-app notification for the
+ * bell, and pushes to the rest. Used by admin broadcasts, offer auto-notify,
+ * scheduled notifications and automations (NOT order/chat pushes).
+ */
+export const notifySegment = async (
+  audience: PushAudience,
+  payload: SegmentPayload
+): Promise<SegmentResult> => {
+  try {
+    const { data, error } = await supabase.functions.invoke('notify-segment', {
+      body: { audience, ...payload },
+    });
+    if (error) {
+      logger.warn('notify-segment invoke failed', error);
+      return { sent: 0, failed: 0, inApp: 0 };
+    }
+    return (data as SegmentResult) ?? { sent: 0, failed: 0, inApp: 0 };
+  } catch (e) {
+    logger.warn('notify-segment threw', e);
+    return { sent: 0, failed: 0, inApp: 0 };
+  }
+};
+
 /**
  * Admin debug helpers. `getPushStats` returns DB-wide token counts (resolved
  * server-side with the service role, so RLS never hides rows). `sendTestPush`

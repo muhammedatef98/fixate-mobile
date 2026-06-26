@@ -9,6 +9,8 @@ export interface NotificationPreferences {
   order_updates: boolean;
   promotions: boolean;
   technician_messages: boolean;
+  system_announcements: boolean;
+  technician_arrival: boolean;
   updated_at?: string;
 }
 
@@ -30,6 +32,8 @@ export const getMyPreferences = async (userId: string): Promise<NotificationPref
       order_updates: true,
       promotions: false,
       technician_messages: true,
+      system_announcements: true,
+      technician_arrival: true,
     };
   } catch (error: any) {
     logger.error('getMyPreferences error', error);
