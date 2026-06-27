@@ -1,55 +1,64 @@
-import { I18nManager } from 'react-native';
+import type { KeyboardTypeOptions, TextStyle } from 'react-native';
 
 /**
- * Check if the app is in RTL mode
+ * Direction helpers driven by the APP LANGUAGE, not the device locale.
+ *
+ * IMPORTANT: direction must follow the app's `language` flag (isRTL = language
+ * === 'ar'), NOT `I18nManager.isRTL`. On an Arabic Android device the native
+ * locale would otherwise force English text/inputs to render right-to-left.
+ * These helpers take `isRTL` as an explicit argument so callers pass the
+ * language-derived value (e.g. from `useApp()`), keeping English LTR and Arabic
+ * RTL regardless of the device locale — without any global I18nManager flip.
  */
-export const isRTL = () => I18nManager.isRTL;
+
+export const getTextAlign = (isRTL: boolean): TextStyle['textAlign'] =>
+  isRTL ? 'right' : 'left';
+
+export const getWritingDirection = (isRTL: boolean): TextStyle['writingDirection'] =>
+  isRTL ? 'rtl' : 'ltr';
+
+export const getFlexDirection = (isRTL: boolean): 'row' | 'row-reverse' =>
+  isRTL ? 'row-reverse' : 'row';
 
 /**
- * Get text alignment based on RTL
+ * Keyboard types whose content is inherently left-to-right (numbers, emails,
+ * phone numbers, URLs). Fields using these should stay LTR even when the app
+ * language is Arabic, so digits/handles don't get visually reversed.
  */
-export const getTextAlign = (): 'left' | 'right' => {
-  return isRTL() ? 'right' : 'left';
+const LTR_KEYBOARD_TYPES: ReadonlySet<KeyboardTypeOptions> = new Set([
+  'number-pad',
+  'numeric',
+  'decimal-pad',
+  'phone-pad',
+  'email-address',
+  'url',
+]);
+
+export const isLtrKeyboardType = (kt?: KeyboardTypeOptions): boolean =>
+  !!kt && LTR_KEYBOARD_TYPES.has(kt);
+
+/**
+ * Resolve the `{ textAlign, writingDirection }` for a TextInput. Numeric / email
+ * / phone / url fields are forced LTR regardless of language; everything else
+ * follows the app language. Use for any input that may hold mixed or
+ * English-only content.
+ */
+export const getInputDirection = (
+  isRTL: boolean,
+  keyboardType?: KeyboardTypeOptions
+): Pick<TextStyle, 'textAlign' | 'writingDirection'> => {
+  if (isLtrKeyboardType(keyboardType)) {
+    return { textAlign: 'left', writingDirection: 'ltr' };
+  }
+  return { textAlign: getTextAlign(isRTL), writingDirection: getWritingDirection(isRTL) };
 };
 
 /**
- * Get flex direction based on RTL
+ * Style for text that is ALWAYS left-to-right regardless of app language —
+ * order codes, timestamps, emails, phone numbers, raw numbers. Apply on top of
+ * the base text style so these never visually reverse on Arabic screens.
  */
-export const getFlexDirection = (): 'row' | 'row-reverse' => {
-  return isRTL() ? 'row-reverse' : 'row';
-};
-
-/**
- * Get writing direction
- */
-export const getWritingDirection = (): 'rtl' | 'ltr' => {
-  return isRTL() ? 'rtl' : 'ltr';
-};
-
-/**
- * Get margin/padding for start (respects RTL)
- */
-export const getMarginStart = (value: number) => {
-  return isRTL() ? { marginRight: value } : { marginLeft: value };
-};
-
-export const getMarginEnd = (value: number) => {
-  return isRTL() ? { marginLeft: value } : { marginRight: value };
-};
-
-export const getPaddingStart = (value: number) => {
-  return isRTL() ? { paddingRight: value } : { paddingLeft: value };
-};
-
-export const getPaddingEnd = (value: number) => {
-  return isRTL() ? { paddingLeft: value } : { paddingRight: value };
-};
-
-/**
- * RTL-aware styles object
- */
-export const rtlStyles = {
-  textAlign: getTextAlign(),
-  flexDirection: getFlexDirection(),
-  writingDirection: getWritingDirection(),
+export const LTR_TEXT_STYLE: Pick<TextStyle, 'textAlign' | 'writingDirection'> = {
+  textAlign: 'left',
+  writingDirection: 'ltr',
 };

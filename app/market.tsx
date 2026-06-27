@@ -532,14 +532,6 @@ export default function MarketScreen() {
         </View>
         <View style={styles.headerActions}>
           <AnimatedTouchable
-            onPress={() => router.replace('/(customer)' as never)}
-            style={[styles.headerIconBtn, { backgroundColor: COLORS.primary + '15', borderColor: COLORS.primary + '30' }]}
-            accessibilityRole="button"
-            accessibilityLabel={isRTL ? 'الرئيسية' : 'Home'}
-          >
-            <Ionicons name="home" size={17} color={COLORS.primary} />
-          </AnimatedTouchable>
-          <AnimatedTouchable
             onPress={() => setSavedOnly((v) => !v)}
             style={[
               styles.headerIconBtn,

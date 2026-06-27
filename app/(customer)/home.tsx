@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   View,
   Text,
@@ -61,7 +61,7 @@ export default function CustomerHomeScreen() {
     : '';
   const isPending = activeOrder?.status === 'pending';
 
-  const styles = makeStyles(isRTL);
+  const styles = useMemo(() => makeStyles(isRTL), [isRTL]);
 
   return (
     <SafeAreaView style={styles.container}>

@@ -17,6 +17,7 @@ interface MarketTab {
 }
 
 const MARKET_TABS: MarketTab[] = [
+  { path: '/(customer)',      icon: 'home-outline',                activeIcon: 'home',               labelAr: 'الرئيسية',  labelEn: 'Home' },
   { path: '/market',          icon: 'storefront-outline',         activeIcon: 'storefront',         labelAr: 'السوق',     labelEn: 'Market' },
   { path: '/market-messages', icon: 'chatbubble-ellipses-outline', activeIcon: 'chatbubble-ellipses', labelAr: 'الرسائل',   labelEn: 'Messages' },
   { path: '/my-listings',     icon: 'list-outline',               activeIcon: 'list',               labelAr: 'إعلاناتي', labelEn: 'My Listings' },
@@ -36,7 +37,7 @@ export default function MarketBottomTabs() {
   // this bar uses a plain fixed offset and is lifted above the system nav bar
   // by that frame. iOS keeps its existing 30px offset.
   return (
-    <View style={styles.container}>
+    <View style={styles.container} pointerEvents="box-none">
       <View style={styles.floatingBar}>
         {tabs.map((item) => {
           const isActive = pathname === item.path;

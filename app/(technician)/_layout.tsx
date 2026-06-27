@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { ActivityIndicator, View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useApp } from '../../contexts/AppContext';
@@ -178,8 +178,21 @@ export default function TechnicianLayout() {
           animation: 'none',
           gestureEnabled: true,
           gestureDirection: 'horizontal',
-          headerStyle: { backgroundColor: '#10b981' },
-          headerTintColor: '#fff',
+          // iOS glass header to match the root navigator (only visible if a
+          // technician screen ever flips headerShown: true). Android keeps the
+          // original solid green header unchanged.
+          ...(Platform.OS === 'ios'
+            ? {
+                headerTransparent: true,
+                headerBlurEffect: 'systemChromeMaterial' as const,
+                headerStyle: { backgroundColor: 'transparent' },
+                headerTintColor: '#10b981',
+                headerBackButtonDisplayMode: 'default' as const,
+              }
+            : {
+                headerStyle: { backgroundColor: '#10b981' },
+                headerTintColor: '#fff',
+              }),
           headerTitleStyle: { fontWeight: 'bold' },
           headerBackTitle: isRTL ? 'رجوع' : 'Back',
         }}

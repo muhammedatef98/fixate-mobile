@@ -210,7 +210,7 @@ export default function AdminDashboardScreen() {
       ]
         .filter((x) => x.raw)
         .sort((a, b) => new Date(b.raw).getTime() - new Date(a.raw).getTime())
-        .slice(0, 6);
+        .slice(0, 3);
       setActivity(merged);
       setLastRefresh(new Date());
     } catch {

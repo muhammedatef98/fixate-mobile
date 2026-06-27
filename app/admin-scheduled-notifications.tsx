@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -6,11 +6,13 @@ import {
   SafeAreaView,
   StatusBar,
   ScrollView,
+  FlatList,
   TextInput,
   TouchableOpacity,
   ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
+  Modal,
   Platform,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -69,8 +71,27 @@ export default function AdminScheduledScreen() {
   const [body, setBody] = useState('');
   const [audience, setAudience] = useState<ScheduledAudience>('all');
   const [recurrence, setRecurrence] = useState<Recurrence>('none');
-  const [date, setDate] = useState('');
-  const [time, setTime] = useState('09:00');
+
+  // Date picker state
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [datePickerOpen, setDatePickerOpen] = useState(false);
+  const [pickerMonth, setPickerMonth] = useState(() => new Date());
+
+  // Time picker state (12-hour)
+  const [selectedHour, setSelectedHour] = useState(9);   // 1–12
+  const [selectedMinute, setSelectedMinute] = useState(0); // 0–59
+  const [selectedAmPm, setSelectedAmPm] = useState<'AM' | 'PM'>('AM');
+  const [timePickerOpen, setTimePickerOpen] = useState(false);
+
+  // Derived values for the existing toIso/submit logic
+  const date = selectedDate
+    ? `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, '0')}-${String(selectedDate.getDate()).padStart(2, '0')}`
+    : '';
+  const time = (() => {
+    let h = selectedHour % 12;
+    if (selectedAmPm === 'PM') h += 12;
+    return `${String(h).padStart(2, '0')}:${String(selectedMinute).padStart(2, '0')}`;
+  })();
 
   const load = useCallback(async () => {
     setItems(await listUpcomingScheduled());
@@ -85,8 +106,10 @@ export default function AdminScheduledScreen() {
   const resetForm = () => {
     setTitle('');
     setBody('');
-    setDate('');
-    setTime('09:00');
+    setSelectedDate(null);
+    setSelectedHour(9);
+    setSelectedMinute(0);
+    setSelectedAmPm('AM');
     setRecurrence('none');
   };
 
@@ -207,12 +230,30 @@ export default function AdminScheduledScreen() {
 
             <View style={[styles.row2, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
               <View style={{ flex: 1 }}>
-                <Text style={[styles.label, { marginTop: 10 }]}>{isRTL ? 'التاريخ (YYYY-MM-DD)' : 'Date (YYYY-MM-DD)'}</Text>
-                <TextInput style={styles.input} value={date} onChangeText={setDate} placeholder="2026-07-01" placeholderTextColor={COLORS.textSecondary} autoCapitalize="none" />
+                <Text style={[styles.label, { marginTop: 10 }]}>{isRTL ? 'التاريخ' : 'Date'}</Text>
+                <TouchableOpacity
+                  onPress={() => { setPickerMonth(selectedDate ?? new Date()); setDatePickerOpen(true); }}
+                  style={[styles.input, { justifyContent: 'center' }]}
+                  accessibilityRole="button"
+                >
+                  <Text style={{ color: selectedDate ? COLORS.text : COLORS.textSecondary, fontSize: 14 }}>
+                    {selectedDate
+                      ? selectedDate.toLocaleDateString(isRTL ? 'ar-SA-u-ca-gregory' : 'en-US', { calendar: 'gregory', year: 'numeric', month: 'long', day: 'numeric' })
+                      : (isRTL ? 'اختر التاريخ' : 'Pick a date')}
+                  </Text>
+                </TouchableOpacity>
               </View>
-              <View style={{ width: 110 }}>
+              <View style={{ width: 130 }}>
                 <Text style={[styles.label, { marginTop: 10 }]}>{isRTL ? 'الوقت' : 'Time'}</Text>
-                <TextInput style={styles.input} value={time} onChangeText={setTime} placeholder="09:00" placeholderTextColor={COLORS.textSecondary} />
+                <TouchableOpacity
+                  onPress={() => setTimePickerOpen(true)}
+                  style={[styles.input, { justifyContent: 'center' }]}
+                  accessibilityRole="button"
+                >
+                  <Text style={{ color: COLORS.text, fontSize: 14 }}>
+                    {`${selectedHour}:${String(selectedMinute).padStart(2, '0')} ${isRTL ? (selectedAmPm === 'AM' ? 'ص' : 'م') : selectedAmPm}`}
+                  </Text>
+                </TouchableOpacity>
               </View>
             </View>
             {recurrence !== 'none' && (
@@ -265,6 +306,139 @@ export default function AdminScheduledScreen() {
           )}
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* ── Date picker modal ── */}
+      <Modal visible={datePickerOpen} transparent animationType="fade" onRequestClose={() => setDatePickerOpen(false)}>
+        <TouchableOpacity style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', alignItems: 'center' }} activeOpacity={1} onPress={() => setDatePickerOpen(false)}>
+          <TouchableOpacity activeOpacity={1} onPress={(e) => e.stopPropagation()} style={{ width: 320, backgroundColor: COLORS.card, borderRadius: BORDER_RADIUS.lg, padding: SPACING.lg }}>
+            {/* Month navigation */}
+            <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <TouchableOpacity onPress={() => setPickerMonth((m) => new Date(m.getFullYear(), m.getMonth() - 1, 1))} style={{ padding: 6 }}>
+                <MaterialCommunityIcons name={isRTL ? 'chevron-right' : 'chevron-left'} size={22} color={COLORS.primary} />
+              </TouchableOpacity>
+              <Text style={{ color: COLORS.text, fontWeight: '800', fontSize: 15 }}>
+                {pickerMonth.toLocaleDateString(isRTL ? 'ar-SA-u-ca-gregory' : 'en-US', { calendar: 'gregory', month: 'long', year: 'numeric' })}
+              </Text>
+              <TouchableOpacity onPress={() => setPickerMonth((m) => new Date(m.getFullYear(), m.getMonth() + 1, 1))} style={{ padding: 6 }}>
+                <MaterialCommunityIcons name={isRTL ? 'chevron-left' : 'chevron-right'} size={22} color={COLORS.primary} />
+              </TouchableOpacity>
+            </View>
+            {/* Day-of-week headers */}
+            {(() => {
+              const dayNames = isRTL
+                ? ['ح', 'ن', 'ث', 'ر', 'خ', 'ج', 'س']
+                : ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+              return (
+                <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', marginBottom: 4 }}>
+                  {dayNames.map((d) => (
+                    <Text key={d} style={{ flex: 1, textAlign: 'center', color: COLORS.textSecondary, fontWeight: '700', fontSize: 11 }}>{d}</Text>
+                  ))}
+                </View>
+              );
+            })()}
+            {/* Calendar grid */}
+            {(() => {
+              const year = pickerMonth.getFullYear();
+              const month = pickerMonth.getMonth();
+              const firstDay = new Date(year, month, 1).getDay();
+              const daysInMonth = new Date(year, month + 1, 0).getDate();
+              const cells: (number | null)[] = [...Array(firstDay).fill(null), ...Array.from({ length: daysInMonth }, (_, i) => i + 1)];
+              const weeks: (number | null)[][] = [];
+              for (let i = 0; i < cells.length; i += 7) weeks.push(cells.slice(i, i + 7).concat(Array(7).fill(null)).slice(0, 7));
+              return weeks.map((week, wi) => (
+                <View key={wi} style={{ flexDirection: isRTL ? 'row-reverse' : 'row', marginBottom: 2 }}>
+                  {week.map((day, di) => {
+                    const isSelected = !!day && !!selectedDate && selectedDate.getFullYear() === year && selectedDate.getMonth() === month && selectedDate.getDate() === day;
+                    const isToday = !!day && (() => { const t = new Date(); return t.getFullYear() === year && t.getMonth() === month && t.getDate() === day; })();
+                    return (
+                      <TouchableOpacity
+                        key={di}
+                        style={{ flex: 1, alignItems: 'center', paddingVertical: 6, borderRadius: 999, backgroundColor: isSelected ? COLORS.primary : 'transparent' }}
+                        onPress={() => { if (day) { setSelectedDate(new Date(year, month, day)); setDatePickerOpen(false); } }}
+                        disabled={!day}
+                      >
+                        <Text style={{ color: isSelected ? '#fff' : isToday ? COLORS.primary : day ? COLORS.text : 'transparent', fontWeight: isSelected || isToday ? '800' : '500', fontSize: 13 }}>
+                          {day ?? '·'}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              ));
+            })()}
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* ── Time picker modal ── */}
+      <Modal visible={timePickerOpen} transparent animationType="fade" onRequestClose={() => setTimePickerOpen(false)}>
+        <TouchableOpacity style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', alignItems: 'center' }} activeOpacity={1} onPress={() => setTimePickerOpen(false)}>
+          <TouchableOpacity activeOpacity={1} onPress={(e) => e.stopPropagation()} style={{ width: 280, backgroundColor: COLORS.card, borderRadius: BORDER_RADIUS.lg, padding: SPACING.lg }}>
+            <Text style={{ color: COLORS.text, fontWeight: '800', fontSize: 15, textAlign: 'center', marginBottom: 16 }}>
+              {isRTL ? 'اختر الوقت' : 'Pick a time'}
+            </Text>
+            <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', gap: 8, justifyContent: 'center' }}>
+              {/* Hours 1-12 */}
+              <View style={{ alignItems: 'center', flex: 1 }}>
+                <Text style={{ color: COLORS.textSecondary, fontWeight: '700', fontSize: 11, marginBottom: 6 }}>{isRTL ? 'ساعة' : 'Hour'}</Text>
+                <FlatList
+                  data={[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]}
+                  keyExtractor={(item) => String(item)}
+                  style={{ maxHeight: 200 }}
+                  showsVerticalScrollIndicator={false}
+                  renderItem={({ item }) => (
+                    <TouchableOpacity
+                      onPress={() => setSelectedHour(item)}
+                      style={{ paddingVertical: 8, paddingHorizontal: 12, borderRadius: BORDER_RADIUS.md, backgroundColor: selectedHour === item ? COLORS.primary : 'transparent', marginBottom: 2 }}
+                    >
+                      <Text style={{ color: selectedHour === item ? '#fff' : COLORS.text, fontWeight: '700', textAlign: 'center', fontSize: 16 }}>{item}</Text>
+                    </TouchableOpacity>
+                  )}
+                />
+              </View>
+              {/* Minutes */}
+              <View style={{ alignItems: 'center', flex: 1 }}>
+                <Text style={{ color: COLORS.textSecondary, fontWeight: '700', fontSize: 11, marginBottom: 6 }}>{isRTL ? 'دقيقة' : 'Min'}</Text>
+                <FlatList
+                  data={[0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55]}
+                  keyExtractor={(item) => String(item)}
+                  style={{ maxHeight: 200 }}
+                  showsVerticalScrollIndicator={false}
+                  renderItem={({ item }) => (
+                    <TouchableOpacity
+                      onPress={() => setSelectedMinute(item)}
+                      style={{ paddingVertical: 8, paddingHorizontal: 12, borderRadius: BORDER_RADIUS.md, backgroundColor: selectedMinute === item ? COLORS.primary : 'transparent', marginBottom: 2 }}
+                    >
+                      <Text style={{ color: selectedMinute === item ? '#fff' : COLORS.text, fontWeight: '700', textAlign: 'center', fontSize: 16 }}>{String(item).padStart(2, '0')}</Text>
+                    </TouchableOpacity>
+                  )}
+                />
+              </View>
+              {/* AM/PM */}
+              <View style={{ alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                <Text style={{ color: COLORS.textSecondary, fontWeight: '700', fontSize: 11, marginBottom: 6 }}>ص/م</Text>
+                {(['AM', 'PM'] as const).map((ampm) => (
+                  <TouchableOpacity
+                    key={ampm}
+                    onPress={() => setSelectedAmPm(ampm)}
+                    style={{ paddingVertical: 10, paddingHorizontal: 14, borderRadius: BORDER_RADIUS.md, backgroundColor: selectedAmPm === ampm ? COLORS.primary : COLORS.background, borderWidth: 1, borderColor: selectedAmPm === ampm ? COLORS.primary : COLORS.border }}
+                  >
+                    <Text style={{ color: selectedAmPm === ampm ? '#fff' : COLORS.text, fontWeight: '800', fontSize: 15 }}>
+                      {isRTL ? (ampm === 'AM' ? 'ص' : 'م') : ampm}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+            <TouchableOpacity
+              onPress={() => setTimePickerOpen(false)}
+              style={{ marginTop: 16, backgroundColor: COLORS.primary, paddingVertical: 12, borderRadius: BORDER_RADIUS.md, alignItems: 'center' }}
+            >
+              <Text style={{ color: '#fff', fontWeight: '800', fontSize: 15 }}>{isRTL ? 'تأكيد' : 'Confirm'}</Text>
+            </TouchableOpacity>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
     </SafeAreaView>
   );
 }

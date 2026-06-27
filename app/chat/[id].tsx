@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -26,8 +26,24 @@ import { RTLIonicon } from '../../components/RTLIcon';
 import { safeBack } from '../../utils/navigation';
 import { useScrollToEndOnKeyboard } from '../../hooks/useScrollToEndOnKeyboard';
 import { uploadOrderMedia } from '../../services/storageService';
+import { resolveStorageUrls } from '../../utils/resolveStorageUrls';
 import ImageViewer from '../../components/ImageViewer';
 import { formatAppTimeOnly } from '../../lib/formatDate';
+import { getInputDirection } from '../../utils/rtl';
+
+async function resolveMessageImages(msgs: any[]): Promise<any[]> {
+  const imageUrls = msgs
+    .filter((m) => m.attachment_type === 'image' && m.attachment_url && !m.is_temp)
+    .map((m) => m.attachment_url as string);
+  if (!imageUrls.length) return msgs;
+  const resolved = await resolveStorageUrls(imageUrls);
+  const urlMap: Record<string, string> = Object.fromEntries(imageUrls.map((u, i) => [u, resolved[i]]));
+  return msgs.map((m) =>
+    m.attachment_type === 'image' && m.attachment_url && !m.is_temp && urlMap[m.attachment_url]
+      ? { ...m, attachment_url: urlMap[m.attachment_url] }
+      : m
+  );
+}
 
 // Quick-reply suggestions that match each side of the conversation. The
 // customer's prompts are questions / status checks; the technician's are
@@ -99,10 +115,17 @@ export default function ChatScreen() {
 
   useEffect(() => {
     loadData();
-    const subscription = chat.subscribeToMessages(id as string, (message) => {
+    const subscription = chat.subscribeToMessages(id as string, async (message) => {
+      // Resolve image URL for incoming messages so private-bucket URLs render.
+      let resolvedMessage = message;
+      if (message.attachment_type === 'image' && message.attachment_url) {
+        const [url] = await resolveStorageUrls([message.attachment_url]);
+        if (url) resolvedMessage = { ...message, attachment_url: url };
+      }
+      const msg = resolvedMessage;
       setMessages((prev) => {
         // Already have the real row (e.g. duplicate realtime event) — no-op.
-        if (prev.some((m) => m.id === message.id)) return prev;
+        if (prev.some((m) => m.id === msg.id)) return prev;
         // The sender optimistically rendered a `temp-` bubble. When the real
         // row arrives over realtime, swap it in place instead of appending a
         // second bubble — that double-render (real + faded temp) was the
@@ -110,17 +133,17 @@ export default function ChatScreen() {
         const tempIdx = prev.findIndex(
           (m) =>
             m.is_temp &&
-            m.sender_id === message.sender_id &&
-            (message.attachment_type
-              ? m.attachment_type === message.attachment_type
-              : !m.attachment_type && (m.content ?? '') === (message.content ?? ''))
+            m.sender_id === msg.sender_id &&
+            (msg.attachment_type
+              ? m.attachment_type === msg.attachment_type
+              : !m.attachment_type && (m.content ?? '') === (msg.content ?? ''))
         );
         if (tempIdx !== -1) {
           const next = [...prev];
-          next[tempIdx] = message;
+          next[tempIdx] = msg;
           return next;
         }
-        return [...prev, message];
+        return [...prev, msg];
       });
       setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 80);
     });
@@ -138,7 +161,7 @@ export default function ChatScreen() {
       ]);
       setCurrentUser(user);
       setOrder(orderData);
-      setMessages(msgs);
+      setMessages(await resolveMessageImages(msgs));
       const meta = (user?.user_metadata || {}) as { user_type?: string; role?: string };
       const userRole = meta.user_type || meta.role;
       if (userRole === 'technician') {
@@ -362,7 +385,8 @@ export default function ChatScreen() {
     );
   };
 
-  const styles = makeStyles(COLORS, isRTL);
+  // Memoize so we don't rebuild the StyleSheet on every keystroke re-render.
+  const styles = useMemo(() => makeStyles(COLORS, isRTL), [isDark, isRTL]);
 
   if (loading) {
     return (
@@ -525,14 +549,17 @@ export default function ChatScreen() {
             <Ionicons name="location-outline" size={20} color={COLORS.primary} />
           </TouchableOpacity>
           <TextInput
-            style={[styles.input, { color: COLORS.text, backgroundColor: COLORS.background, borderColor: COLORS.border }]}
+            style={[
+              styles.input,
+              { color: COLORS.text, backgroundColor: COLORS.background, borderColor: COLORS.border },
+              getInputDirection(isRTL),
+            ]}
             placeholder={isRTL ? 'اكتب رسالتك...' : 'Type a message...'}
             placeholderTextColor={COLORS.textSecondary}
             value={newMessage}
             onChangeText={setNewMessage}
             multiline
             maxLength={2000}
-            textAlign={isRTL ? 'right' : 'left'}
           />
           <TouchableOpacity
             style={[styles.sendBtn, { backgroundColor: COLORS.primary, opacity: !newMessage.trim() || sending ? 0.5 : 1 }]}

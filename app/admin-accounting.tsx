@@ -13,6 +13,7 @@ import {
   Alert,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { useApp } from '../contexts/AppContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useIsAdmin } from '../hooks/useAdminGuard';
@@ -36,6 +37,7 @@ import { logger } from '../utils/logger';
 const CATEGORY_COLORS = ['#10B981', '#3B82F6', '#F59E0B', '#8B5CF6', '#EC4899', '#06B6D4', '#EF4444'];
 
 export default function AdminAccountingScreen() {
+  const router = useRouter();
   const { language, isDark } = useApp();
   const { user, userProfile } = useAuth();
   const COLORS = getColors(isDark);
@@ -325,9 +327,17 @@ export default function AdminAccountingScreen() {
             </View>
 
             {/* Transactions */}
-            <Text style={styles.sectionTitle}>{isRTL ? 'المعاملات' : 'Transactions'}</Text>
+            <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+              <Text style={styles.sectionTitle}>{isRTL ? 'المعاملات' : 'Transactions'}</Text>
+              {data.recent.length > 3 && (
+                <TouchableOpacity onPress={() => router.push('/admin-orders' as any)} style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 2 }}>
+                  <Text style={{ color: COLORS.primary, fontWeight: '800', fontSize: 12 }}>{isRTL ? 'عرض الكل' : 'View all'}</Text>
+                  <MaterialCommunityIcons name={isRTL ? 'chevron-left' : 'chevron-right'} size={16} color={COLORS.primary} />
+                </TouchableOpacity>
+              )}
+            </View>
             <View style={styles.card}>
-              {data.recent.map((r) => (
+              {data.recent.slice(0, 3).map((r) => (
                 <View key={r.id} style={[styles.txnRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
                   <View style={{ flex: 1, minWidth: 0 }}>
                     <Text style={[styles.txnTitle, { textAlign: isRTL ? 'right' : 'left' }]} numberOfLines={1}>
@@ -356,9 +366,17 @@ export default function AdminAccountingScreen() {
             {/* Pending & Overdue */}
             {data.pendingOrders.length > 0 && (
               <>
-                <Text style={styles.sectionTitle}>{isRTL ? 'المدفوعات المعلقة والمتأخرة' : 'Pending & overdue'}</Text>
+                <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                  <Text style={styles.sectionTitle}>{isRTL ? 'المدفوعات المعلقة والمتأخرة' : 'Pending & overdue'}</Text>
+                  {data.pendingOrders.length > 3 && (
+                    <TouchableOpacity onPress={() => router.push('/admin-orders' as any)} style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 2 }}>
+                      <Text style={{ color: COLORS.primary, fontWeight: '800', fontSize: 12 }}>{isRTL ? 'عرض الكل' : 'View all'}</Text>
+                      <MaterialCommunityIcons name={isRTL ? 'chevron-left' : 'chevron-right'} size={16} color={COLORS.primary} />
+                    </TouchableOpacity>
+                  )}
+                </View>
                 <View style={styles.card}>
-                  {data.pendingOrders.map((p) => (
+                  {data.pendingOrders.slice(0, 3).map((p) => (
                     <View key={p.id} style={[styles.txnRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
                       <View style={{ flex: 1, minWidth: 0 }}>
                         <Text style={[styles.txnTitle, { textAlign: isRTL ? 'right' : 'left' }]} numberOfLines={1}>

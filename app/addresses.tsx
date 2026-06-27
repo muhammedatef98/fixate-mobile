@@ -532,12 +532,14 @@ export default function AddressesScreen() {
                 <TouchableOpacity
                   onPress={useMyLocation}
                   disabled={locating}
-                  style={[styles.input, {
+                  style={{
                     flexDirection: isRTL ? 'row-reverse' : 'row',
                     alignItems: 'center', justifyContent: 'center', gap: 8,
+                    borderWidth: 1, borderRadius: BORDER_RADIUS.md,
                     borderColor: COLORS.primary, backgroundColor: COLORS.primary + '10',
-                    height: 48, marginBottom: 12,
-                  }]}
+                    minHeight: 48, paddingVertical: 10, paddingHorizontal: SPACING.md,
+                    marginBottom: 12,
+                  }}
                   accessibilityRole="button"
                 >
                   {locating ? (
@@ -545,7 +547,10 @@ export default function AddressesScreen() {
                   ) : (
                     <>
                       <Ionicons name="locate" size={18} color={COLORS.primary} />
-                      <Text style={{ color: COLORS.primary, fontWeight: '700' }}>
+                      <Text
+                        numberOfLines={1}
+                        style={{ color: COLORS.primary, fontWeight: '700', fontSize: 15, flexShrink: 1 }}
+                      >
                         {isRTL ? 'استخدم موقعي الحالي' : 'Use my current location'}
                       </Text>
                     </>

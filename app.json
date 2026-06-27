@@ -6,6 +6,11 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
+    "androidStatusBar": {
+      "barStyle": "dark-content",
+      "backgroundColor": "#ffffff",
+      "translucent": false
+    },
     "description": "منصة صيانة الأجهزة الإلكترونية في السعودية - إصلاح أجهزتك بسرعة وسهولة مع فنيين محترفين في موقعك",
     "privacy": "https://fixate.site/privacy",
     "splash": {
@@ -66,7 +71,7 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#10b981"
+        "backgroundColor": "#ffffff"
       },
       "package": "com.fixatee.app",
       "versionCode": 1,
@@ -83,9 +88,6 @@
       "blockedPermissions": [
         "android.permission.RECORD_AUDIO"
       ],
-      "statusBar": {
-        "hidden": true
-      },
       "androidNavigationBar": {
         "visible": "sticky-immersive",
         "barStyle": "dark-content",

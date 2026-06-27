@@ -18,7 +18,8 @@ import { useApp } from '../contexts/AppContext';
 import { RTLIonicon } from '../components/RTLIcon';
 import { safeBack } from '../utils/navigation';
 import { EmptyState } from '../components/ui/EmptyState';
-import { AdminActivityRow } from '../components/admin/AdminUI';
+import { AdminActivityRow, AdminEmptyState } from '../components/admin/AdminUI';
+import { useIsAdmin } from '../hooks/useAdminGuard';
 import { logger } from '../utils/logger';
 
 type ActivityKind = 'order' | 'listing' | 'user';
@@ -61,6 +62,11 @@ export default function AdminActivityScreen() {
   const COLORS = getColors(isDark);
   const isRTL = language === 'ar';
   const styles = makeStyles(COLORS, isRTL);
+
+  // Admin-only screen: this log aggregates orders, listings and users across
+  // every account. Gate it with the same JWT-claim guard used by the rest of
+  // the admin area so a non-admin never renders the page or triggers its reads.
+  const { isAdmin, checking: adminChecking } = useIsAdmin();
 
   const [filter, setFilter] = useState<Filter>('all');
   const [items, setItems] = useState<ActivityItem[]>([]);
@@ -180,12 +186,18 @@ export default function AdminActivityScreen() {
     [fetchData]
   );
 
-  // (Re)load whenever the filter changes — reset paging.
+  // (Re)load whenever the filter changes — reset paging. Skip entirely for
+  // non-admins so the screen never issues its cross-account queries.
   useEffect(() => {
+    if (adminChecking) return;
+    if (!isAdmin) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     setLimit(PAGE);
     load(PAGE, filter);
-  }, [filter, load]);
+  }, [filter, load, isAdmin, adminChecking]);
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -200,6 +212,33 @@ export default function AdminActivityScreen() {
     setLimit(next);
     load(next, filter);
   };
+
+  // Block non-admins from rendering the page. Matches the unauthorized pattern
+  // used elsewhere in the admin area (e.g. admin-suppliers).
+  if (!adminChecking && !isAdmin) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel={isRTL ? 'رجوع' : 'Back'}
+            onPress={() => safeBack('/admin')}
+            style={styles.backButton}
+          >
+            <RTLIonicon name="arrow-back" size={24} color={COLORS.text} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>{isRTL ? 'سجل النشاط' : 'Activity log'}</Text>
+          <View style={{ width: 40 }} />
+        </View>
+        <AdminEmptyState
+          variant="error"
+          icon="shield-alert-outline"
+          title={isRTL ? 'غير مصرّح' : 'Unauthorized'}
+          body={isRTL ? 'هذه الصفحة للأدمن فقط' : 'Admins only'}
+        />
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>

@@ -1,4 +1,14 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+
+// Lazy-require react-native-webview exactly as InvoiceViewerModal does:
+// avoids a crash on dev clients built before the native module was added.
+let WebView: any = null;
+try {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  WebView = require('react-native-webview').WebView;
+} catch {
+  WebView = null;
+}
 import {
   View,
   Text,
@@ -38,7 +48,7 @@ import {
   type InvoiceStatus,
   type InvoiceSettings,
 } from '../services/invoiceService';
-import { generateAndShareInvoicePdf, formatInvoiceDate } from '../services/invoicePdf';
+import { generateAndShareInvoicePdf, buildInvoiceHtml, formatInvoiceDate } from '../services/invoicePdf';
 import { getFriendlyError } from '../utils/errorMessages';
 
 type Tab = 'invoices' | 'settings';
@@ -204,6 +214,25 @@ const statusAr = (s: InvoiceStatus) =>
 // ─── Invoice detail ────────────────────────────────────────────────────────
 function InvoiceDetail({ invoice, isRTL, COLORS, styles, onClose, onChanged }: any) {
   const [busy, setBusy] = useState(false);
+  const [html, setHtml] = useState<string | null>(null);
+  const [building, setBuilding] = useState(false);
+  const [showFull, setShowFull] = useState(false);
+  const webViewAvailable = !!WebView;
+
+  const onViewInline = async () => {
+    if (html) { setShowFull(true); return; }
+    setBuilding(true);
+    try {
+      const settings = await getInvoiceSettings();
+      const built = await buildInvoiceHtml(invoice, settings, isRTL);
+      setHtml(built);
+      setShowFull(true);
+    } catch (e) {
+      Alert.alert(isRTL ? 'خطأ' : 'Error', getFriendlyError(e, isRTL ? 'ar' : 'en'));
+    } finally {
+      setBuilding(false);
+    }
+  };
 
   const download = async () => {
     setBusy(true);
@@ -245,6 +274,32 @@ function InvoiceDetail({ invoice, isRTL, COLORS, styles, onClose, onChanged }: a
           <Text style={styles.sheetTitle}>{invoice.invoice_number}</Text>
           <AdminStatusPill label={isRTL ? statusAr(invoice.status) : invoice.status} {...statusTone(invoice.status)} />
         </View>
+
+        {/* Inline WebView — shown when user taps "View" */}
+        {showFull && html && webViewAvailable ? (
+          <>
+            <WebView
+              originWhitelist={['*']}
+              source={{ html }}
+              style={{ flex: 1, backgroundColor: '#fff' }}
+              showsVerticalScrollIndicator
+            />
+            <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', gap: 10, padding: SPACING.lg }}>
+              <TouchableOpacity style={[styles.smallBtn, { borderColor: COLORS.primary, flex: 1, justifyContent: 'center' }]} onPress={() => setShowFull(false)}>
+                <Text style={[styles.smallBtnText, { color: COLORS.primary }]}>{isRTL ? 'رجوع' : 'Back'}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.primaryBtn, { flex: 2, opacity: busy ? 0.6 : 1 }]} disabled={busy} onPress={download}>
+                {busy ? <ActivityIndicator color="#fff" /> : (
+                  <>
+                    <Ionicons name="download-outline" size={18} color="#fff" />
+                    <Text style={styles.primaryBtnText}>{isRTL ? 'تنزيل / مشاركة PDF' : 'Download / Share PDF'}</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </View>
+          </>
+        ) : (
+
         <ScrollView showsVerticalScrollIndicator={false}>
           <DetailRow label={isRTL ? 'العميل' : 'Customer'} value={invoice.customer_name} isRTL={isRTL} styles={styles} />
           <DetailRow label={isRTL ? 'الجوال' : 'Phone'} value={invoice.customer_phone} isRTL={isRTL} styles={styles} />
@@ -268,6 +323,22 @@ function InvoiceDetail({ invoice, isRTL, COLORS, styles, onClose, onChanged }: a
             <TotalRow label={isRTL ? 'الإجمالي' : 'Total'} value={money(invoice.total, isRTL)} isRTL={isRTL} styles={styles} grand />
           </View>
 
+          {/* View inline (WebView) button — only when module is available */}
+          {webViewAvailable && (
+            <TouchableOpacity
+              style={[styles.primaryBtn, { backgroundColor: COLORS.primary + '18', marginBottom: 0 }, building && { opacity: 0.6 }]}
+              disabled={building}
+              onPress={onViewInline}
+            >
+              {building ? <ActivityIndicator color={COLORS.primary} /> : (
+                <>
+                  <Ionicons name="eye-outline" size={18} color={COLORS.primary} />
+                  <Text style={[styles.primaryBtnText, { color: COLORS.primary }]}>{isRTL ? 'عرض الفاتورة' : 'View invoice'}</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          )}
+
           <TouchableOpacity style={[styles.primaryBtn, busy && { opacity: 0.6 }]} disabled={busy} onPress={download}>
             {busy ? <ActivityIndicator color="#fff" /> : (
               <>
@@ -283,6 +354,7 @@ function InvoiceDetail({ invoice, isRTL, COLORS, styles, onClose, onChanged }: a
             {invoice.status !== 'void' && <SmallBtn label={isRTL ? 'إلغاء' : 'Void'} color="#DC2626" onPress={() => setStatus('void')} styles={styles} />}
           </View>
         </ScrollView>
+        )}
       </View>
     </Modal>
   );

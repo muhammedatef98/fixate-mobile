@@ -115,7 +115,9 @@ const CONDITION_LABEL: Record<string, { ar: string; en: string }> = {
 };
 
 // Visual indent cap for nested replies (threading continues logically deeper).
-const MAX_COMMENT_DEPTH = 4;
+// Instagram-style threading: exactly one level of nested replies. Replies never
+// get their own Reply button, so the tree can never grow past depth 1.
+const MAX_COMMENT_DEPTH = 1;
 
 interface ListingCommentNode extends ListingComment {
   replies: ListingCommentNode[];
@@ -500,11 +502,14 @@ export default function MarketDetailScreen() {
             </TouchableOpacity>
             <Text style={styles.commentText}>{node.content}</Text>
             <View style={styles.commentActions}>
-              <TouchableOpacity onPress={() => setReplyTo(node)}>
-                <Text style={[styles.commentAction, { color: COLORS.primary }]}>
-                  {isRTL ? 'رد' : 'Reply'}
-                </Text>
-              </TouchableOpacity>
+              {/* One-level threading: only top-level comments can be replied to. */}
+              {depth === 0 && (
+                <TouchableOpacity onPress={() => setReplyTo(node)}>
+                  <Text style={[styles.commentAction, { color: COLORS.primary }]}>
+                    {isRTL ? 'رد' : 'Reply'}
+                  </Text>
+                </TouchableOpacity>
+              )}
               {isMine && (
                 <TouchableOpacity onPress={() => handleDeleteComment(node)}>
                   <Text style={[styles.commentAction, { color: '#EF4444' }]}>

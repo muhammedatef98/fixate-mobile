@@ -66,6 +66,13 @@ export const listWalletTransactions = async (
 /**
  * Apply a credit/debit to the *current user's* wallet (the RPC uses auth.uid()).
  * Returns the new balance. Throws on insufficient balance for debits.
+ *
+ * SECURITY: client-initiated *credits* are disabled. The `wallet_add_transaction`
+ * RPC is callable by the authenticated user against their own wallet, so a
+ * client-side credit would let any signed-in user inflate their own balance
+ * with no payment behind it. A credit must always be backed by a server-verified
+ * payment (payment-gateway webhook / edge function running with the service
+ * role). Until that top-up flow exists, refuse credits at the client boundary.
  */
 export const addWalletTransaction = async (
   type: WalletTxnType,
@@ -73,6 +80,12 @@ export const addWalletTransaction = async (
   description?: string,
   orderId?: string
 ): Promise<number> => {
+  if (type === 'credit') {
+    throw new Error(
+      'Wallet credit is not available from the client. Credits must be applied ' +
+        'server-side after a verified payment.'
+    );
+  }
   const { data, error } = await supabase.rpc('wallet_add_transaction', {
     p_type: type,
     p_amount: amount,
@@ -83,7 +96,11 @@ export const addWalletTransaction = async (
   return Number(data ?? 0);
 };
 
-/** Convenience: credit the wallet (e.g. a promo/discount monetary credit). */
+/**
+ * Convenience: credit the wallet. DISABLED on the client — always throws via
+ * {@link addWalletTransaction}. Kept so the API shape is explicit; real credits
+ * must be performed server-side after a verified payment.
+ */
 export const creditWallet = (amount: number, description?: string, orderId?: string) =>
   addWalletTransaction('credit', amount, description, orderId);
 

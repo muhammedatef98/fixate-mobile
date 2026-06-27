@@ -25,7 +25,7 @@ export default function TrackOrderScreen() {
   ];
 
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView style={styles.container} contentInsetAdjustmentBehavior="automatic">
       <View style={styles.header}>
         <Text style={styles.orderId}>
           {isRTL ? `طلب رقم: #${id}` : `Order #${id}`}

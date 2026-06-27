@@ -128,6 +128,7 @@ export default function ManageOrderScreen() {
   const [photoTarget, setPhotoTarget] = useState<'before' | 'after'>('before');
   const [sparePartSheet, setSparePartSheet] = useState(false);
   const [uploadingPhotos, setUploadingPhotos] = useState(false);
+  const [claimedByOther, setClaimedByOther] = useState(false);
 
   useEffect(() => {
     loadOrderDetails();
@@ -177,8 +178,21 @@ export default function ManageOrderScreen() {
 
   const loadOrderDetails = async () => {
     try {
-      const orderData = await requests.getById(id as string);
+      const [orderData, me] = await Promise.all([
+        requests.getById(id as string),
+        auth.getCurrentUser(),
+      ]);
       setOrder(orderData);
+      // Check at open-time whether another technician already claimed it.
+      if (
+        orderData &&
+        orderData.status !== 'pending' &&
+        orderData.technician_id &&
+        me?.id &&
+        orderData.technician_id !== me.id
+      ) {
+        setClaimedByOther(true);
+      }
       
       if (orderData?.user_id) {
         // IMPORTANT: use the userService lookup (queries `users` table by id),
@@ -595,6 +609,19 @@ export default function ManageOrderScreen() {
           </Text>
         </View>
 
+        {/* Claimed-by-other banner — shown when this technician opened the
+            order from a push notification but another tech already accepted. */}
+        {claimedByOther && (
+          <View style={[styles.card, { backgroundColor: '#FEF3C7', borderWidth: 1, borderColor: '#F59E0B' }, SHADOWS.small]}>
+            <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 10 }}>
+              <MaterialCommunityIcons name="account-clock-outline" size={24} color="#B45309" />
+              <Text style={{ flex: 1, color: '#92400E', fontWeight: '800', fontSize: 15, textAlign: isRTL ? 'right' : 'left' }}>
+                {isRTL ? 'تم قبول هذا الطلب من قِبَل فني آخر' : 'This order has already been accepted by another technician'}
+              </Text>
+            </View>
+          </View>
+        )}
+
         {/* Fix 4 — REJECTED order: read-only terminal summary. No quote, no
             workflow actions; the device/client info below stays visible. */}
         {order.status === 'rejected' && (
@@ -751,7 +778,8 @@ export default function ManageOrderScreen() {
         )}
 
         {/* Professional Workflow Control */}
-        {order.status !== 'quoted' &&
+        {!claimedByOther &&
+          order.status !== 'quoted' &&
           order.status !== 'awaiting_payment' &&
           order.status !== 'completed' &&
           order.status !== 'cancelled' &&
@@ -913,31 +941,6 @@ export default function ManageOrderScreen() {
               {order.issue_description}
             </Text>
           </View>
-          {/* §12 — request a spare part from a supplier (accepted/active orders) */}
-          {!isTerminal && order.status !== 'pending' && (
-            <TouchableOpacity
-              onPress={() => setSparePartSheet(true)}
-              accessibilityRole="button"
-              accessibilityLabel={isRTL ? 'طلب قطعة غيار' : 'Request a spare part'}
-              style={{
-                flexDirection: isRTL ? 'row-reverse' : 'row',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 8,
-                marginTop: 12,
-                paddingVertical: 12,
-                borderRadius: BORDER_RADIUS.md,
-                borderWidth: 1.5,
-                borderColor: COLORS.primary,
-                backgroundColor: COLORS.primary + '12',
-              }}
-            >
-              <MaterialCommunityIcons name="package-variant-closed" size={18} color={COLORS.primary} />
-              <Text style={{ color: COLORS.primary, fontWeight: '800', fontSize: 14 }}>
-                {isRTL ? 'طلب قطعة غيار' : 'Request a spare part'}
-              </Text>
-            </TouchableOpacity>
-          )}
           {/* Spare-part quality the customer chose — the technician must see
               this BEFORE accepting so they bring the right parts. */}
           {!!(order as any).spare_part_quality && SPARE_PART_LABELS[(order as any).spare_part_quality as SparePartQuality] && (
@@ -961,6 +964,32 @@ export default function ManageOrderScreen() {
                 {fulfillmentLabel((order as any).fulfillment_type ?? order.service_type, isRTL)}
               </Text>
             </View>
+          )}
+          {/* §12 — request a spare part from a supplier (accepted/active orders).
+              Positioned directly below the service-method row. */}
+          {!isTerminal && order.status !== 'pending' && (
+            <TouchableOpacity
+              onPress={() => setSparePartSheet(true)}
+              accessibilityRole="button"
+              accessibilityLabel={isRTL ? 'طلب قطعة غيار' : 'Request a spare part'}
+              style={{
+                flexDirection: isRTL ? 'row-reverse' : 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 8,
+                marginTop: 12,
+                paddingVertical: 12,
+                borderRadius: BORDER_RADIUS.md,
+                borderWidth: 1.5,
+                borderColor: COLORS.primary,
+                backgroundColor: COLORS.primary + '12',
+              }}
+            >
+              <MaterialCommunityIcons name="package-variant-closed" size={18} color={COLORS.primary} />
+              <Text style={{ color: COLORS.primary, fontWeight: '800', fontSize: 14 }}>
+                {isRTL ? 'طلب قطعة غيار' : 'Request a spare part'}
+              </Text>
+            </TouchableOpacity>
           )}
           {Array.isArray((order as any).accessories) && (order as any).accessories.length > 0 && (
             <View style={styles.infoRow}>
@@ -1007,14 +1036,14 @@ export default function ManageOrderScreen() {
               biased technicians into cherry-picking high-paying jobs over the
               fit of the work itself. We surface the final price later via the
               quotation flow. */}
-          {order.status !== 'pending' && ((order as any).final_price || order.estimated_price) ? (
+          {order.status !== 'pending' && (order as any).final_price ? (
             <View style={styles.infoRow}>
               <MaterialCommunityIcons name="cash" size={20} color={COLORS.textSecondary} />
               <Text style={[styles.infoLabel, { color: COLORS.textSecondary }]}>
-                {(order as any).final_price ? (isRTL ? 'السعر النهائي' : 'Final price') : (isRTL ? 'عرض السعر' : 'Quotation')}
+                {isRTL ? 'السعر النهائي' : 'Final price'}
               </Text>
               <Text style={[styles.infoValue, { color: COLORS.primary, fontWeight: 'bold' }]}>
-                {(order as any).final_price ?? order.estimated_price} {isRTL ? 'ر.س' : 'SAR'}
+                {(order as any).final_price} {isRTL ? 'ر.س' : 'SAR'}
               </Text>
             </View>
           ) : null}

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, TextInput, Text, StyleSheet, TextInputProps } from 'react-native';
 import { getColors, SPACING, BORDER_RADIUS } from '../../constants/theme';
 import { useApp } from '../../contexts/AppContext';
+import { getInputDirection } from '../../utils/rtl';
 
 interface InputProps extends TextInputProps {
   label?: string;
@@ -46,7 +47,10 @@ export const Input: React.FC<InputProps> = ({ label, error, icon, style, ...prop
       >
         {icon && <View style={{ marginHorizontal: SPACING.s }}>{icon}</View>}
         <TextInput
-          style={[styles.input, { color: C.text, textAlign: isRTL ? 'right' : 'left' }]}
+          // Direction follows app language, but numeric/email/phone/url fields
+          // are forced LTR so digits and handles never visually reverse — even
+          // on an Arabic device. See utils/rtl getInputDirection.
+          style={[styles.input, { color: C.text }, getInputDirection(isRTL, props.keyboardType)]}
           placeholderTextColor={C.textLight}
           onFocus={(e) => {
             setFocused(true);

@@ -2,6 +2,7 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { View, ActivityIndicator, Platform } from 'react-native';
+import { SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
 import { RequestProvider } from '../contexts/RequestContext';
 import { ThemeProvider } from '../contexts/ThemeContext';
 import { AppProvider, useApp } from '../contexts/AppContext';
@@ -188,14 +189,37 @@ function RootLayoutContent() {
 
   return (
     <View style={{ flex: 1 }}>
-      <StatusBar hidden={true} />
+      {/* Visible, opaque status bar. translucent={false} makes Android reserve
+          the status-bar space so app content never draws underneath it — the
+          universal fix for the "header hidden behind the status bar" overlap.
+          Per-screen <StatusBar> components can still override style/color
+          (e.g. the green-header screens switch to light icons). */}
+      <StatusBar style="dark" backgroundColor="#ffffff" translucent={false} />
       <OfflineBanner />
       <Stack
         screenOptions={{
-          headerStyle: {
-            backgroundColor: '#10b981',
-          },
-          headerTintColor: '#fff',
+          // iOS: App Store–style glass header — a translucent system blur with
+          // the app's tint showing through, rather than a flat colour fill.
+          // Android: keep the original solid green header completely unchanged.
+          // headerBackTitleVisible was removed in native-stack v7; the
+          // equivalent today is headerBackButtonDisplayMode: 'default', which
+          // keeps the chevron + previous-screen back title visible.
+          ...(Platform.OS === 'ios'
+            ? {
+                headerTransparent: true,
+                headerBlurEffect: 'systemChromeMaterial' as const,
+                headerStyle: { backgroundColor: 'transparent' },
+                // Green primary so the title + back chevron stay readable over
+                // the light glass (white tint would vanish on the blur).
+                headerTintColor: '#10b981',
+                headerBackButtonDisplayMode: 'default' as const,
+              }
+            : {
+                headerStyle: {
+                  backgroundColor: '#10b981',
+                },
+                headerTintColor: '#fff',
+              }),
           headerTitleStyle: {
             fontWeight: 'bold',
           },
@@ -290,10 +314,7 @@ function RootLayoutContent() {
         />
         <Stack.Screen
           name="chat/[id]"
-          options={{
-            title: language === 'ar' ? 'المحادثة' : 'Chat',
-            headerShown: true
-          }}
+          options={{ headerShown: false }}
         />
         <Stack.Screen name="addresses" options={{ headerShown: false }} />
         <Stack.Screen name="wallet" options={{ headerShown: false }} />
@@ -334,6 +355,18 @@ function RootLayoutContent() {
         <Stack.Screen name="admin-ratings" options={{ headerShown: false }} />
         <Stack.Screen name="admin-users" options={{ headerShown: false }} />
         <Stack.Screen name="admin-platform-settings" options={{ headerShown: false }} />
+        <Stack.Screen name="admin-user-verifications" options={{ headerShown: false }} />
+        <Stack.Screen name="admin-accounting" options={{ headerShown: false }} />
+        <Stack.Screen name="admin-suppliers" options={{ headerShown: false }} />
+        <Stack.Screen name="admin-service-areas" options={{ headerShown: false }} />
+        <Stack.Screen name="admin-offers" options={{ headerShown: false }} />
+        <Stack.Screen name="admin-community" options={{ headerShown: false }} />
+        <Stack.Screen name="admin-billing" options={{ headerShown: false }} />
+        <Stack.Screen name="admin-team" options={{ headerShown: false }} />
+        <Stack.Screen name="admin-activity" options={{ headerShown: false }} />
+        <Stack.Screen name="admin-automations" options={{ headerShown: false }} />
+        <Stack.Screen name="admin-broadcast-history" options={{ headerShown: false }} />
+        <Stack.Screen name="admin-scheduled-notifications" options={{ headerShown: false }} />
       </Stack>
     </View>
   );
@@ -369,19 +402,26 @@ export default function RootLayout() {
 
   return (
     <ErrorBoundary>
-      <AppProvider>
-        <AuthProvider>
-          <OrdersProvider>
-            <LoyaltyProvider>
-              <ThemeProvider>
-                <RequestProvider>
-                  <RootLayoutContent />
-                </RequestProvider>
-              </ThemeProvider>
-            </LoyaltyProvider>
-          </OrdersProvider>
-        </AuthProvider>
-      </AppProvider>
+      {/* SafeAreaProvider must wrap the whole tree: every screen's
+          <SafeAreaView> / useSafeAreaInsets() reads insets from this context.
+          Without it, insets default to 0 and the top padding silently never
+          applies on Android (the status-bar overlap). initialWindowMetrics
+          gives correct insets on first paint, avoiding a layout flash. */}
+      <SafeAreaProvider initialMetrics={initialWindowMetrics}>
+        <AppProvider>
+          <AuthProvider>
+            <OrdersProvider>
+              <LoyaltyProvider>
+                <ThemeProvider>
+                  <RequestProvider>
+                    <RootLayoutContent />
+                  </RequestProvider>
+                </ThemeProvider>
+              </LoyaltyProvider>
+            </OrdersProvider>
+          </AuthProvider>
+        </AppProvider>
+      </SafeAreaProvider>
     </ErrorBoundary>
   );
 }

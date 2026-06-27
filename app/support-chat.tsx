@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -24,6 +24,7 @@ import * as support from '../services/supportService';
 import { supabase } from '../services/supabaseClient';
 import { useScrollToEndOnKeyboard } from '../hooks/useScrollToEndOnKeyboard';
 import { formatAppTimeOnly } from '../lib/formatDate';
+import { getInputDirection } from '../utils/rtl';
 
 export default function SupportChatScreen() {
   const router = useRouter();
@@ -96,7 +97,8 @@ export default function SupportChatScreen() {
     }
   };
 
-  const styles = makeStyles(COLORS, isRTL);
+  // Memoize so we don't rebuild the StyleSheet on every keystroke re-render.
+  const styles = useMemo(() => makeStyles(COLORS, isRTL), [isDark, isRTL]);
 
   return (
     <SafeAreaView edges={['top']} style={styles.container}>
@@ -185,8 +187,11 @@ export default function SupportChatScreen() {
               onChangeText={setInput}
               placeholder={isRTL ? 'اكتب رسالتك...' : 'Type a message...'}
               placeholderTextColor={COLORS.textSecondary}
-              style={[styles.input, { color: COLORS.text, backgroundColor: COLORS.background, borderColor: COLORS.border }]}
-              textAlign={isRTL ? 'right' : 'left'}
+              style={[
+                styles.input,
+                { color: COLORS.text, backgroundColor: COLORS.background, borderColor: COLORS.border },
+                getInputDirection(isRTL),
+              ]}
               multiline
               maxLength={2000}
             />

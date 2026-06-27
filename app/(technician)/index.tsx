@@ -209,6 +209,7 @@ export default function TechnicianHomeScreen() {
       delivering: '#06B6D4',
       completed: '#22C55E',
       cancelled: '#EF4444',
+      rejected: '#EF4444',
     };
     return colors[status] || '#6B7280';
   };
@@ -224,6 +225,7 @@ export default function TechnicianHomeScreen() {
       delivering: { ar: 'جاري التوصيل', en: 'Delivering' },
       completed: { ar: 'مكتمل', en: 'Completed' },
       cancelled: { ar: 'ملغي', en: 'Cancelled' },
+      rejected: { ar: 'مرفوض', en: 'Rejected' },
     };
     return isRTL ? statusTexts[status]?.ar : statusTexts[status]?.en;
   };

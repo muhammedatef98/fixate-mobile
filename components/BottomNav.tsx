@@ -28,7 +28,7 @@ export default function BottomNav(_props: { currentRoute?: string } = {}) {
   // this bar uses a plain fixed offset; on Android it is lifted above the
   // system nav bar by that frame. iOS keeps its existing 30px offset.
   return (
-    <View style={styles.container}>
+    <View style={styles.container} pointerEvents="box-none">
       <View style={styles.floatingBar}>
         {navItems.map((item) => {
           const isActive = pathname === item.path || (item.path === '/(customer)' && pathname === '/');
