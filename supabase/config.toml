@@ -4,6 +4,21 @@ project_id = "gpucisjxecupcyosumgy"
 # These values are pushed to the hosted project via `supabase config push`,
 # so every field here must hold the real production value — omitted fields
 # get overwritten with CLI defaults on push.
+#
+# KNOWN CLI BUG (`supabase config push`, CLI 2.108.x):
+#   fails with `failed to read Storage config: SchemaError(Missing key at
+#   ["databasePoolMode"])`. Cause: `config push` reads the WHOLE remote config
+#   (all sections) to build its diff, and the Management API's Storage-config
+#   response omits a key the CLI's schema marks required — a client/server
+#   version skew that aborts the push even when only [auth] changed.
+# WORKAROUND (auth-only, never touches Storage config): PATCH the auth config
+#   directly via the Management API —
+#     TOKEN=$(security find-generic-password -s "Supabase CLI" -a supabase -w)
+#     curl -X PATCH \
+#       -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+#       https://api.supabase.com/v1/projects/gpucisjxecupcyosumgy/config/auth \
+#       -d '{"site_url":"https://fixate.site","uri_allow_list":"<comma,sep,list>"}'
+#   The uri_allow_list is the comma-joined `additional_redirect_urls` below.
 [auth]
 site_url = "https://fixate.site"
 # GitHub Pages host for the email-change confirmation page. The repo was
