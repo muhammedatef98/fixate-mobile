@@ -135,6 +135,7 @@
       "@sentry/react-native",
       "@react-native-firebase/app",
       "@react-native-firebase/messaging",
+      "./plugins/withIosAllowNonModularIncludes.js",
       "./plugins/withFirebaseNotificationColorFix.js",
       "./plugins/withAndroidIconBackgroundColor.js",
       "./plugins/withGradleMemory.js",
