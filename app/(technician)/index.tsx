@@ -77,8 +77,8 @@ export default function TechnicianHomeScreen() {
   // Client-side status filter for the "My Orders" tab.
   const [myOrdersFilter, setMyOrdersFilter] = useState<OrderFilterKey>('all');
   // Overall technician availability for repair work — separate from
-  // per-service availability. Backed by technicians.is_available; degrades
-  // gracefully (local-only) if the column/row isn't ready yet.
+  // per-service availability. Backed by technicians.available; degrades
+  // gracefully (local-only) if the row isn't ready yet.
   const [isAvailable, setIsAvailable] = useState(true);
   const [togglingAvailability, setTogglingAvailability] = useState(false);
 
@@ -90,10 +90,10 @@ export default function TechnicianHomeScreen() {
       try {
         const { data } = await supabase
           .from('technicians')
-          .select('is_available')
+          .select('available')
           .eq('user_id', user.id)
           .maybeSingle();
-        if (data && typeof data.is_available === 'boolean') setIsAvailable(data.is_available);
+        if (data && typeof data.available === 'boolean') setIsAvailable(data.available);
       } catch (e) {
         logger.warn('load availability fell back to default', e);
       }
@@ -107,7 +107,7 @@ export default function TechnicianHomeScreen() {
     try {
       const { error } = await supabase
         .from('technicians')
-        .update({ is_available: next })
+        .update({ available: next })
         .eq('user_id', user.id);
       if (error) logger.warn('availability not persisted (backend pending)', error);
     } catch (e) {

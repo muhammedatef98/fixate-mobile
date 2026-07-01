@@ -83,7 +83,7 @@ export default function TechnicianProfile() {
         supabase.from('orders').select('*', { count: 'exact', head: true }).eq('technician_id', authUser.id),
         supabase.from('orders').select('*', { count: 'exact', head: true }).eq('technician_id', authUser.id).eq('status', 'completed'),
         supabase.from('orders').select('*', { count: 'exact', head: true }).eq('technician_id', authUser.id).eq('status', 'cancelled'),
-        supabase.from('technicians').select('years_of_experience, is_available').eq('user_id', authUser.id).maybeSingle(),
+        supabase.from('technicians').select('years_of_experience, available').eq('user_id', authUser.id).maybeSingle(),
         getTechnicianRating(authUser.id),
         listTechnicianReviews(authUser.id, 6),
         getWalletBalance(authUser.id),
@@ -99,7 +99,7 @@ export default function TechnicianProfile() {
       });
       setReviews(recentReviews);
       setWallet(bal);
-      if (tech && typeof tech.is_available === 'boolean') setIsAvailable(tech.is_available);
+      if (tech && typeof tech.available === 'boolean') setIsAvailable(tech.available);
     } catch (e) {
       logger.warn('profile load failed', e);
     } finally {
@@ -125,7 +125,7 @@ export default function TechnicianProfile() {
     try {
       const { error } = await supabase
         .from('technicians')
-        .update({ is_available: next })
+        .update({ available: next })
         .eq('user_id', authUser.id);
       if (error) logger.warn('availability not persisted (backend pending)', error);
     } catch (e) {
