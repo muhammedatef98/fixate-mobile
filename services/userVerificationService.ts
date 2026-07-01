@@ -12,6 +12,11 @@
  */
 import { supabase } from './supabaseClient';
 import { logger } from '../utils/logger';
+import { decode } from 'base64-arraybuffer';
+// expo-file-system v19 routed readAsStringAsync through a deprecation warning
+// on every call; the /legacy path is the same function without the noise.
+import { readAsStringAsync } from 'expo-file-system/legacy';
+import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
 
 export type IdDocumentType = 'saudi_id' | 'iqama';
 export type VerificationStatus = 'pending' | 'approved' | 'rejected';
@@ -91,20 +96,44 @@ export const generateChallenge = (
  * Upload an image picked from the device into the private bucket
  * under the user's own folder. The bucket's RLS only allows writes
  * where the path's first segment matches auth.uid().
+ *
+ * IMPORTANT: we read the file as base64 and decode it to an ArrayBuffer
+ * rather than using `fetch(uri).blob()`. In React Native / Expo, feeding a
+ * Blob built from a local file:// URI to the Supabase upload silently writes
+ * a ZERO-BYTE object — the upload "succeeds" but the file is empty, so the
+ * admin panel later shows a valid signed URL that resolves to nothing. The
+ * base64 → decode path (the same one storageService.uploadOne uses for order
+ * and market photos) is the proven way to upload real bytes on RN.
  */
 const uploadIdImage = async (
   userId: string,
   uri: string,
   side: 'front' | 'back' | 'selfie',
 ): Promise<string> => {
-  const ext = (uri.split('.').pop() ?? 'jpg').toLowerCase();
-  const path = `${userId}/${side}-${Date.now()}.${ext}`;
-  const response = await fetch(uri);
-  const blob = await response.blob();
-  const contentType = blob.type || 'image/jpeg';
+  // Normalise to a compressed JPEG so every upload is a known-good format and
+  // the payload stays small (ID photos from a 12 MP camera are needlessly big).
+  let sourceUri = uri;
+  try {
+    const manipulated = await manipulateAsync(
+      uri,
+      [{ resize: { width: 1600 } }],
+      { compress: 0.85, format: SaveFormat.JPEG },
+    );
+    sourceUri = manipulated.uri;
+  } catch (e) {
+    logger.warn('uploadIdImage compress failed, using original', e);
+  }
+
+  const path = `${userId}/${side}-${Date.now()}.jpg`;
+  const base64 = await readAsStringAsync(sourceUri, { encoding: 'base64' });
+  const fileBytes = decode(base64);
+  if (fileBytes.byteLength === 0) {
+    // Guard against re-introducing the zero-byte bug from any future refactor.
+    throw new Error(`Refusing to upload empty ${side} image`);
+  }
   const { error } = await supabase.storage
     .from(BUCKET)
-    .upload(path, blob, { contentType, upsert: false });
+    .upload(path, fileBytes, { contentType: 'image/jpeg', upsert: false });
   if (error) throw error;
   return path;
 };
