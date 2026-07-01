@@ -9,7 +9,14 @@ site_url = "https://fixate.site"
 # GitHub Pages host for the email-change confirmation page. The repo was
 # renamed fixatee-mobile → fixate-mobile; Pages URLs do not redirect, so
 # these must always use the current repo name.
+# The app's registered native URL scheme is `fixatee` (native id
+# com.fixatee.app — permanent; "fixate" is only the brand name). Deep links
+# MUST use fixatee:// or no installed build will open. The legacy fixate://
+# entries are kept so any link already in flight still validates, but the app
+# and the hosted landing page both emit fixatee://auth/callback now.
 additional_redirect_urls = [
+  "fixatee://auth/callback",
+  "fixatee://**",
   "fixate://auth/callback",
   "fixate://**",
   "https://fixate.site/**",
