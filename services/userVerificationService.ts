@@ -12,6 +12,7 @@
  */
 import { supabase } from './supabaseClient';
 import { logger } from '../utils/logger';
+import { notifyUsers } from './notifyService';
 import { decode } from 'base64-arraybuffer';
 // expo-file-system v19 routed readAsStringAsync through a deprecation warning
 // on every call; the /legacy path is the same function without the noise.
@@ -232,12 +233,12 @@ export const adminListVerifications = async (
   return (data ?? []) as UserVerificationRow[];
 };
 
-/** Approve. The DB trigger will flip users.is_verified. */
+/** Approve. DB triggers flip users.is_verified and create the in-app bell. */
 export const adminApproveVerification = async (
   id: string,
   reviewerId: string,
 ): Promise<void> => {
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('user_verifications')
     .update({
       status: 'approved',
@@ -245,8 +246,20 @@ export const adminApproveVerification = async (
       reviewed_at: new Date().toISOString(),
       rejection_reason: null,
     })
-    .eq('id', id);
+    .eq('id', id)
+    .select('user_id')
+    .single();
   if (error) throw error;
+  // Push the user (best-effort; the in-app bell is created by the
+  // notify_verification_review DB trigger). Bilingual so it reads correctly
+  // regardless of the recipient's app language.
+  if (data?.user_id) {
+    void notifyUsers(data.user_id, {
+      title: '✅ تم توثيق حسابك · You are verified',
+      body: 'تم توثيق هويتك بنجاح · Your identity has been verified.',
+      data: { screen: 'profile' },
+    });
+  }
 };
 
 /** Reject with a required reason so the user knows what to fix. */

@@ -1,6 +1,7 @@
 import { supabase } from './supabaseClient';
 import { logger } from '../utils/logger';
 import { subscribeUnique } from '../utils/realtimeChannel';
+import { notifyUsers } from './notifyService';
 
 export type ListingCategory = 'used_device' | 'accessory' | 'spare_part' | 'other';
 
@@ -577,7 +578,18 @@ export const adminApprove = async (id: string): Promise<MarketListing> => {
     .select()
     .single();
   if (error) throw error;
-  return normalizeRow(data) as MarketListing;
+  const listing = normalizeRow(data) as MarketListing;
+  // Push the seller (best-effort; the in-app bell is created by the
+  // notify_listing_review DB trigger). Bilingual so it reads correctly
+  // regardless of the recipient's app language.
+  if (listing.seller_id) {
+    void notifyUsers(listing.seller_id, {
+      title: '✅ تمت الموافقة على إعلانك · Listing approved',
+      body: `«${listing.title}» ظاهر الآن في السوق · "${listing.title}" is now live.`,
+      data: { screen: 'market-detail', id: listing.id },
+    });
+  }
+  return listing;
 };
 
 /** Admin-only: reject with a reason the seller can see. */
