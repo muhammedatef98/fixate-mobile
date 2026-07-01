@@ -1,4 +1,4 @@
--- Fixatee Database Schema for Supabase
+-- Fixate Database Schema for Supabase
 -- Run this in Supabase SQL Editor: https://supabase.com/dashboard/project/_/sql
 
 -- Enable UUID extension

@@ -23,15 +23,15 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.fixatee.app",
+      "bundleIdentifier": "com.fixate.app",
       "buildNumber": "1",
       "infoPlist": {
         "UIViewControllerBasedStatusBarAppearance": false,
         "UIStatusBarHidden": true,
-        "NSCameraUsageDescription": "يستخدم Fixatee الكاميرا لتصوير الجهاز المعطل ووثائق التحقق للفنيين.",
-        "NSPhotoLibraryUsageDescription": "يستخدم Fixatee مكتبة الصور لاختيار صور الجهاز المعطل ومستندات التحقق.",
-        "NSPhotoLibraryAddUsageDescription": "يحفظ Fixatee الصور المتعلقة بالطلبات في مكتبة الصور عند الطلب.",
-        "NSLocationWhenInUseUsageDescription": "يستخدم Fixatee موقعك لتحديد عنوان الخدمة وتمكين تتبع الفني المباشر.",
+        "NSCameraUsageDescription": "يستخدم Fixate الكاميرا لتصوير الجهاز المعطل ووثائق التحقق للفنيين.",
+        "NSPhotoLibraryUsageDescription": "يستخدم Fixate مكتبة الصور لاختيار صور الجهاز المعطل ومستندات التحقق.",
+        "NSPhotoLibraryAddUsageDescription": "يحفظ Fixate الصور المتعلقة بالطلبات في مكتبة الصور عند الطلب.",
+        "NSLocationWhenInUseUsageDescription": "يستخدم Fixate موقعك لتحديد عنوان الخدمة وتمكين تتبع الفني المباشر.",
         "ITSAppUsesNonExemptEncryption": false,
         "LSApplicationQueriesSchemes": [
           "tel",
@@ -102,14 +102,14 @@
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "السماح لـ Fixatee بالوصول إلى موقعك لتحديد عنوان الخدمة."
+          "locationWhenInUsePermission": "السماح لـ Fixate بالوصول إلى موقعك لتحديد عنوان الخدمة."
         }
       ],
       [
         "expo-image-picker",
         {
-          "photosPermission": "يحتاج Fixatee إلى الوصول إلى صورك لرفع صور الجهاز المعطل ووثائق التحقق.",
-          "cameraPermission": "يحتاج Fixatee إلى الكاميرا لتصوير الجهاز المعطل ووثائق التحقق."
+          "photosPermission": "يحتاج Fixate إلى الوصول إلى صورك لرفع صور الجهاز المعطل ووثائق التحقق.",
+          "cameraPermission": "يحتاج Fixate إلى الكاميرا لتصوير الجهاز المعطل ووثائق التحقق."
         }
       ],
       "expo-notifications",

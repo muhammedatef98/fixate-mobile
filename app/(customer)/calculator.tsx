@@ -8,7 +8,7 @@ import BottomNav from '../../components/BottomNav';
 import { BRANDS } from '../../constants/repairData';
 import { RTLIonicon } from '../../components/RTLIcon';
 import { getColors } from '../../constants/theme';
-import FixateLogo from '../../components/FixateeLogo';
+import FixateLogo from '../../components/FixateLogo';
 import {
   SPARE_PART_LABELS,
   SPARE_PART_MULTIPLIERS,
