@@ -934,5 +934,10 @@ export const subscribeMyMarketThreads = (
         { event: 'INSERT', schema: 'public', table: 'market_threads', filter: `seller_id=eq.${userId}` },
         () => onChange()
       )
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'market_threads', filter: `buyer_id=eq.${userId}` },
+        () => onChange()
+      )
   );
 };
