@@ -298,22 +298,22 @@ export const addComment = async (
   content: string,
   opts?: { parentId?: string | null; authorName?: string | null }
 ): Promise<ListingComment> => {
-  const payload: any = {
-    listing_id: listingId,
-    user_id: userId,
-    content: content.trim(),
-    parent_id: opts?.parentId ?? null,
-    author_name: opts?.authorName ?? null,
-  };
-  // Progressive fallback: pre-migration DB lacks parent_id/author_name.
-  let res = await supabase.from('market_comments').insert(payload).select().maybeSingle();
+  const base = { listing_id: listingId, user_id: userId, content: content.trim() };
+  const withParent = { ...base, parent_id: opts?.parentId ?? null };
+  const full = { ...withParent, author_name: opts?.authorName ?? null };
+
+  // Progressive fallback, one column at a time. Dropping every optional
+  // column at once (the old behavior) silently discarded `parent_id`
+  // whenever `author_name` was the actual problem, which turned every
+  // reply into a top-level comment with no visible error.
+  let res = await supabase.from('market_comments').insert(full).select().maybeSingle();
   if (res.error) {
-    logger.warn('addComment falling back without new columns', res.error);
-    res = await supabase
-      .from('market_comments')
-      .insert({ listing_id: listingId, user_id: userId, content: content.trim() })
-      .select()
-      .maybeSingle();
+    logger.warn('addComment falling back without author_name', res.error);
+    res = await supabase.from('market_comments').insert(withParent).select().maybeSingle();
+  }
+  if (res.error) {
+    logger.warn('addComment falling back without parent_id', res.error);
+    res = await supabase.from('market_comments').insert(base).select().maybeSingle();
   }
   if (res.error) throw res.error;
   return res.data as ListingComment;
