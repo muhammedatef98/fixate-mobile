@@ -34,6 +34,7 @@ import {
   listComments,
   addComment,
   deleteComment,
+  subscribeListingComments,
   resolveContactMethods,
   getUserCard,
   hideListing,
@@ -191,6 +192,15 @@ export default function MarketDetailScreen() {
   }, [id]);
 
   useEffect(() => { load(); }, [load]);
+
+  // Live-update comments/replies so buyers and the seller see new activity
+  // without a manual reload.
+  useEffect(() => {
+    if (!id) return;
+    return subscribeListingComments(id, () => {
+      listComments(id).then(setComments).catch(() => undefined);
+    });
+  }, [id]);
 
   const styles = useMemo(() => createStyles(COLORS, isRTL), [COLORS, isRTL]);
 

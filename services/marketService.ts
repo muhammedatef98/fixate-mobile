@@ -292,6 +292,31 @@ export const listComments = async (listingId: string): Promise<ListingComment[]>
   return (data ?? []) as ListingComment[];
 };
 
+/**
+ * Subscribe to comment activity (new replies, deletions) for a listing.
+ * The caller refetches on change — comment lists are small, so a full
+ * re-fetch is cheaper and simpler than reconciling individual rows.
+ */
+export const subscribeListingComments = (
+  listingId: string,
+  onChange: () => void
+): (() => void) => {
+  if (!listingId) return () => undefined;
+  return subscribeUnique(`market-comments-${listingId}`, (ch) =>
+    ch
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'market_comments', filter: `listing_id=eq.${listingId}` },
+        () => onChange()
+      )
+      .on(
+        'postgres_changes',
+        { event: 'DELETE', schema: 'public', table: 'market_comments', filter: `listing_id=eq.${listingId}` },
+        () => onChange()
+      )
+  );
+};
+
 export const addComment = async (
   listingId: string,
   userId: string,
