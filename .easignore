@@ -1,8 +1,31 @@
+# .easignore controls what is uploaded to EAS Build. IMPORTANT: when this file
+# exists, EAS uses it INSTEAD of .gitignore — so every directory that .gitignore
+# excludes must be repeated here, or it gets uploaded.
+
+# Native projects — this is a CNG (prebuild) app; EAS regenerates android/ and
+# ios/ on the build server. Uploading the local android/ makes EAS misdetect a
+# "bare workflow" (which rejects runtimeVersion: {policy: appVersion}) and
+# bloated the upload to 705 MB. Excluding them restores the managed/CNG flow.
+/android/
+/ios/
+
+# Dependencies — EAS reinstalls from the lockfile on the build server.
+node_modules/
+
+# VCS history + local caches / build output (never needed for the build).
+.git/
+.expo/
+.gradle/
+dist/
+web-build/
+coverage/
+
 # Build artifacts that must never be bundled into the build context / upload.
 fixate-ios-production.ipa
 fixate-android-production.aab
 *.ipa
 *.aab
+
 # Local helper scripts for resilient EAS submits (not part of the app).
 scripts/android-build-retry.sh
 scripts/wait-builds.sh

@@ -20,16 +20,41 @@ if (
   );
 }
 
+// Local fallbacks for `expo prebuild`/dev builds, where the EAS env-var file
+// secrets are unset. The firebase config plugins THROW if googleServicesFile is
+// undefined, so we must resolve to a real path. Resolution order per platform:
+//   1. EAS "file" env var (CI/production builds)
+//   2. an explicit value already on app.json (none today, but respected)
+//   3. the gitignored file at the repo root, IF it exists
+// Paths are relative — the firebase plugins resolve them against the project root.
+const LOCAL_ANDROID_GOOGLE_SERVICES = './google-services.json';
+const LOCAL_IOS_GOOGLE_SERVICES = './GoogleService-Info.plist';
+
+const localAndroidGoogleServices = fs.existsSync(
+  path.join(__dirname, LOCAL_ANDROID_GOOGLE_SERVICES)
+)
+  ? LOCAL_ANDROID_GOOGLE_SERVICES
+  : undefined;
+const localIosGoogleServices = fs.existsSync(
+  path.join(__dirname, LOCAL_IOS_GOOGLE_SERVICES)
+)
+  ? LOCAL_IOS_GOOGLE_SERVICES
+  : undefined;
+
 module.exports = ({ config }) => ({
   ...config,
   ios: {
     ...config.ios,
     googleServicesFile:
-      process.env.GOOGLE_SERVICES_INFO_PLIST ?? config.ios.googleServicesFile,
+      process.env.GOOGLE_SERVICES_INFO_PLIST ??
+      config.ios.googleServicesFile ??
+      localIosGoogleServices,
   },
   android: {
     ...config.android,
     googleServicesFile:
-      process.env.GOOGLE_SERVICES_JSON ?? config.android.googleServicesFile,
+      process.env.GOOGLE_SERVICES_JSON ??
+      config.android.googleServicesFile ??
+      localAndroidGoogleServices,
   },
 });
