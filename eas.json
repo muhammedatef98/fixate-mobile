@@ -27,7 +27,10 @@
       "ios": {
         "buildConfiguration": "Release"
       },
-      "environment": "production"
+      "environment": "production",
+      "env": {
+        "SENTRY_ALLOW_FAILURE": "true"
+      }
     }
   },
   "submit": {
