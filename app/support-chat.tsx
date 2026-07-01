@@ -155,9 +155,9 @@ export default function SupportChatScreen() {
               </View>
             }
             renderItem={({ item }) => {
-              const mine = item.sender_id === user?.id;
+              const mine = !item.is_admin;
               return (
-                <View style={[styles.msgRow, { justifyContent: mine ? (isRTL ? 'flex-start' : 'flex-end') : (isRTL ? 'flex-end' : 'flex-start') }]}>
+                <View style={[styles.msgRow, { justifyContent: mine ? 'flex-end' : 'flex-start' }]}>
                   <View style={[
                     styles.bubble,
                     mine

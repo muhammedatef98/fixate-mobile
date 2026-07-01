@@ -1,6 +1,7 @@
 import { supabase } from './supabaseClient';
 import { logger } from '../utils/logger';
 import { subscribeUnique } from '../utils/realtimeChannel';
+import { notifyUsers } from './notifyService';
 
 export type SupportStatus = 'open' | 'waiting' | 'assigned' | 'closed';
 
@@ -159,6 +160,31 @@ export const sendMessage = async (
     .select()
     .single();
   if (error) throw error;
+
+  // Fire-and-forget: when a customer writes in, push to the assigned CS agent
+  // (falling back to the last admin who replied). A push failure must never
+  // block the message send.
+  if (!isAdmin) {
+    void (async () => {
+      try {
+        const { data: thread } = await supabase
+          .from('support_threads')
+          .select('assigned_admin_id, last_admin_id')
+          .eq('id', threadId)
+          .single();
+        const adminId = thread?.assigned_admin_id ?? thread?.last_admin_id;
+        if (!adminId) return;
+        await notifyUsers(adminId, {
+          title: 'رسالة دعم جديدة',
+          body: trimmed.slice(0, 100),
+          data: { screen: 'support-thread', threadId },
+        });
+      } catch (e) {
+        logger.warn('support new-message notify failed', e);
+      }
+    })();
+  }
+
   return data as SupportMessage;
 };
 
