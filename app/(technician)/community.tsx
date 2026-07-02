@@ -708,7 +708,12 @@ export default function CommunityScreen() {
 
       {/* Comments modal */}
       <Modal visible={!!activePost} animationType="slide" transparent onRequestClose={() => setActivePost(null)}>
-        <View style={styles.modalBackdrop}>
+        {/* The whole sheet must live inside the KeyboardAvoidingView — wrapping
+            only the input bar doesn't move the sheet when the keyboard opens. */}
+        <KeyboardAvoidingView
+          style={styles.modalBackdrop}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
           <View style={[styles.modalSheet, { maxHeight: '85%' }]}>
             <View style={styles.modalHandle} />
             <View style={styles.modalHeader}>
@@ -747,7 +752,7 @@ export default function CommunityScreen() {
               </ScrollView>
             )}
 
-            <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+            <View>
               {replyTo && (
                 <View style={styles.replyingBar}>
                   <Text style={styles.replyingText} numberOfLines={1}>
@@ -776,9 +781,9 @@ export default function CommunityScreen() {
                   <RTLIonicon name="send" size={18} color="#fff" />
                 </TouchableOpacity>
               </View>
-            </KeyboardAvoidingView>
+            </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </SafeAreaView>
   );
