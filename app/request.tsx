@@ -821,7 +821,9 @@ export default function RequestScreen() {
             {STEPS[currentStep] ?? ''}
           </Text>
           <Text style={styles.progressCount}>
-            {currentStep + 1} / {STEPS.length}
+            {isRTL
+              ? `الخطوة ${currentStep + 1} من ${STEPS.length}`
+              : `Step ${currentStep + 1} of ${STEPS.length}`}
           </Text>
         </View>
         <View style={styles.progressTrack}>
