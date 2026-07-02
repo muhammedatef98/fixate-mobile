@@ -11,7 +11,7 @@ export interface TechnicianOnboardingPayload {
   phone: string;
   nationalId: string;
   city: string;
-  specialty: string;
+  specialties: string[];
   yearsOfExperience: number;
   bio: string;
   iban: string;
@@ -51,7 +51,8 @@ export const submitTechnicianApplication = async (
   if (!idCheck.valid) throw new Error(idCheck.message);
   const ibanCheck = validateSaudiIban(payload.iban);
   if (!ibanCheck.valid) throw new Error(ibanCheck.message);
-  if (!payload.specialty.trim()) throw new Error('التخصّص مطلوب');
+  const cleanSpecialties = payload.specialties.map((s) => s.trim()).filter(Boolean);
+  if (cleanSpecialties.length === 0) throw new Error('التخصّص مطلوب');
   if (payload.yearsOfExperience < 0 || payload.yearsOfExperience > 60) throw new Error('سنوات الخبرة غير منطقية');
   if (!payload.idDocumentUri) throw new Error('صورة الهوية مطلوبة');
 
@@ -71,7 +72,7 @@ export const submitTechnicianApplication = async (
         user_id: payload.userId,
         full_name: payload.fullName.trim(),
         phone: normalizeSaudiPhone(payload.phone),
-        specialization: [payload.specialty.trim()],
+        specialization: cleanSpecialties,
         years_of_experience: payload.yearsOfExperience,
         national_id: idCheck.valid ? payload.nationalId.replace(/\D/g, '') : payload.nationalId,
         id_document_url: idDocPath,

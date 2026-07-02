@@ -47,8 +47,14 @@ export default function TechnicianOnboardingScreen() {
   const [phone, setPhone] = useState('');
   const [nationalId, setNationalId] = useState('');
   const [city, setCity] = useState('');
-  const [specialty, setSpecialty] = useState('');
+  const [specialties, setSpecialties] = useState<string[]>([]);
   const [years, setYears] = useState('');
+
+  // Toggle a specialty id in/out of the multi-select set (immutable update).
+  const toggleSpecialty = (id: string) =>
+    setSpecialties((prev) =>
+      prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id]
+    );
   const [bio, setBio] = useState('');
   const [iban, setIban] = useState('');
   const [idDocUri, setIdDocUri] = useState<string | null>(null);
@@ -64,7 +70,7 @@ export default function TechnicianOnboardingScreen() {
     idCheck.valid &&
     city.trim().length > 0;
   const step2Valid =
-    specialty.trim().length > 0 &&
+    specialties.length > 0 &&
     Number(years) >= 0 &&
     Number(years) <= 60 &&
     bio.trim().length >= 20;
@@ -98,7 +104,7 @@ export default function TechnicianOnboardingScreen() {
         phone,
         nationalId,
         city,
-        specialty,
+        specialties,
         yearsOfExperience: Number(years) || 0,
         bio,
         iban,
@@ -247,10 +253,13 @@ export default function TechnicianOnboardingScreen() {
 
           {step === 2 && (
             <>
-              <Text style={[styles.fieldLabel, { color: COLORS.text }]}>{isRTL ? 'تخصّصك الأساسي' : 'Primary specialty'}</Text>
+              <Text style={[styles.fieldLabel, { color: COLORS.text }]}>{isRTL ? 'تخصّصاتك' : 'Your specialties'}</Text>
+              <Text style={[styles.fieldHint, { color: COLORS.textSecondary }]}>
+                {isRTL ? 'يمكنك اختيار أكثر من تخصّص' : 'You can select more than one'}
+              </Text>
               <View style={styles.specGrid}>
                 {SPECIALTIES.map((s) => {
-                  const selected = specialty === s.id;
+                  const selected = specialties.includes(s.id);
                   return (
                     <TouchableOpacity
                       key={s.id}
@@ -259,8 +268,8 @@ export default function TechnicianOnboardingScreen() {
                         { backgroundColor: COLORS.card, borderColor: COLORS.border },
                         selected && { backgroundColor: COLORS.primary + '12', borderColor: COLORS.primary },
                       ]}
-                      onPress={() => setSpecialty(s.id)}
-                      accessibilityRole="radio"
+                      onPress={() => toggleSpecialty(s.id)}
+                      accessibilityRole="checkbox"
                       accessibilityState={{ checked: selected }}
                     >
                       <MaterialCommunityIcons name={s.icon} size={24} color={selected ? COLORS.primary : COLORS.textSecondary} />
@@ -373,13 +382,13 @@ export default function TechnicianOnboardingScreen() {
                 <SummaryRow label={isRTL ? 'المدينة' : 'City'} value={city} COLORS={COLORS} isRTL={isRTL} />
                 <SummaryRow
                   label={isRTL ? 'التخصص' : 'Specialty'}
-                  value={
-                    SPECIALTIES.find((s) => s.id === specialty)
-                      ? isRTL
-                        ? SPECIALTIES.find((s) => s.id === specialty)!.ar
-                        : SPECIALTIES.find((s) => s.id === specialty)!.en
-                      : ''
-                  }
+                  value={specialties
+                    .map((id) => {
+                      const s = SPECIALTIES.find((sp) => sp.id === id);
+                      return s ? (isRTL ? s.ar : s.en) : null;
+                    })
+                    .filter(Boolean)
+                    .join(isRTL ? '، ' : ', ')}
                   COLORS={COLORS}
                   isRTL={isRTL}
                 />
@@ -669,6 +678,7 @@ const makeStyles = (C: any, isRTL: boolean) =>
     sectionTitle: { fontSize: 19, fontWeight: '800', textAlign: isRTL ? 'right' : 'left' },
     sectionSubtitle: { fontSize: 12, lineHeight: 18, marginTop: 2, textAlign: isRTL ? 'right' : 'left' },
     fieldLabel: { fontWeight: '600', fontSize: 13, marginBottom: 8, marginTop: 4, textAlign: isRTL ? 'right' : 'left' },
+    fieldHint: { fontSize: 11, marginTop: -4, marginBottom: 10, textAlign: isRTL ? 'right' : 'left' },
     chip: {
       paddingHorizontal: 14,
       paddingVertical: 8,
