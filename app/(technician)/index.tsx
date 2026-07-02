@@ -9,7 +9,6 @@ import {
   StatusBar,
   Dimensions,
   Animated,
-  ActivityIndicator,
   RefreshControl,
   Alert,
   Modal,
@@ -29,6 +28,7 @@ import { formatAppDate } from '../../lib/formatDate';
 import { AdminFilterChips, type AdminFilterChip } from '../../components/admin/AdminUI';
 import ErrorState from '../../components/ErrorState';
 import { getFriendlyError } from '../../utils/errorMessages';
+import { SkeletonOrderCard } from '../../components/SkeletonLoader';
 
 const { width } = Dimensions.get('window');
 
@@ -148,16 +148,16 @@ export default function TechnicianHomeScreen() {
       setLoading(true);
       setErrorMessage(null);
 
-      // Fetch available orders (pending status, no technician assigned)
-      const available = await orderService.getAvailableOrders();
+      // Available orders (pending, unassigned) and the technician's own orders
+      // are independent queries — fetch them in parallel to cut the dashboard's
+      // initial wait roughly in half vs. the previous sequential awaits.
+      const [available, myOrdersList] = await Promise.all([
+        orderService.getAvailableOrders(),
+        user ? orderService.getTechnicianOrders(user.id) : Promise.resolve([]),
+      ]);
       logger.debug('Available orders fetched:', available);
       setAvailableOrders(available || []);
-
-      // Fetch technician's accepted orders
-      if (user) {
-        const myOrdersList = await orderService.getTechnicianOrders(user.id);
-        setMyOrders(myOrdersList || []);
-      }
+      setMyOrders(myOrdersList || []);
     } catch (error) {
       logger.error('Error loading orders:', error);
       setErrorMessage(getFriendlyError(error, language));
@@ -593,11 +593,12 @@ export default function TechnicianHomeScreen() {
       {/* Orders List */}
       <Animated.View style={[styles.content, { opacity: fadeAnim }]}>
         {loading ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={COLORS.primary} />
-            <Text style={[styles.loadingText, { color: COLORS.textSecondary }]}>
-              {isRTL ? 'جاري التحميل...' : 'Loading...'}
-            </Text>
+          // Skeleton placeholders instead of a bare centered spinner — gives the
+          // technician an immediate sense of the incoming list (perceived perf).
+          <View style={styles.scrollContent}>
+            <SkeletonOrderCard />
+            <SkeletonOrderCard />
+            <SkeletonOrderCard />
           </View>
         ) : errorMessage ? (
           <ErrorState message={errorMessage} onRetry={loadOrders} />

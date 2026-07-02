@@ -52,7 +52,7 @@ export default function BottomNav(_props: { currentRoute?: string } = {}) {
                 />
                 {isActive && <View style={styles.activeDot} />}
               </View>
-              <Text style={[styles.label, isActive && styles.activeLabel]}>
+              <Text style={[styles.label, isActive && styles.activeLabel]} numberOfLines={1}>
                 {isRTL ? item.labelAr : item.labelEn}
               </Text>
             </AnimatedTouchable>
@@ -114,7 +114,7 @@ const makeStyles = (C: any, isDark: boolean) => StyleSheet.create({
     backgroundColor: C.primary,
   },
   label: {
-    fontSize: 10,
+    fontSize: 12,
     color: C.textSecondary,
     marginTop: 2,
     fontWeight: '500',

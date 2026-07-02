@@ -145,6 +145,6 @@ const makeStyles = (C: any, isDark: boolean) => StyleSheet.create({
     width: 4, height: 4, borderRadius: 2,
     backgroundColor: C.primary,
   },
-  label: { fontSize: 10.5, color: C.textSecondary, marginTop: 2, fontWeight: '600' },
+  label: { fontSize: 12, color: C.textSecondary, marginTop: 2, fontWeight: '600' },
   activeLabel: { color: C.primary, fontWeight: '800' },
 });

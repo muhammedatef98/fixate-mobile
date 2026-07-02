@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, Dimensions, TouchableOpacity, Animated } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { COLORS, SPACING } from '../constants/theme';
+import { getColors, SPACING } from '../constants/theme';
 import { MaterialIcons } from '@expo/vector-icons';
 import { RTLMaterialIcon } from '../components/RTLIcon';
 import { useApp } from '../contexts/AppContext';
@@ -47,9 +47,10 @@ const SLIDES = [
 
 export default function OnboardingScreen() {
   const router = useRouter();
-  const { language } = useApp();
+  const { language, isDark } = useApp();
   const isRTL = language === 'ar';
-  const styles = makeStyles(isRTL);
+  const COLORS = getColors(isDark);
+  const styles = makeStyles(COLORS, isRTL);
   const [currentIndex, setCurrentIndex] = useState(0);
   const flatListRef = useRef<FlatList>(null);
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -168,7 +169,7 @@ export default function OnboardingScreen() {
   );
 }
 
-const makeStyles = (isRTL: boolean) => StyleSheet.create({
+const makeStyles = (COLORS: any, isRTL: boolean) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.background,

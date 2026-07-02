@@ -917,7 +917,7 @@ const makeStyles = (C: any, isRTL: boolean, SHADOWS: any) =>
       alignItems: 'center', justifyContent: 'center',
     },
     trustTitle: { fontSize: 12, fontWeight: '800', textAlign: 'center' },
-    trustSub: { fontSize: 10, fontWeight: '500', textAlign: 'center' },
+    trustSub: { fontSize: 11, fontWeight: '500', textAlign: 'center' },
 
     supportCard: {
       flexDirection: isRTL ? 'row-reverse' : 'row',
