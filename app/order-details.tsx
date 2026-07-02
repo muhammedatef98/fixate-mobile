@@ -976,7 +976,9 @@ export default function OrderDetailsScreen() {
                       const { data } = await import('../lib/supabase').then(m => m.supabase
                         .from('technicians').select('phone').eq('user_id', order.technician_id!).maybeSingle());
                       phone = (data as any)?.phone;
-                    } catch {}
+                    } catch (e) {
+                      logger.warn('order-details: technician phone lookup failed', e);
+                    }
                   }
                   if (!phone) {
                     Alert.alert(

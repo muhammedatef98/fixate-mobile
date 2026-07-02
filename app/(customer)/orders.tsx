@@ -241,7 +241,7 @@ export default function OrdersScreen() {
                 : (isRTL ? 'لا توجد طلبات بهذه الحالة' : 'No orders with this status')}
             </Text>
             <Text style={[styles.emptyText, { fontSize: 13, color: COLORS.textSecondary, marginTop: 4 }]}>
-              {isRTL ? 'اطلب فني الآن — يصلك خلال 30 دقيقة' : 'Request a technician — arrives within 30 minutes'}
+              {isRTL ? 'اطلب فني الآن — خدمة سريعة حتى باب منزلك' : 'Request a technician — fast service to your door'}
             </Text>
             <TouchableOpacity
               style={styles.loginPromptBtn}

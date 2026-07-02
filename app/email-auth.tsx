@@ -30,6 +30,7 @@ import {
 } from '../services/authService';
 import { sendOtp, verifyOtp } from '../services/customOtpService';
 import { getFriendlyError } from '../utils/errorMessages';
+import { logger } from '../utils/logger';
 
 /**
  * Secondary auth path: email-based login/signup for customers only.
@@ -133,7 +134,7 @@ export default function EmailAuthScreen() {
           ((user.user_metadata as any)?.role as string | null) ??
           null;
         if (profileRole === 'technician') {
-          try { await supabase.auth.signOut({ scope: 'local' }); } catch {}
+          try { await supabase.auth.signOut({ scope: 'local' }); } catch (e) { logger.warn('email-auth: local sign-out of technician account failed', e); }
           Alert.alert(
             isRTL ? 'هذا الحساب فني' : 'Technician account',
             isRTL

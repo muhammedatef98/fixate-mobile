@@ -30,6 +30,7 @@ import {
   RESEND_COOLDOWN_SECONDS,
 } from '../services/phoneOtpService';
 import { supabase } from '../services/supabaseClient';
+import { logger } from '../utils/logger';
 
 /**
  * Phone-only OTP login/registration. The same screen handles both cases —
@@ -162,7 +163,7 @@ export default function LoginOtpScreen() {
             ((user.user_metadata as any)?.role as string | null) ??
             null;
           if (profileRole === 'technician') {
-            try { await supabase.auth.signOut({ scope: 'local' }); } catch {}
+            try { await supabase.auth.signOut({ scope: 'local' }); } catch (e) { logger.warn('login-otp: local sign-out of technician account failed', e); }
             Alert.alert(
               isRTL ? 'هذا الحساب فني' : 'Technician account',
               isRTL

@@ -33,6 +33,7 @@ import {
   ADMIN_CARD_SHADOW,
 } from '../components/admin/AdminUI';
 import { formatAppTimeOnly } from '../lib/formatDate';
+import { logger } from '../utils/logger';
 
 interface Stats {
   totalUsers: number;
@@ -318,7 +319,7 @@ export default function AdminDashboardScreen() {
           </TouchableOpacity>
           <TouchableOpacity
             onPress={async () => {
-              try { await signOut(); } catch {}
+              try { await signOut(); } catch (e) { logger.warn('admin: sign-out failed', e); }
               router.replace('/role-selection');
             }}
             style={[s.headerBtn, { backgroundColor: '#ef444415' }]}

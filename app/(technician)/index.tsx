@@ -447,7 +447,7 @@ export default function TechnicianHomeScreen() {
                     text: isRTL ? 'تسجيل الخروج' : 'Logout',
                     style: 'destructive',
                     onPress: async () => {
-                      try { await signOut(); } catch {}
+                      try { await signOut(); } catch (e) { logger.warn('technician: sign-out failed', e); }
                       router.replace('/role-selection');
                     },
                   },

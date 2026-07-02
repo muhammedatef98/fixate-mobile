@@ -24,6 +24,7 @@ import { PressableScale } from '../../components/ui/PressableScale';
 import Avatar from '../../components/Avatar';
 import { formatAppDateOnly } from '../../lib/formatDate';
 import { getWalletBalance } from '../../services/customerWalletService';
+import { logger } from '../../utils/logger';
 
 interface MenuRow {
   id: string;
@@ -73,7 +74,9 @@ export default function ProfileScreen() {
       );
       setStats({ total: total ?? 0, completed: completed ?? 0, addresses: addresses ?? 0, spent });
       setWalletBalance(await getWalletBalance(user.id));
-    } catch {}
+    } catch (e) {
+      logger.warn('customer-profile: failed to load profile stats/wallet', e);
+    }
   };
 
   const handleLogout = () => {
@@ -86,8 +89,8 @@ export default function ProfileScreen() {
           text: isRTL ? 'خروج' : 'Sign out',
           style: 'destructive',
           onPress: async () => {
-            try { await signOut(); } catch {}
-            try { await auth.signOut(); } catch {}
+            try { await signOut(); } catch (e) { logger.warn('customer-profile: signOut failed', e); }
+            try { await auth.signOut(); } catch (e) { logger.warn('customer-profile: auth.signOut failed', e); }
             router.replace('/role-selection');
           },
         },

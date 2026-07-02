@@ -29,6 +29,7 @@ import * as support from '../services/supportService';
 import { supabase } from '../services/supabaseClient';
 import { useScrollToEndOnKeyboard } from '../hooks/useScrollToEndOnKeyboard';
 import { formatAppTimeOnly } from '../lib/formatDate';
+import { logger } from '../utils/logger';
 
 type ThreadView = support.AdminThread;
 
@@ -104,7 +105,9 @@ export default function AdminSupportScreen() {
       const msgs = await support.getMessages(t.id);
       setMessages(msgs);
       await support.markRead(t.id, true);
-    } catch {}
+    } catch (e) {
+      logger.warn('admin-support: failed to load/mark thread messages', e);
+    }
     // `messagesChannelRef.current` is now the cleanup function from
     // subscribeMessages. Detach any previous listener by calling its
     // cleanup before attaching the next one.

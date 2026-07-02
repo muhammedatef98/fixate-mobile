@@ -6,6 +6,7 @@ import { COLORS, SPACING } from '../constants/theme';
 import { MaterialIcons } from '@expo/vector-icons';
 import { RTLMaterialIcon } from '../components/RTLIcon';
 import { useApp } from '../contexts/AppContext';
+import { markOnboardingSeen } from '../utils/onboardingPreference';
 
 const { width, height } = Dimensions.get('window');
 
@@ -13,25 +14,33 @@ const SLIDES = [
   {
     id: '1',
     title: 'فيكساتي\nصيانة أجهزتك في خطوتين',
+    titleEn: 'Fixate\nDevice repair in two steps',
     subtitle: 'اطلب فني محترف لإصلاح جوالك أو لابتوبك\nأو أي جهاز إلكتروني — يصلك أينما كنت.',
+    subtitleEn: 'Book a professional technician for your phone,\nlaptop or any electronic device — they come to you.',
     icon: 'home-repair-service'
   },
   {
     id: '2',
     title: 'كيف يعمل التطبيق؟',
+    titleEn: 'How does it work?',
     subtitle: '١. اختر جهازك واشرح المشكلة\n٢. يقبل الفني الأقرب طلبك\n٣. يصل لمكانك ويصلح الجهاز',
+    subtitleEn: '1. Pick your device and describe the issue\n2. The nearest technician accepts your request\n3. They arrive and repair it',
     icon: 'play-circle-outline'
   },
   {
     id: '3',
     title: 'تتبع الفني\nلحظة بلحظة',
+    titleEn: 'Track your technician\nin real time',
     subtitle: 'شاهد موقع الفني على الخريطة\nواستلم إشعارات فورية عند كل تحديث.',
+    subtitleEn: 'See the technician on the map\nand get instant updates at every step.',
     icon: 'location-on'
   },
   {
     id: '4',
     title: 'ضمان وأسعار شفافة',
+    titleEn: 'Warranty & transparent pricing',
     subtitle: 'سعر مُتفق عليه قبل الإصلاح\nوضمان على قطع الغيار الأصلية.',
+    subtitleEn: 'An agreed price before any repair\nand a warranty on genuine parts.',
     icon: 'verified'
   },
 ];
@@ -66,30 +75,38 @@ export default function OnboardingScreen() {
     ]).start();
   }, [currentIndex]);
 
+  // Persist the "seen" flag before leaving so onboarding never shows again,
+  // then hand off to role-selection. markOnboardingSeen never throws; we
+  // proceed regardless (worst case the intro reappears next cold launch).
+  const finishOnboarding = async () => {
+    await markOnboardingSeen();
+    router.replace('/role-selection');
+  };
+
   const handleNext = () => {
     if (currentIndex < SLIDES.length - 1) {
       flatListRef.current?.scrollToIndex({ index: currentIndex + 1 });
       setCurrentIndex(currentIndex + 1);
     } else {
-      router.replace('/role-selection');
+      void finishOnboarding();
     }
   };
 
   const handleSkip = () => {
-    router.replace('/role-selection');
+    void finishOnboarding();
   };
 
-  const renderItem = ({ item, index }: any) => (
+  const renderItem = ({ item }: any) => (
     <View style={styles.slide}>
       <View style={styles.imageContainer}>
         <View style={styles.iconCircle}>
           <MaterialIcons name={item.icon} size={64} color={COLORS.primary} />
         </View>
       </View>
-      
+
       <Animated.View style={[styles.textContainer, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
-        <Text style={styles.title}>{item.title}</Text>
-        <Text style={styles.subtitle}>{item.subtitle}</Text>
+        <Text style={styles.title}>{isRTL ? item.title : item.titleEn}</Text>
+        <Text style={styles.subtitle}>{isRTL ? item.subtitle : item.subtitleEn}</Text>
       </Animated.View>
     </View>
   );
@@ -97,8 +114,8 @@ export default function OnboardingScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={handleSkip}>
-          <Text style={styles.skipText}>تخطي</Text>
+        <TouchableOpacity onPress={handleSkip} accessibilityRole="button">
+          <Text style={styles.skipText}>{isRTL ? 'تخطي' : 'Skip'}</Text>
         </TouchableOpacity>
       </View>
 
@@ -134,9 +151,11 @@ export default function OnboardingScreen() {
         </View>
 
         {/* Next Button */}
-        <TouchableOpacity style={styles.button} onPress={handleNext}>
+        <TouchableOpacity style={styles.button} onPress={handleNext} accessibilityRole="button">
           <Text style={styles.buttonText}>
-            {currentIndex === SLIDES.length - 1 ? 'ابدأ الآن' : 'التالي'}
+            {currentIndex === SLIDES.length - 1
+              ? (isRTL ? 'ابدأ الآن' : 'Get started')
+              : (isRTL ? 'التالي' : 'Next')}
           </Text>
           {currentIndex === SLIDES.length - 1 ? (
             <MaterialIcons name="check" size={24} color="#FFF" />
