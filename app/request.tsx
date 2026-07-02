@@ -443,8 +443,8 @@ export default function RequestScreen() {
   const slideAnim = useRef(new Animated.Value(30)).current;
   
   const STEPS = isRTL
-    ? ['الخدمة', 'الجهاز', 'الماركة', 'الموديل', 'العطل', 'التفاصيل', 'الموقع', 'الدفع']
-    : ['Service', 'Device', 'Brand', 'Model', 'Issue', 'Details', 'Location', 'Payment'];
+    ? ['الخدمة', 'الجهاز', 'الماركة', 'الموديل', 'العطل', 'التفاصيل', 'الموقع', 'طريقة الدفع']
+    : ['Service', 'Device', 'Brand', 'Model', 'Issue', 'Details', 'Location', 'Payment method'];
 
   useEffect(() => {
     checkUser();
@@ -1620,14 +1620,14 @@ export default function RequestScreen() {
                 here; it is completed on the payment page after the customer
                 approves the repair quote. */}
             <Text style={[styles.sectionTitle, { marginTop: 20 }]}>
-              {isRTL ? 'طرق الدفع' : 'Payment methods'}
+              {isRTL ? 'طريقة الدفع المفضّلة' : 'Preferred payment method'}
             </Text>
             <View style={styles.payNotice}>
               <MaterialCommunityIcons name="information-outline" size={18} color={COLORS.primary} />
               <Text style={styles.payNoticeText}>
                 {isRTL
-                  ? 'هذه الخطوة للعرض فقط. يتم الدفع لاحقاً بعد موافقتك على عرض السعر عقب الفحص.'
-                  : 'For reference only. Payment is completed later, after you approve the repair quote.'}
+                  ? 'لن يتم خصم أي مبلغ الآن. اختر طريقتك المفضّلة فقط — يتم الدفع لاحقاً بعد موافقتك على عرض السعر عقب الفحص.'
+                  : 'You will not be charged now. Just pick your preferred method — payment happens later, after you approve the repair quote.'}
               </Text>
             </View>
             <View style={{ gap: 8, marginTop: 4 }}>

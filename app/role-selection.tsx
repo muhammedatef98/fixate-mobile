@@ -7,6 +7,7 @@ import { useApp } from '../contexts/AppContext';
 import { useAuth } from '../contexts/AuthContext';
 import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { RTLMaterialIcon } from '../components/RTLIcon';
+import { logger } from '../utils/logger';
 
 const { width } = Dimensions.get('window');
 
@@ -57,7 +58,11 @@ export default function RoleSelectionScreen() {
     // in dev. router.replace below already enforces a clean root anyway.
     try {
       if (router.canGoBack()) (router as any).dismissAll?.();
-    } catch {}
+    } catch (e) {
+      // Non-critical: some expo-router versions reject dismissAll on an empty
+      // stack. router.replace below still enforces a clean root either way.
+      logger.debug('role-selection dismissAll skipped', e);
+    }
 
     if (isLoggedIn) {
       router.replace(role === 'technician' ? '/(technician)' : '/(customer)');
@@ -73,7 +78,11 @@ export default function RoleSelectionScreen() {
   const handleLogout = async () => {
     try {
       await signOut();
-    } catch {}
+    } catch (e) {
+      // Sign-out is best-effort here; we still return the user to a clean
+      // start. Surface the failure in logs rather than swallowing it silently.
+      logger.warn('role-selection sign-out failed', e);
+    }
     router.replace('/role-selection');
   };
 
@@ -135,9 +144,13 @@ export default function RoleSelectionScreen() {
           </Text>
 
           {isLoggedIn && (
-            <TouchableOpacity onPress={handleLogout} style={{ alignSelf: 'center', marginBottom: 12 }}>
-              <Text style={{ color: COLORS.primary, fontSize: 14, fontWeight: '600' }}>
-                {language === 'ar' ? 'تسجيل الخروج والعودة للبداية' : 'Sign out and start over'}
+            <TouchableOpacity
+              onPress={handleLogout}
+              style={{ alignSelf: 'center', marginBottom: 12 }}
+              accessibilityRole="button"
+            >
+              <Text style={{ color: COLORS.textSecondary, fontSize: 14, fontWeight: '600' }}>
+                {language === 'ar' ? 'ليس أنت؟ تسجيل الخروج' : 'Not you? Sign out'}
               </Text>
             </TouchableOpacity>
           )}

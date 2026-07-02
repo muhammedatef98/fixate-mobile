@@ -296,14 +296,14 @@ function RootLayoutContent() {
             headerShown: false
           }}
         />
-        <Stack.Screen 
-          name="track/[id]" 
-          options={{ title: 'تتبع الطلب' }} 
-        />
         <Stack.Screen
-          name="profile"
-          options={{ title: 'الملف الشخصي' }}
+          name="track/[id]"
+          options={{ title: 'تتبع الطلب' }}
         />
+        {/* The customer profile lives at app/(customer)/profile.tsx (the richer
+            profile with wallet/loyalty/stats). The old root-level app/profile.tsx
+            was removed because it collided on the same "/profile" URL, making
+            resolution non-deterministic. Nothing is registered here for it. */}
         <Stack.Screen
           name="technician-auth"
           options={{ 

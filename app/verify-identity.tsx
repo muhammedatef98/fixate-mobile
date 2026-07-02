@@ -143,7 +143,7 @@ export default function VerifyIdentityScreen() {
         isRTL
           ? 'استلمنا طلبك. ستظهر العلامة الموثّقة عند موافقة المسؤول.'
           : 'We received your request. The verified mark will appear once an admin approves it.',
-        [{ text: 'OK', onPress: () => safeBack('/profile') }],
+        [{ text: 'OK', onPress: () => safeBack() }],
       );
     } catch (e: any) {
       const msg = String(e?.message ?? e);
@@ -164,7 +164,7 @@ export default function VerifyIdentityScreen() {
   const renderHeader = () => (
     <View style={styles.header}>
       <AnimatedBackButton
-        onPress={() => safeBack('/profile')}
+        onPress={() => safeBack()}
         color={COLORS.text}
         backgroundColor={COLORS.surface ?? COLORS.background}
         size={42}

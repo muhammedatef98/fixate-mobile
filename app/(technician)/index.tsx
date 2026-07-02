@@ -27,6 +27,8 @@ import { logger } from '../../utils/logger';
 import NotificationBell from '../../components/NotificationBell';
 import { formatAppDate } from '../../lib/formatDate';
 import { AdminFilterChips, type AdminFilterChip } from '../../components/admin/AdminUI';
+import ErrorState from '../../components/ErrorState';
+import { getFriendlyError } from '../../utils/errorMessages';
 
 const { width } = Dimensions.get('window');
 
@@ -73,6 +75,9 @@ export default function TechnicianHomeScreen() {
   const [myOrders, setMyOrders] = useState<orderService.Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  // Surfaces a retryable error state instead of a silent empty list when the
+  // orders fetch fails (previously a failure looked identical to "no orders").
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'available' | 'my-orders'>('available');
   // Client-side status filter for the "My Orders" tab.
   const [myOrdersFilter, setMyOrdersFilter] = useState<OrderFilterKey>('all');
@@ -102,6 +107,7 @@ export default function TechnicianHomeScreen() {
 
   const toggleAvailability = async (next: boolean) => {
     if (!user) return;
+    const prev = isAvailable;
     setIsAvailable(next); // optimistic
     setTogglingAvailability(true);
     try {
@@ -109,9 +115,19 @@ export default function TechnicianHomeScreen() {
         .from('technicians')
         .update({ available: next })
         .eq('user_id', user.id);
-      if (error) logger.warn('availability not persisted (backend pending)', error);
+      if (error) throw error;
     } catch (e) {
-      logger.warn('toggleAvailability recorded locally only', e);
+      // Persist failed — revert the optimistic switch and tell the technician
+      // so we never leave them believing they're online/offline when the
+      // backend disagrees (that would silently cost or misroute jobs).
+      logger.warn('toggleAvailability failed to persist', e);
+      setIsAvailable(prev);
+      Alert.alert(
+        isRTL ? 'تعذّر تحديث الحالة' : "Couldn't update status",
+        isRTL
+          ? 'لم نتمكن من حفظ حالة الإتاحة. تحقق من اتصالك وحاول مرة أخرى.'
+          : "We couldn't save your availability. Check your connection and try again.",
+      );
     } finally {
       setTogglingAvailability(false);
     }
@@ -130,7 +146,8 @@ export default function TechnicianHomeScreen() {
   const loadOrders = async () => {
     try {
       setLoading(true);
-      
+      setErrorMessage(null);
+
       // Fetch available orders (pending status, no technician assigned)
       const available = await orderService.getAvailableOrders();
       logger.debug('Available orders fetched:', available);
@@ -143,6 +160,7 @@ export default function TechnicianHomeScreen() {
       }
     } catch (error) {
       logger.error('Error loading orders:', error);
+      setErrorMessage(getFriendlyError(error, language));
     } finally {
       setLoading(false);
     }
@@ -581,6 +599,8 @@ export default function TechnicianHomeScreen() {
               {isRTL ? 'جاري التحميل...' : 'Loading...'}
             </Text>
           </View>
+        ) : errorMessage ? (
+          <ErrorState message={errorMessage} onRetry={loadOrders} />
         ) : (
           <ScrollView
             showsVerticalScrollIndicator={false}

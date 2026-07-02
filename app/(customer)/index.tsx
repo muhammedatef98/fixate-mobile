@@ -338,7 +338,7 @@ export default function CustomerHomeScreen() {
               <View style={styles.ctaPill}>
                 <MaterialCommunityIcons name="clock-fast" size={14} color={COLORS.primary} />
                 <Text style={styles.ctaPillText}>
-                  {isRTL ? 'يصلك الفني خلال 30 دقيقة' : 'Tech arrives in 30 min'}
+                  {isRTL ? 'خدمة سريعة حتى باب منزلك' : 'Fast service to your door'}
                 </Text>
               </View>
             </View>

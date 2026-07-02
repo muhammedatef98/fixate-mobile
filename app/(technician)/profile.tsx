@@ -120,6 +120,7 @@ export default function TechnicianProfile() {
 
   const toggleAvailability = async (next: boolean) => {
     if (!authUser?.id) return;
+    const prev = isAvailable;
     setIsAvailable(next); // optimistic
     setTogglingAvailability(true);
     try {
@@ -127,9 +128,18 @@ export default function TechnicianProfile() {
         .from('technicians')
         .update({ available: next })
         .eq('user_id', authUser.id);
-      if (error) logger.warn('availability not persisted (backend pending)', error);
+      if (error) throw error;
     } catch (e) {
-      logger.warn('toggleAvailability recorded locally only', e);
+      // Persist failed — revert the optimistic switch and surface the error
+      // rather than leaving a false availability state.
+      logger.warn('toggleAvailability failed to persist', e);
+      setIsAvailable(prev);
+      Alert.alert(
+        isRTL ? 'تعذّر تحديث الحالة' : "Couldn't update status",
+        isRTL
+          ? 'لم نتمكن من حفظ حالة الإتاحة. تحقق من اتصالك وحاول مرة أخرى.'
+          : "We couldn't save your availability. Check your connection and try again.",
+      );
     } finally {
       setTogglingAvailability(false);
     }
