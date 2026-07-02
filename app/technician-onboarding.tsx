@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -41,6 +41,10 @@ export default function TechnicianOnboardingScreen() {
   const { user, refreshUser } = useAuth();
   const COLORS = getColors(isDark);
   const isRTL = language === 'ar';
+
+  // Ref to the form scroller so we can pull a focused field (notably the
+  // multiline bio, which sits low on the screen) above the keyboard.
+  const scrollRef = useRef<ScrollView>(null);
 
   const [step, setStep] = useState(1);
   const [fullName, setFullName] = useState('');
@@ -171,11 +175,26 @@ export default function TechnicianOnboardingScreen() {
         ))}
       </View>
 
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        // iOS insets the scroll content via automaticallyAdjustKeyboardInsets
+        // below, so KAV would double-count — leave it undefined there. Android
+        // relies on the manifest's adjustResize (Expo default) to shrink the
+        // window, which makes the ScrollView scrollable under the keyboard.
+        behavior={undefined}
+      >
         <ScrollView
-          contentContainerStyle={{ padding: SPACING.lg, paddingBottom: 60 }}
+          ref={scrollRef}
+          // flexGrow lets short steps fill the screen while long steps grow and
+          // scroll; the big bottom pad guarantees headroom to lift the last
+          // field (bio) clear of the keyboard on smaller devices.
+          contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          // iOS: automatically inset content so the focused input — including
+          // the multiline bio — is pushed above the keyboard.
+          automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
         >
           {/* Section header — icon + title + subtitle */}
           <View style={styles.sectionHeader}>
@@ -304,6 +323,12 @@ export default function TechnicianOnboardingScreen() {
                 <TextInput
                   value={bio}
                   onChangeText={setBio}
+                  onFocus={() => {
+                    // Bio is the last field on this step; once the keyboard is
+                    // up, scroll it fully into view. Covers Android (where the
+                    // window resizes) and reinforces the iOS auto-insets.
+                    setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 150);
+                  }}
                   multiline
                   placeholder={
                     isRTL
@@ -623,6 +648,9 @@ function PrimaryButton({ disabled, onPress, label, loading, COLORS }: any) {
 const makeStyles = (C: any, isRTL: boolean) =>
   StyleSheet.create({
     container: { flex: 1, backgroundColor: C.background },
+    // flexGrow keeps short steps filling the viewport; the large bottom pad
+    // gives room to scroll the last field above the keyboard on small screens.
+    scrollContent: { padding: SPACING.lg, paddingBottom: 140, flexGrow: 1 },
     header: {
       flexDirection: isRTL ? 'row-reverse' : 'row',
       alignItems: 'center',
