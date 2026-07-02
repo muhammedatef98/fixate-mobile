@@ -80,7 +80,11 @@ export default function LoyaltyScreen() {
               }
               await refresh();
               Alert.alert(
-                isRTL ? 'تم الاستبدال ✓' : 'Redeemed ✓',
+                // Don't claim completion ("Redeemed ✓") on the pending-backend
+                // path — the reward isn't live yet and no points were deducted.
+                res.pendingBackend
+                  ? (isRTL ? 'تم استلام طلب الاستبدال' : 'Redemption requested')
+                  : (isRTL ? 'تم الاستبدال ✓' : 'Redeemed ✓'),
                 res.pendingBackend
                   ? isRTL
                     ? 'تم تسجيل طلب الاستبدال. سيتم تفعيل المكافأة بعد ربط النظام بالكامل. سيتواصل معك فريقنا.'

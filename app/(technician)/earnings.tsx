@@ -82,7 +82,7 @@ export default function EarningsScreen() {
                 Alert.alert(
                   isRTL ? 'تم تسجيل الطلب' : 'Request recorded',
                   isRTL
-                    ? 'تم تسجيل طلبك. يحتاج فعالة كاملة من فريق المنصة (في طور التهيئة).'
+                    ? 'تم تسجيل طلبك. ميزة سحب الأرباح قيد التهيئة من قبل فريق المنصة وسيتم تفعيلها قريباً.'
                     : 'Your request was recorded locally. Full payout pipeline is being set up by the platform team.'
                 );
               } else {
