@@ -1,4 +1,7 @@
 import { supabase } from './supabaseClient';
+import { decode } from 'base64-arraybuffer';
+// `/legacy` path: same readAsStringAsync without the v19 deprecation warning.
+import { readAsStringAsync } from 'expo-file-system/legacy';
 import { logger } from '../utils/logger';
 import { validateSaudiId, validateSaudiIban, validatePhone, normalizeSaudiPhone } from '../utils/validation';
 
@@ -19,16 +22,22 @@ export interface TechnicianOnboardingPayload {
 const uploadDoc = async (userId: string, uri: string, kind: 'id' | 'cert'): Promise<string> => {
   const ext = uri.split('.').pop()?.toLowerCase() ?? 'jpg';
   const path = `${userId}/${kind}-${Date.now()}.${ext}`;
-  const response = await fetch(uri);
-  const blob = await response.blob();
-  const contentType = blob.type || (ext === 'pdf' ? 'application/pdf' : 'image/jpeg');
+  // Read the local file as base64 and upload an ArrayBuffer, matching
+  // storageService.uploadOne. The previous fetch(file://).blob() approach
+  // doesn't survive React Native's fetch: the Blob body arrives empty and
+  // Storage rejects it with 400 "No content provided" (and on some devices
+  // the local fetch itself throws "Network request failed"), which surfaced
+  // to users as a bogus "check your internet" error.
+  const base64 = await readAsStringAsync(uri, { encoding: 'base64' });
+  const fileBytes = decode(base64);
+  const contentType = ext === 'pdf' ? 'application/pdf' : ext === 'png' ? 'image/png' : 'image/jpeg';
   const { error } = await supabase.storage
     .from('technician-docs')
     // upsert:false because the filename has Date.now() so it's already
     // unique. With upsert:true Supabase Storage demands BOTH an INSERT and
     // an UPDATE policy on the bucket folder, and we only have INSERT — that
     // mismatch produced "ليس لديك صلاحية" (RLS denial) when submitting.
-    .upload(path, blob, { contentType, upsert: false });
+    .upload(path, fileBytes, { contentType, upsert: false });
   if (error) throw error;
   return path;
 };
