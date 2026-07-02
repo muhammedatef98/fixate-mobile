@@ -3,6 +3,7 @@ import { useEffect } from 'react';
 import { View } from 'react-native';
 import FloatingOrderStatus from '../../components/FloatingOrderStatus';
 import { useAuth } from '../../contexts/AuthContext';
+import { saveLastRole } from '../../utils/rolePreference';
 
 export default function CustomerLayout() {
   const router = useRouter();
@@ -20,7 +21,11 @@ export default function CustomerLayout() {
       null;
     if (role === 'technician') {
       router.replace('/(technician)');
+      return;
     }
+    // User is legitimately in the customer flow — remember it so the next
+    // cold launch lands here directly and skips role-selection.
+    void saveLastRole('customer');
   }, [user, userProfile, router]);
 
   return (

@@ -7,6 +7,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../services/supabaseClient';
 import { getColors, SPACING, BORDER_RADIUS } from '../../constants/theme';
 import BottomNavTech from '../../components/BottomNavTech';
+import { saveLastRole } from '../../utils/rolePreference';
 
 // Child route segments where the bottom tab bar stays persistently visible.
 // These map 1:1 to the four BottomNavTech entries (Home / Requests / Jobs /
@@ -85,6 +86,18 @@ export default function TechnicianLayout() {
       cancelled = true;
     };
   }, [user, authLoading]);
+
+  // Remember the technician flow so the next cold launch lands here directly
+  // and skips role-selection — but only for genuine technicians (verified,
+  // pending, or rejected applicants). We deliberately skip 'no-profile': a
+  // pure customer who tapped "technician" once shouldn't get locked out of
+  // role-selection on every future launch.
+  useEffect(() => {
+    if (!user) return;
+    if (gate.kind === 'allowed' || gate.kind === 'pending' || gate.kind === 'rejected') {
+      void saveLastRole('technician');
+    }
+  }, [user, gate.kind]);
 
   if (authLoading || gate.kind === 'loading') {
     return (

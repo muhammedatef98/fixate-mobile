@@ -5,6 +5,7 @@ import * as authService from '../services/authService';
 import * as userService from '../services/userService';
 import { notificationManager, healPushTokenIfNeeded } from '../lib/notifications';
 import { logger } from '../utils/logger';
+import { clearLastRole } from '../utils/rolePreference';
 
 /**
  * Acquire an Expo push token and persist it to the user's public.users row.
@@ -137,6 +138,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUserProfile(null);
     setProfileLoaded(true);
     setIsAuthenticated(false);
+
+    // Forget the remembered flow so the next launch shows role-selection again.
+    void clearLastRole();
 
     // Best-effort Supabase signOut (idempotent, never throws)
     try {
