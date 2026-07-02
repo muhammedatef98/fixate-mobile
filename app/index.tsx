@@ -6,6 +6,7 @@ import { useApp } from '../contexts/AppContext';
 import { getColors } from '../constants/theme';
 import { getLastRole, type AppRole } from '../utils/rolePreference';
 import { hasSeenOnboarding } from '../utils/onboardingPreference';
+import { ONBOARDING_ENABLED } from '../constants/featureFlags';
 
 /**
  * Cold-launch entry point. Decides the first screen:
@@ -64,9 +65,10 @@ export default function EntryPoint() {
   }
 
   // Fresh, logged-out install that has never seen the intro → onboarding.
-  // (Signed-in users skip it entirely; the _layout auth guard also bounces a
-  // logged-in user off /onboarding, so this stays a logged-out-only surface.)
-  if (!user && !seenOnboarding) {
+  // Gated behind ONBOARDING_ENABLED so it can be disabled via OTA without a
+  // code change. (Signed-in users skip it entirely; the _layout auth guard also
+  // bounces a logged-in user off /onboarding, so this stays logged-out-only.)
+  if (ONBOARDING_ENABLED && !user && !seenOnboarding) {
     return <Redirect href="/onboarding" />;
   }
 
