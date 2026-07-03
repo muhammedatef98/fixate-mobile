@@ -7,6 +7,7 @@ import { getColors } from '../constants/theme';
 import { getLastRole, type AppRole } from '../utils/rolePreference';
 import { hasSeenOnboarding } from '../utils/onboardingPreference';
 import { ONBOARDING_ENABLED } from '../constants/featureFlags';
+import { decideColdLaunch } from '../utils/routeDecision';
 
 /**
  * Cold-launch entry point. Decides the first screen:
@@ -59,19 +60,18 @@ export default function EntryPoint() {
     );
   }
 
-  // Returning, logged-in user with a remembered flow → go straight in.
-  if (user && lastRole) {
-    return <Redirect href={lastRole === 'technician' ? '/(technician)' : '/(customer)'} />;
-  }
-
-  // Fresh, logged-out install that has never seen the intro → onboarding.
-  // Gated behind ONBOARDING_ENABLED so it can be disabled via OTA without a
-  // code change. (Signed-in users skip it entirely; the _layout auth guard also
-  // bounces a logged-in user off /onboarding, so this stays logged-out-only.)
-  if (ONBOARDING_ENABLED && !user && !seenOnboarding) {
-    return <Redirect href="/onboarding" />;
-  }
-
-  // Logged out (intro already seen), or no remembered flow yet → let them choose.
-  return <Redirect href="/role-selection" />;
+  // Single source of truth for the cold-launch decision (see
+  // utils/routeDecision.ts + routeDecision.test):
+  //   1. Logged in with a remembered flow → straight into that portal.
+  //   2. Fresh, logged-out, onboarding enabled & unseen → onboarding intro.
+  //      (Signed-in users never see it; the _layout auth guard also bounces a
+  //      logged-in user off /onboarding, so it stays logged-out-only.)
+  //   3. Otherwise → role-selection.
+  const target = decideColdLaunch({
+    isLoggedIn: !!user,
+    lastRole,
+    seenOnboarding,
+    onboardingEnabled: ONBOARDING_ENABLED,
+  });
+  return <Redirect href={target} />;
 }

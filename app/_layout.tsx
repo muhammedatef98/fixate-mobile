@@ -8,6 +8,7 @@ import { ThemeProvider } from '../contexts/ThemeContext';
 import { AppProvider, useApp } from '../contexts/AppContext';
 import { AuthProvider, useAuth } from '../contexts/AuthContext';
 import { isAdminUser } from '../constants/admin';
+import { decideAuthFlowTarget } from '../utils/routeDecision';
 import { OrdersProvider } from '../contexts/OrdersContext';
 import { LoyaltyProvider } from '../contexts/LoyaltyContext';
 import { useRouter, useSegments } from 'expo-router';
@@ -97,22 +98,15 @@ function RootLayoutContent() {
       // Admin is the server-set JWT claim app_metadata.is_admin (constants/admin.ts).
       const adminByPhone = isAdminUser(user);
 
-      // Resolution order:
-      //   1. Admin → /admin (system-level, always wins).
-      //   2. Explicit customer auth source → /(customer) — honours the
-      //      user's choice even if their profile role is technician.
-      //   3. Explicit technician auth source → /(technician).
-      //   4. Fallback to profile-stored role for routes like /onboarding
-      //      where there's no role-binding auth source.
-      const target = adminByPhone
-        ? '/admin'
-        : wantsCustomer
-          ? '/(customer)'
-          : wantsTechnician
-            ? '/(technician)'
-            : (userProfile as any)?.role === 'technician'
-              ? '/(technician)'
-              : '/(customer)';
+      // Resolution order (admin > explicit customer > explicit technician >
+      // profile-role fallback) lives in one tested place — see
+      // utils/routeDecision.ts + routeDecision.test.
+      const target = decideAuthFlowTarget({
+        isAdmin: adminByPhone,
+        wantsCustomer,
+        wantsTechnician,
+        profileRole: (userProfile as any)?.role,
+      });
       router.replace(target as any);
       return;
     }
