@@ -20,6 +20,8 @@ import { searchPlaces, isGooglePlacesEnabled, type PlaceResult } from '../servic
 import { getFriendlyError } from '../utils/errorMessages';
 import { tapLight } from '../utils/haptics';
 import { formatPrice } from '../utils/pricing';
+import { estimateForIssue } from '../services/estimateService';
+import { formatEstimate, type EstimateResult } from '../utils/estimate';
 import {
   getRegionTree,
   resolveDeliveryFee,
@@ -173,6 +175,33 @@ export default function RequestScreen() {
   // "Other Devices" free-text entry (used when selectedDeviceType === 'other').
   const [otherDeviceName, setOtherDeviceName] = useState('');
   const [otherDeviceModel, setOtherDeviceModel] = useState('');
+
+  // Smart initial estimate — recomputed whenever the inputs that shape it
+  // change (issue, spare-part tier, region). Data-driven: remote overrides
+  // from platform_settings with the curated repairData baselines as fallback.
+  // Displayed as a clearly-labelled ESTIMATE; technicians still send their
+  // own offers and the customer chooses.
+  const [estimate, setEstimate] = useState<EstimateResult | null>(null);
+  useEffect(() => {
+    if (!selectedIssue) {
+      setEstimate(null);
+      return;
+    }
+    let cancelled = false;
+    estimateForIssue(selectedIssue, {
+      sparePartQuality,
+      regionCode: selectedCityRegion?.code ?? null,
+    })
+      .then((res) => {
+        if (!cancelled) setEstimate(res);
+      })
+      .catch(() => {
+        if (!cancelled) setEstimate(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedIssue?.id, sparePartQuality, selectedCityRegion?.code]);
 
   // Payment + optional upsells captured in the Details step.
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash');
@@ -667,8 +696,12 @@ export default function RequestScreen() {
         ? `${issueName}: ${issueDescription}`
         : issueName;
 
+      // Estimate engine result (remote-config-aware) with the legacy static
+      // calculation as fallback, so submission never blocks on config state.
       const baseEstimate = selectedIssue.estimatedPrice ?? 0;
-      const adjustedEstimate = Math.round(baseEstimate * SPARE_PART_MULTIPLIERS[sparePartQuality]);
+      const adjustedEstimate = estimate?.hasEstimate
+        ? estimate.typical
+        : Math.round(baseEstimate * SPARE_PART_MULTIPLIERS[sparePartQuality]);
       const finalEstimate = Math.max(0, adjustedEstimate - (appliedDiscount?.amount ?? 0));
 
       const orderData = {
@@ -762,8 +795,17 @@ export default function RequestScreen() {
       setSubmitStage('idle');
       Alert.alert(
         isRTL ? 'تم بنجاح ✓' : 'Success ✓',
-        isRTL ? 'تم إرسال طلبك. سيتواصل معك أحد الفنيين قريباً.' : 'Your request was submitted. A technician will contact you soon.',
-        [{ text: isRTL ? 'تتبع الطلب' : 'Track Order', onPress: () => router.replace('/(customer)/orders') }]
+        isRTL
+          ? 'تم إرسال طلبك للفنيين القريبين. ستصلك عروض أسعارهم وأنت تختار الأنسب.'
+          : "Your request reached nearby technicians. Their offers will arrive shortly — you pick the one you like.",
+        [
+          {
+            text: isRTL ? 'عرض العروض' : 'View offers',
+            onPress: () =>
+              router.replace({ pathname: '/order-offers', params: { orderId: result.id } } as any),
+          },
+          { text: isRTL ? 'طلباتي' : 'My orders', onPress: () => router.replace('/(customer)/orders') },
+        ]
       );
     } catch (error: any) {
       logger.error('Submit error', error);
@@ -1093,6 +1135,38 @@ export default function RequestScreen() {
                   );
                 })}
               </View>
+
+              {/* Smart initial estimate — honest framing: a configurable,
+                  Saudi-market-oriented starting estimate, NOT a final or
+                  guaranteed price. Technicians still send their own offers. */}
+              {estimate && (
+                <View
+                  style={{
+                    marginTop: 24,
+                    borderRadius: 14,
+                    borderWidth: 1,
+                    borderColor: COLORS.primary + '55',
+                    backgroundColor: COLORS.lightGreen,
+                    padding: 14,
+                    gap: 6,
+                  }}
+                >
+                  <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 8 }}>
+                    <MaterialCommunityIcons name="calculator-variant-outline" size={20} color={COLORS.primary} />
+                    <Text style={{ color: COLORS.text, fontWeight: '800', fontSize: 14 }}>
+                      {isRTL ? 'السعر التقديري المبدئي' : 'Estimated starting price'}
+                    </Text>
+                  </View>
+                  <Text style={{ color: COLORS.primary, fontWeight: '800', fontSize: 18, textAlign: isRTL ? 'right' : 'left' }}>
+                    {formatEstimate(estimate, isRTL ? 'ar' : 'en')}
+                  </Text>
+                  <Text style={{ color: COLORS.gray, fontSize: 12, lineHeight: 18, textAlign: isRTL ? 'right' : 'left' }}>
+                    {isRTL
+                      ? 'هذا تقدير مبدئي وليس سعراً نهائياً — سيرسل لك الفنيون القريبون عروض أسعارهم وأنت تختار الأنسب.'
+                      : 'This is an initial estimate, not a final price — nearby technicians will send their own offers and you pick the best one.'}
+                  </Text>
+                </View>
+              )}
 
               <Text style={[styles.sectionTitle, { marginTop: 24 }]}>{isRTL ? 'صور أو فيديو' : 'Photos or Video'}</Text>
               <View style={styles.mediaContainer}>

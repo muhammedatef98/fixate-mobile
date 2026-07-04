@@ -43,7 +43,8 @@ Deno.serve(async (req: Request) => {
     if (!name || typeof name !== 'string' || !name.trim()) {
       return json({ error: 'Name is required' }, 400);
     }
-    const safeRole = role === 'technician' ? 'technician' : 'customer';
+    const safeRole =
+      role === 'technician' ? 'technician' : role === 'courier' ? 'courier' : 'customer';
 
     const admin = createClient(url, serviceRoleKey, {
       auth: { autoRefreshToken: false, persistSession: false },

@@ -50,7 +50,7 @@ type FilterKey = 'all' | 'pending' | 'active' | 'completed' | 'cancelled';
 
 const STATUS_META = (s: string, isRTL: boolean): { label: string; color: string } => {
   const map: Record<string, { ar: string; en: string; color: string }> = {
-    pending: { ar: 'قيد الانتظار', en: 'Pending', color: '#F59E0B' },
+    pending: { ar: 'بانتظار العروض', en: 'Awaiting offers', color: '#F59E0B' },
     confirmed: { ar: 'مؤكد', en: 'Confirmed', color: '#3B82F6' },
     accepted: { ar: 'مقبول', en: 'Accepted', color: '#3B82F6' },
     picking_up: { ar: 'جاري الاستلام', en: 'Picking up', color: '#6366F1' },
@@ -242,7 +242,7 @@ export default function AdminOrdersScreen() {
 
   const FILTERS: AdminFilterChip<FilterKey>[] = [
     { key: 'all', ar: 'الكل', en: 'All', count: counts.all },
-    { key: 'pending', ar: 'قيد الانتظار', en: 'Pending', count: counts.pending },
+    { key: 'pending', ar: 'بانتظار العروض', en: 'Awaiting offers', count: counts.pending },
     { key: 'active', ar: 'قيد التنفيذ', en: 'In progress', count: counts.active },
     { key: 'completed', ar: 'مكتملة', en: 'Completed', count: counts.completed },
     { key: 'cancelled', ar: 'ملغاة', en: 'Cancelled', count: counts.cancelled },

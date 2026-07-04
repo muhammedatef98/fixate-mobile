@@ -234,7 +234,7 @@ export default function TechnicianHomeScreen() {
 
   const getStatusText = (status: string) => {
     const statusTexts: { [key: string]: { ar: string; en: string } } = {
-      pending: { ar: 'قيد الانتظار', en: 'Pending' },
+      pending: { ar: 'متاح للعروض', en: 'Open for offers' },
       accepted: { ar: 'مقبول', en: 'Accepted' },
       picking_up: { ar: 'جاري الاستلام', en: 'Picking Up' },
       diagnosing: { ar: 'جاري الفحص', en: 'Diagnosing' },

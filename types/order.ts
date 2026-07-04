@@ -222,7 +222,8 @@ export interface CreateOrderData {
 }
 
 export const ORDER_STATUS_LABELS_AR: Record<OrderStatus, string> = {
-  pending: 'قيد الانتظار',
+  // Marketplace: an unassigned request is open for technician offers.
+  pending: 'بانتظار عروض الفنيين',
   accepted: 'مقبول',
   picking_up: 'جاري الاستلام',
   diagnosing: 'تحت الفحص',
@@ -259,7 +260,8 @@ export const isAwaitingQuoteApproval = (status: OrderStatus): boolean =>
   status === 'quoted';
 
 export const ORDER_STATUS_LABELS_EN: Record<OrderStatus, string> = {
-  pending: 'Pending',
+  // Marketplace: an unassigned request is open for technician offers.
+  pending: 'Awaiting offers',
   accepted: 'Accepted',
   picking_up: 'Picking up',
   diagnosing: 'Inspecting',

@@ -6,7 +6,7 @@ export interface UserProfile {
   email: string;
   name: string;
   phone?: string;
-  role: 'customer' | 'technician';
+  role: 'customer' | 'technician' | 'courier';
   avatar_url?: string;
   is_admin?: boolean;
   account_status?: 'active' | 'suspended' | 'blocked';

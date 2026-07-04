@@ -98,3 +98,47 @@ describe('decideAuthFlowTarget', () => {
     expect(decideAuthFlowTarget(authFlow({ profileRole: undefined }))).toBe('/(customer)');
   });
 });
+
+// ── Courier role (first-class role, added 2026-07) ─────────────────────────
+
+describe('courier routing', () => {
+  it('cold launch with a remembered courier flow goes straight to the courier portal', () => {
+    expect(
+      decideColdLaunch({
+        isLoggedIn: true,
+        lastRole: 'courier',
+        seenOnboarding: true,
+        onboardingEnabled: true,
+      })
+    ).toBe('/(courier)');
+  });
+
+  it('a logged-out user with a stale courier preference still sees role-selection', () => {
+    expect(
+      decideColdLaunch({
+        isLoggedIn: false,
+        lastRole: 'courier',
+        seenOnboarding: true,
+        onboardingEnabled: false,
+      })
+    ).toBe('/role-selection');
+  });
+
+  it('an explicit courier auth source routes to the courier portal', () => {
+    expect(decideAuthFlowTarget(authFlow({ wantsCourier: true }))).toBe('/(courier)');
+  });
+
+  it('admin wins over an explicit courier source', () => {
+    expect(decideAuthFlowTarget(authFlow({ isAdmin: true, wantsCourier: true }))).toBe('/admin');
+  });
+
+  it('an explicit customer source overrides a courier profile role', () => {
+    expect(
+      decideAuthFlowTarget(authFlow({ wantsCustomer: true, profileRole: 'courier' }))
+    ).toBe('/(customer)');
+  });
+
+  it('falls back to a courier profile role when no auth source binds', () => {
+    expect(decideAuthFlowTarget(authFlow({ profileRole: 'courier' }))).toBe('/(courier)');
+  });
+});

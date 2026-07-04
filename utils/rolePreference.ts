@@ -1,7 +1,7 @@
 /**
- * rolePreference.ts — remembers which side of the app (customer vs technician)
- * the user last entered, so a returning logged-in user skips the role-selection
- * screen on cold launch and lands straight in their flow.
+ * rolePreference.ts — remembers which side of the app (customer, technician
+ * or courier) the user last entered, so a returning logged-in user skips the
+ * role-selection screen on cold launch and lands straight in their flow.
  *
  * Backed by AsyncStorage, matching the project's other non-sensitive prefs
  * (language/theme in AppContext use the same `@fixate/*` key convention).
@@ -10,7 +10,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { logger } from './logger';
 
-export type AppRole = 'customer' | 'technician';
+export type AppRole = 'customer' | 'technician' | 'courier';
 
 const ROLE_KEY = '@fixate/last-role';
 
@@ -27,7 +27,9 @@ export async function saveLastRole(role: AppRole): Promise<void> {
 export async function getLastRole(): Promise<AppRole | null> {
   try {
     const value = await AsyncStorage.getItem(ROLE_KEY);
-    return value === 'customer' || value === 'technician' ? value : null;
+    return value === 'customer' || value === 'technician' || value === 'courier'
+      ? value
+      : null;
   } catch (e) {
     logger.warn('[rolePreference] read failed', e);
     return null;

@@ -39,7 +39,7 @@ export default function RoleSelectionScreen() {
     ]).start();
   }, []);
 
-  const handleRoleSelect = (role: 'customer' | 'technician') => {
+  const handleRoleSelect = (role: 'customer' | 'technician' | 'courier') => {
     // The (technician) layout itself gates access — no row in `technicians`
     // means the layout shows the "Start registration" screen and routes the
     // user into onboarding. So even when isLoggedIn, jumping straight in is
@@ -65,11 +65,17 @@ export default function RoleSelectionScreen() {
     }
 
     if (isLoggedIn) {
-      router.replace(role === 'technician' ? '/(technician)' : '/(customer)');
+      // Each group layout gates itself (technician/courier verification), so
+      // jumping straight in is safe for any role.
+      const target =
+        role === 'technician' ? '/(technician)' : role === 'courier' ? '/(courier)' : '/(customer)';
+      router.replace(target as any);
       return;
     }
     if (role === 'technician') {
       router.replace('/technician-auth');
+    } else if (role === 'courier') {
+      router.replace('/courier-auth' as any);
     } else {
       router.replace('/login-otp');
     }
@@ -180,6 +186,11 @@ export default function RoleSelectionScreen() {
               />
             </TouchableOpacity>
 
+            {/* Technician & Courier portal — providers side of the app. */}
+            <Text style={styles.portalLabel}>
+              {language === 'ar' ? 'بوابة الفنيين والمناديب' : 'Technician & Courier Portal'}
+            </Text>
+
             {/* Technician Card */}
             <TouchableOpacity
               style={[styles.roleCard, SHADOWS.neuFlat]}
@@ -194,12 +205,37 @@ export default function RoleSelectionScreen() {
                   {language === 'ar' ? 'فني صيانة' : 'Technician'}
                 </Text>
                 <Text style={styles.roleDescription}>
-                  {language === 'ar' ? 'أقدم خدمات الصيانة وأستقبل الطلبات' : 'Providing repair services'}
+                  {language === 'ar' ? 'أقدم عروض أسعار وأنفذ الإصلاحات' : 'Quote on requests & do the repairs'}
                 </Text>
               </View>
-              <RTLMaterialIcon name="chevron-right" 
-                size={28} 
-                color={COLORS.info} 
+              <RTLMaterialIcon name="chevron-right"
+                size={28}
+                color={COLORS.info}
+              />
+            </TouchableOpacity>
+
+            {/* Courier Card — a distinct first-class role, not a technician
+                subtype: couriers move devices between customers and
+                technicians on pickup&delivery orders. */}
+            <TouchableOpacity
+              style={[styles.roleCard, SHADOWS.neuFlat]}
+              onPress={() => handleRoleSelect('courier')}
+              activeOpacity={0.8}
+            >
+              <View style={[styles.iconContainer, { backgroundColor: '#f59e0b20' }]}>
+                <MaterialCommunityIcons name="moped" size={40} color="#f59e0b" />
+              </View>
+              <View style={styles.cardContent}>
+                <Text style={styles.roleTitle}>
+                  {language === 'ar' ? 'مندوب توصيل' : 'Courier'}
+                </Text>
+                <Text style={styles.roleDescription}>
+                  {language === 'ar' ? 'أوصل الأجهزة بين العملاء والفنيين' : 'Deliver devices between customers & technicians'}
+                </Text>
+              </View>
+              <RTLMaterialIcon name="chevron-right"
+                size={28}
+                color="#f59e0b"
               />
             </TouchableOpacity>
           </View>
@@ -282,8 +318,15 @@ const createStyles = (COLORS: any, SHADOWS: any, isRTL: boolean) => StyleSheet.c
   },
   cardsContainer: {
     width: '100%',
-    gap: SPACING.lg,
+    gap: SPACING.md,
     marginBottom: SPACING.xl,
+  },
+  portalLabel: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: COLORS.textSecondary,
+    textAlign: isRTL ? 'right' : 'left',
+    marginTop: SPACING.xs,
   },
   roleCard: {
     flexDirection: isRTL ? 'row-reverse' : 'row',

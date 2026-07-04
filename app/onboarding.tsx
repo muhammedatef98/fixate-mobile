@@ -23,8 +23,8 @@ const SLIDES = [
     id: '2',
     title: 'كيف يعمل التطبيق؟',
     titleEn: 'How does it work?',
-    subtitle: '١. اختر جهازك واشرح المشكلة\n٢. يقبل الفني الأقرب طلبك\n٣. يصل لمكانك ويصلح الجهاز',
-    subtitleEn: '1. Pick your device and describe the issue\n2. The nearest technician accepts your request\n3. They arrive and repair it',
+    subtitle: '١. اختر جهازك واشرح المشكلة\n٢. تصلك عروض أسعار من الفنيين القريبين\n٣. تختار العرض الأنسب ويبدأ الإصلاح',
+    subtitleEn: '1. Pick your device and describe the issue\n2. Nearby technicians send you their offers\n3. You pick the best one and the repair begins',
     icon: 'play-circle-outline'
   },
   {

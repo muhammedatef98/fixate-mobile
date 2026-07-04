@@ -59,10 +59,10 @@ function RootLayoutContent() {
     // flash for a moment then disappear and the technician would land on
     // /(technician) without ever updating their password.
     const REDIRECT_AWAY_IF_LOGGED_IN = new Set([
-      'login', 'signup', 'auth', 'technician-auth',
+      'login', 'signup', 'auth', 'technician-auth', 'courier-auth',
       'login-otp', 'email-auth', 'onboarding',
     ]);
-    const PROTECTED_GROUPS = new Set(['(customer)', '(technician)', 'request']);
+    const PROTECTED_GROUPS = new Set(['(customer)', '(technician)', '(courier)', 'request']);
 
     // The user's CHOICE on role-selection determines which auth screen they
     // landed on. That choice is the authoritative routing intent — it
@@ -74,10 +74,11 @@ function RootLayoutContent() {
     // technician branch even when they explicitly tapped "Login as
     // customer" and arrived via /login-otp.
     //
-    // /technician-auth is the only explicit technician entry point in the
-    // app today; every other auth surface (login-otp, email-auth, auth,
+    // /technician-auth and /courier-auth are the explicit provider entry
+    // points; every other auth surface (login-otp, email-auth, auth,
     // signup, login) is a customer-side entry point.
     const TECHNICIAN_AUTH_SOURCES = new Set(['technician-auth']);
+    const COURIER_AUTH_SOURCES = new Set(['courier-auth']);
     const CUSTOMER_AUTH_SOURCES = new Set([
       'login', 'signup', 'auth', 'login-otp', 'email-auth',
     ]);
@@ -97,6 +98,7 @@ function RootLayoutContent() {
       // member isn't mis-routed to the customer app before RBAC resolves.
       if (!adminPermissionsLoaded) return;
       const wantsTechnician = !!first && TECHNICIAN_AUTH_SOURCES.has(first);
+      const wantsCourier = !!first && COURIER_AUTH_SOURCES.has(first);
       const wantsCustomer = !!first && CUSTOMER_AUTH_SOURCES.has(first);
       // "Admin" for routing = legacy JWT claim OR active RBAC staff, so managers
       // assigned from the Team page land in /admin. See constants/admin.ts.
@@ -109,6 +111,7 @@ function RootLayoutContent() {
         isAdmin: adminAccess,
         wantsCustomer,
         wantsTechnician,
+        wantsCourier,
         profileRole: (userProfile as any)?.role,
       });
       router.replace(target as any);
@@ -253,12 +256,22 @@ function RootLayoutContent() {
             headerShown: false 
           }} 
         />
-        <Stack.Screen 
-          name="(technician)" 
-          options={{ 
-            headerShown: false 
-          }} 
+        <Stack.Screen
+          name="(technician)"
+          options={{
+            headerShown: false
+          }}
         />
+        <Stack.Screen
+          name="(courier)"
+          options={{
+            headerShown: false
+          }}
+        />
+        <Stack.Screen name="courier-auth" options={{ headerShown: false }} />
+        <Stack.Screen name="courier-onboarding" options={{ headerShown: false }} />
+        <Stack.Screen name="order-offers" options={{ headerShown: false }} />
+        <Stack.Screen name="admin-couriers" options={{ headerShown: false }} />
         <Stack.Screen 
           name="request" 
           options={{ 

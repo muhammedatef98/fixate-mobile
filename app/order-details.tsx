@@ -39,7 +39,7 @@ import { getOrderTimeline, actorTypeLabel, type OrderTimelineEvent } from '../se
 import { formatAppDate } from '../lib/formatDate';
 
 const ORDER_TIMELINE: { status: string; arLabel: string; enLabel: string; icon: string }[] = [
-  { status: 'pending', arLabel: 'قيد الانتظار', enLabel: 'Pending', icon: 'clock-outline' },
+  { status: 'pending', arLabel: 'بانتظار العروض', enLabel: 'Awaiting offers', icon: 'clock-outline' },
   { status: 'accepted', arLabel: 'تم القبول', enLabel: 'Accepted', icon: 'check-circle' },
   { status: 'picking_up', arLabel: 'جاري الاستلام', enLabel: 'Picking Up', icon: 'car' },
   { status: 'diagnosing', arLabel: 'جاري الفحص', enLabel: 'Diagnosing', icon: 'magnify' },
@@ -998,6 +998,24 @@ export default function OrderDetailsScreen() {
                 </Text>
               </TouchableOpacity>
             </View>
+          )}
+
+          {/* Marketplace: while the request is open, offers from nearby
+              technicians land on the dedicated offers screen. */}
+          {userType === 'customer' && order.status === 'pending' && (
+            <TouchableOpacity
+              style={[styles.actionButton, { backgroundColor: COLORS.primary }, SHADOWS.small]}
+              onPress={() =>
+                router.push({ pathname: '/order-offers', params: { orderId: id as string } } as any)
+              }
+              accessibilityRole="button"
+              accessibilityLabel={isRTL ? 'عروض الفنيين' : 'Technician offers'}
+            >
+              <MaterialCommunityIcons name="cash-multiple" size={20} color="#fff" />
+              <Text style={styles.actionButtonText}>
+                {isRTL ? 'عروض الفنيين' : 'View offers'}
+              </Text>
+            </TouchableOpacity>
           )}
 
           {userType === 'customer' && order.status === 'pending' && (

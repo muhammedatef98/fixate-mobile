@@ -26,6 +26,13 @@ import { requests, auth } from '../../lib/supabase-api';
 import type { Order } from '../../lib/supabase-api';
 import { notifyUsers } from '../../services/notifyService';
 import { getUserProfile } from '../../services/userService';
+import {
+  submitOffer,
+  getMyOfferForOrder,
+  withdrawOffer,
+  type OrderOffer,
+} from '../../services/offerMarketplaceService';
+import { createReturnDeliveryTask } from '../../services/courierService';
 import { logger } from '../../utils/logger';
 import { fmtRequestDateTime } from '../../utils/dateFormat';
 import {
@@ -129,6 +136,14 @@ export default function ManageOrderScreen() {
   const [sparePartSheet, setSparePartSheet] = useState(false);
   const [uploadingPhotos, setUploadingPhotos] = useState(false);
   const [claimedByOther, setClaimedByOther] = useState(false);
+  // Marketplace: my offer on this (still-open) request.
+  const [myOffer, setMyOffer] = useState<OrderOffer | null>(null);
+  const [offerAmount, setOfferAmount] = useState('');
+  const [offerNote, setOfferNote] = useState('');
+  const [submittingOffer, setSubmittingOffer] = useState(false);
+  // Return-leg courier request (pickup&delivery orders in 'delivering').
+  const [requestingCourier, setRequestingCourier] = useState(false);
+  const [returnCourierRequested, setReturnCourierRequested] = useState(false);
 
   useEffect(() => {
     loadOrderDetails();
@@ -194,6 +209,17 @@ export default function ManageOrderScreen() {
         setClaimedByOther(true);
       }
       
+      // Marketplace: load my offer on a still-open request so the offer card
+      // reflects what I already quoted.
+      if (orderData && orderData.status === 'pending' && me?.id) {
+        const offer = await getMyOfferForOrder(me.id, orderData.id);
+        setMyOffer(offer);
+        if (offer?.status === 'pending') {
+          setOfferAmount(String(Math.round(offer.amount)));
+          setOfferNote(offer.note ?? '');
+        }
+      }
+
       if (orderData?.user_id) {
         // IMPORTANT: use the userService lookup (queries `users` table by id),
         // NOT auth.getUserProfile() — that one returns the currently-signed-in
@@ -225,25 +251,78 @@ export default function ManageOrderScreen() {
     }
   };
 
-  const handleAcceptOrder = async () => {
-    try {
-      const user = await auth.getCurrentUser();
-      if (!user) return;
-
-      setUpdating(true);
-      await requests.acceptOrder(id as string);
+  // Marketplace: technicians quote instead of claiming. The customer picks a
+  // winner; assignment happens atomically server-side (accept_order_offer).
+  const handleSubmitOffer = async () => {
+    const amount = Number(offerAmount);
+    if (!Number.isFinite(amount) || amount <= 0) {
       Alert.alert(
-        isRTL ? 'نجح' : 'Success',
-        isRTL ? 'تم قبول الطلب بنجاح' : 'Order accepted successfully'
+        isRTL ? 'تنبيه' : 'Notice',
+        isRTL ? 'اكتب سعراً صحيحاً بالريال' : 'Enter a valid price in SAR'
       );
-    } catch (error) {
-      logger.error('Error accepting order:', error);
+      return;
+    }
+    setSubmittingOffer(true);
+    try {
+      const offer = await submitOffer(id as string, amount, offerNote.trim() || undefined);
+      setMyOffer(offer);
+      Alert.alert(
+        isRTL ? 'تم الإرسال ✓' : 'Sent ✓',
+        isRTL
+          ? 'وصل عرضك للعميل. سيصلك إشعار إذا تم قبوله.'
+          : "Your offer reached the customer. You'll be notified if it's accepted."
+      );
+    } catch (error: any) {
+      logger.error('Error submitting offer:', error);
+      const closed = String(error?.message ?? '').includes('order_not_open');
       Alert.alert(
         isRTL ? 'خطأ' : 'Error',
-        isRTL ? 'حدث خطأ أثناء قبول الطلب' : 'Error accepting order'
+        closed
+          ? (isRTL ? 'هذا الطلب لم يعد متاحاً للعروض.' : 'This request is no longer open for offers.')
+          : (isRTL ? 'تعذّر إرسال العرض' : 'Could not send the offer')
       );
     } finally {
-      setUpdating(false);
+      setSubmittingOffer(false);
+    }
+  };
+
+  const handleWithdrawOffer = async () => {
+    if (!myOffer) return;
+    try {
+      await withdrawOffer(myOffer.id);
+      setMyOffer((prev) => (prev ? { ...prev, status: 'withdrawn' } : prev));
+      setOfferAmount('');
+      setOfferNote('');
+    } catch (error) {
+      logger.warn('withdraw offer failed', error);
+      Alert.alert(
+        isRTL ? 'خطأ' : 'Error',
+        isRTL ? 'تعذّر سحب العرض' : 'Could not withdraw the offer'
+      );
+    }
+  };
+
+  // Pickup&delivery orders: once the device heads back (delivering), the
+  // technician can request a courier for the return leg. Idempotent RPC.
+  const handleRequestReturnCourier = async () => {
+    setRequestingCourier(true);
+    try {
+      await createReturnDeliveryTask(id as string);
+      setReturnCourierRequested(true);
+      Alert.alert(
+        isRTL ? 'تم ✓' : 'Done ✓',
+        isRTL
+          ? 'تم إنشاء مهمة إعادة الجهاز — سيقبلها أقرب مندوب متاح.'
+          : 'Return delivery task created — the next available courier will take it.'
+      );
+    } catch (error) {
+      logger.warn('return courier request failed', error);
+      Alert.alert(
+        isRTL ? 'خطأ' : 'Error',
+        isRTL ? 'تعذّر طلب مندوب الإعادة' : 'Could not request the return courier'
+      );
+    } finally {
+      setRequestingCourier(false);
     }
   };
 
@@ -503,8 +582,10 @@ export default function ManageOrderScreen() {
   const getNextActions = () => {
     if (!order) return [];
 
+    // Open (pending) requests are offer-based now — no direct claim. The
+    // dedicated offer card below handles this state.
     if (order.status === 'pending') {
-      return [STATUS_ACTIONS[0]]; // Only show "Accept Order"
+      return [];
     }
 
     // Awaiting the customer (quote approval or payment) — no manual
@@ -616,9 +697,82 @@ export default function ManageOrderScreen() {
             <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 10 }}>
               <MaterialCommunityIcons name="account-clock-outline" size={24} color="#B45309" />
               <Text style={{ flex: 1, color: '#92400E', fontWeight: '800', fontSize: 15, textAlign: isRTL ? 'right' : 'left' }}>
-                {isRTL ? 'تم قبول هذا الطلب من قِبَل فني آخر' : 'This order has already been accepted by another technician'}
+                {isRTL ? 'اختار العميل فنياً آخر لهذا الطلب' : 'The customer chose another technician for this request'}
               </Text>
             </View>
+          </View>
+        )}
+
+        {/* Marketplace offer card — open requests take quotes, not claims. */}
+        {order.status === 'pending' && !claimedByOther && (
+          <View style={[styles.card, { backgroundColor: COLORS.card }, SHADOWS.medium]}>
+            <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+              <MaterialCommunityIcons name="cash-plus" size={22} color={COLORS.primary} />
+              <Text style={{ color: COLORS.text, fontWeight: '800', fontSize: 16 }}>
+                {isRTL ? 'قدّم عرض سعر' : 'Submit your offer'}
+              </Text>
+            </View>
+            <Text style={{ color: COLORS.textSecondary, fontSize: 13, lineHeight: 20, textAlign: isRTL ? 'right' : 'left', marginBottom: 10 }}>
+              {isRTL
+                ? 'يرى العميل عرضك مع عروض الفنيين الآخرين ويختار واحداً. السعر الظاهر للعميل تقديري فقط.'
+                : 'The customer compares offers from nearby technicians and picks one. The price the customer saw is an estimate only.'}
+            </Text>
+
+            {myOffer?.status === 'pending' && (
+              <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                <MaterialCommunityIcons name="check-circle-outline" size={18} color={COLORS.primary} />
+                <Text style={{ color: COLORS.text, fontSize: 13, fontWeight: '700', flex: 1, textAlign: isRTL ? 'right' : 'left' }}>
+                  {isRTL
+                    ? `عرضك الحالي: ${Math.round(myOffer.amount)} ر.س — يمكنك تعديله أو سحبه.`
+                    : `Your current offer: ${Math.round(myOffer.amount)} SAR — you can revise or withdraw it.`}
+                </Text>
+                <TouchableOpacity onPress={handleWithdrawOffer} accessibilityRole="button">
+                  <Text style={{ color: '#DC2626', fontSize: 13, fontWeight: '700' }}>
+                    {isRTL ? 'سحب' : 'Withdraw'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', borderWidth: 1, borderColor: COLORS.border, borderRadius: BORDER_RADIUS.md, paddingHorizontal: 12, minHeight: 50, gap: 8 }}>
+              <TextInput
+                style={{ flex: 1, fontSize: 15, color: COLORS.text }}
+                placeholder={isRTL ? 'السعر المعروض' : 'Offered price'}
+                placeholderTextColor={COLORS.textSecondary}
+                keyboardType="numeric"
+                value={offerAmount}
+                onChangeText={setOfferAmount}
+                textAlign={isRTL ? 'right' : 'left'}
+              />
+              <Text style={{ color: COLORS.textSecondary, fontWeight: '700' }}>{isRTL ? 'ر.س' : 'SAR'}</Text>
+            </View>
+            <View style={{ borderWidth: 1, borderColor: COLORS.border, borderRadius: BORDER_RADIUS.md, paddingHorizontal: 12, paddingVertical: 8, minHeight: 64, marginTop: 10 }}>
+              <TextInput
+                style={{ fontSize: 14, color: COLORS.text }}
+                placeholder={isRTL ? 'ملاحظة للعميل (اختياري)' : 'Note to the customer (optional)'}
+                placeholderTextColor={COLORS.textSecondary}
+                value={offerNote}
+                onChangeText={setOfferNote}
+                multiline
+                textAlign={isRTL ? 'right' : 'left'}
+              />
+            </View>
+            <TouchableOpacity
+              style={{ backgroundColor: COLORS.primary, borderRadius: BORDER_RADIUS.md, minHeight: 48, alignItems: 'center', justifyContent: 'center', marginTop: 12, opacity: submittingOffer ? 0.6 : 1 }}
+              onPress={handleSubmitOffer}
+              disabled={submittingOffer}
+              accessibilityRole="button"
+            >
+              {submittingOffer ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={{ color: '#fff', fontWeight: '800', fontSize: 15 }}>
+                  {myOffer?.status === 'pending'
+                    ? isRTL ? 'تحديث العرض' : 'Update offer'
+                    : isRTL ? 'إرسال العرض' : 'Send offer'}
+                </Text>
+              )}
+            </TouchableOpacity>
           </View>
         )}
 
@@ -813,13 +967,7 @@ export default function ManageOrderScreen() {
                       styles.workflowButton,
                       { borderColor: action.color, backgroundColor: 'transparent' },
                     ]}
-                    onPress={() => {
-                      if (action.status === 'accepted' && order.status === 'pending') {
-                        handleAcceptOrder();
-                      } else {
-                        handleUpdateStatus(action.status);
-                      }
-                    }}
+                    onPress={() => handleUpdateStatus(action.status)}
                     disabled={updating}
                   >
                     <View style={[styles.iconContainer, { backgroundColor: action.color }]}>
@@ -837,6 +985,38 @@ export default function ManageOrderScreen() {
                 ))
               )}
             </View>
+
+            {/* Pickup&delivery: request the return-leg courier once the
+                device heads back to the customer. Idempotent server-side. */}
+            {order.status === 'delivering' &&
+              ['pickup', 'pickup_delivery'].includes(
+                ((order as any).fulfillment_type ?? order.service_type) as string
+              ) && (
+                <TouchableOpacity
+                  style={{
+                    flexDirection: isRTL ? 'row-reverse' : 'row',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 8,
+                    borderWidth: 1,
+                    borderColor: COLORS.primary,
+                    borderRadius: BORDER_RADIUS.md,
+                    minHeight: 46,
+                    marginTop: SPACING.m,
+                    opacity: requestingCourier ? 0.6 : 1,
+                  }}
+                  onPress={handleRequestReturnCourier}
+                  disabled={requestingCourier || returnCourierRequested}
+                  accessibilityRole="button"
+                >
+                  <MaterialCommunityIcons name="moped" size={18} color={COLORS.primary} />
+                  <Text style={{ color: COLORS.primary, fontWeight: '800', fontSize: 14 }}>
+                    {returnCourierRequested
+                      ? isRTL ? 'تم طلب مندوب الإعادة ✓' : 'Return courier requested ✓'
+                      : isRTL ? 'طلب مندوب لإعادة الجهاز' : 'Request return courier'}
+                  </Text>
+                </TouchableOpacity>
+              )}
 
             {/* FEAT-03 — reject the request (with a reason) while it's still
                 pending and unassigned to this technician. */}

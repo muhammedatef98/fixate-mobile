@@ -11,6 +11,10 @@ import {
   RefreshControl,
   Alert,
   Image,
+  Modal,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as Location from 'expo-location';
@@ -20,6 +24,11 @@ import { useApp } from '../../contexts/AppContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { translations } from '../../constants/translations';
 import * as orderService from '../../services/orderService';
+import {
+  submitOffer,
+  getMyOffers,
+  type OrderOffer,
+} from '../../services/offerMarketplaceService';
 import { subscribeToPendingOrders, subscribeToAvailableOrderRemovals } from '../../services/realtimeService';
 import { supabase } from '../../services/supabaseClient';
 import { safeBack } from '../../utils/navigation';
@@ -81,6 +90,12 @@ export default function AvailableOrdersScreen() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   // Assignment eligibility — a suspended/excluded technician cannot take jobs.
   const [eligible, setEligible] = useState<boolean | null>(null);
+  // Marketplace: my submitted offers keyed by order_id, plus the offer sheet.
+  const [myOffers, setMyOffers] = useState<Record<string, OrderOffer>>({});
+  const [offerTarget, setOfferTarget] = useState<orderService.Order | null>(null);
+  const [offerAmount, setOfferAmount] = useState('');
+  const [offerNote, setOfferNote] = useState('');
+  const [submittingOffer, setSubmittingOffer] = useState(false);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -161,6 +176,15 @@ export default function AvailableOrdersScreen() {
       setErrorMessage(null);
       const availableOrders = await orderService.getAvailableOrders();
       setOrders(availableOrders || []);
+
+      // My submitted offers, so cards show "you already quoted X" instead of
+      // letting the technician double-submit blindly.
+      if (user?.id) {
+        const offers = await getMyOffers(user.id);
+        const map: Record<string, OrderOffer> = {};
+        for (const o of offers) map[o.order_id] = o;
+        setMyOffers(map);
+      }
     } catch (error: any) {
       logger.error('Error loading orders:', error);
       setErrorMessage(getFriendlyError(error, language));
@@ -175,52 +199,64 @@ export default function AvailableOrdersScreen() {
     setRefreshing(false);
   };
 
-  const handleAcceptOrder = async (orderId: string) => {
-    try {
-      if (!user) return;
-      if (eligible === false) {
-        Alert.alert(
-          language === 'ar' ? 'غير متاح' : 'Not available',
-          language === 'ar'
-            ? 'حسابك كفني موقوف حالياً ولا يمكنك قبول طلبات جديدة.'
-            : 'Your technician account is restricted — you cannot accept new jobs.'
-        );
-        return;
-      }
-      // Atomic, race-safe accept: assignOrderToTechnician runs a conditional
-      // UPDATE (... WHERE status='pending' AND technician_id IS NULL) and
-      // throws "Order is no longer available" if another technician got there
-      // first. It already sets status='accepted', so no second update needed.
-      await orderService.assignOrderToTechnician(orderId, user.id);
-
-      // Remove it from this technician's list immediately (the broadcast also
-      // removes it from every other technician's list).
-      setOrders((prev) => prev.filter((o) => o.id !== orderId));
-
+  // Marketplace flow: technicians no longer claim requests directly — they
+  // submit a quote and the customer picks one. Opening the sheet pre-fills
+  // any existing pending offer for a revision.
+  const handleOpenOffer = (order: orderService.Order) => {
+    if (eligible === false) {
       Alert.alert(
-        language === 'ar' ? 'نجح!' : 'Success!',
-        language === 'ar' ? 'تم قبول الطلب بنجاح' : 'Order accepted successfully'
+        language === 'ar' ? 'غير متاح' : 'Not available',
+        language === 'ar'
+          ? 'حسابك كفني موقوف حالياً ولا يمكنك تقديم عروض جديدة.'
+          : 'Your technician account is restricted — you cannot submit new offers.'
       );
+      return;
+    }
+    const existing = myOffers[order.id];
+    setOfferAmount(
+      existing?.status === 'pending' ? String(Math.round(existing.amount)) : ''
+    );
+    setOfferNote(existing?.status === 'pending' ? existing.note ?? '' : '');
+    setOfferTarget(order);
+  };
 
-      // Navigate to manage order screen
-      router.push({
-        pathname: '/(technician)/manage-order',
-        params: { id: orderId }
-      });
+  const handleSubmitOffer = async () => {
+    if (!offerTarget || !user) return;
+    const amount = Number(offerAmount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      Alert.alert(
+        language === 'ar' ? 'تنبيه' : 'Notice',
+        language === 'ar' ? 'اكتب سعراً صحيحاً بالريال' : 'Enter a valid price in SAR'
+      );
+      return;
+    }
+    setSubmittingOffer(true);
+    try {
+      const offer = await submitOffer(offerTarget.id, amount, offerNote.trim() || undefined);
+      setMyOffers((prev) => ({ ...prev, [offerTarget.id]: offer }));
+      setOfferTarget(null);
+      Alert.alert(
+        language === 'ar' ? 'تم الإرسال ✓' : 'Sent ✓',
+        language === 'ar'
+          ? 'وصل عرضك للعميل. سيصلك إشعار إذا تم قبوله.'
+          : "Your offer reached the customer. You'll be notified if it's accepted."
+      );
     } catch (error: any) {
-      logger.error('Error accepting order:', error);
-      // Distinguish the race-loss case so the technician gets a clear message
-      // and the stale card is pulled from their list.
-      const lostRace = String(error?.message ?? '').includes('no longer available');
-      if (lostRace) {
-        setOrders((prev) => prev.filter((o) => o.id !== orderId));
+      logger.error('Error submitting offer:', error);
+      const msg = String(error?.message ?? '');
+      const closed = msg.includes('order_not_open');
+      if (closed) {
+        setOrders((prev) => prev.filter((o) => o.id !== offerTarget.id));
+        setOfferTarget(null);
       }
       Alert.alert(
         language === 'ar' ? 'خطأ' : 'Error',
-        lostRace
-          ? (language === 'ar' ? 'هذا الطلب لم يعد متاحاً، قَبِله فني آخر.' : 'This order is no longer available — another technician took it.')
-          : (language === 'ar' ? 'حدث خطأ أثناء قبول الطلب' : 'An error occurred while accepting the order')
+        closed
+          ? (language === 'ar' ? 'هذا الطلب لم يعد متاحاً للعروض.' : 'This request is no longer open for offers.')
+          : getFriendlyError(error, language)
       );
+    } finally {
+      setSubmittingOffer(false);
     }
   };
 
@@ -299,6 +335,7 @@ export default function AvailableOrdersScreen() {
   const renderOrderCard = (order: any) => {
     const category = ISSUE_CATEGORIES.find(c => c.id === getIssueCategory(order.service_id));
     const distance = getDistance(order);
+    const myOffer = myOffers[order.id];
 
     return (
       <NeuCard key={order.id} style={styles.orderCard}>
@@ -367,15 +404,17 @@ export default function AvailableOrdersScreen() {
         <View style={styles.orderFooter}>
           <View style={styles.priceContainer}>
             <Text style={styles.priceLabel}>
-              {language === 'ar' ? 'عرض السعر' : 'Quotation'}
+              {language === 'ar' ? 'التقدير المبدئي للعميل' : "Customer's initial estimate"}
             </Text>
             <Text style={styles.priceValue}>
-              {order.estimated_price} {language === 'ar' ? 'ر.س' : 'SAR'}
+              {order.estimated_price
+                ? `${order.estimated_price} ${language === 'ar' ? 'ر.س' : 'SAR'}`
+                : language === 'ar' ? 'حسب الفحص' : 'On inspection'}
             </Text>
           </View>
 
           <TouchableOpacity
-            style={styles.acceptButton}
+            style={styles.detailsButton}
             onPress={() => {
               router.push({
                 pathname: '/(technician)/manage-order',
@@ -383,9 +422,25 @@ export default function AvailableOrdersScreen() {
               });
             }}
           >
-            <MaterialIcons name="visibility" size={20} color="#FFF" />
+            <MaterialIcons name="visibility" size={18} color={COLORS.primary} />
+            <Text style={[styles.acceptButtonText, { color: COLORS.primary }]}>
+              {language === 'ar' ? 'التفاصيل' : 'Details'}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.acceptButton}
+            onPress={() => handleOpenOffer(order)}
+          >
+            <MaterialCommunityIcons
+              name={myOffer?.status === 'pending' ? 'pencil-outline' : 'cash-plus'}
+              size={18}
+              color="#FFF"
+            />
             <Text style={styles.acceptButtonText}>
-              {language === 'ar' ? 'عرض التفاصيل' : 'View Details'}
+              {myOffer?.status === 'pending'
+                ? language === 'ar' ? `عرضك: ${Math.round(myOffer.amount)} ر.س` : `Your offer: ${Math.round(myOffer.amount)}`
+                : language === 'ar' ? 'قدّم عرض سعر' : 'Submit offer'}
             </Text>
           </TouchableOpacity>
         </View>
@@ -474,6 +529,84 @@ export default function AvailableOrdersScreen() {
           )}
         </ScrollView>
       )}
+
+      {/* Offer sheet — the technician quotes; the customer chooses. */}
+      <Modal
+        visible={!!offerTarget}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setOfferTarget(null)}
+      >
+        <KeyboardAvoidingView
+          style={styles.modalBackdrop}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
+          <View style={[styles.offerSheet, { backgroundColor: COLORS.card }]}>
+            <Text style={[styles.offerTitle, { color: COLORS.text }]}>
+              {language === 'ar' ? 'قدّم عرض سعر' : 'Submit your offer'}
+            </Text>
+            <Text style={{ color: COLORS.textSecondary, fontSize: 13, textAlign: isRTL ? 'right' : 'left', lineHeight: 20 }}>
+              {language === 'ar'
+                ? `${offerTarget?.device_brand ?? ''} ${offerTarget?.device_model ?? ''} — يرى العميل عرضك مع عروض الفنيين الآخرين ويختار واحداً.`
+                : `${offerTarget?.device_brand ?? ''} ${offerTarget?.device_model ?? ''} — the customer sees your offer alongside others and picks one.`}
+            </Text>
+
+            <View style={[styles.offerInputWrap, { borderColor: COLORS.border, flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+              <TextInput
+                style={[styles.offerInput, { color: COLORS.text }]}
+                placeholder={language === 'ar' ? 'السعر المعروض' : 'Offered price'}
+                placeholderTextColor={COLORS.textSecondary}
+                keyboardType="numeric"
+                value={offerAmount}
+                onChangeText={setOfferAmount}
+                textAlign={isRTL ? 'right' : 'left'}
+              />
+              <Text style={{ color: COLORS.textSecondary, fontWeight: '700' }}>
+                {language === 'ar' ? 'ر.س' : 'SAR'}
+              </Text>
+            </View>
+
+            <View style={[styles.offerInputWrap, { borderColor: COLORS.border, minHeight: 70, alignItems: 'flex-start', paddingVertical: 10 }]}>
+              <TextInput
+                style={[styles.offerInput, { color: COLORS.text }]}
+                placeholder={language === 'ar' ? 'ملاحظة للعميل (اختياري)' : 'Note to the customer (optional)'}
+                placeholderTextColor={COLORS.textSecondary}
+                value={offerNote}
+                onChangeText={setOfferNote}
+                multiline
+                textAlign={isRTL ? 'right' : 'left'}
+              />
+            </View>
+
+            <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', gap: 10 }}>
+              <TouchableOpacity
+                style={[styles.offerCancel, { borderColor: COLORS.border }]}
+                onPress={() => setOfferTarget(null)}
+                disabled={submittingOffer}
+                accessibilityRole="button"
+              >
+                <Text style={{ color: COLORS.textSecondary, fontWeight: '700' }}>
+                  {language === 'ar' ? 'إلغاء' : 'Cancel'}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.offerSubmit, { backgroundColor: COLORS.primary, opacity: submittingOffer ? 0.6 : 1 }]}
+                onPress={handleSubmitOffer}
+                disabled={submittingOffer}
+                accessibilityRole="button"
+              >
+                {submittingOffer ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={{ color: '#fff', fontWeight: '800' }}>
+                    {language === 'ar' ? 'إرسال العرض' : 'Send offer'}
+                  </Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -627,11 +760,67 @@ const makeStyles = (COLORS: any, isRTL: boolean, SHADOWS: any) => StyleSheet.cre
     flexDirection: isRTL ? 'row-reverse' : 'row',
     alignItems: 'center',
     backgroundColor: COLORS.primary,
-    paddingHorizontal: SPACING.l,
+    paddingHorizontal: SPACING.m,
     minHeight: 44,
     justifyContent: 'center',
     borderRadius: BORDER_RADIUS.sm,
     ...SHADOWS.small,
+  },
+  detailsButton: {
+    flexDirection: isRTL ? 'row-reverse' : 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: COLORS.primary,
+    paddingHorizontal: SPACING.m,
+    minHeight: 44,
+    justifyContent: 'center',
+    borderRadius: BORDER_RADIUS.sm,
+    marginEnd: SPACING.xs,
+    gap: 4,
+  },
+  modalBackdrop: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.45)',
+  },
+  offerSheet: {
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: SPACING.xl,
+    gap: SPACING.md,
+    paddingBottom: SPACING.xl + 12,
+  },
+  offerTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    textAlign: isRTL ? 'right' : 'left',
+  },
+  offerInputWrap: {
+    alignItems: 'center',
+    borderWidth: 1,
+    borderRadius: BORDER_RADIUS.md,
+    paddingHorizontal: 14,
+    minHeight: 52,
+    gap: 8,
+  },
+  offerInput: {
+    flex: 1,
+    fontSize: 15,
+  },
+  offerCancel: {
+    flex: 1,
+    borderWidth: 1,
+    borderRadius: BORDER_RADIUS.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 48,
+  },
+  offerSubmit: {
+    flex: 2,
+    borderRadius: BORDER_RADIUS.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 48,
   },
   acceptButtonText: {
     fontSize: 14,

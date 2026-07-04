@@ -11,11 +11,12 @@
  * these functions changes routing, so keep them covered by routeDecision.test.
  */
 
-export type AppFlow = 'customer' | 'technician';
+export type AppFlow = 'customer' | 'technician' | 'courier';
 
 export type ColdLaunchTarget =
   | '/(customer)'
   | '/(technician)'
+  | '/(courier)'
   | '/onboarding'
   | '/role-selection';
 
@@ -42,7 +43,9 @@ export function decideColdLaunch(input: ColdLaunchInput): ColdLaunchTarget {
   const { isLoggedIn, lastRole, seenOnboarding, onboardingEnabled } = input;
 
   if (isLoggedIn && lastRole) {
-    return lastRole === 'technician' ? '/(technician)' : '/(customer)';
+    if (lastRole === 'technician') return '/(technician)';
+    if (lastRole === 'courier') return '/(courier)';
+    return '/(customer)';
   }
 
   if (onboardingEnabled && !isLoggedIn && !seenOnboarding) {
@@ -52,7 +55,7 @@ export function decideColdLaunch(input: ColdLaunchInput): ColdLaunchTarget {
   return '/role-selection';
 }
 
-export type AuthFlowTarget = '/admin' | '/(customer)' | '/(technician)';
+export type AuthFlowTarget = '/admin' | '/(customer)' | '/(technician)' | '/(courier)';
 
 export interface AuthFlowInput {
   /** Server-set admin claim (app_metadata.is_admin). Always wins. */
@@ -61,6 +64,8 @@ export interface AuthFlowInput {
   wantsCustomer: boolean;
   /** The user arrived via an explicit technician auth source. */
   wantsTechnician: boolean;
+  /** The user arrived via an explicit courier auth source. */
+  wantsCourier?: boolean;
   /** Profile-stored role, used only as a fallback when no auth source binds. */
   profileRole: string | null | undefined;
 }
@@ -75,14 +80,18 @@ export interface AuthFlowInput {
  *   2. Explicit customer auth source → /(customer) (honours the user's choice
  *      even if their profile role is technician).
  *   3. Explicit technician auth source → /(technician).
- *   4. Fallback to the profile-stored role (technician → /(technician),
- *      anything else → /(customer)).
+ *   4. Explicit courier auth source → /(courier).
+ *   5. Fallback to the profile-stored role (technician → /(technician),
+ *      courier → /(courier), anything else → /(customer)).
  */
 export function decideAuthFlowTarget(input: AuthFlowInput): AuthFlowTarget {
-  const { isAdmin, wantsCustomer, wantsTechnician, profileRole } = input;
+  const { isAdmin, wantsCustomer, wantsTechnician, wantsCourier, profileRole } = input;
 
   if (isAdmin) return '/admin';
   if (wantsCustomer) return '/(customer)';
   if (wantsTechnician) return '/(technician)';
-  return profileRole === 'technician' ? '/(technician)' : '/(customer)';
+  if (wantsCourier) return '/(courier)';
+  if (profileRole === 'technician') return '/(technician)';
+  if (profileRole === 'courier') return '/(courier)';
+  return '/(customer)';
 }

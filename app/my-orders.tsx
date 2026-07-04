@@ -24,7 +24,7 @@ import { formatAppDateOnly } from '../lib/formatDate';
 
 const ORDER_STATUS_CONFIG = {
   pending: {
-    ar: 'قيد الانتظار',
+    ar: 'بانتظار العروض',
     en: 'Pending',
     icon: 'clock-outline',
     color: '#F59E0B',

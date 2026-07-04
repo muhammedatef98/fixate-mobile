@@ -128,7 +128,7 @@ const STATUS_ORDER = [
 
 const STATUS_LABEL = (s: string, isRTL: boolean): { label: string; color: string } => {
   const map: Record<string, { ar: string; en: string; color: string }> = {
-    pending:         { ar: 'قيد الانتظار', en: 'Pending',        color: '#F59E0B' },
+    pending:         { ar: 'بانتظار العروض', en: 'Awaiting offers', color: '#F59E0B' },
     confirmed:       { ar: 'مؤكد',          en: 'Confirmed',      color: '#3B82F6' },
     accepted:        { ar: 'مقبول',         en: 'Accepted',       color: '#3B82F6' },
     picking_up:      { ar: 'جاري الاستلام',  en: 'Picking up',     color: '#6366F1' },

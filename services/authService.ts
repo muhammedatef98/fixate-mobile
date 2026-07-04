@@ -13,7 +13,7 @@ export interface SignUpData {
   password: string;
   name: string;
   phone?: string;
-  role?: 'customer' | 'technician';
+  role?: 'customer' | 'technician' | 'courier';
 }
 
 export interface LoginData {
@@ -80,7 +80,7 @@ export interface UserProfile {
   email: string;
   name: string;
   phone?: string;
-  role: 'customer' | 'technician';
+  role: 'customer' | 'technician' | 'courier';
   avatar_url?: string;
   is_admin?: boolean;
   created_at?: string;

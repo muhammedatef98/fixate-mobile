@@ -93,11 +93,11 @@ export const createOrder = async (userId: string, orderData: CreateOrderData): P
   }
   if (!data) throw new Error('Order was not created (empty response)');
 
-  // Notify all technicians that a new request is available (FEAT-01).
+  // Notify all technicians that a new request is open for offers (FEAT-01).
   // Fire-and-forget: a push failure must never fail order creation.
   void notifyAudience('technicians', {
-    title: 'طلب صيانة جديد 🛠️',
-    body: `${data.device_brand || 'جهاز'} ${data.device_model || ''} — ${data.issue_description || 'طلب صيانة جديد'}`.trim(),
+    title: 'طلب جديد متاح للعروض 🛠️',
+    body: `${data.device_brand || 'جهاز'} ${data.device_model || ''} — قدّم عرض سعرك الآن`.trim(),
     data: { screen: 'available-orders', orderId: data.id },
   });
 

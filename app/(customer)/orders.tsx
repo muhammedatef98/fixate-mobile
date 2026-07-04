@@ -146,7 +146,7 @@ export default function OrdersScreen() {
 
   const getStatusInfo = (status: string) => {
     switch (status) {
-      case 'pending': return { label: isRTL ? 'قيد الانتظار' : 'Pending', color: COLORS.warning, icon: 'time-outline' };
+      case 'pending': return { label: isRTL ? 'بانتظار العروض' : 'Awaiting offers', color: COLORS.warning, icon: 'time-outline' };
       case 'accepted': return { label: isRTL ? 'مقبول' : 'Accepted', color: COLORS.info, icon: 'checkmark-circle-outline' };
       case 'picking_up': return { label: isRTL ? 'جاري الاستلام' : 'Picking up', color: COLORS.info, icon: 'car-outline' };
       case 'diagnosing': return { label: isRTL ? 'تحت الفحص' : 'Diagnosing', color: COLORS.primary, icon: 'search-outline' };
