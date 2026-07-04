@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
+import { AppState } from 'react-native';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '../services/supabaseClient';
 import * as authService from '../services/authService';
@@ -276,6 +277,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const refreshAdminPermissions = async () => {
     await loadAdminPermissions(user);
   };
+
+  // Re-check admin permissions when the app returns to the foreground, so a
+  // role assigned/revoked by an admin while this user was backgrounded takes
+  // effect without a relaunch — reusing the same refreshAdminPermissions path.
+  // Refs keep the mount-once listener pointed at the latest closure/user
+  // without re-subscribing on every render.
+  const appStateRef = useRef(AppState.currentState);
+  const refreshAdminPermsRef = useRef(refreshAdminPermissions);
+  refreshAdminPermsRef.current = refreshAdminPermissions;
+  const userIdRef = useRef<string | null>(user?.id ?? null);
+  userIdRef.current = user?.id ?? null;
+
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (next) => {
+      const prev = appStateRef.current;
+      appStateRef.current = next;
+      // Fire only on a genuine background/inactive → active transition, and
+      // only when signed in. This avoids duplicate refreshes from repeated
+      // 'active' events and no-op calls while logged out.
+      if (next === 'active' && prev !== 'active' && userIdRef.current) {
+        void refreshAdminPermsRef.current();
+      }
+    });
+    return () => sub.remove();
+  }, []);
 
   return (
     <AuthContext.Provider
