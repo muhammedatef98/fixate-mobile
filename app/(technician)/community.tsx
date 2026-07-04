@@ -38,6 +38,8 @@ import {
   toggleLike,
   listComments,
   addComment,
+  updateComment,
+  deleteComment,
   toggleCommentLike,
   reportPost,
   deletePost,
@@ -109,6 +111,10 @@ export default function CommunityScreen() {
   const [sort, setSort] = useState<CommentSort>('newest');
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [replyTo, setReplyTo] = useState<{ id: string; name: string } | null>(null);
+  // Inline comment editing (author only)
+  const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
+  const [commentEditText, setCommentEditText] = useState('');
+  const [savingCommentEdit, setSavingCommentEdit] = useState(false);
 
   const load = useCallback(async () => {
     if (!meId) return;
@@ -313,6 +319,76 @@ export default function CommunityScreen() {
       return next;
     });
 
+  // ── Edit / delete own comment ────────────────────────────────────────────
+  const startCommentEdit = (c: CommunityComment) => {
+    setReplyTo(null);
+    setEditingCommentId(c.id);
+    setCommentEditText(c.content);
+  };
+
+  const cancelCommentEdit = () => {
+    setEditingCommentId(null);
+    setCommentEditText('');
+  };
+
+  const saveCommentEdit = async (c: CommunityComment) => {
+    const trimmed = commentEditText.trim();
+    if (!trimmed || savingCommentEdit) return;
+    if (trimmed === c.content) {
+      cancelCommentEdit();
+      return;
+    }
+    setSavingCommentEdit(true);
+    try {
+      await updateComment(c.id, { content: trimmed });
+      // Update in place so the thread reflects the edit immediately.
+      setComments((prev) => prev.map((x) => (x.id === c.id ? { ...x, content: trimmed } : x)));
+      cancelCommentEdit();
+    } catch (e: any) {
+      Alert.alert(isRTL ? 'خطأ' : 'Error', e?.message ?? String(e));
+    } finally {
+      setSavingCommentEdit(false);
+    }
+  };
+
+  const onDeleteComment = (c: CommunityComment) => {
+    Alert.alert(
+      isRTL ? 'حذف التعليق' : 'Delete comment',
+      isRTL ? 'سيتم حذف تعليقك وأي ردود عليه نهائياً.' : 'Your comment and any replies to it will be permanently deleted.',
+      [
+        { text: isRTL ? 'إلغاء' : 'Cancel', style: 'cancel' },
+        {
+          text: isRTL ? 'حذف' : 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            if (editingCommentId === c.id) cancelCommentEdit();
+            try {
+              await deleteComment(c.id);
+              // Replies cascade-delete server-side (parent_id ON DELETE CASCADE);
+              // re-fetch so the tree + count stay authoritative.
+              if (activePost) await refreshComments(activePost.id);
+            } catch (e: any) {
+              Alert.alert(isRTL ? 'خطأ' : 'Error', e?.message ?? String(e));
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  // Own-comment overflow menu: edit / delete / cancel.
+  const openOwnCommentMenu = (c: CommunityComment) => {
+    Alert.alert(
+      isRTL ? 'خيارات التعليق' : 'Comment options',
+      undefined,
+      [
+        { text: isRTL ? 'تعديل التعليق' : 'Edit comment', onPress: () => startCommentEdit(c) },
+        { text: isRTL ? 'حذف' : 'Delete', style: 'destructive', onPress: () => onDeleteComment(c) },
+        { text: isRTL ? 'إلغاء' : 'Cancel', style: 'cancel' },
+      ]
+    );
+  };
+
   // ── Post moderation ───────────────────────────────────────────────────--
   const onReport = (post: CommunityPost) => {
     Alert.alert(
@@ -451,6 +527,8 @@ export default function CommunityScreen() {
     const indent = Math.min(depth, MAX_INDENT_DEPTH) * 14;
     const isCollapsed = collapsed.has(node.id);
     const hasReplies = node.replies.length > 0;
+    const mine = node.technician_id === meId;
+    const editing = editingCommentId === node.id;
     return (
       <View key={node.id} style={{ [isRTL ? 'paddingRight' : 'paddingLeft']: indent }}>
         <View style={[styles.commentRow, depth > 0 && styles.commentThreadBorder]}>
@@ -458,19 +536,70 @@ export default function CommunityScreen() {
             <Text style={styles.avatarText}>{(node.author_name || '؟').charAt(0)}</Text>
           </View>
           <View style={{ flex: 1 }}>
-            {/* Tap the header to collapse/expand this branch. */}
-            <TouchableOpacity onPress={() => hasReplies && toggleCollapse(node.id)} activeOpacity={hasReplies ? 0.6 : 1}>
-              <Text style={styles.commentAuthor}>
-                {node.author_name}
-                <Text style={styles.commentTime}>{`  ·  ${timeAgo(node.created_at, isRTL)}`}</Text>
-                {hasReplies ? (
-                  <Text style={styles.collapseHint}>
-                    {`   ${isCollapsed ? '▸' : '▾'} ${node.replies.length}`}
-                  </Text>
-                ) : null}
-              </Text>
-            </TouchableOpacity>
-            <Text style={styles.commentText}>{node.content}</Text>
+            <View style={styles.commentHeaderRow}>
+              {/* Tap the header to collapse/expand this branch. */}
+              <TouchableOpacity
+                style={{ flex: 1 }}
+                onPress={() => hasReplies && toggleCollapse(node.id)}
+                activeOpacity={hasReplies ? 0.6 : 1}
+              >
+                <Text style={styles.commentAuthor}>
+                  {node.author_name}
+                  <Text style={styles.commentTime}>{`  ·  ${timeAgo(node.created_at, isRTL)}`}</Text>
+                  {hasReplies ? (
+                    <Text style={styles.collapseHint}>
+                      {`   ${isCollapsed ? '▸' : '▾'} ${node.replies.length}`}
+                    </Text>
+                  ) : null}
+                </Text>
+              </TouchableOpacity>
+              {mine && !editing ? (
+                <TouchableOpacity
+                  onPress={() => openOwnCommentMenu(node)}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  accessibilityLabel={isRTL ? 'خيارات التعليق' : 'Comment options'}
+                >
+                  <MaterialCommunityIcons name="dots-horizontal" size={18} color={COLORS.textSecondary} />
+                </TouchableOpacity>
+              ) : null}
+            </View>
+            {editing ? (
+              <View style={styles.commentEditWrap}>
+                <TextInput
+                  style={styles.commentEditInput}
+                  value={commentEditText}
+                  onChangeText={setCommentEditText}
+                  multiline
+                  autoFocus
+                  textAlign={isRTL ? 'right' : 'left'}
+                />
+                <View style={styles.commentEditActions}>
+                  <TouchableOpacity
+                    style={styles.commentEditCancelBtn}
+                    onPress={cancelCommentEdit}
+                    disabled={savingCommentEdit}
+                  >
+                    <Text style={styles.commentEditCancelText}>{isRTL ? 'إلغاء' : 'Cancel'}</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[
+                      styles.commentEditSaveBtn,
+                      (!commentEditText.trim() || savingCommentEdit) && { opacity: 0.5 },
+                    ]}
+                    onPress={() => saveCommentEdit(node)}
+                    disabled={!commentEditText.trim() || savingCommentEdit}
+                  >
+                    {savingCommentEdit ? (
+                      <ActivityIndicator color="#fff" size="small" />
+                    ) : (
+                      <Text style={styles.commentEditSaveText}>{isRTL ? 'حفظ' : 'Save'}</Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ) : (
+              <Text style={styles.commentText}>{node.content}</Text>
+            )}
             <View style={styles.commentActions}>
               <TouchableOpacity style={styles.commentActionBtn} onPress={() => onToggleCommentLike(node)}>
                 <Ionicons
@@ -1011,7 +1140,37 @@ const makeStyles = (C: any, isRTL: boolean) =>
       width: 30, height: 30, borderRadius: 15,
       backgroundColor: C.primary + '22', alignItems: 'center', justifyContent: 'center',
     },
+    commentHeaderRow: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'flex-start',
+      gap: 8,
+    },
     commentAuthor: { color: C.text, fontWeight: '700', fontSize: 13, textAlign: isRTL ? 'right' : 'left' },
+    commentEditWrap: { marginTop: 6, gap: 8 },
+    commentEditInput: {
+      minHeight: 56,
+      maxHeight: 140,
+      fontSize: 14,
+      color: C.text,
+      textAlignVertical: 'top',
+      backgroundColor: C.background,
+      borderRadius: BORDER_RADIUS.md,
+      borderWidth: 1,
+      borderColor: C.border,
+      paddingHorizontal: 10,
+      paddingVertical: 8,
+    },
+    commentEditActions: { flexDirection: isRTL ? 'row-reverse' : 'row', justifyContent: 'flex-end', gap: 8 },
+    commentEditCancelBtn: {
+      paddingHorizontal: 14, paddingVertical: 7, borderRadius: 999,
+      borderWidth: 1, borderColor: C.border,
+    },
+    commentEditCancelText: { color: C.text, fontWeight: '700', fontSize: 12 },
+    commentEditSaveBtn: {
+      paddingHorizontal: 18, paddingVertical: 7, borderRadius: 999,
+      backgroundColor: C.primary, minWidth: 60, alignItems: 'center',
+    },
+    commentEditSaveText: { color: '#fff', fontWeight: '800', fontSize: 12 },
     commentTime: { color: C.textSecondary, fontWeight: '500', fontSize: 11 },
     collapseHint: { color: C.primary, fontWeight: '700', fontSize: 11 },
     commentText: { color: C.text, fontSize: 14, lineHeight: 20, marginTop: 2, textAlign: isRTL ? 'right' : 'left' },

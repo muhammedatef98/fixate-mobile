@@ -25,7 +25,7 @@ import {
   ADMIN_CARD_SHADOW,
   adminTimeAgo,
 } from '../components/admin/AdminUI';
-import { useRequirePermission, invalidatePermissionsCache } from '../hooks/usePermissions';
+import { useRequirePermission } from '../hooks/usePermissions';
 import {
   listStaff,
   listRoles,
@@ -54,7 +54,7 @@ export default function AdminTeamScreen() {
   const isRTL = language === 'ar';
   const styles = useMemo(() => createStyles(COLORS, isRTL), [COLORS, isRTL]);
 
-  const { loading: permLoading, can } = useRequirePermission('staff_management');
+  const { loading: permLoading, can, refresh: refreshPermissions } = useRequirePermission('staff_management');
 
   const [tab, setTab] = useState<Tab>('staff');
   const [loading, setLoading] = useState(true);
@@ -186,7 +186,7 @@ export default function AdminTeamScreen() {
                     onValueChange={async (v) => {
                       try {
                         await setStaffActive(s.user_id, v);
-                        invalidatePermissionsCache();
+                        await refreshPermissions();
                         await load();
                       } catch (e) {
                         Alert.alert(isRTL ? 'خطأ' : 'Error', getFriendlyError(e, isRTL ? 'ar' : 'en'));
@@ -212,7 +212,7 @@ export default function AdminTeamScreen() {
           onClose={() => setAddOpen(false)}
           onDone={async () => {
             setAddOpen(false);
-            invalidatePermissionsCache();
+            await refreshPermissions();
             await load();
           }}
         />
@@ -228,12 +228,12 @@ export default function AdminTeamScreen() {
           styles={styles}
           onClose={() => setEditing(null)}
           onChanged={async () => {
-            invalidatePermissionsCache();
+            await refreshPermissions();
             await load();
           }}
           onRemoved={async () => {
             setEditing(null);
-            invalidatePermissionsCache();
+            await refreshPermissions();
             await load();
           }}
         />

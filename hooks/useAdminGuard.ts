@@ -1,24 +1,30 @@
 import { useEffect } from 'react';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../contexts/AuthContext';
-import { isAdminUser } from '../constants/admin';
+import { canAccessAdmin } from '../constants/admin';
 
 export interface UseIsAdminResult {
-  /** True only when the signed-in user has the admin claim in JWT app_metadata. */
+  /**
+   * True when the signed-in user may enter the admin area — either a legacy
+   * full admin (JWT `app_metadata` claim) OR an active RBAC staff member
+   * (non-empty `my_admin_permissions`). See constants/admin.ts `canAccessAdmin`.
+   */
   isAdmin: boolean;
-  /** True while auth is still loading. */
+  /** True while auth or the admin permission set is still resolving. */
   checking: boolean;
 }
 
 /**
- * Lightweight observer — returns whether the current user is an admin.
- * Delegates to `isAdminUser`, which reads the server-controlled JWT
- * `app_metadata` (is_admin === true OR roles contains "admin"). The
- * client cannot mint or modify this claim.
+ * Lightweight observer — returns whether the current user may access the admin
+ * area. Delegates to `canAccessAdmin`, which combines the server-controlled JWT
+ * claim (client cannot mint it) with the server-computed RBAC permission set
+ * (loaded once per session by AuthContext). Per-capability scoping is handled
+ * separately by usePermissions; the database RLS remains authoritative.
  */
 export const useIsAdmin = (): UseIsAdminResult => {
-  const { user, loading } = useAuth();
-  return { isAdmin: !loading && isAdminUser(user), checking: loading };
+  const { user, loading, adminPermissions, adminPermissionsLoaded } = useAuth();
+  const checking = loading || !adminPermissionsLoaded;
+  return { isAdmin: !checking && canAccessAdmin(user, adminPermissions), checking };
 };
 
 /**

@@ -569,7 +569,8 @@ const styles = (COLORS: ReturnType<typeof getColors>, isRTL: boolean) =>
       fontSize: 19,
       fontWeight: '900',
       marginTop: 14,
-      letterSpacing: -0.3,
+      // No negative tracking on Arabic — it pulls joined glyphs into each other.
+      letterSpacing: isRTL ? 0 : -0.3,
       textAlign: isRTL ? 'right' : 'left',
     },
     heroEmail: {
@@ -590,7 +591,7 @@ const styles = (COLORS: ReturnType<typeof getColors>, isRTL: boolean) =>
       alignSelf: isRTL ? 'flex-end' : 'flex-start',
       marginTop: 12,
     },
-    heroAdminText: { color: '#fff', fontSize: 11, fontWeight: '800', letterSpacing: 0.3 },
+    heroAdminText: { color: '#fff', fontSize: 11, fontWeight: '800', letterSpacing: isRTL ? 0 : 0.3 },
 
     adminBtn: {
       flexDirection: isRTL ? 'row-reverse' : 'row',
@@ -629,9 +630,12 @@ const styles = (COLORS: ReturnType<typeof getColors>, isRTL: boolean) =>
 
     sectionLabel: {
       color: COLORS.textSecondary,
-      fontSize: 10.5,
+      fontSize: isRTL ? 12 : 10.5,
       fontWeight: '800',
-      letterSpacing: 1.3,
+      // Arabic is cursive — positive letter-spacing forces gaps between joined
+      // letters and makes headings like "القائمة الرئيسية" look broken. Tracking
+      // is a Latin-uppercase device only; drop it (and nudge the size up) for AR.
+      letterSpacing: isRTL ? 0 : 1.3,
       marginBottom: 8,
       marginTop: 14,
       paddingHorizontal: 4,

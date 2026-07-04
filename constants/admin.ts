@@ -23,3 +23,27 @@ export const isAdminUser = (user: User | null | undefined): boolean => {
   if (Array.isArray(roles) && roles.includes('admin')) return true;
   return false;
 };
+
+/**
+ * Unified "may enter the admin area" check — the single client-side gate used
+ * by routing/guards. True when EITHER:
+ *   1. the user is a legacy full admin (JWT `app_metadata` claim above), OR
+ *   2. the user is an active RBAC staff member — i.e. the server-computed
+ *      `my_admin_permissions` set is non-empty.
+ *
+ * Case (2) is what makes manager/admin roles assigned from the admin Team page
+ * actually take effect: those grants live in `admin_staff`, never in the JWT,
+ * so a JWT-only check would bounce a freshly-promoted staff member before any
+ * screen mounts. Per-capability visibility is still scoped by `hasPermission`
+ * (usePermissions), and the database RLS + SECURITY DEFINER RPCs remain the
+ * authoritative enforcement layer — this only decides area access.
+ */
+export const canAccessAdmin = (
+  user: User | null | undefined,
+  adminPermissions: readonly string[] | null | undefined
+): boolean => {
+  // A signed-out user never has admin access, even if a stale permission set
+  // is still in memory — always require an authenticated user first.
+  if (!user) return false;
+  return isAdminUser(user) || (!!adminPermissions && adminPermissions.length > 0);
+};

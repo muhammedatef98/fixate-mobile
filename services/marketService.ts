@@ -436,6 +436,27 @@ export const myListings = async (sellerId: string): Promise<MarketListing[]> => 
   return normalizeRows((data ?? []) as MarketListing[]);
 };
 
+/**
+ * Public listings by a given seller — used by the seller-profile screen so a
+ * buyer can browse everything else this seller has posted. Mirrors the browse
+ * feed visibility (only admin-approved `live`/`active` listings) plus `sold`
+ * so a seller's history reads as a real storefront rather than an empty page
+ * once items sell. RLS still governs row visibility. Newest first.
+ */
+export const sellerListings = async (sellerId: string): Promise<MarketListing[]> => {
+  const { data, error } = await supabase
+    .from('market_listings')
+    .select(BROWSE_LIST_COLUMNS)
+    .eq('seller_id', sellerId)
+    .in('status', ['live', 'active', 'sold'])
+    .order('created_at', { ascending: false });
+  if (error) {
+    logger.warn('sellerListings failed', error);
+    return [];
+  }
+  return normalizeRows((data ?? []) as MarketListing[]);
+};
+
 // Translate the legacy `contact_preference` enum into the new
 // `contact_methods` array. Always returns at least one method so the
 // buyer-side always has at least one channel to pick.

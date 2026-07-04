@@ -3,6 +3,8 @@ import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '../services/supabaseClient';
 import * as authService from '../services/authService';
 import * as userService from '../services/userService';
+import { getMyPermissions } from '../services/adminTeamService';
+import { isAdminUser } from '../constants/admin';
 import { notificationManager, healPushTokenIfNeeded } from '../lib/notifications';
 import { logger } from '../utils/logger';
 import { clearLastRole } from '../utils/rolePreference';
@@ -42,11 +44,26 @@ interface AuthContextType {
   profileLoaded: boolean;
   loading: boolean;
   isAuthenticated: boolean;
+  /**
+   * Server-computed admin permission keys for the current user (empty for
+   * non-staff). Source of truth on the client for admin-area access and
+   * per-capability gating — see constants/admin.ts `canAccessAdmin` and
+   * hooks/usePermissions.
+   */
+  adminPermissions: string[];
+  /**
+   * True once `my_admin_permissions` has resolved for the current session.
+   * Routing/guards must wait for this before deciding admin access, otherwise
+   * a legitimate staff member would be bounced during the async load.
+   */
+  adminPermissionsLoaded: boolean;
   signOut: () => Promise<void>;
   deleteAccount: () => Promise<void>;
   login: (email: string, password: string) => Promise<'admin' | 'customer' | 'technician'>;
   signup: (data: authService.SignUpData) => Promise<void>;
   refreshUser: () => Promise<void>;
+  /** Re-fetch admin permissions (call after a staff/role change). */
+  refreshAdminPermissions: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -58,6 +75,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [profileLoaded, setProfileLoaded] = useState(false);
   const [loading, setLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [adminPermissions, setAdminPermissions] = useState<string[]>([]);
+  const [adminPermissionsLoaded, setAdminPermissionsLoaded] = useState(false);
+
+  /**
+   * Resolve the current user's admin permission set from the server. Legacy
+   * full admins (JWT claim) short-circuit to ['full_admin_access'] even if the
+   * RPC is briefly unavailable, so their access never depends on a network hop.
+   * Non-staff resolve to [] — a single cheap RPC per session.
+   */
+  const loadAdminPermissions = async (u: User | null): Promise<void> => {
+    if (!u) {
+      setAdminPermissions([]);
+      setAdminPermissionsLoaded(true);
+      return;
+    }
+    try {
+      const perms = await getMyPermissions();
+      const finalPerms = perms.length ? perms : isAdminUser(u) ? ['full_admin_access'] : [];
+      setAdminPermissions(finalPerms);
+    } catch {
+      setAdminPermissions(isAdminUser(u) ? ['full_admin_access'] : []);
+    } finally {
+      setAdminPermissionsLoaded(true);
+    }
+  };
   // Tracks which user we've already registered a push token for this session,
   // so token-refresh auth events don't re-trigger registration.
   const pushRegisteredFor = useRef<string | null>(null);
@@ -75,6 +117,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (session?.user) {
         setProfileLoaded(false);
+        setAdminPermissionsLoaded(false);
+        void loadAdminPermissions(session.user);
         // Register the device for push AFTER auth — once per user per session.
         if (pushRegisteredFor.current !== session.user.id) {
           pushRegisteredFor.current = session.user.id;
@@ -91,6 +135,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           });
       } else {
         setProfileLoaded(true);
+        setAdminPermissions([]);
+        setAdminPermissionsLoaded(true);
       }
     });
 
@@ -107,6 +153,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (session?.user) {
         setProfileLoaded(false);
+        setAdminPermissionsLoaded(false);
+        void loadAdminPermissions(session.user);
         if (pushRegisteredFor.current !== session.user.id) {
           pushRegisteredFor.current = session.user.id;
           void registerPushForUser(session.user.id);
@@ -123,6 +171,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } else {
         setUserProfile(null);
         setProfileLoaded(true);
+        setAdminPermissions([]);
+        setAdminPermissionsLoaded(true);
         pushRegisteredFor.current = null;
       }
     });
@@ -137,6 +187,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
     setUserProfile(null);
     setProfileLoaded(true);
+    setAdminPermissions([]);
+    setAdminPermissionsLoaded(true);
     setIsAuthenticated(false);
 
     // Forget the remembered flow so the next launch shows role-selection again.
@@ -216,7 +268,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (user) {
       const profile = await userService.getUserProfile(user.id);
       setUserProfile(profile);
+      // Pick up admin role/permission changes applied since the session started.
+      await loadAdminPermissions(user);
     }
+  };
+
+  const refreshAdminPermissions = async () => {
+    await loadAdminPermissions(user);
   };
 
   return (
@@ -228,11 +286,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         profileLoaded,
         loading,
         isAuthenticated,
+        adminPermissions,
+        adminPermissionsLoaded,
         signOut,
         deleteAccount,
         login,
         signup,
         refreshUser,
+        refreshAdminPermissions,
       }}
     >
       {children}

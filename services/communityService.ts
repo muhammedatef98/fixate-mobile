@@ -173,6 +173,23 @@ export const updatePost = async (
   }
 };
 
+// ── Update comment (author only — RLS enforces technician_id = auth.uid()) ──
+export const updateComment = async (
+  commentId: string,
+  patch: { content: string }
+): Promise<void> => {
+  const trimmed = patch.content.trim();
+  if (!trimmed) throw new Error('التعليق مطلوب');
+  const { error } = await supabase
+    .from('community_comments')
+    .update({ content: trimmed })
+    .eq('id', commentId);
+  if (error) {
+    logger.warn('updateComment failed', error);
+    throw error;
+  }
+};
+
 // ── Like (toggle) ─────────────────────────────────────────────────────────
 /** Toggle a like. `currentlyLiked` is the caller's current view of the state. */
 export const toggleLike = async (

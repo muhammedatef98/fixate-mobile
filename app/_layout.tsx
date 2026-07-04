@@ -7,7 +7,7 @@ import { RequestProvider } from '../contexts/RequestContext';
 import { ThemeProvider } from '../contexts/ThemeContext';
 import { AppProvider, useApp } from '../contexts/AppContext';
 import { AuthProvider, useAuth } from '../contexts/AuthContext';
-import { isAdminUser } from '../constants/admin';
+import { canAccessAdmin } from '../constants/admin';
 import { decideAuthFlowTarget } from '../utils/routeDecision';
 import { OrdersProvider } from '../contexts/OrdersContext';
 import { LoyaltyProvider } from '../contexts/LoyaltyContext';
@@ -39,7 +39,7 @@ initSentry();
 
 function RootLayoutContent() {
   const { language } = useApp();
-  const { user, userProfile, loading } = useAuth();
+  const { user, userProfile, loading, adminPermissions, adminPermissionsLoaded } = useAuth();
   const segments = useSegments();
   const router = useRouter();
 
@@ -93,16 +93,20 @@ function RootLayoutContent() {
       // whether they were a technician — that's the "I tap technician portal,
       // it sends me to customer portal" bug.
       if (userProfile === null) return;
+      // Wait for the admin permission set too, so a freshly-promoted staff
+      // member isn't mis-routed to the customer app before RBAC resolves.
+      if (!adminPermissionsLoaded) return;
       const wantsTechnician = !!first && TECHNICIAN_AUTH_SOURCES.has(first);
       const wantsCustomer = !!first && CUSTOMER_AUTH_SOURCES.has(first);
-      // Admin is the server-set JWT claim app_metadata.is_admin (constants/admin.ts).
-      const adminByPhone = isAdminUser(user);
+      // "Admin" for routing = legacy JWT claim OR active RBAC staff, so managers
+      // assigned from the Team page land in /admin. See constants/admin.ts.
+      const adminAccess = canAccessAdmin(user, adminPermissions);
 
       // Resolution order (admin > explicit customer > explicit technician >
       // profile-role fallback) lives in one tested place — see
       // utils/routeDecision.ts + routeDecision.test.
       const target = decideAuthFlowTarget({
-        isAdmin: adminByPhone,
+        isAdmin: adminAccess,
         wantsCustomer,
         wantsTechnician,
         profileRole: (userProfile as any)?.role,
@@ -116,11 +120,12 @@ function RootLayoutContent() {
     }
 
     // Route-level admin gate — applies to every admin segment (the bare
-    // /admin hub plus all admin-* detail screens). Admin is the server-set JWT
-    // claim app_metadata.is_admin (see constants/admin.ts) — never a
-    // client-writable field. Anyone who is not an admin is bounced back to the
-    // customer home before the screen mounts. Defence-in-depth on top of
-    // useAdminGuard inside each admin-* screen.
+    // /admin hub plus all admin-* detail screens). Access = legacy JWT claim
+    // (server-set app_metadata, never client-writable) OR active RBAC staff
+    // (server-computed my_admin_permissions). We wait for the permission set to
+    // resolve before bouncing, so a legitimate staff member isn't ejected
+    // during the async load. Defence-in-depth on top of useAdminGuard /
+    // useRequirePermission inside each admin-* screen, and RLS on the server.
     const isAdminSegment =
       !!first && (first === 'admin' || first.startsWith('admin-'));
     if (isAdminSegment) {
@@ -128,11 +133,11 @@ function RootLayoutContent() {
         router.replace('/role-selection');
         return;
       }
-      if (!isAdminUser(user)) {
+      if (adminPermissionsLoaded && !canAccessAdmin(user, adminPermissions)) {
         router.replace('/(customer)');
       }
     }
-  }, [user, userProfile, segments, loading]);
+  }, [user, userProfile, segments, loading, adminPermissions, adminPermissionsLoaded]);
 
   // Register a no-op FCM background handler on Android.
   // RNFirebase REQUIRES setBackgroundMessageHandler to be called or it
@@ -331,6 +336,7 @@ function RootLayoutContent() {
         <Stack.Screen name="market" options={{ headerShown: false }} />
         <Stack.Screen name="market-new" options={{ headerShown: false }} />
         <Stack.Screen name="market-detail" options={{ headerShown: false }} />
+        <Stack.Screen name="market-seller" options={{ headerShown: false }} />
         <Stack.Screen name="market-chat" options={{ headerShown: false }} />
         <Stack.Screen name="market-messages" options={{ headerShown: false }} />
         <Stack.Screen name="my-listings" options={{ headerShown: false }} />

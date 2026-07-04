@@ -424,7 +424,7 @@ const makeStyles = (C: any, isRTL: boolean, SHADOWS: any) =>
       paddingVertical: 10,
       backgroundColor: C.background,
     },
-    headerTitle: { fontSize: 21, fontWeight: '900', color: C.text, letterSpacing: -0.3 },
+    headerTitle: { fontSize: 21, fontWeight: '900', color: C.text, letterSpacing: isRTL ? 0 : -0.3 },
     gearBtn: {
       width: 38, height: 38, borderRadius: 12,
       backgroundColor: C.card, alignItems: 'center', justifyContent: 'center',
@@ -497,7 +497,7 @@ const makeStyles = (C: any, isRTL: boolean, SHADOWS: any) =>
       color: '#fff',
       fontSize: 20,
       fontWeight: '900',
-      letterSpacing: -0.3,
+      letterSpacing: isRTL ? 0 : -0.3,
       textAlign: isRTL ? 'right' : 'left',
     },
     heroVerifyChip: {
@@ -563,10 +563,12 @@ const makeStyles = (C: any, isRTL: boolean, SHADOWS: any) =>
     },
 
     sectionLabel: {
-      fontSize: 10.5,
+      fontSize: isRTL ? 12 : 10.5,
       fontWeight: '800',
       color: C.textSecondary,
-      letterSpacing: 1.3,
+      // Arabic is cursive — positive tracking splits joined letters and makes
+      // headings like "حسابي" / "الدعم والإعدادات" look broken. Latin-only device.
+      letterSpacing: isRTL ? 0 : 1.3,
       marginBottom: 8,
       paddingHorizontal: 4,
       textAlign: isRTL ? 'right' : 'left',

@@ -704,20 +704,35 @@ export default function MarketDetailScreen() {
               <Text style={styles.blockLabel}>{isRTL ? 'البائع' : 'Seller'}</Text>
               <View style={styles.sellerCard}>
                 <View style={styles.sellerRow}>
-                  <Avatar name={sellerName} uri={seller?.avatar_url} size={46} />
-                  <View style={{ flex: 1 }}>
-                    <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 4 }}>
-                      <Text style={styles.sellerName} numberOfLines={1}>{sellerName}</Text>
-                      {seller?.is_verified ? <VerifiedBadge size="md" /> : null}
+                  <TouchableOpacity
+                    style={styles.sellerIdentity}
+                    activeOpacity={isOwner ? 1 : 0.7}
+                    disabled={isOwner}
+                    onPress={() =>
+                      router.push({
+                        pathname: '/market-seller',
+                        params: { sellerId: listing.seller_id, name: sellerName },
+                      } as any)
+                    }
+                    accessibilityRole={isOwner ? undefined : 'button'}
+                    accessibilityLabel={isOwner ? undefined : (isRTL ? 'عرض ملف البائع وإعلاناته' : "View seller profile and listings")}
+                  >
+                    <Avatar name={sellerName} uri={seller?.avatar_url} size={46} />
+                    <View style={{ flex: 1 }}>
+                      <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 4 }}>
+                        <Text style={styles.sellerName} numberOfLines={1}>{sellerName}</Text>
+                        {seller?.is_verified ? <VerifiedBadge size="md" /> : null}
+                      </View>
+                      <Text style={styles.sellerMeta}>
+                        {isOwner
+                          ? (isRTL ? 'هذا إعلانك' : 'This is your listing')
+                          : (isRTL ? 'اضغط لعرض إعلانات البائع' : "Tap to view this seller’s listings")}
+                      </Text>
                     </View>
-                    <Text style={styles.sellerMeta}>
-                      {isOwner
-                        ? (isRTL ? 'هذا إعلانك' : 'This is your listing')
-                        : seller?.is_verified
-                          ? (isRTL ? 'بائع موثّق' : 'Verified seller')
-                          : (isRTL ? 'البائع' : 'Seller')}
-                    </Text>
-                  </View>
+                    {!isOwner && (
+                      <RTLIonicon name="chevron-forward" size={18} color={COLORS.textSecondary} />
+                    )}
+                  </TouchableOpacity>
                   {!isOwner && showPhone && (
                     <Text style={styles.sellerPhone}>{listing.contact_phone}</Text>
                   )}
@@ -1320,6 +1335,12 @@ const createStyles = (C: any, isRTL: boolean) =>
       gap: 12,
     },
     sellerRow: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
+      gap: 12,
+    },
+    sellerIdentity: {
+      flex: 1,
       flexDirection: isRTL ? 'row-reverse' : 'row',
       alignItems: 'center',
       gap: 12,
