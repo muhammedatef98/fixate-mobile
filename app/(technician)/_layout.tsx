@@ -8,6 +8,7 @@ import { supabase } from '../../services/supabaseClient';
 import { getColors, SPACING, BORDER_RADIUS } from '../../constants/theme';
 import BottomNavTech from '../../components/BottomNavTech';
 import { saveLastRole } from '../../utils/rolePreference';
+import { mapTechnicianGate } from '../../utils/technicianVerification';
 
 // Child route segments where the bottom tab bar stays persistently visible.
 // These map 1:1 to the four BottomNavTech entries (Home / Requests / Jobs /
@@ -37,6 +38,7 @@ type GateState =
   | { kind: 'loading' }
   | { kind: 'allowed' }
   | { kind: 'pending'; status: string }
+  | { kind: 'changes_requested'; notes?: string }
   | { kind: 'rejected'; notes?: string }
   | { kind: 'no-profile' };
 
@@ -72,14 +74,7 @@ export default function TechnicianLayout() {
         setGate({ kind: 'no-profile' });
         return;
       }
-      const status = (data.verification_status || 'pending').toLowerCase();
-      if (status === 'verified' || status === 'approved') {
-        setGate({ kind: 'allowed' });
-      } else if (status === 'rejected') {
-        setGate({ kind: 'rejected', notes: data.verification_notes });
-      } else {
-        setGate({ kind: 'pending', status });
-      }
+      setGate(mapTechnicianGate(data.verification_status, data.verification_notes));
     })();
 
     return () => {
@@ -94,7 +89,12 @@ export default function TechnicianLayout() {
   // role-selection on every future launch.
   useEffect(() => {
     if (!user) return;
-    if (gate.kind === 'allowed' || gate.kind === 'pending' || gate.kind === 'rejected') {
+    if (
+      gate.kind === 'allowed' ||
+      gate.kind === 'pending' ||
+      gate.kind === 'changes_requested' ||
+      gate.kind === 'rejected'
+    ) {
       void saveLastRole('technician');
     }
   }, [user, gate.kind]);
@@ -143,6 +143,28 @@ export default function TechnicianLayout() {
             : "We received your application. Our verification team is reviewing your details within 1-2 business days. You'll get a notification once approved."
         }
         primaryLabel={isRTL ? 'تعديل البيانات' : 'Edit application'}
+        onPrimary={() => router.replace('/technician-onboarding')}
+        secondaryLabel={isRTL ? 'تسجيل الخروج' : 'Sign out'}
+        onSecondary={async () => {
+          await signOut();
+          router.replace('/role-selection');
+        }}
+      />
+    );
+  }
+
+  if (gate.kind === 'changes_requested') {
+    return (
+      <GateScreen
+        COLORS={COLORS}
+        icon="pencil-outline"
+        iconColor={'#2563eb'}
+        title={isRTL ? 'مطلوب تعديل طلبك' : 'Changes requested'}
+        body={
+          (isRTL ? 'طلب الفريق تعديل التالي: ' : 'The team asked you to update: ') +
+          (gate.notes || (isRTL ? 'يرجى مراجعة بياناتك' : 'please review your details'))
+        }
+        primaryLabel={isRTL ? 'تعديل وإعادة الإرسال' : 'Fix & resubmit'}
         onPrimary={() => router.replace('/technician-onboarding')}
         secondaryLabel={isRTL ? 'تسجيل الخروج' : 'Sign out'}
         onSecondary={async () => {

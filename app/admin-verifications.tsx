@@ -12,6 +12,7 @@ import {
   RefreshControl,
   Switch,
   TextInput,
+  Modal,
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useApp } from '../contexts/AppContext';
@@ -30,6 +31,8 @@ import {
   setTechnicianNotes,
   type TechnicianStatus,
 } from '../services/moderationService';
+import { notifyUsers } from '../services/notifyService';
+import { buildVerificationUpdate } from '../utils/technicianVerification';
 
 interface Technician {
   id: string;
@@ -42,6 +45,7 @@ interface Technician {
   years_of_experience: number;
   bio?: string;
   verification_status: string;
+  verification_notes?: string;
   technician_status?: string;
   admin_notes?: string;
   is_mobile?: boolean;
@@ -67,10 +71,15 @@ const STATUS_META = (s: string, isRTL: boolean) => {
       return { label: isRTL ? 'معتمد' : 'Approved', color: '#16A34A' };
     case 'rejected':
       return { label: isRTL ? 'مرفوض' : 'Rejected', color: '#DC2626' };
+    case 'changes_requested':
+      return { label: isRTL ? 'بانتظار تعديل الفني' : 'Changes requested', color: '#2563EB' };
     default:
       return { label: isRTL ? 'مسودة' : 'Draft', color: '#8A94A3' };
   }
 };
+
+// The verification decisions an admin can take on a submitted application.
+type VerificationDecision = 'approved' | 'rejected' | 'changes_requested';
 
 export default function AdminTechniciansScreen() {
   const { language, isDark } = useApp();
@@ -84,6 +93,9 @@ export default function AdminTechniciansScreen() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [filter, setFilter] = useState<FilterKey>('pending');
   const [notesDrafts, setNotesDrafts] = useState<Record<string, string>>({});
+  // Reason capture for the two note-bearing decisions (reject / request changes).
+  const [reasonModal, setReasonModal] = useState<{ item: Technician; mode: 'rejected' | 'changes_requested' } | null>(null);
+  const [reasonText, setReasonText] = useState('');
 
   const profileLoaded = userProfile !== null;
   const { isAdmin } = useIsAdmin();
@@ -115,20 +127,25 @@ export default function AdminTechniciansScreen() {
     if (profileLoaded && isAdmin) load();
   }, [profileLoaded, isAdmin, load]);
 
-  const decide = async (item: Technician, decision: 'approved' | 'rejected') => {
+  const decide = async (item: Technician, decision: VerificationDecision, note?: string) => {
     setBusyId(item.id);
     try {
-      const { error } = await supabase
-        .from('technicians')
-        .update({
-          verification_status: decision,
-          verified_at: decision === 'approved' ? new Date().toISOString() : null,
-        })
-        .eq('id', item.id);
+      // verification_notes is the column the technician gate reads to show the
+      // reason/instructions. buildVerificationUpdate writes it on both reject
+      // and request-changes so the applicant always sees *why*; approval clears
+      // it and stamps verified_at.
+      const update = buildVerificationUpdate(decision, note, new Date().toISOString());
+      const trimmedNote = update.verification_notes;
+
+      const { error } = await supabase.from('technicians').update(update).eq('id', item.id);
       if (error) throw error;
       decision === 'approved' ? success() : warning();
       setItems((prev) =>
-        prev.map((x) => (x.id === item.id ? { ...x, verification_status: decision } : x))
+        prev.map((x) =>
+          x.id === item.id
+            ? { ...x, verification_status: decision, verification_notes: trimmedNote ?? undefined }
+            : x
+        )
       );
 
       // Fire the one-time approval email. The edge function guards against
@@ -144,12 +161,46 @@ export default function AdminTechniciansScreen() {
             if (msg) logger.warn('approval email not sent', msg);
           })
           .catch((err) => logger.warn('approval email invoke failed', err?.message ?? err));
+      } else if (item.user_id) {
+        // Best-effort push so the applicant knows the outcome and can act.
+        const payload =
+          decision === 'changes_requested'
+            ? {
+                title: '📝 مطلوب تعديل طلبك · Changes requested',
+                body:
+                  trimmedNote ||
+                  'يرجى مراجعة طلب الانضمام وتعديله · Please review and update your application.',
+                data: { screen: 'technician-onboarding' },
+              }
+            : {
+                title: 'تم رفض طلب الانضمام · Application rejected',
+                body: trimmedNote || 'تم رفض طلبك · Your application was rejected.',
+                data: { screen: 'technician-onboarding' },
+              };
+        void notifyUsers(item.user_id, payload);
       }
     } catch (e: any) {
       Alert.alert(isRTL ? 'خطأ' : 'Error', getFriendlyError(e, language));
     } finally {
       setBusyId(null);
     }
+  };
+
+  // Confirm handler for the reject / request-changes reason modal.
+  const submitReason = async () => {
+    if (!reasonModal) return;
+    const { item, mode } = reasonModal;
+    if (mode === 'changes_requested' && !reasonText.trim()) {
+      Alert.alert(
+        isRTL ? 'الملاحظة مطلوبة' : 'Note required',
+        isRTL ? 'اكتب ما يجب على الفني تعديله.' : 'Describe what the technician must fix.'
+      );
+      return;
+    }
+    setReasonModal(null);
+    const note = reasonText;
+    setReasonText('');
+    await decide(item, mode, note);
   };
 
   const toggleMobile = async (item: Technician, next: boolean) => {
@@ -403,36 +454,119 @@ export default function AdminTechniciansScreen() {
                 </View>
 
                 {isSubmitted && (
-                  <View style={styles.actions}>
+                  <View style={styles.actionsBlock}>
+                    {/* Request changes — recoverable: returns the application to
+                        the technician with a note so they can fix & resubmit. */}
                     <TouchableOpacity
-                      onPress={() => decide(it, 'rejected')}
+                      onPress={() => { setReasonText(''); setReasonModal({ item: it, mode: 'changes_requested' }); }}
                       disabled={busyId === it.id}
-                      style={[styles.btn, { backgroundColor: COLORS.error + '20' }]}
+                      style={[styles.btn, styles.btnFull, { backgroundColor: '#2563EB18', borderWidth: 1, borderColor: '#2563EB55' }]}
                     >
-                      <Ionicons name="close" size={18} color={COLORS.error} />
-                      <Text style={{ color: COLORS.error, fontWeight: '700' }}>{isRTL ? 'رفض' : 'Reject'}</Text>
+                      <Ionicons name="create-outline" size={18} color="#2563EB" />
+                      <Text style={{ color: '#2563EB', fontWeight: '700' }}>
+                        {isRTL ? 'طلب تعديل' : 'Request changes'}
+                      </Text>
                     </TouchableOpacity>
-                    <TouchableOpacity
-                      onPress={() => decide(it, 'approved')}
-                      disabled={busyId === it.id}
-                      style={[styles.btn, { backgroundColor: COLORS.success }]}
-                    >
-                      {busyId === it.id ? (
-                        <ActivityIndicator color="#fff" />
-                      ) : (
-                        <>
-                          <Ionicons name="checkmark" size={18} color="#fff" />
-                          <Text style={{ color: '#fff', fontWeight: '700' }}>{isRTL ? 'اعتماد' : 'Approve'}</Text>
-                        </>
-                      )}
-                    </TouchableOpacity>
+
+                    <View style={styles.actions}>
+                      {/* Reject — final decision, distinct from request changes. */}
+                      <TouchableOpacity
+                        onPress={() => { setReasonText(''); setReasonModal({ item: it, mode: 'rejected' }); }}
+                        disabled={busyId === it.id}
+                        style={[styles.btn, { backgroundColor: COLORS.error + '20' }]}
+                      >
+                        <Ionicons name="close" size={18} color={COLORS.error} />
+                        <Text style={{ color: COLORS.error, fontWeight: '700' }}>{isRTL ? 'رفض' : 'Reject'}</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        onPress={() => decide(it, 'approved')}
+                        disabled={busyId === it.id}
+                        style={[styles.btn, { backgroundColor: COLORS.success }]}
+                      >
+                        {busyId === it.id ? (
+                          <ActivityIndicator color="#fff" />
+                        ) : (
+                          <>
+                            <Ionicons name="checkmark" size={18} color="#fff" />
+                            <Text style={{ color: '#fff', fontWeight: '700' }}>{isRTL ? 'اعتماد' : 'Approve'}</Text>
+                          </>
+                        )}
+                      </TouchableOpacity>
+                    </View>
                   </View>
                 )}
+
+                {/* Show the note the applicant currently sees (returned/rejected). */}
+                {(it.verification_status === 'changes_requested' || it.verification_status === 'rejected') &&
+                it.verification_notes ? (
+                  <View style={[styles.reasonEcho, { borderColor: COLORS.border, backgroundColor: COLORS.background }]}>
+                    <Text style={{ color: COLORS.textSecondary, fontSize: 11, fontWeight: '700', marginBottom: 3, textAlign: isRTL ? 'right' : 'left' }}>
+                      {isRTL ? 'الملاحظة المُرسلة للفني' : 'Note sent to technician'}
+                    </Text>
+                    <Text style={{ color: COLORS.text, fontSize: 13, lineHeight: 19, textAlign: isRTL ? 'right' : 'left' }}>
+                      {it.verification_notes}
+                    </Text>
+                  </View>
+                ) : null}
               </View>
             );
           })
         )}
       </ScrollView>
+
+      {/* Reason capture — shared by Reject and Request changes */}
+      <Modal
+        visible={!!reasonModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => { setReasonModal(null); setReasonText(''); }}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalCard, { backgroundColor: COLORS.card }]}>
+            <Text style={[styles.modalTitle, { color: COLORS.text }]}>
+              {reasonModal?.mode === 'changes_requested'
+                ? isRTL ? 'طلب تعديل' : 'Request changes'
+                : isRTL ? 'سبب الرفض' : 'Rejection reason'}
+            </Text>
+            <Text style={[styles.modalHint, { color: COLORS.textSecondary }]}>
+              {reasonModal?.mode === 'changes_requested'
+                ? isRTL
+                  ? 'اكتب ما يجب على الفني تعديله. سيراه الفني ويعيد تقديم طلبه بعد التصحيح.'
+                  : "Describe what the technician must fix. They'll see this note and resubmit after correcting it."
+                : isRTL
+                  ? 'وضّح سبب رفض الطلب (اختياري). سيظهر للفني.'
+                  : 'Explain why the application is rejected (optional). The technician will see it.'}
+            </Text>
+            <TextInput
+              value={reasonText}
+              onChangeText={setReasonText}
+              multiline
+              placeholder={isRTL ? 'اكتب الملاحظة…' : 'Write the note…'}
+              placeholderTextColor={COLORS.textSecondary}
+              style={[styles.notesInput, { color: COLORS.text, borderColor: COLORS.border, backgroundColor: COLORS.background, minHeight: 90 }]}
+              textAlign={isRTL ? 'right' : 'left'}
+            />
+            <View style={[styles.actions, { marginTop: 14 }]}>
+              <TouchableOpacity
+                onPress={() => { setReasonModal(null); setReasonText(''); }}
+                style={[styles.btn, { backgroundColor: COLORS.border }]}
+              >
+                <Text style={{ color: COLORS.text, fontWeight: '700' }}>{isRTL ? 'إلغاء' : 'Cancel'}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={submitReason}
+                style={[styles.btn, { backgroundColor: reasonModal?.mode === 'changes_requested' ? '#2563EB' : COLORS.error }]}
+              >
+                <Text style={{ color: '#fff', fontWeight: '700' }}>
+                  {reasonModal?.mode === 'changes_requested'
+                    ? isRTL ? 'إرسال الطلب' : 'Send request'
+                    : isRTL ? 'تأكيد الرفض' : 'Confirm reject'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+    </Modal>
     </SafeAreaView>
   );
 }
@@ -551,6 +685,7 @@ const createStyles = (C: any, isRTL: boolean) =>
       borderRadius: BORDER_RADIUS.sm,
       marginTop: 8,
     },
+    actionsBlock: { marginTop: SPACING.md, gap: 10 },
     actions: { flexDirection: isRTL ? 'row-reverse' : 'row', gap: 12, marginTop: SPACING.md },
     btn: {
       flex: 1,
@@ -561,6 +696,31 @@ const createStyles = (C: any, isRTL: boolean) =>
       paddingVertical: 13,
       borderRadius: BORDER_RADIUS.sm,
       minHeight: 48,
+    },
+    btnFull: { flex: 0, width: '100%' },
+    reasonEcho: {
+      marginTop: 12,
+      padding: 10,
+      borderRadius: BORDER_RADIUS.sm,
+      borderWidth: 1,
+    },
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.45)',
+      justifyContent: 'center',
+      padding: SPACING.lg,
+    },
+    modalCard: {
+      borderRadius: BORDER_RADIUS.lg,
+      padding: SPACING.lg,
+    },
+    modalTitle: { fontSize: 17, fontWeight: '800', textAlign: isRTL ? 'right' : 'left' },
+    modalHint: {
+      fontSize: 12.5,
+      lineHeight: 19,
+      marginTop: 6,
+      marginBottom: 12,
+      textAlign: isRTL ? 'right' : 'left',
     },
     empty: { alignItems: 'center', paddingVertical: 60 },
     unauthorized: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: SPACING.xl },

@@ -362,6 +362,9 @@ function RootLayoutContent() {
         <Stack.Screen name="admin-users" options={{ headerShown: false }} />
         <Stack.Screen name="admin-platform-settings" options={{ headerShown: false }} />
         <Stack.Screen name="admin-user-verifications" options={{ headerShown: false }} />
+        {/* Customer identity verification screen renders its own in-screen
+            header; hide the native Stack header so it isn't duplicated. */}
+        <Stack.Screen name="verify-identity" options={{ headerShown: false }} />
         <Stack.Screen name="admin-accounting" options={{ headerShown: false }} />
         <Stack.Screen name="admin-suppliers" options={{ headerShown: false }} />
         <Stack.Screen name="admin-service-areas" options={{ headerShown: false }} />

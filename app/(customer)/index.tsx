@@ -22,6 +22,7 @@ import { supabase } from '../../services/supabaseClient';
 import { ORDER_STATUS_LABELS_AR, ORDER_STATUS_LABELS_EN } from '../../types/order';
 import { formatAppDateOnly } from '../../lib/formatDate';
 import { logger } from '../../utils/logger';
+import { resolveGreetingName } from '../../utils/greeting';
 import { getWalletBalance } from '../../services/customerWalletService';
 import { RTLIonicon, RTLMaterialIcon } from '../../components/RTLIcon';
 import { PressableScale, AnimatedTouchable } from '../../components/ui/PressableScale';
@@ -133,9 +134,10 @@ export default function CustomerHomeScreen() {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(20)).current;
 
-  const displayName =
-    (userProfile?.name?.trim() || user?.email?.split('@')[0] || '').split(' ')[0] ||
-    (isRTL ? 'صديقي' : 'there');
+  // First name only. Empty string when a brand-new signup has neither a
+  // profile name nor an email handle — the greeting then renders alone (no
+  // awkward blank / "there" / "صديقي" placeholder after it).
+  const displayName = resolveGreetingName(userProfile?.name, user?.email);
 
   useEffect(() => {
     Animated.parallel([
@@ -281,9 +283,11 @@ export default function CustomerHomeScreen() {
         <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }], paddingHorizontal: SPACING.m, paddingTop: SPACING.s, paddingBottom: SPACING.m }}>
           {/* Greeting */}
           <Text style={[styles.greetingSmall, { color: COLORS.textSecondary }]}>{greeting} 👋</Text>
-          <Text style={[styles.greetingName, { color: COLORS.text }]} numberOfLines={1}>
-            {displayName}
-          </Text>
+          {displayName ? (
+            <Text style={[styles.greetingName, { color: COLORS.text }]} numberOfLines={1}>
+              {displayName}
+            </Text>
+          ) : null}
           <Text style={[styles.greetingSub, { color: COLORS.textSecondary }]}>
             {isRTL ? 'إصلاح احترافي لأجهزتك، أينما كنت' : 'Expert device repair, wherever you are'}
           </Text>

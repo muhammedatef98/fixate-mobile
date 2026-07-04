@@ -269,7 +269,11 @@ function InvoiceDetail({ invoice, isRTL, COLORS, styles, onClose, onChanged }: a
   return (
     <Modal transparent animationType="slide" onRequestClose={onClose}>
       <Pressable style={styles.backdrop} onPress={onClose} />
-      <View style={[styles.sheet, { maxHeight: '90%' }]}>
+      {/* When the inline WebView is showing we pin a definite height ('90%')
+          instead of maxHeight: a flex:1 WebView inside a content-sized sheet
+          collapses to zero height and renders blank — which is why "View
+          invoice" appeared to do nothing. A bounded parent gives it room. */}
+      <View style={[styles.sheet, showFull && html && webViewAvailable ? { height: '90%' } : { maxHeight: '90%' }]}>
         <View style={[styles.detailHead, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
           <Text style={styles.sheetTitle}>{invoice.invoice_number}</Text>
           <AdminStatusPill label={isRTL ? statusAr(invoice.status) : invoice.status} {...statusTone(invoice.status)} />

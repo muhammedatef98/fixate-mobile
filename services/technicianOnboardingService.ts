@@ -84,6 +84,10 @@ export const submitTechnicianApplication = async (
         total_jobs: 0,
         rating: 0,
         verification_status: 'submitted',
+        // Clear any prior review note so a resubmission starts clean — the
+        // "changes requested" / rejection reason no longer applies once the
+        // technician has corrected and resent the application.
+        verification_notes: null,
       },
       { onConflict: 'user_id' }
     );

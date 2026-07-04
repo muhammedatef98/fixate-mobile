@@ -19,7 +19,6 @@ import {
   Image,
   Modal,
   TextInput,
-  Linking,
 } from 'react-native';
 import { MaterialCommunityIcons, MaterialIcons } from '@expo/vector-icons';
 import { useApp } from '../contexts/AppContext';
@@ -360,6 +359,10 @@ function ReviewBody({ row, COLORS, isRTL, onClose, onApprove, onReject, submitti
   const [frontUrl, setFrontUrl] = useState<string | null>(null);
   const [backUrl, setBackUrl] = useState<string | null>(null);
   const [selfieUrl, setSelfieUrl] = useState<string | null>(null);
+  // Full-screen in-app preview target. A tapped document opens here instead of
+  // being handed to the OS browser (a private signed URL opened externally just
+  // showed a blank page).
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
   useEffect(() => {
     getSignedDocumentUrl(row.document_front_url).then(setFrontUrl);
@@ -393,14 +396,14 @@ function ReviewBody({ row, COLORS, isRTL, onClose, onApprove, onReject, submitti
       <Text style={{ color: COLORS.textSecondary, fontSize: 12, marginTop: 18, marginBottom: 8, fontWeight: '700' }}>
         {isRTL ? 'صورة الوجه الأمامي' : 'Front image'}
       </Text>
-      <DocImage url={frontUrl} COLORS={COLORS} />
+      <DocImage url={frontUrl} COLORS={COLORS} onPreview={setPreviewUrl} isRTL={isRTL} />
 
       {row.document_back_url ? (
         <>
           <Text style={{ color: COLORS.textSecondary, fontSize: 12, marginTop: 16, marginBottom: 8, fontWeight: '700' }}>
             {isRTL ? 'صورة الوجه الخلفي' : 'Back image'}
           </Text>
-          <DocImage url={backUrl} COLORS={COLORS} />
+          <DocImage url={backUrl} COLORS={COLORS} onPreview={setPreviewUrl} isRTL={isRTL} />
         </>
       ) : null}
 
@@ -420,7 +423,7 @@ function ReviewBody({ row, COLORS, isRTL, onClose, onApprove, onReject, submitti
               </Text>
             </View>
           ) : null}
-          <DocImage url={selfieUrl} COLORS={COLORS} />
+          <DocImage url={selfieUrl} COLORS={COLORS} onPreview={setPreviewUrl} isRTL={isRTL} />
         </>
       ) : null}
 
@@ -453,7 +456,45 @@ function ReviewBody({ row, COLORS, isRTL, onClose, onApprove, onReject, submitti
           </TouchableOpacity>
         </View>
       ) : null}
+
+      <ImagePreviewModal url={previewUrl} onClose={() => setPreviewUrl(null)} isRTL={isRTL} />
     </ScrollView>
+  );
+}
+
+/** Full-screen in-app image preview. Renders the signed image over a dark
+ *  scrim with a close button — never routes to an external browser. */
+function ImagePreviewModal({ url, onClose, isRTL }: { url: string | null; onClose: () => void; isRTL: boolean }) {
+  const [failed, setFailed] = useState(false);
+  useEffect(() => { setFailed(false); }, [url]);
+  return (
+    <Modal visible={!!url} transparent animationType="fade" onRequestClose={onClose}>
+      <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.92)', justifyContent: 'center', alignItems: 'center' }}>
+        <TouchableOpacity
+          onPress={onClose}
+          accessibilityRole="button"
+          accessibilityLabel={isRTL ? 'إغلاق' : 'Close'}
+          style={{ position: 'absolute', top: 48, right: 20, zIndex: 2, width: 42, height: 42, borderRadius: 21, backgroundColor: 'rgba(255,255,255,0.14)', alignItems: 'center', justifyContent: 'center' }}
+        >
+          <MaterialIcons name="close" size={26} color="#fff" />
+        </TouchableOpacity>
+        {url && !failed ? (
+          <Image
+            source={{ uri: url }}
+            style={{ width: '100%', height: '80%' }}
+            resizeMode="contain"
+            onError={() => setFailed(true)}
+          />
+        ) : (
+          <View style={{ alignItems: 'center', gap: 10, padding: 24 }}>
+            <MaterialCommunityIcons name="image-off-outline" size={48} color="#fff" />
+            <Text style={{ color: '#fff', fontSize: 14, textAlign: 'center' }}>
+              {isRTL ? 'تعذّر تحميل الصورة' : 'Could not load this image'}
+            </Text>
+          </View>
+        )}
+      </View>
+    </Modal>
   );
 }
 
@@ -474,7 +515,16 @@ function FieldRow({ label, value, COLORS, isRTL }: { label: string; value: strin
   );
 }
 
-function DocImage({ url, COLORS }: { url: string | null; COLORS: any }) {
+function DocImage({ url, COLORS, onPreview, isRTL }: {
+  url: string | null;
+  COLORS: any;
+  onPreview: (url: string) => void;
+  isRTL: boolean;
+}) {
+  const [failed, setFailed] = useState(false);
+  useEffect(() => { setFailed(false); }, [url]);
+
+  // Still resolving the signed URL.
   if (!url) {
     return (
       <View style={{ height: 200, backgroundColor: COLORS.card, borderRadius: 14, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: COLORS.border }}>
@@ -482,9 +532,24 @@ function DocImage({ url, COLORS }: { url: string | null; COLORS: any }) {
       </View>
     );
   }
+  // URL resolved but the image itself failed to load (missing / broken upload).
+  if (failed) {
+    return (
+      <View style={{ height: 200, backgroundColor: COLORS.card, borderRadius: 14, alignItems: 'center', justifyContent: 'center', gap: 8, borderWidth: 1, borderColor: COLORS.border }}>
+        <MaterialCommunityIcons name="image-broken-variant" size={40} color={COLORS.textSecondary} />
+        <Text style={{ color: COLORS.textSecondary, fontSize: 12 }}>
+          {isRTL ? 'تعذّر تحميل الصورة' : 'Image unavailable'}
+        </Text>
+      </View>
+    );
+  }
   return (
-    <TouchableOpacity activeOpacity={0.85} onPress={() => Linking.openURL(url)}>
-      <Image source={{ uri: url }} style={{ width: '100%', height: 220, borderRadius: 14, resizeMode: 'cover' }} />
+    <TouchableOpacity activeOpacity={0.85} onPress={() => onPreview(url)}>
+      <Image
+        source={{ uri: url }}
+        style={{ width: '100%', height: 220, borderRadius: 14, resizeMode: 'cover' }}
+        onError={() => setFailed(true)}
+      />
     </TouchableOpacity>
   );
 }
