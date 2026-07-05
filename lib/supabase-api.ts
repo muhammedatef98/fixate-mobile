@@ -283,7 +283,10 @@ export const requests = {
     return data || [];
   },
 
-  // Accept order
+  // @deprecated Direct claiming was replaced by the offer marketplace (2026-07).
+  // Assignment happens only via accept_order_offer; the RLS policy that let
+  // technicians update open orders was dropped, so this now fails server-side.
+  // Kept so any stale caller fails loudly. Do not add new callers.
   acceptOrder: async (orderId: string): Promise<Order | null> => {
     const user = await auth.getCurrentUser();
     if (!user) throw new Error('Not authenticated');

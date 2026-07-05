@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -13,8 +13,6 @@ import {
   I18nManager,
   Platform,
   TextInput,
-  Modal,
-  KeyboardAvoidingView,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { MaterialIcons, MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
@@ -74,8 +72,10 @@ function fulfillmentLabel(type: string | null | undefined, ar: boolean): string 
   }
 }
 
+// Post-assignment workflow transitions. There is intentionally no 'accepted'
+// entry: assignment happens only through the marketplace (the customer
+// accepts one technician's offer via the atomic accept_order_offer RPC).
 const STATUS_ACTIONS = [
-  { status: 'accepted', arLabel: 'قبول الطلب', enLabel: 'Accept Order', icon: 'check-circle', color: '#10B981', description: 'تأكيد استلام الطلب والبدء في المعالجة' },
   { status: 'picking_up', arLabel: 'جاري الاستلام', enLabel: 'Picking Up', icon: 'car', color: '#3B82F6', description: 'التوجه لاستلام الجهاز من العميل' },
   { status: 'diagnosing', arLabel: 'بدء الفحص', enLabel: 'Start Diagnosing', icon: 'magnify', color: '#8B5CF6', description: 'فحص الجهاز وتحديد الأعطال بدقة' },
   { status: 'waiting_parts', arLabel: 'انتظار قطع غيار', enLabel: 'Waiting for Parts', icon: 'clock-outline', color: '#F59E0B', description: 'الطلب معلق لحين توفر قطع الغيار' },
@@ -83,15 +83,6 @@ const STATUS_ACTIONS = [
   { status: 'testing', arLabel: 'اختبار الجودة', enLabel: 'Quality Testing', icon: 'flask', color: '#6366F1', description: 'اختبار الجهاز بعد الإصلاح لضمان الجودة' },
   { status: 'delivering', arLabel: 'جاري التوصيل', enLabel: 'Out for Delivery', icon: 'truck-delivery', color: '#06B6D4', description: 'الجهاز جاهز وجاري توصيله للعميل' },
   { status: 'completed', arLabel: 'إكمال الطلب', enLabel: 'Complete Order', icon: 'check-all', color: '#10B981', description: 'تم تسليم الجهاز وإغلاق الطلب' },
-];
-
-// FEAT-03 — predefined rejection reasons. `other` reveals a free-text input.
-const REJECT_REASONS: { key: string; ar: string; en: string }[] = [
-  { key: 'parts_unavailable', ar: 'قطع الغيار غير متاحة حالياً', en: 'Spare parts not currently available' },
-  { key: 'out_of_area', ar: 'خارج نطاق الخدمة', en: 'Outside service area' },
-  { key: 'too_far', ar: 'الموقع بعيد جداً', en: 'Location is too far' },
-  { key: 'irreparable', ar: 'الجهاز لا يمكن إصلاحه', en: 'Device cannot be repaired' },
-  { key: 'other', ar: 'أخرى', en: 'Other' },
 ];
 
 export default function ManageOrderScreen() {
@@ -115,13 +106,6 @@ export default function ManageOrderScreen() {
   const [quoteNotes, setQuoteNotes] = useState('');
   const [sparePartsCost, setSparePartsCost] = useState(''); // FEAT-08 (accounting only)
   const [submittingQuote, setSubmittingQuote] = useState(false);
-  // FEAT-03 — reject-with-reason modal state.
-  const [rejectModalVisible, setRejectModalVisible] = useState(false);
-  const [rejectReasonKey, setRejectReasonKey] = useState<string | null>(null);
-  const [rejectCustomReason, setRejectCustomReason] = useState('');
-  const [submittingReject, setSubmittingReject] = useState(false);
-  // Lets us scroll the custom-reason input into view when the keyboard opens.
-  const rejectScrollRef = useRef<ScrollView>(null);
   const [notesDraft, setNotesDraft] = useState('');
   const [savingNotes, setSavingNotes] = useState(false);
   const [beforePhotos, setBeforePhotos] = useState<string[]>([]);
@@ -323,78 +307,6 @@ export default function ManageOrderScreen() {
       );
     } finally {
       setRequestingCourier(false);
-    }
-  };
-
-  // FEAT-03 — reject the request with a reason. Saves status='rejected' +
-  // rejection_reason, notifies the client (with the reason), then returns.
-  const resolvedRejectReason = (): string | null => {
-    if (!rejectReasonKey) return null;
-    if (rejectReasonKey === 'other') {
-      const custom = rejectCustomReason.trim();
-      return custom.length >= 10 ? custom : null;
-    }
-    const found = REJECT_REASONS.find((r) => r.key === rejectReasonKey);
-    return found ? (isRTL ? found.ar : found.en) : null;
-  };
-
-  const handleConfirmReject = async () => {
-    const reason = resolvedRejectReason();
-    if (!reason) {
-      Alert.alert(
-        isRTL ? 'تنبيه' : 'Notice',
-        isRTL
-          ? 'اختر سبب الرفض، وعند اختيار "أخرى" اكتب 10 أحرف على الأقل.'
-          : 'Pick a reason. If "Other", enter at least 10 characters.'
-      );
-      return;
-    }
-    try {
-      setSubmittingReject(true);
-      // RLS WITH CHECK on orders requires auth.uid() = technician_id after an
-      // update. A pending order has technician_id = NULL, so we must claim it
-      // (set technician_id to this technician) in the same statement, otherwise
-      // the update is rejected and the user sees "تعذّر رفض الطلب".
-      const me = await auth.getCurrentUser();
-      const updatePayload: Record<string, any> = {
-        status: 'rejected',
-        rejection_reason: reason,
-        updated_at: new Date().toISOString(),
-      };
-      if (me?.id) updatePayload.technician_id = me.id;
-      const { data, error } = await supabase
-        .from('orders')
-        .update(updatePayload)
-        .eq('id', id as string)
-        .select()
-        .single();
-      if (error) throw error;
-
-      // Notify the client with the rejection reason (FEAT-01).
-      if (data?.user_id) {
-        void notifyUsers(data.user_id, {
-          title: isRTL ? 'تم رفض طلبك' : 'Request rejected',
-          body: reason,
-          data: { screen: 'order-details', orderId: data.id },
-        });
-      }
-
-      setOrder((prev) => (prev ? ({ ...prev, status: 'rejected', rejection_reason: reason } as any) : prev));
-      setRejectModalVisible(false);
-      setRejectReasonKey(null);
-      setRejectCustomReason('');
-      Alert.alert(
-        isRTL ? 'تم الرفض' : 'Rejected',
-        isRTL ? 'تم رفض الطلب وإبلاغ العميل.' : 'The request was rejected and the client notified.',
-        [{ text: isRTL ? 'حسناً' : 'OK', onPress: () => safeBack('/(technician)') }]
-      );
-    } catch (e: any) {
-      Alert.alert(
-        isRTL ? 'خطأ' : 'Error',
-        isRTL ? 'تعذّر رفض الطلب' : 'Could not reject the request'
-      );
-    } finally {
-      setSubmittingReject(false);
     }
   };
 
@@ -1018,22 +930,11 @@ export default function ManageOrderScreen() {
                 </TouchableOpacity>
               )}
 
-            {/* FEAT-03 — reject the request (with a reason) while it's still
-                pending and unassigned to this technician. */}
-            {order.status === 'pending' && (
-              <TouchableOpacity
-                style={[styles.rejectButton]}
-                onPress={() => setRejectModalVisible(true)}
-                disabled={updating}
-                accessibilityRole="button"
-                accessibilityLabel={isRTL ? 'رفض الطلب' : 'Reject request'}
-              >
-                <MaterialCommunityIcons name="close-circle-outline" size={20} color="#DC2626" />
-                <Text style={styles.rejectButtonText}>
-                  {isRTL ? 'رفض الطلب' : 'Reject request'}
-                </Text>
-              </TouchableOpacity>
-            )}
+            {/* The old FEAT-03 "reject request" action was retired with the
+                marketplace model: technicians who don't want an open request
+                simply don't offer on it. (Letting any technician mark an open
+                customer request 'rejected' was also an abuse vector, and the
+                RLS policy that permitted it has been dropped.) */}
           </View>
         )}
 
@@ -1470,102 +1371,6 @@ export default function ManageOrderScreen() {
         issueDescription={order?.issue_description}
       />
 
-      {/* FEAT-03 — reject reason bottom sheet */}
-      <Modal
-        visible={rejectModalVisible}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setRejectModalVisible(false)}
-      >
-        <KeyboardAvoidingView
-          style={styles.rejectSheetOverlay}
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        >
-          <View style={[styles.rejectSheet, { backgroundColor: COLORS.card }]}>
-            <ScrollView
-              ref={rejectScrollRef}
-              showsVerticalScrollIndicator={false}
-              keyboardShouldPersistTaps="handled"
-              contentContainerStyle={{ paddingBottom: 4 }}
-            >
-            <Text style={[styles.rejectSheetTitle, { color: COLORS.text }]}>
-              {isRTL ? 'سبب الرفض' : 'Rejection reason'}
-            </Text>
-            {REJECT_REASONS.map((r) => {
-              const selected = rejectReasonKey === r.key;
-              return (
-                <TouchableOpacity
-                  key={r.key}
-                  style={[
-                    styles.rejectOption,
-                    { borderColor: selected ? COLORS.primary : COLORS.border, backgroundColor: selected ? COLORS.primary + '12' : 'transparent' },
-                  ]}
-                  onPress={() => setRejectReasonKey(r.key)}
-                  accessibilityRole="radio"
-                  accessibilityState={{ selected }}
-                >
-                  <MaterialCommunityIcons
-                    name={selected ? 'radiobox-marked' : 'radiobox-blank'}
-                    size={20}
-                    color={selected ? COLORS.primary : COLORS.textSecondary}
-                  />
-                  <Text style={[styles.rejectOptionText, { color: COLORS.text }]}>
-                    {isRTL ? r.ar : r.en}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-
-            {rejectReasonKey === 'other' && (
-              <TextInput
-                value={rejectCustomReason}
-                onChangeText={setRejectCustomReason}
-                placeholder={isRTL ? 'اكتب السبب (10 أحرف على الأقل)' : 'Type the reason (min 10 characters)'}
-                placeholderTextColor={COLORS.textSecondary}
-                multiline
-                onFocus={() =>
-                  // Bring the input + confirm button above the keyboard.
-                  setTimeout(() => rejectScrollRef.current?.scrollToEnd({ animated: true }), 150)
-                }
-                style={{
-                  borderWidth: 1,
-                  borderColor: COLORS.border,
-                  borderRadius: BORDER_RADIUS.m,
-                  padding: SPACING.m,
-                  fontSize: 14,
-                  color: COLORS.text,
-                  minHeight: 70,
-                  marginTop: 4,
-                  marginBottom: 8,
-                  textAlign: isRTL ? 'right' : 'left',
-                }}
-              />
-            )}
-
-            <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', gap: 10, marginTop: 8 }}>
-              <TouchableOpacity
-                style={[styles.rejectConfirmBtn, { backgroundColor: '#DC2626', flex: 1, opacity: submittingReject ? 0.7 : 1 }]}
-                onPress={handleConfirmReject}
-                disabled={submittingReject}
-              >
-                {submittingReject ? (
-                  <ActivityIndicator color="#fff" />
-                ) : (
-                  <Text style={styles.rejectConfirmText}>{isRTL ? 'تأكيد الرفض' : 'Confirm rejection'}</Text>
-                )}
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.rejectCancelBtn, { borderColor: COLORS.border, flex: 1 }]}
-                onPress={() => setRejectModalVisible(false)}
-                disabled={submittingReject}
-              >
-                <Text style={[styles.rejectCancelText, { color: COLORS.text }]}>{isRTL ? 'إلغاء' : 'Cancel'}</Text>
-              </TouchableOpacity>
-            </View>
-            </ScrollView>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
     </SafeAreaView>
   );
 }
@@ -1736,61 +1541,4 @@ const makeStyles = (isRTL: boolean) => StyleSheet.create({
     marginLeft: SPACING.s,
     fontSize: 16,
   },
-  // FEAT-03 reject UI
-  rejectButton: {
-    flexDirection: isRTL ? 'row-reverse' : 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingVertical: SPACING.m,
-    borderRadius: BORDER_RADIUS.m,
-    borderWidth: 1,
-    borderColor: '#DC2626',
-    backgroundColor: '#DC262610',
-    marginTop: SPACING.s,
-  },
-  rejectButtonText: { color: '#DC2626', fontWeight: '800', fontSize: 15 },
-  rejectSheetOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.45)',
-    justifyContent: 'flex-end',
-  },
-  rejectSheet: {
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    padding: SPACING.lg,
-    paddingBottom: SPACING.xl,
-    maxHeight: '85%',
-  },
-  rejectSheetTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-    marginBottom: SPACING.m,
-    textAlign: isRTL ? 'right' : 'left',
-  },
-  rejectOption: {
-    flexDirection: isRTL ? 'row-reverse' : 'row',
-    alignItems: 'center',
-    gap: 10,
-    borderWidth: 1,
-    borderRadius: BORDER_RADIUS.m,
-    padding: SPACING.m,
-    marginBottom: SPACING.s,
-  },
-  rejectOptionText: { flex: 1, fontSize: 14.5, fontWeight: '600', textAlign: isRTL ? 'right' : 'left' },
-  rejectConfirmBtn: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: SPACING.m,
-    borderRadius: BORDER_RADIUS.m,
-  },
-  rejectConfirmText: { color: '#fff', fontWeight: '800', fontSize: 15 },
-  rejectCancelBtn: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: SPACING.m,
-    borderRadius: BORDER_RADIUS.m,
-    borderWidth: 1,
-  },
-  rejectCancelText: { fontWeight: '800', fontSize: 15 },
 });

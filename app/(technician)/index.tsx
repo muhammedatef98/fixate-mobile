@@ -253,7 +253,7 @@ export default function TechnicianHomeScreen() {
       key={order.id}
       style={[styles.orderCard, SHADOWS.neuFlat]}
       // Always open the full details screen — the technician reviews every
-      // request detail there and accepts from inside it.
+      // request detail there and submits their price offer from inside it.
       onPress={() => router.push(`/(technician)/manage-order?id=${order.id}`)}
       activeOpacity={0.7}
     >
@@ -331,7 +331,7 @@ export default function TechnicianHomeScreen() {
         >
           <Ionicons name="document-text-outline" size={20} color="#fff" />
           <Text style={styles.acceptButtonText}>
-            {isRTL ? 'عرض التفاصيل والقبول' : 'View Details & Accept'}
+            {isRTL ? 'عرض التفاصيل وتقديم عرض' : 'View details & submit offer'}
           </Text>
         </TouchableOpacity>
       )}

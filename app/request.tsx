@@ -1237,8 +1237,13 @@ export default function RequestScreen() {
                         setDiscountChecking(true);
                         setDiscountError(null);
                         try {
+                          // Validate against the same number the customer is
+                          // shown (engine estimate), falling back to the
+                          // static calc when no estimate resolved.
                           const base = selectedIssue?.estimatedPrice ?? 0;
-                          const total = Math.round(base * SPARE_PART_MULTIPLIERS[sparePartQuality]);
+                          const total = estimate?.hasEstimate
+                            ? estimate.typical
+                            : Math.round(base * SPARE_PART_MULTIPLIERS[sparePartQuality]);
                           const result = await validateDiscountCode(trimmedCode, total, user.id, language);
                           if (!result.valid || !result.code) {
                             setDiscountError(result.reason ?? (isRTL ? 'كود غير صالح' : 'Invalid code'));

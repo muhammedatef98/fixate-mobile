@@ -96,6 +96,9 @@ export default function AdminOrderDetailScreen() {
   const [resolvedBefore, setResolvedBefore] = useState<string[]>([]);
   const [resolvedAfter, setResolvedAfter] = useState<string[]>([]);
   const [timeline, setTimeline] = useState<OrderTimelineEvent[]>([]);
+  // Marketplace offers on this order (admin visibility into the bidding stage).
+  const [offers, setOffers] = useState<any[]>([]);
+  const [offerNames, setOfferNames] = useState<Record<string, string>>({});
 
   const profileLoaded = userProfile !== null;
   const { isAdmin } = useIsAdmin();
@@ -134,6 +137,26 @@ export default function AdminOrderDetailScreen() {
       setResolvedMedia(signedMedia.filter(Boolean));
       setResolvedBefore(signedBefore.filter(Boolean));
       setResolvedAfter(signedAfter.filter(Boolean));
+
+      // Marketplace offers (RLS: admins read all). Names resolved via the
+      // public card view since users is otherwise own-row-only.
+      const { data: offerRows } = await supabase
+        .from('order_offers')
+        .select('*')
+        .eq('order_id', id)
+        .order('created_at', { ascending: false });
+      const rows = offerRows ?? [];
+      setOffers(rows);
+      const techIds = [...new Set(rows.map((r: any) => r.technician_id))];
+      if (techIds.length > 0) {
+        const { data: cards } = await supabase
+          .from('public_user_cards')
+          .select('id, name')
+          .in('id', techIds);
+        const names: Record<string, string> = {};
+        for (const c of cards ?? []) names[(c as any).id] = (c as any).name ?? '';
+        setOfferNames(names);
+      }
     } catch {
       // non-fatal
     } finally {
@@ -221,9 +244,64 @@ export default function AdminOrderDetailScreen() {
                 <PhoneRow k={isRTL ? 'الهاتف' : 'Phone'} phone={order.technician_phone} isRTL={isRTL} styles={styles} COLORS={COLORS} />
               </>
             ) : (
-              <Text style={styles.muted}>{isRTL ? 'لم يُسنَد لفني بعد' : 'Not assigned to a technician yet'}</Text>
+              <Text style={styles.muted}>
+                {isRTL
+                  ? 'لم يُسنَد لفني بعد — الطلب في مرحلة استقبال العروض'
+                  : 'Not assigned yet — the request is collecting offers'}
+              </Text>
             )}
           </Section>
+
+          {/* Marketplace offers — who quoted what, and what happened to each
+              offer (accepted / rejected by customer / expired / withdrawn). */}
+          {offers.length > 0 && (
+            <Section
+              title={`${isRTL ? 'عروض الفنيين' : 'Technician offers'} (${offers.length})`}
+              icon="gavel"
+              COLORS={COLORS}
+              isRTL={isRTL}
+            >
+              {offers.map((o: any) => {
+                const meta: Record<string, { ar: string; en: string; color: string }> = {
+                  pending: { ar: 'قيد الانتظار', en: 'Pending', color: '#F59E0B' },
+                  accepted: { ar: 'مقبول', en: 'Accepted', color: '#10B981' },
+                  rejected: { ar: 'رفضه العميل', en: 'Declined by customer', color: '#EF4444' },
+                  expired: { ar: 'انتهى (فاز عرض آخر)', en: 'Expired (another offer won)', color: '#6B7280' },
+                  withdrawn: { ar: 'سحبه الفني', en: 'Withdrawn by technician', color: '#6B7280' },
+                };
+                const m = meta[o.status] ?? meta.pending;
+                return (
+                  <View
+                    key={o.id}
+                    style={{
+                      flexDirection: isRTL ? 'row-reverse' : 'row',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      paddingVertical: 8,
+                      gap: 8,
+                    }}
+                  >
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ color: COLORS.text, fontWeight: '700', fontSize: 13, textAlign: isRTL ? 'right' : 'left' }}>
+                        {offerNames[o.technician_id] || (isRTL ? 'فني' : 'Technician')}
+                      </Text>
+                      <Text style={{ color: COLORS.textSecondary, fontSize: 11, marginTop: 2, textAlign: isRTL ? 'right' : 'left' }}>
+                        {dt(o.created_at)}
+                      </Text>
+                    </View>
+                    <Text style={{ color: COLORS.text, fontWeight: '800', fontSize: 14 }}>
+                      {fmt(o.amount)} {sar}
+                    </Text>
+                    <View style={{ backgroundColor: m.color + '20', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999 }}>
+                      <Text style={{ color: m.color, fontSize: 10.5, fontWeight: '700' }}>
+                        {isRTL ? m.ar : m.en}
+                      </Text>
+                    </View>
+                  </View>
+                );
+              })}
+            </Section>
+          )}
 
           {/* Service details */}
           <Section title={isRTL ? 'تفاصيل الخدمة' : 'Service details'} icon="wrench-outline" COLORS={COLORS} isRTL={isRTL}>
@@ -244,7 +322,15 @@ export default function AdminOrderDetailScreen() {
 
           {/* Pricing */}
           <Section title={isRTL ? 'التسعير' : 'Pricing'} icon="cash-multiple" COLORS={COLORS} isRTL={isRTL}>
-            <Row k={isRTL ? 'عرض السعر' : 'Quotation'} v={`${fmt(order.estimated_price)} ${sar}`} styles={styles} />
+            <Row
+              k={
+                order.technician_id
+                  ? isRTL ? 'العرض المقبول' : 'Accepted offer'
+                  : isRTL ? 'التقدير المبدئي' : 'Initial estimate'
+              }
+              v={`${fmt(order.estimated_price)} ${sar}`}
+              styles={styles}
+            />
             {order.final_price != null && (
               <Row k={isRTL ? 'السعر النهائي' : 'Final price'} v={`${fmt(order.final_price)} ${sar}`} styles={styles} strong />
             )}

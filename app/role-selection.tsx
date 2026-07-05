@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Animated, Dimensions, StatusBar, Image } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Animated, Dimensions, StatusBar, Image, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { getColors, getShadows, SPACING, BORDER_RADIUS } from '../constants/theme';
@@ -102,12 +102,18 @@ export default function RoleSelectionScreen() {
       />
 
       <SafeAreaView style={styles.safeArea}>
-        <Animated.View 
+        {/* Scrollable since the portal now offers three roles — on small
+            screens (SE-class) the third card + footer must stay reachable. */}
+        <ScrollView
+          contentContainerStyle={{ flexGrow: 1 }}
+          showsVerticalScrollIndicator={false}
+        >
+        <Animated.View
           style={[
-            styles.content, 
-            { 
+            styles.content,
+            {
               opacity: fadeAnim,
-              transform: [{ translateY: slideAnim }] 
+              transform: [{ translateY: slideAnim }]
             }
           ]}
         >
@@ -252,6 +258,7 @@ export default function RoleSelectionScreen() {
             </Text>
           </Text>
         </Animated.View>
+        </ScrollView>
       </SafeAreaView>
     </View>
   );

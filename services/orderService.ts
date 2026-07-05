@@ -146,6 +146,14 @@ export const getOrderById = async (orderId: string): Promise<Order | null> => {
   return data;
 };
 
+/**
+ * @deprecated Direct claiming was replaced by the offer marketplace
+ * (2026-07). Assignment now happens ONLY via the customer accepting an offer
+ * (accept_order_offer RPC). The RLS policy that allowed technicians to update
+ * open orders has been dropped, so this call will fail server-side for
+ * technician sessions — it is kept only so old code paths fail loudly instead
+ * of vanishing. Do not add new callers.
+ */
 export const assignOrderToTechnician = async (
   orderId: string,
   technicianId: string
