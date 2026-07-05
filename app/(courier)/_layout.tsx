@@ -7,7 +7,7 @@ import {
   StyleSheet,
   Platform,
 } from 'react-native';
-import { Stack, useRouter } from 'expo-router';
+import { Stack, useRouter, useSegments } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useApp } from '../../contexts/AppContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -15,8 +15,14 @@ import { getColors, SPACING, BORDER_RADIUS } from '../../constants/theme';
 import { saveLastRole } from '../../utils/rolePreference';
 import { mapCourierGate, type CourierGate } from '../../utils/courierVerification';
 import { getMyCourierProfile } from '../../services/courierService';
+import BottomNavCourier from '../../components/BottomNavCourier';
 
 type GateState = { kind: 'loading' } | { kind: 'no-profile' } | CourierGate;
+
+// Child segments where the floating tab bar stays visible — the three
+// BottomNavCourier destinations. Task detail (task/[id]) hides the bar so
+// the courier focuses on the single enforced next action.
+const PERSISTENT_TAB_SEGMENTS = new Set<string>(['', 'index', 'my-tasks', 'profile']);
 
 /**
  * Courier portal gate + stack. Mirrors the (technician) layout contract:
@@ -29,6 +35,7 @@ export default function CourierLayout() {
   const { language, isDark } = useApp();
   const { user, loading: authLoading, signOut } = useAuth();
   const router = useRouter();
+  const segments = useSegments();
   const COLORS = getColors(isDark);
   const isRTL = language === 'ar';
 
@@ -166,11 +173,19 @@ export default function CourierLayout() {
     );
   }
 
+  const inCourierGroup = (segments as string[])[0] === '(courier)';
+  const childSegment = ((segments as string[])[1] ?? '') as string;
+  const showBottomNav = inCourierGroup && PERSISTENT_TAB_SEGMENTS.has(childSegment);
+
   return (
+    <View style={{ flex: 1, backgroundColor: COLORS.background }}>
     <Stack
       screenOptions={{
         headerShown: false,
-        animation: 'none',
+        // Soft crossfade between tabs — same treatment as the technician
+        // group, so replace()-based tab switches feel smooth, not like cuts.
+        animation: 'fade',
+        animationDuration: 150,
         gestureEnabled: true,
         gestureDirection: 'horizontal',
         ...(Platform.OS === 'ios'
@@ -190,8 +205,12 @@ export default function CourierLayout() {
       }}
     >
       <Stack.Screen name="index" />
+      <Stack.Screen name="my-tasks" />
+      <Stack.Screen name="profile" />
       <Stack.Screen name="task/[id]" />
     </Stack>
+    {showBottomNav && <BottomNavCourier />}
+    </View>
   );
 }
 

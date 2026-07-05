@@ -210,7 +210,12 @@ export default function TechnicianLayout() {
       <Stack
         screenOptions={{
           headerShown: false,
-          animation: 'none',
+          // Soft crossfade between the persistent tabs (Home / Chats /
+          // Community / Jobs). 'none' made every replace() feel like a hard
+          // cut — especially visible when the destination shows a skeleton
+          // for a frame. Fade keeps switches instant but smooth.
+          animation: 'fade',
+          animationDuration: 150,
           gestureEnabled: true,
           gestureDirection: 'horizontal',
           // iOS glass header to match the root navigator (only visible if a

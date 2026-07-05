@@ -85,8 +85,11 @@ export default function AdminOrdersScreen() {
   const [search, setSearch] = useState('');
   const [deletingAll, setDeletingAll] = useState(false);
 
-  const profileLoaded = userProfile !== null;
-  const { isAdmin } = useIsAdmin();
+  const { isAdmin, checking: adminChecking } = useIsAdmin();
+  // Gate on the admin check (JWT claim + RBAC RPC), never on the users-row
+  // fetch: if that read fails, userProfile stays null forever and the screen
+  // would hang on a blank spinner (2026-07-05 regression).
+  const profileLoaded = !adminChecking;
 
   const load = useCallback(async () => {
     try {

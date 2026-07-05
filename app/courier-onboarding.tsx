@@ -22,6 +22,7 @@ import {
   getMyCourierProfile,
   submitCourierApplication,
 } from '../services/courierService';
+import * as userService from '../services/userService';
 import { getFriendlyError } from '../utils/errorMessages';
 import { logger } from '../utils/logger';
 
@@ -40,10 +41,12 @@ const VEHICLES: { id: 'car' | 'motorcycle' | 'van'; ar: string; en: string; icon
 export default function CourierOnboardingScreen() {
   const router = useRouter();
   const { language, isDark } = useApp();
-  const { user } = useAuth();
+  const { user, userProfile } = useAuth();
   const COLORS = getColors(isDark);
   const isRTL = language === 'ar';
 
+  const [fullName, setFullName] = useState('');
+  const [phone, setPhone] = useState('');
   const [city, setCity] = useState('');
   const [vehicle, setVehicle] = useState<'car' | 'motorcycle' | 'van'>('car');
   const [idNumber, setIdNumber] = useState('');
@@ -71,8 +74,22 @@ export default function CourierOnboardingScreen() {
     };
   }, [user]);
 
+  // Prefill identity from the users row (hydrates in the background) so
+  // re-applications and edits never make the courier retype their details.
+  useEffect(() => {
+    setFullName((prev) => prev || userProfile?.name || '');
+    setPhone((prev) => prev || userProfile?.phone || '');
+  }, [userProfile]);
+
   const handleSubmit = async () => {
     if (!user) return;
+    if (!fullName.trim()) {
+      Alert.alert(
+        isRTL ? 'تنبيه' : 'Missing info',
+        isRTL ? 'اكتب اسمك الكامل' : 'Enter your full name'
+      );
+      return;
+    }
     if (!city.trim()) {
       Alert.alert(
         isRTL ? 'تنبيه' : 'Missing info',
@@ -82,6 +99,12 @@ export default function CourierOnboardingScreen() {
     }
     setSubmitting(true);
     try {
+      // Identity lives on the users row (name shown to admins and customers);
+      // the courier application only carries work details.
+      await userService.createOrUpdateUserProfile(user.id, {
+        name: fullName.trim(),
+        ...(phone.trim() ? { phone: phone.trim() } : {}),
+      });
       await submitCourierApplication(user.id, {
         city: city.trim(),
         vehicle_type: vehicle,
@@ -140,6 +163,49 @@ export default function CourierOnboardingScreen() {
             {isRTL
               ? 'مهمتك كمندوب: استلام الأجهزة من العملاء وتوصيلها للفنيين، ثم إعادتها بعد الإصلاح. أكمل بياناتك ليراجعها الفريق.'
               : 'As a courier you pick devices up from customers, deliver them to technicians, and return them after repair. Complete your details for review.'}
+          </Text>
+
+          <Text style={[styles.sectionLabel, { color: COLORS.primary, textAlign: isRTL ? 'right' : 'left' }]}>
+            {isRTL ? 'البيانات الشخصية' : 'Personal details'}
+          </Text>
+
+          <View style={{ gap: 6 }}>
+            <Text style={[styles.label, { color: COLORS.text, textAlign: isRTL ? 'right' : 'left' }]}>
+              {isRTL ? 'الاسم الكامل' : 'Full name'}
+            </Text>
+            <View style={[styles.inputWrap, { backgroundColor: COLORS.card, borderColor: COLORS.border, flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+              <MaterialCommunityIcons name="account-outline" size={20} color={COLORS.textSecondary} />
+              <TextInput
+                style={[styles.input, { color: COLORS.text }]}
+                placeholder={isRTL ? 'اسمك كما في الهوية' : 'Your name as on your ID'}
+                placeholderTextColor={COLORS.textSecondary}
+                value={fullName}
+                onChangeText={setFullName}
+                textAlign={isRTL ? 'right' : 'left'}
+              />
+            </View>
+          </View>
+
+          <View style={{ gap: 6 }}>
+            <Text style={[styles.label, { color: COLORS.text, textAlign: isRTL ? 'right' : 'left' }]}>
+              {isRTL ? 'رقم الجوال (اختياري)' : 'Phone number (optional)'}
+            </Text>
+            <View style={[styles.inputWrap, { backgroundColor: COLORS.card, borderColor: COLORS.border, flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+              <MaterialCommunityIcons name="phone-outline" size={20} color={COLORS.textSecondary} />
+              <TextInput
+                style={[styles.input, { color: COLORS.text }]}
+                placeholder="05XXXXXXXX"
+                placeholderTextColor={COLORS.textSecondary}
+                value={phone}
+                onChangeText={setPhone}
+                keyboardType="phone-pad"
+                textAlign={isRTL ? 'right' : 'left'}
+              />
+            </View>
+          </View>
+
+          <Text style={[styles.sectionLabel, { color: COLORS.primary, textAlign: isRTL ? 'right' : 'left', marginTop: 4 }]}>
+            {isRTL ? 'بيانات العمل' : 'Work details'}
           </Text>
 
           <View style={{ gap: 6 }}>
@@ -245,6 +311,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: { fontSize: 18, fontWeight: '800' },
   label: { fontSize: 13, fontWeight: '700' },
+  sectionLabel: { fontSize: 13, fontWeight: '800', letterSpacing: 0.3 },
   inputWrap: {
     alignItems: 'center',
     borderRadius: BORDER_RADIUS.md,

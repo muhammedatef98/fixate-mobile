@@ -105,6 +105,40 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // so token-refresh auth events don't re-trigger registration.
   const pushRegisteredFor = useRef<string | null>(null);
 
+  // Identifies the hydration target so late retries for a previous user (or a
+  // signed-out session) never overwrite current state.
+  const profileHydrationFor = useRef<string | null>(null);
+
+  /**
+   * Load the users-row profile with retries. getUserProfile returns null both
+   * for "row missing" and "query failed"; a transient DB/network failure here
+   * used to leave userProfile null for the whole session, which downstream
+   * screens rendered as missing names / email-only profiles. Retry a couple of
+   * times in the background before accepting null as the final answer.
+   */
+  const hydrateProfile = (userId: string): void => {
+    profileHydrationFor.current = userId;
+    const RETRY_DELAYS_MS = [0, 2500, 10000];
+    const attempt = (i: number) => {
+      void userService.getUserProfile(userId).then((p) => {
+        if (profileHydrationFor.current !== userId) return;
+        if (p) {
+          setUserProfile(p);
+          setProfileLoaded(true);
+          return;
+        }
+        const next = i + 1;
+        if (next < RETRY_DELAYS_MS.length) {
+          setTimeout(() => attempt(next), RETRY_DELAYS_MS[next]);
+        }
+        // Don't block navigation on retries — report loaded after the first
+        // attempt; later successes still hydrate the profile.
+        setProfileLoaded(true);
+      });
+    };
+    attempt(0);
+  };
+
   useEffect(() => {
     // Get initial session — fast path. Don't block on a profile fetch:
     // mark loading=false immediately so navigation is responsive, then
@@ -125,15 +159,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           pushRegisteredFor.current = session.user.id;
           void registerPushForUser(session.user.id);
         }
-        userService
-          .getUserProfile(session.user.id)
-          .then((p) => {
-            setUserProfile(p);
-            setProfileLoaded(true);
-          })
-          .catch(() => {
-            setProfileLoaded(true);
-          });
+        hydrateProfile(session.user.id);
       } else {
         setProfileLoaded(true);
         setAdminPermissions([]);
@@ -160,16 +186,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           pushRegisteredFor.current = session.user.id;
           void registerPushForUser(session.user.id);
         }
-        userService
-          .getUserProfile(session.user.id)
-          .then((p) => {
-            setUserProfile(p);
-            setProfileLoaded(true);
-          })
-          .catch(() => {
-            setProfileLoaded(true);
-          });
+        hydrateProfile(session.user.id);
       } else {
+        profileHydrationFor.current = null;
         setUserProfile(null);
         setProfileLoaded(true);
         setAdminPermissions([]);
@@ -184,6 +203,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signOut = async () => {
     // Clear in-memory state first so the auth guard sees a logged-out user
     // immediately on the next render.
+    profileHydrationFor.current = null;
     setSession(null);
     setUser(null);
     setUserProfile(null);

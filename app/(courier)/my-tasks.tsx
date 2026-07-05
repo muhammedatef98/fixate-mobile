@@ -1,17 +1,12 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useApp } from '../../contexts/AppContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { getColors, SPACING } from '../../constants/theme';
-import {
-  getAvailableDeliveryTasks,
-  acceptDeliveryTask,
-  subscribeToAvailableDeliveryTasks,
-  type DeliveryTask,
-} from '../../services/courierService';
+import { getMyDeliveryTasks, type DeliveryTask } from '../../services/courierService';
 import DeliveryTaskCard from '../../components/courier/DeliveryTaskCard';
 import { COURIER_NAV_HEIGHT } from '../../components/BottomNavCourier';
 import { SkeletonOrderCard } from '../../components/SkeletonLoader';
@@ -19,30 +14,28 @@ import { getFriendlyError } from '../../utils/errorMessages';
 import { logger } from '../../utils/logger';
 
 /**
- * Available tab: the open delivery-task pool, realtime. Claiming is atomic
- * server-side (accept_delivery_task RPC); losing a race surfaces a clear
- * "someone else took it" message and drops the card.
+ * My Tasks tab: everything the courier has accepted — active work first,
+ * completed/cancelled history below.
  */
-export default function CourierAvailableScreen() {
+export default function CourierMyTasksScreen() {
   const router = useRouter();
   const { language, isDark } = useApp();
   const { user } = useAuth();
   const COLORS = getColors(isDark);
   const isRTL = language === 'ar';
 
-  const [available, setAvailable] = useState<DeliveryTask[]>([]);
+  const [mine, setMine] = useState<DeliveryTask[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [acceptingId, setAcceptingId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!user) return;
     try {
       setErrorMessage(null);
-      setAvailable(await getAvailableDeliveryTasks());
+      setMine(await getMyDeliveryTasks(user.id));
     } catch (e) {
-      logger.warn('courier available load failed', e);
+      logger.warn('courier my-tasks load failed', e);
       setErrorMessage(getFriendlyError(e, language));
     } finally {
       setLoading(false);
@@ -51,8 +44,6 @@ export default function CourierAvailableScreen() {
 
   useEffect(() => {
     void load();
-    const cleanup = subscribeToAvailableDeliveryTasks(() => void load());
-    return cleanup;
   }, [load]);
 
   const handleRefresh = async () => {
@@ -61,45 +52,27 @@ export default function CourierAvailableScreen() {
     setRefreshing(false);
   };
 
-  const handleAccept = async (task: DeliveryTask) => {
-    setAcceptingId(task.id);
-    try {
-      await acceptDeliveryTask(task.id);
-      await load();
-      router.push({ pathname: '/(courier)/task/[id]', params: { id: task.id } } as any);
-    } catch (e: any) {
-      const raced = String(e?.message ?? '').includes('task_no_longer_available');
-      if (raced) setAvailable((prev) => prev.filter((t) => t.id !== task.id));
-      Alert.alert(
-        isRTL ? 'تنبيه' : 'Notice',
-        raced
-          ? isRTL
-            ? 'هذه المهمة لم تعد متاحة — قبلها مندوب آخر.'
-            : 'This task is no longer available — another courier took it.'
-          : getFriendlyError(e, language)
-      );
-    } finally {
-      setAcceptingId(null);
-    }
-  };
+  const openTask = (task: DeliveryTask) =>
+    router.push({ pathname: '/(courier)/task/[id]', params: { id: task.id } } as any);
+
+  const activeMine = mine.filter((t) => !['completed', 'cancelled'].includes(t.status));
+  const doneMine = mine.filter((t) => ['completed', 'cancelled'].includes(t.status));
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background }} edges={['top']}>
       <View style={[styles.header, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
         <View>
           <Text style={{ fontSize: 22, fontWeight: '800', color: COLORS.text, textAlign: isRTL ? 'right' : 'left' }}>
-            {isRTL ? 'المهمات المتاحة' : 'Available Tasks'}
+            {isRTL ? 'مهماتي' : 'My Tasks'}
           </Text>
           <Text style={{ fontSize: 13, color: COLORS.textSecondary, marginTop: 2, textAlign: isRTL ? 'right' : 'left' }}>
-            {isRTL
-              ? 'تظهر المهمات الجديدة هنا فوراً'
-              : 'New tasks appear here instantly'}
+            {isRTL ? 'المهمات النشطة والمكتملة' : 'Active and completed deliveries'}
           </Text>
         </View>
-        {available.length > 0 && (
+        {activeMine.length > 0 && (
           <View style={[styles.countPill, { backgroundColor: COLORS.primary + '18' }]}>
             <Text style={{ color: COLORS.primary, fontWeight: '800', fontSize: 14 }}>
-              {available.length}
+              {activeMine.length}
             </Text>
           </View>
         )}
@@ -132,25 +105,46 @@ export default function CourierAvailableScreen() {
             </View>
           )}
 
-          {available.length === 0 ? (
+          {activeMine.length === 0 && doneMine.length === 0 ? (
             <View style={styles.empty}>
-              <MaterialCommunityIcons name="truck-fast-outline" size={64} color={COLORS.textSecondary} />
+              <MaterialCommunityIcons name="clipboard-text-outline" size={64} color={COLORS.textSecondary} />
               <Text style={{ color: COLORS.textSecondary, fontSize: 15, textAlign: 'center', marginTop: 12 }}>
                 {isRTL
-                  ? 'لا توجد مهمات توصيل متاحة حالياً. ستظهر هنا فور توفرها.'
-                  : 'No delivery tasks available right now. New tasks appear here instantly.'}
+                  ? 'لم تقبل أي مهمة بعد. تصفح المهمات المتاحة وابدأ التوصيل.'
+                  : "You haven't accepted any tasks yet. Browse available tasks to get started."}
               </Text>
+              <TouchableOpacity
+                style={[styles.browseBtn, { backgroundColor: COLORS.primary }]}
+                onPress={() => router.replace('/(courier)' as any)}
+                accessibilityRole="button"
+              >
+                <Text style={{ color: '#fff', fontWeight: '800', fontSize: 14 }}>
+                  {isRTL ? 'تصفح المهمات المتاحة' : 'Browse available tasks'}
+                </Text>
+              </TouchableOpacity>
             </View>
           ) : (
-            available.map((t) => (
-              <DeliveryTaskCard
-                key={t.id}
-                task={t}
-                mode="available"
-                onAccept={handleAccept}
-                acceptingId={acceptingId}
-              />
-            ))
+            <>
+              {activeMine.map((t) => (
+                <DeliveryTaskCard key={t.id} task={t} mode="mine" onOpen={openTask} />
+              ))}
+              {doneMine.length > 0 && (
+                <Text
+                  style={{
+                    color: COLORS.textSecondary,
+                    fontSize: 13,
+                    fontWeight: '700',
+                    marginTop: 8,
+                    textAlign: isRTL ? 'right' : 'left',
+                  }}
+                >
+                  {isRTL ? 'المكتملة' : 'Completed'}
+                </Text>
+              )}
+              {doneMine.map((t) => (
+                <DeliveryTaskCard key={t.id} task={t} mode="mine" onOpen={openTask} />
+              ))}
+            </>
           )}
         </ScrollView>
       )}
@@ -173,7 +167,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 10,
   },
-  empty: { alignItems: 'center', paddingVertical: 60 },
+  empty: { alignItems: 'center', paddingVertical: 60, gap: 4 },
+  browseBtn: {
+    marginTop: 16,
+    paddingHorizontal: 22,
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
   errorBanner: {
     flexDirection: 'row',
     alignItems: 'center',
