@@ -334,6 +334,10 @@ function RootLayoutContent() {
           name="chat/[id]"
           options={{ headerShown: false }}
         />
+        <Stack.Screen
+          name="courier-chat/[taskId]"
+          options={{ headerShown: false }}
+        />
         <Stack.Screen name="addresses" options={{ headerShown: false }} />
         <Stack.Screen name="wallet" options={{ headerShown: false }} />
         <Stack.Screen name="notifications-settings" options={{ headerShown: false }} />

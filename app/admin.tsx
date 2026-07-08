@@ -124,13 +124,13 @@ export default function AdminDashboardScreen() {
         supabase.from('technicians').select('*', { count: 'exact', head: true }).eq('verification_status', 'submitted'),
         supabase.from('market_listings').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
         supabase.from('support_threads').select('*', { count: 'exact', head: true }).eq('unread_for_admin', true),
-        supabase.from('orders').select('final_price, estimated_price').eq('status', 'completed'),
+        supabase.from('orders').select('accepted_offer_amount, final_price, estimated_price').eq('status', 'completed'),
         supabase.from('users').select('*', { count: 'exact', head: true }).gte('created_at', weekAgoIso),
         supabase.from('orders').select('*', { count: 'exact', head: true }).gte('created_at', weekAgoIso),
         supabase.from('market_listings').select('*', { count: 'exact', head: true }).gte('created_at', weekAgoIso),
         supabase.from('technicians').select('*', { count: 'exact', head: true }).gte('created_at', weekAgoIso),
         supabase.from('orders').select('*', { count: 'exact', head: true }).gte('created_at', dayStartIso),
-        supabase.from('orders').select('final_price, estimated_price').eq('status', 'completed').gte('created_at', dayStartIso),
+        supabase.from('orders').select('accepted_offer_amount, final_price, estimated_price').eq('status', 'completed').gte('created_at', dayStartIso),
         supabase
           .from('orders')
           .select('id, order_number, device_brand, device_model, status, created_at')
@@ -149,11 +149,11 @@ export default function AdminDashboardScreen() {
       ]);
 
       const revenue = (completed ?? []).reduce(
-        (sum: number, o: any) => sum + Number(o.final_price ?? o.estimated_price ?? 0),
+        (sum: number, o: any) => sum + Number(o.accepted_offer_amount ?? o.final_price ?? o.estimated_price ?? 0),
         0
       );
       const revenueToday = (completedToday ?? []).reduce(
-        (sum: number, o: any) => sum + Number(o.final_price ?? o.estimated_price ?? 0),
+        (sum: number, o: any) => sum + Number(o.accepted_offer_amount ?? o.final_price ?? o.estimated_price ?? 0),
         0
       );
 

@@ -39,6 +39,7 @@ interface AdminOrder {
   device_model: string;
   status: string;
   estimated_price?: number | null;
+  accepted_offer_amount?: number | null;
   final_price?: number | null;
   customer_phone?: string | null;
   created_at?: string | null;
@@ -96,7 +97,7 @@ export default function AdminOrdersScreen() {
       const { data, error } = await supabase
         .from('orders')
         .select(
-          'id, order_number, device_brand, device_model, status, estimated_price, final_price, customer_phone, created_at, user_id, customer:users!user_id(name)'
+          'id, order_number, device_brand, device_model, status, estimated_price, accepted_offer_amount, final_price, customer_phone, created_at, user_id, customer:users!user_id(name)'
         )
         .is('deleted_at', null)
         .order('created_at', { ascending: false })
@@ -352,7 +353,7 @@ export default function AdminOrdersScreen() {
           visible.map((o) => {
             const meta = STATUS_META(o.status, isRTL);
             const tone = orderStatusTone(o.status);
-            const price = o.final_price ?? o.estimated_price ?? 0;
+            const price = o.accepted_offer_amount ?? o.final_price ?? o.estimated_price ?? 0;
             const customerName = Array.isArray(o.customer)
               ? (o.customer[0]?.name ?? '')
               : (o.customer?.name ?? '');

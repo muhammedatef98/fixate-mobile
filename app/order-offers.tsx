@@ -81,8 +81,8 @@ export default function OrderOffersScreen() {
     Alert.alert(
       isRTL ? 'قبول العرض' : 'Accept offer',
       isRTL
-        ? `سيتم إسناد الطلب لهذا الفني بسعر ${Math.round(offer.amount)} ر.س وإغلاق باقي العروض. متابعة؟`
-        : `The request will be assigned to this technician at ${Math.round(offer.amount)} SAR and the other offers will close. Continue?`,
+        ? `سيتم إسناد الطلب لهذا الفني بسعر ${Math.round(offer.amount)} ر.س وإغلاق باقي العروض، ثم تنتقل مباشرة لتأكيد الدفع. متابعة؟`
+        : `The request will be assigned to this technician at ${Math.round(offer.amount)} SAR, the other offers will close, and you'll go straight to payment. Continue?`,
       [
         { text: isRTL ? 'إلغاء' : 'Cancel', style: 'cancel' },
         {
@@ -91,22 +91,11 @@ export default function OrderOffersScreen() {
             setActingOn(offer.id);
             try {
               await acceptOffer(offer);
-              Alert.alert(
-                isRTL ? 'تم ✓' : 'Done ✓',
-                isRTL
-                  ? 'تم إسناد الطلب للفني. تابع تقدم الإصلاح من تفاصيل الطلب.'
-                  : 'The technician was assigned. Track the repair from the order details.',
-                [
-                  {
-                    text: isRTL ? 'متابعة الطلب' : 'Track order',
-                    onPress: () =>
-                      router.replace({
-                        pathname: '/order-details',
-                        params: { id: String(orderId) },
-                      } as any),
-                  },
-                ]
-              );
+              // Accepted offer → immediate payment (payment architecture v2).
+              router.replace({
+                pathname: '/payment',
+                params: { orderId: String(orderId) },
+              } as any);
             } catch (e: any) {
               logger.warn('accept offer failed', e);
               const gone =

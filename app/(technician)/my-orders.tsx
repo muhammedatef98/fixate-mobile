@@ -143,7 +143,7 @@ export default function MyOrdersScreen() {
           <View style={styles.orderDetailItem}>
             <MaterialCommunityIcons name="cash" size={16} color="#10B981" />
             <Text style={[styles.priceText, { color: '#10B981' }]}>
-              {order.estimated_price} {language === 'ar' ? 'ر.س' : 'SAR'}
+              {(order as any).accepted_offer_amount ?? (order as any).final_price ?? order.estimated_price} {language === 'ar' ? 'ر.س' : 'SAR'}
             </Text>
           </View>
         </View>

@@ -53,12 +53,20 @@ export interface Order {
   device_brand: string;
   device_model: string;
   issue_description: string;
+  // The customer's initial estimate — never overwritten after creation.
   estimated_price: number;
-  // Technician inspection quote (set after the device is inspected). The
-  // customer accepts/rejects this before repair work proceeds.
+  // Legacy pre-v2 inspection quote fields (read-only fallback for old rows).
   final_price?: number | null;
   quote_notes?: string | null;
   quoted_at?: string | null;
+  // Payment architecture v2 (see types/order.ts for full semantics).
+  accepted_offer_amount?: number | null;
+  payment_mode?: 'full_upfront' | 'deposit_then_rest' | 'partial_then_final' | null;
+  upfront_amount_due?: number | null;
+  amount_paid?: number | null;
+  amount_paid_at?: string | null;
+  payment_status?: string | null;
+  spare_parts_cost?: number | null;
   location: string;
   latitude: number;
   longitude: number;
@@ -341,75 +349,9 @@ export const requests = {
     return data;
   },
 
-  // Technician submits the inspection quote -> order becomes 'quoted'.
-  // Multiple progressive fallbacks so the call succeeds even when the
-  // production DB hasn't been migrated yet (missing column / outdated
-  // status CHECK). The last fallback stores the quote in estimated_price
-  // so the customer can still see and respond.
-  setQuote: async (id: string, price: number, notes?: string): Promise<Order | null> => {
-    const ts = new Date().toISOString();
-    const attempts: any[] = [
-      { final_price: price, status: 'quoted', quote_notes: notes ?? null, quoted_at: ts, updated_at: ts },
-      { final_price: price, status: 'quoted', updated_at: ts },
-      { final_price: price, updated_at: ts },
-      // Final fallback: pre-migration DB. We at least update the visible
-      // estimated price + notes so the customer sees the new number.
-      { estimated_price: price, issue_description_extra: notes ?? null, updated_at: ts },
-      { estimated_price: price, updated_at: ts },
-    ];
-    let lastError: any = null;
-    for (const payload of attempts) {
-      const { data, error } = await supabase
-        .from('orders')
-        .update(payload)
-        .eq('id', id)
-        .select()
-        .maybeSingle();
-      if (!error && data) {
-        // Notify the client that a price quote is ready (FEAT-01).
-        pushOrderToClient(
-          data.user_id,
-          'عرض سعر جديد 💰',
-          `تم إرسال عرض سعر بقيمة ${price} ر.س لطلبك. بانتظار موافقتك.`,
-          data.id
-        );
-        return data;
-      }
-      lastError = error;
-      logger.warn('setQuote attempt failed, falling back', { payload: Object.keys(payload), error });
-    }
-    throw lastError ?? new Error('Failed to send quote');
-  },
-
-  // Customer accepts/rejects the technician quote. On accept the order
-  // becomes payment-ready ('awaiting_payment') — the customer is then sent
-  // to the real payment page, which advances it to 'accepted' once paid /
-  // cash-on-delivery is confirmed.
-  respondToQuote: async (id: string, accept: boolean): Promise<Order | null> => {
-    const { data, error } = await supabase
-      .from('orders')
-      .update({
-        status: accept ? 'awaiting_payment' : 'cancelled',
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', id)
-      .select()
-      .single();
-    if (error) throw error;
-
-    // Notify the technician of the customer's decision on their quote (FEAT-01).
-    if (data) {
-      pushOrderToClient(
-        data.technician_id,
-        accept ? 'تم قبول عرض السعر ✅' : 'تم رفض عرض السعر ❌',
-        accept
-          ? 'وافق العميل على عرض السعر الخاص بك.'
-          : 'رفض العميل عرض السعر الخاص بك.',
-        data.id
-      );
-    }
-    return data;
-  },
+  // Payment architecture v2: setQuote / respondToQuote were removed. The
+  // accepted marketplace offer is the price basis and the customer pays right
+  // after accepting it (see services/orderService.recordOrderPayment).
 
   // Subscribe to orders (real-time). subscribeUnique avoids the
   // realtime race on re-mount.

@@ -135,8 +135,14 @@ export default function EarningsScreen() {
         );
       }
 
-      const total = filteredOrders.reduce((sum: number, o: any) => 
-        sum + (o.estimated_price || 0), 0
+      // Earnings basis = the accepted offer (payment v2), minus the
+      // technician's internal spare-part cost; legacy rows fall back to the
+      // old quote/estimate.
+      const grossOf = (o: any): number =>
+        Number(o.accepted_offer_amount ?? o.final_price ?? o.estimated_price ?? 0);
+      const total = filteredOrders.reduce(
+        (sum: number, o: any) => sum + Math.max(0, grossOf(o) - Number(o.spare_parts_cost ?? 0)),
+        0
       );
       const average = filteredOrders.length > 0 ? total / filteredOrders.length : 0;
 
@@ -167,7 +173,7 @@ export default function EarningsScreen() {
         </View>
         <View style={[styles.earningAmount, { backgroundColor: '#10B98115' }]}>
           <Text style={[styles.earningAmountText, { color: '#10B981' }]}>
-            +{order.estimated_price} {language === 'ar' ? 'ر.س' : 'SAR'}
+            +{Math.max(0, Number(order.accepted_offer_amount ?? order.final_price ?? order.estimated_price ?? 0) - Number(order.spare_parts_cost ?? 0))} {language === 'ar' ? 'ر.س' : 'SAR'}
           </Text>
         </View>
       </View>

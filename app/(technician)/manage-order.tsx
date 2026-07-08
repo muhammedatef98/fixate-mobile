@@ -13,6 +13,7 @@ import {
   I18nManager,
   Platform,
   TextInput,
+  Modal,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { MaterialIcons, MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
@@ -52,6 +53,13 @@ import {
   startBroadcastingLocation,
   stopBroadcastingLocation,
 } from '../../services/locationTrackingService';
+import { recordOrderPayment } from '../../services/orderService';
+import {
+  getDeliveryTasksForOrder,
+  type DeliveryTask,
+} from '../../services/courierService';
+import { isCourierChatOpen } from '../../services/courierChatService';
+import { getOrderTotals, fmtSAR } from '../../utils/orderMoney';
 
 // Human-readable label for how the customer wants the device serviced.
 // Mirrors fulfillmentLabel in available-orders.tsx.
@@ -102,10 +110,14 @@ export default function ManageOrderScreen() {
   const [viewerOpen, setViewerOpen] = useState(false);
   const [viewerIndex, setViewerIndex] = useState(0);
   const [viewerImages, setViewerImages] = useState<string[]>([]);
-  const [quotePrice, setQuotePrice] = useState('');
-  const [quoteNotes, setQuoteNotes] = useState('');
-  const [sparePartsCost, setSparePartsCost] = useState(''); // FEAT-08 (accounting only)
-  const [submittingQuote, setSubmittingQuote] = useState(false);
+  // Order-closure sheet: internal spare-part cost + remaining-balance
+  // collection are captured when the technician completes the order.
+  const [closeSheetOpen, setCloseSheetOpen] = useState(false);
+  const [closingOrder, setClosingOrder] = useState(false);
+  const [sparePartsCost, setSparePartsCost] = useState(''); // internal / accounting only
+  const [collectedRemaining, setCollectedRemaining] = useState(false);
+  // Live delivery task on this order (pickup&delivery) → courier chat entry.
+  const [deliveryTask, setDeliveryTask] = useState<DeliveryTask | null>(null);
   const [notesDraft, setNotesDraft] = useState('');
   const [savingNotes, setSavingNotes] = useState(false);
   const [beforePhotos, setBeforePhotos] = useState<string[]>([]);
@@ -202,6 +214,16 @@ export default function ManageOrderScreen() {
           setOfferAmount(String(Math.round(offer.amount)));
           setOfferNote(offer.note ?? '');
         }
+      }
+
+      // Pickup&delivery: surface the live courier task so the technician can
+      // open the courier chat / see the leg status.
+      if (orderData) {
+        try {
+          const tasks = await getDeliveryTasksForOrder(orderData.id);
+          const active = tasks.find((t) => t.status !== 'completed' && t.status !== 'cancelled');
+          setDeliveryTask(active ?? tasks[tasks.length - 1] ?? null);
+        } catch {}
       }
 
       if (orderData?.user_id) {
@@ -311,6 +333,13 @@ export default function ManageOrderScreen() {
   };
 
   const handleUpdateStatus = async (newStatus: string) => {
+    // Completing an order goes through the closure sheet: internal spare-part
+    // cost + confirmation that any remaining balance was collected.
+    if (newStatus === 'completed') {
+      setCollectedRemaining(false);
+      setCloseSheetOpen(true);
+      return;
+    }
     try {
       setUpdating(true);
       await requests.updateStatus(id as string, newStatus as any);
@@ -330,6 +359,60 @@ export default function ManageOrderScreen() {
       );
     } finally {
       setUpdating(false);
+    }
+  };
+
+  // Close the order: persist the internal spare-part cost (never shown to the
+  // customer), record the remaining cash collection when required, then mark
+  // the order completed.
+  const handleCloseOrder = async () => {
+    if (!order || !totals) return;
+    const spareCost = Number(sparePartsCost);
+    if (sparePartsCost.trim() !== '' && (!Number.isFinite(spareCost) || spareCost < 0)) {
+      Alert.alert(isRTL ? 'تنبيه' : 'Notice', isRTL ? 'أدخل تكلفة قطع غيار صحيحة' : 'Enter a valid spare-part cost');
+      return;
+    }
+    if (totals.remaining > 0 && !collectedRemaining) {
+      Alert.alert(
+        isRTL ? 'تنبيه' : 'Notice',
+        isRTL
+          ? `أكد أولاً أنك حصّلت المتبقي (${fmtSAR(totals.remaining, isRTL)}) من العميل.`
+          : `Please confirm you collected the remaining ${fmtSAR(totals.remaining, isRTL)} from the customer first.`
+      );
+      return;
+    }
+    setClosingOrder(true);
+    try {
+      if (sparePartsCost.trim() !== '' && spareCost > 0) {
+        const { error: spareErr } = await supabase
+          .from('orders')
+          .update({ spare_parts_cost: spareCost })
+          .eq('id', id as string);
+        if (spareErr) logger.warn('spare_parts_cost update failed', spareErr);
+      }
+      if (totals.remaining > 0) {
+        await recordOrderPayment(
+          id as string,
+          totals.remaining,
+          (order as any).payment_method || 'cash',
+          'Collected by technician at order closure'
+        );
+      }
+      await requests.updateStatus(id as string, 'completed' as any);
+      setCloseSheetOpen(false);
+      setSparePartsCost('');
+      Alert.alert(
+        isRTL ? 'تم إكمال الطلب 🎉' : 'Order completed 🎉',
+        isRTL ? 'تم إغلاق الطلب وتحديث الحسابات.' : 'The order is closed and the accounts are updated.'
+      );
+    } catch (error) {
+      logger.error('close order failed', error);
+      Alert.alert(
+        isRTL ? 'خطأ' : 'Error',
+        isRTL ? 'تعذّر إكمال الطلب، حاول مرة أخرى' : 'Could not complete the order, try again'
+      );
+    } finally {
+      setClosingOrder(false);
     }
   };
 
@@ -432,64 +515,13 @@ export default function ManageOrderScreen() {
     setViewerOpen(true);
   };
 
-  // A quote the customer has accepted: the order carries a final_price and is
-  // no longer in the 'quoted' (awaiting-approval) state. Rejected quotes move
-  // the order to 'cancelled', so any non-cancelled order with a final_price
-  // means the customer approved the price.
-  const hasAcceptedQuote = !!(order as any)?.final_price && order?.status !== 'quoted';
-
-  const handleSubmitQuote = async () => {
-    const price = Number(quotePrice);
-    if (!price || price <= 0) {
-      Alert.alert(
-        isRTL ? 'تنبيه' : 'Notice',
-        isRTL ? 'أدخل سعراً صحيحاً بعد الفحص' : 'Enter a valid price after inspection'
-      );
-      return;
-    }
-    try {
-      setSubmittingQuote(true);
-      await requests.setQuote(id as string, price, quoteNotes.trim() || undefined);
-      // FEAT-08 — persist the accounting-only spare parts cost. Best-effort:
-      // never block the quote on it. This value is never shown to the client.
-      const spareCost = Number(sparePartsCost);
-      if (!Number.isNaN(spareCost) && spareCost > 0) {
-        const { error: spareErr } = await supabase
-          .from('orders')
-          .update({ spare_parts_cost: spareCost })
-          .eq('id', id as string);
-        if (spareErr) logger.warn('spare_parts_cost update failed', spareErr);
-      }
-      // Optimistically reflect the quoted state on this screen immediately,
-      // even before the realtime subscription fires, so the "awaiting
-      // customer approval" card shows up right away.
-      setOrder((prev) =>
-        prev
-          ? ({ ...prev, status: 'quoted', final_price: price } as any)
-          : prev
-      );
-      setQuotePrice('');
-      setQuoteNotes('');
-      setSparePartsCost('');
-      Alert.alert(
-        isRTL ? 'تم إرسال السعر ✓' : 'Quote sent ✓',
-        isRTL
-          ? `تم إرسال عرض السعر بمبلغ ${price} ر.س للعميل. سيظهر بانتظار موافقته أو رفضه.`
-          : `Quotation for ${price} SAR has been sent to the customer. It is now awaiting their approval or rejection.`
-      );
-    } catch (error: any) {
-      logger.error('Error submitting quote:', error);
-      const raw = error?.message || error?.error_description || String(error);
-      Alert.alert(
-        isRTL ? 'خطأ في إرسال السعر' : 'Could not send the quote',
-        isRTL
-          ? `تعذّر إرسال السعر للعميل. الرسالة من الخادم:\n\n${raw}`
-          : `Could not send the quote. Server message:\n\n${raw}`
-      );
-    } finally {
-      setSubmittingQuote(false);
-    }
-  };
+  // Payment architecture v2: the accepted marketplace offer IS the agreed
+  // price (legacy rows fall back to final_price). All money figures derive
+  // from the shared helper so they can't drift from other screens.
+  const totals = order ? getOrderTotals(order as any) : null;
+  const hasAgreedPrice = !!(
+    (order as any)?.accepted_offer_amount != null || (order as any)?.final_price != null
+  );
 
   const getNextActions = () => {
     if (!order) return [];
@@ -500,18 +532,13 @@ export default function ManageOrderScreen() {
       return [];
     }
 
-    // Awaiting the customer (quote approval or payment) — no manual
-    // transitions until they act.
+    // Awaiting the customer's payment confirmation — no manual transitions
+    // until they confirm (the accepted offer is already the agreed price).
     if (order.status === 'quoted' || order.status === 'awaiting_payment') return [];
 
-    // Before the customer approves a quote, the technician may only move
-    // through the inspection stages. Repair/test/deliver/complete unlock
-    // once the customer has accepted the quoted price.
-    const preQuoteAllowed = ['picking_up', 'diagnosing'];
     return STATUS_ACTIONS.filter((a) => {
       if (a.status === 'pending' || a.status === 'accepted') return false;
       if (a.status === order.status) return false;
-      if (!hasAcceptedQuote && !preQuoteAllowed.includes(a.status)) return false;
       return true;
     });
   };
@@ -716,128 +743,16 @@ export default function ManageOrderScreen() {
           </View>
         )}
 
-        {/* Inspection quote — technician sets the final price AFTER inspecting
-            the device. The customer must approve it before repair begins. */}
-        {order.status !== 'pending' &&
-          order.status !== 'completed' &&
-          order.status !== 'cancelled' &&
-          order.status !== 'rejected' &&
-          order.status !== 'quoted' &&
-          !hasAcceptedQuote && (
-            <View style={[styles.card, { backgroundColor: COLORS.card }, SHADOWS.medium]}>
-              <Text style={[styles.cardTitle, { color: COLORS.text }]}>
-                {isRTL ? 'سعر ما بعد الفحص' : 'Price after inspection'}
-              </Text>
-              <Text style={[styles.sectionSubtitle, { color: COLORS.textSecondary, marginBottom: SPACING.m }]}>
-                {isRTL
-                  ? 'افحص الجهاز ثم أرسل السعر النهائي ليوافق عليه العميل قبل بدء الإصلاح'
-                  : 'Inspect the device, then send the final price for the customer to approve before repair starts'}
-              </Text>
-              <TextInput
-                value={quotePrice}
-                onChangeText={(v) => setQuotePrice(v.replace(/[^0-9.]/g, ''))}
-                keyboardType="numeric"
-                placeholder={isRTL ? 'السعر النهائي (ر.س)' : 'Final price (SAR)'}
-                placeholderTextColor={COLORS.textSecondary}
-                style={{
-                  borderWidth: 1,
-                  borderColor: COLORS.border,
-                  borderRadius: BORDER_RADIUS.m,
-                  padding: SPACING.m,
-                  fontSize: 16,
-                  color: COLORS.text,
-                  marginBottom: SPACING.s,
-                  textAlign: isRTL ? 'right' : 'left',
-                }}
-              />
-              <TextInput
-                value={quoteNotes}
-                onChangeText={setQuoteNotes}
-                placeholder={isRTL ? 'ملاحظات للعميل (اختياري)' : 'Notes for the customer (optional)'}
-                placeholderTextColor={COLORS.textSecondary}
-                multiline
-                style={{
-                  borderWidth: 1,
-                  borderColor: COLORS.border,
-                  borderRadius: BORDER_RADIUS.m,
-                  padding: SPACING.m,
-                  fontSize: 14,
-                  color: COLORS.text,
-                  minHeight: 60,
-                  marginBottom: SPACING.m,
-                  textAlign: isRTL ? 'right' : 'left',
-                }}
-              />
-              {/* FEAT-08 — spare parts cost, accounting only. Never shown to
-                  the client; feeds the admin accounting dashboard. */}
-              <Text style={{ color: COLORS.textSecondary, fontSize: 12.5, marginBottom: 6, textAlign: isRTL ? 'right' : 'left' }}>
-                {isRTL ? 'تكلفة قطع الغيار (للمحاسبة فقط)' : 'Spare parts cost (accounting only)'}
-              </Text>
-              <TextInput
-                value={sparePartsCost}
-                onChangeText={(v) => setSparePartsCost(v.replace(/[^0-9.]/g, ''))}
-                keyboardType="numeric"
-                placeholder={isRTL ? '0.00 ريال' : '0.00 SAR'}
-                placeholderTextColor={COLORS.textSecondary}
-                style={{
-                  borderWidth: 1,
-                  borderColor: COLORS.border,
-                  borderRadius: BORDER_RADIUS.m,
-                  padding: SPACING.m,
-                  fontSize: 15,
-                  color: COLORS.text,
-                  marginBottom: SPACING.m,
-                  textAlign: isRTL ? 'right' : 'left',
-                }}
-              />
-              <TouchableOpacity
-                style={[styles.actionButton, { backgroundColor: COLORS.primary }]}
-                onPress={handleSubmitQuote}
-                disabled={submittingQuote}
-              >
-                {submittingQuote ? (
-                  <ActivityIndicator color="#fff" />
-                ) : (
-                  <>
-                    <MaterialCommunityIcons name="send-check" size={20} color="#fff" />
-                    <Text style={styles.actionButtonText}>
-                      {isRTL ? 'إرسال السعر للعميل' : 'Send price to customer'}
-                    </Text>
-                  </>
-                )}
-              </TouchableOpacity>
-            </View>
-          )}
-
-        {/* Awaiting customer's decision on the quote */}
-        {order.status === 'quoted' && (
-          <View style={[styles.card, { backgroundColor: '#F59E0B15', borderWidth: 1, borderColor: '#F59E0B' }]}>
-            <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 10, marginBottom: 6 }}>
-              <MaterialCommunityIcons name="check-circle" size={22} color="#16A34A" />
-              <Text style={{ flex: 1, color: '#16A34A', fontWeight: '800', fontSize: 15, textAlign: isRTL ? 'right' : 'left' }}>
-                {isRTL ? 'تم إرسال عرض السعر' : 'Quotation sent'}
-              </Text>
-            </View>
-            <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 10 }}>
-              <MaterialCommunityIcons name="clock-alert-outline" size={22} color="#F59E0B" />
-              <Text style={{ flex: 1, color: COLORS.text, fontWeight: '700', fontSize: 13, lineHeight: 19, textAlign: isRTL ? 'right' : 'left' }}>
-                {isRTL
-                  ? `بانتظار موافقة العميل على السعر (${(order as any).final_price} ر.س)`
-                  : `Awaiting customer approval — price ${(order as any).final_price} SAR`}
-              </Text>
-            </View>
-          </View>
-        )}
-
-        {/* Awaiting customer payment after quote approval */}
+        {/* Awaiting the customer's payment confirmation (they just accepted
+            this technician's offer). */}
         {order.status === 'awaiting_payment' && (
           <View style={[styles.card, { backgroundColor: '#0EA5E915', borderWidth: 1, borderColor: '#0EA5E9' }]}>
             <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 10 }}>
               <MaterialCommunityIcons name="credit-card-clock" size={24} color="#0EA5E9" />
               <Text style={{ flex: 1, color: COLORS.text, fontWeight: '700', textAlign: isRTL ? 'right' : 'left' }}>
                 {isRTL
-                  ? 'وافق العميل على السعر — بانتظار إتمام الدفع قبل بدء الإصلاح.'
-                  : 'Customer approved the price — awaiting payment before the repair starts.'}
+                  ? `قبل العميل عرضك (${totals ? fmtSAR(totals.agreedAmount, isRTL) : ''}) — بانتظار تأكيد الدفع قبل بدء العمل.`
+                  : `The customer accepted your offer${totals ? ` (${fmtSAR(totals.agreedAmount, isRTL)})` : ''} — awaiting their payment confirmation before work starts.`}
               </Text>
             </View>
           </View>
@@ -857,14 +772,6 @@ export default function ManageOrderScreen() {
             <Text style={[styles.sectionSubtitle, { color: COLORS.textSecondary, marginBottom: SPACING.m }]}>
               {isRTL ? 'قم بتحديث حالة الطلب بدقة لضمان تتبع العميل' : 'Update order status precisely for client tracking'}
             </Text>
-
-            {!hasAcceptedQuote && order.status !== 'pending' && (
-              <Text style={[styles.workflowDesc, { color: '#F59E0B', marginBottom: SPACING.m }]}>
-                {isRTL
-                  ? 'الإصلاح والإكمال يتفعّلان بعد موافقة العميل على السعر'
-                  : 'Repair & completion unlock after the customer approves the price'}
-              </Text>
-            )}
 
             <View style={styles.workflowGrid}>
               {getNextActions().length === 0 ? (
@@ -936,6 +843,24 @@ export default function ManageOrderScreen() {
                 customer request 'rejected' was also an abuse vector, and the
                 RLS policy that permitted it has been dropped.) */}
           </View>
+        )}
+
+        {/* Courier coordination — pickup&delivery orders with a live courier
+            leg get a direct courier chat (customer is never part of it). */}
+        {deliveryTask && isCourierChatOpen(deliveryTask.status) && (
+          <TouchableOpacity
+            style={[styles.chatButton, { backgroundColor: '#0EA5E9', marginBottom: SPACING.m }, SHADOWS.small]}
+            onPress={() => router.push({
+              pathname: '/courier-chat/[taskId]',
+              params: { taskId: deliveryTask.id },
+            } as any)}
+            accessibilityRole="button"
+          >
+            <MaterialCommunityIcons name="moped" size={22} color="#FFFFFF" />
+            <Text style={styles.chatButtonText}>
+              {isRTL ? 'مراسلة مندوب التوصيل' : 'Chat with courier'}
+            </Text>
+          </TouchableOpacity>
         )}
 
         {/* Action Buttons — hidden on terminal/rejected orders (Fix 4). */}
@@ -1112,21 +1037,56 @@ export default function ManageOrderScreen() {
               </Text>
             </View>
           )}
-          {/* Hide the price row until the technician has actually accepted the
-              order. Before acceptance (status === 'pending') seeing an estimate
-              biased technicians into cherry-picking high-paying jobs over the
-              fit of the work itself. We surface the final price later via the
-              quotation flow. */}
-          {order.status !== 'pending' && (order as any).final_price ? (
+          {/* Money block — the three price concepts stay visually distinct:
+              the customer's initial estimate (context), the agreed accepted
+              offer (the commercial basis), and the collection state. The
+              internal spare-part cost is captured at closure and NEVER shown
+              to the customer. */}
+          {order.status !== 'pending' && !!order.estimated_price && (
             <View style={styles.infoRow}>
-              <MaterialCommunityIcons name="cash" size={20} color={COLORS.textSecondary} />
+              <MaterialCommunityIcons name="calculator-variant-outline" size={20} color={COLORS.textSecondary} />
               <Text style={[styles.infoLabel, { color: COLORS.textSecondary }]}>
-                {isRTL ? 'السعر النهائي' : 'Final price'}
+                {isRTL ? 'التقدير المبدئي للعميل' : "Customer's initial estimate"}
               </Text>
-              <Text style={[styles.infoValue, { color: COLORS.primary, fontWeight: 'bold' }]}>
-                {(order as any).final_price} {isRTL ? 'ر.س' : 'SAR'}
+              <Text style={[styles.infoValue, { color: COLORS.textSecondary }]}>
+                {fmtSAR(Number(order.estimated_price), isRTL)}
               </Text>
             </View>
+          )}
+          {order.status !== 'pending' && hasAgreedPrice && totals ? (
+            <>
+              <View style={styles.infoRow}>
+                <MaterialCommunityIcons name="cash-check" size={20} color={COLORS.textSecondary} />
+                <Text style={[styles.infoLabel, { color: COLORS.textSecondary }]}>
+                  {isRTL ? 'السعر المتفق عليه (عرضك المقبول)' : 'Agreed price (your accepted offer)'}
+                </Text>
+                <Text style={[styles.infoValue, { color: COLORS.primary, fontWeight: 'bold' }]}>
+                  {fmtSAR(totals.agreedAmount, isRTL)}
+                </Text>
+              </View>
+              {totals.paid > 0 && (
+                <View style={styles.infoRow}>
+                  <MaterialCommunityIcons name="check-circle-outline" size={20} color="#10B981" />
+                  <Text style={[styles.infoLabel, { color: COLORS.textSecondary }]}>
+                    {isRTL ? 'المدفوع' : 'Paid'}
+                  </Text>
+                  <Text style={[styles.infoValue, { color: '#10B981', fontWeight: 'bold' }]}>
+                    {fmtSAR(totals.paid, isRTL)}
+                  </Text>
+                </View>
+              )}
+              {totals.remaining > 0 && order.status !== 'completed' && (
+                <View style={styles.infoRow}>
+                  <MaterialCommunityIcons name="cash-clock" size={20} color={COLORS.textSecondary} />
+                  <Text style={[styles.infoLabel, { color: COLORS.textSecondary }]}>
+                    {isRTL ? 'المتبقي للتحصيل' : 'Remaining to collect'}
+                  </Text>
+                  <Text style={[styles.infoValue, { color: COLORS.text, fontWeight: 'bold' }]}>
+                    {fmtSAR(totals.remaining, isRTL)}
+                  </Text>
+                </View>
+              )}
+            </>
           ) : null}
         </View>
 
@@ -1370,6 +1330,98 @@ export default function ManageOrderScreen() {
         deviceModel={order?.device_model}
         issueDescription={order?.issue_description}
       />
+
+      {/* Order-closure sheet: internal spare-part cost (accounting only,
+          never customer-facing) + remaining-balance collection confirmation. */}
+      <Modal
+        visible={closeSheetOpen}
+        transparent
+        animationType="slide"
+        onRequestClose={() => !closingOrder && setCloseSheetOpen(false)}
+      >
+        <View style={{ flex: 1, backgroundColor: '#00000066', justifyContent: 'flex-end' }}>
+          <View style={{ backgroundColor: COLORS.card, borderTopLeftRadius: 22, borderTopRightRadius: 22, padding: 20, paddingBottom: 34 }}>
+            <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+              <MaterialCommunityIcons name="check-decagram" size={24} color={COLORS.primary} />
+              <Text style={{ flex: 1, color: COLORS.text, fontWeight: '800', fontSize: 17, textAlign: isRTL ? 'right' : 'left' }}>
+                {isRTL ? 'إكمال الطلب' : 'Complete order'}
+              </Text>
+              <TouchableOpacity onPress={() => !closingOrder && setCloseSheetOpen(false)} accessibilityRole="button">
+                <Ionicons name="close" size={22} color={COLORS.textSecondary} />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={{ color: COLORS.textSecondary, fontSize: 12.5, marginBottom: 6, marginTop: 8, textAlign: isRTL ? 'right' : 'left' }}>
+              {isRTL
+                ? 'تكلفة قطع الغيار (داخلية — لا تظهر للعميل ولا تضاف على فاتورته)'
+                : 'Spare-part cost (internal — never shown or billed to the customer)'}
+            </Text>
+            <TextInput
+              value={sparePartsCost}
+              onChangeText={(v) => setSparePartsCost(v.replace(/[^0-9.]/g, ''))}
+              keyboardType="numeric"
+              placeholder={isRTL ? '0.00 ريال' : '0.00 SAR'}
+              placeholderTextColor={COLORS.textSecondary}
+              style={{
+                borderWidth: 1,
+                borderColor: COLORS.border,
+                borderRadius: BORDER_RADIUS.md,
+                padding: SPACING.m,
+                fontSize: 15,
+                color: COLORS.text,
+                marginBottom: SPACING.m,
+                textAlign: isRTL ? 'right' : 'left',
+              }}
+            />
+
+            {totals && totals.remaining > 0 && (
+              <TouchableOpacity
+                onPress={() => setCollectedRemaining((v) => !v)}
+                style={{
+                  flexDirection: isRTL ? 'row-reverse' : 'row',
+                  alignItems: 'center',
+                  gap: 10,
+                  backgroundColor: COLORS.primary + '10',
+                  borderRadius: BORDER_RADIUS.md,
+                  padding: 12,
+                  marginBottom: SPACING.m,
+                }}
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: collectedRemaining }}
+              >
+                <MaterialCommunityIcons
+                  name={collectedRemaining ? 'checkbox-marked' : 'checkbox-blank-outline'}
+                  size={22}
+                  color={COLORS.primary}
+                />
+                <Text style={{ flex: 1, color: COLORS.text, fontSize: 13.5, fontWeight: '600', textAlign: isRTL ? 'right' : 'left' }}>
+                  {isRTL
+                    ? `حصّلت المبلغ المتبقي من العميل (${fmtSAR(totals.remaining, isRTL)})`
+                    : `I collected the remaining ${fmtSAR(totals.remaining, isRTL)} from the customer`}
+                </Text>
+              </TouchableOpacity>
+            )}
+
+            <TouchableOpacity
+              style={[styles.actionButton, { backgroundColor: '#10B981', opacity: closingOrder ? 0.6 : 1 }]}
+              onPress={handleCloseOrder}
+              disabled={closingOrder}
+              accessibilityRole="button"
+            >
+              {closingOrder ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <>
+                  <MaterialCommunityIcons name="check-all" size={20} color="#fff" />
+                  <Text style={styles.actionButtonText}>
+                    {isRTL ? 'تأكيد إكمال الطلب' : 'Confirm completion'}
+                  </Text>
+                </>
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
 
     </SafeAreaView>
   );

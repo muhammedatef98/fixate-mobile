@@ -38,6 +38,8 @@ export interface RecentTransaction {
   technician: string;
   service: string;
   amount: number;
+  paid: number;
+  remaining: number;
   spareParts: number;
   net: number;
   date: string;
@@ -53,6 +55,10 @@ export interface PendingOrder {
 
 export interface AccountingData {
   totalRevenue: number;
+  /** Actually collected (orders.amount_paid — record_order_payment RPC). */
+  totalPaid: number;
+  /** Accepted-amount balance still uncollected on non-cancelled orders. */
+  totalOutstanding: number;
   totalSpareParts: number;
   netProfit: number;
   pendingPayments: number;
@@ -67,8 +73,10 @@ export interface AccountingData {
 interface OrderRow {
   id: string;
   order_number: string | null;
+  accepted_offer_amount: number | null;
   final_price: number | null;
   estimated_price: number | null;
+  amount_paid: number | null;
   spare_parts_cost: number | null;
   status: string;
   payment_status: string | null;
@@ -107,8 +115,12 @@ const flatName = (rel: OrderRow['customer']): string => {
   return rel.name ?? '';
 };
 
+// The accepted marketplace offer is the commercial basis (payment v2);
+// legacy rows fall back to the old quote / estimate.
 const revenueOf = (o: OrderRow): number =>
-  Number(o.final_price ?? o.estimated_price ?? 0);
+  Number(o.accepted_offer_amount ?? o.final_price ?? o.estimated_price ?? 0);
+
+const paidOf = (o: OrderRow): number => Number(o.amount_paid ?? 0);
 
 export const getAccountingData = async (
   range: AccountingRange,
@@ -119,7 +131,7 @@ export const getAccountingData = async (
   let query = supabase
     .from('orders')
     .select(
-      'id, order_number, final_price, estimated_price, spare_parts_cost, status, payment_status, service_type, created_at, technician_id, customer:users!user_id(name), technician:users!technician_id(name)'
+      'id, order_number, accepted_offer_amount, final_price, estimated_price, amount_paid, spare_parts_cost, status, payment_status, service_type, created_at, technician_id, customer:users!user_id(name), technician:users!technician_id(name)'
     )
     .is('deleted_at', null)
     .order('created_at', { ascending: false })
@@ -142,14 +154,23 @@ export const getAccountingData = async (
     0
   );
   const netProfit = totalRevenue - totalSpareParts;
-  const pendingRows = rows.filter(
-    (o) =>
-      o.payment_status === 'pending' ||
-      o.payment_status === 'pending_payment' ||
-      o.payment_status === 'unpaid' ||
-      o.status === 'awaiting_payment'
+  // Collection view: what was actually collected vs. what is still owed on
+  // live/completed (non-cancelled) orders with an agreed amount.
+  const billable = rows.filter(
+    (o) => !['cancelled', 'rejected', 'pending'].includes(o.status)
   );
-  const pendingPayments = pendingRows.reduce((s, o) => s + revenueOf(o), 0);
+  const totalPaid = billable.reduce((s, o) => s + paidOf(o), 0);
+  const totalOutstanding = billable.reduce(
+    (s, o) => s + Math.max(0, revenueOf(o) - paidOf(o)),
+    0
+  );
+  const pendingRows = billable.filter(
+    (o) => revenueOf(o) - paidOf(o) > 0.009 && o.payment_status !== 'paid'
+  );
+  const pendingPayments = pendingRows.reduce(
+    (s, o) => s + Math.max(0, revenueOf(o) - paidOf(o)),
+    0
+  );
 
   const now = Date.now();
   const pendingOrders: PendingOrder[] = pendingRows
@@ -157,7 +178,7 @@ export const getAccountingData = async (
       id: o.id,
       orderNumber: o.order_number ?? `#${o.id.slice(0, 6)}`,
       customer: flatName(o.customer) || (isRTL ? 'بدون اسم' : 'No name'),
-      amount: revenueOf(o),
+      amount: Math.max(0, revenueOf(o) - paidOf(o)),
       ageDays: o.created_at
         ? Math.max(0, Math.floor((now - new Date(o.created_at).getTime()) / 86400000))
         : 0,
@@ -208,6 +229,7 @@ export const getAccountingData = async (
 
   const recent: RecentTransaction[] = completed.slice(0, 50).map((o) => {
     const amount = revenueOf(o);
+    const paid = paidOf(o);
     const spareParts = Number(o.spare_parts_cost ?? 0);
     return {
       id: o.id,
@@ -216,6 +238,8 @@ export const getAccountingData = async (
       technician: flatName(o.technician) || (isRTL ? 'غير معيّن' : 'Unassigned'),
       service: o.service_type || (isRTL ? 'خدمة' : 'Service'),
       amount,
+      paid,
+      remaining: Math.max(0, amount - paid),
       spareParts,
       net: amount - spareParts,
       date: o.created_at ?? '',
@@ -224,6 +248,8 @@ export const getAccountingData = async (
 
   return {
     totalRevenue,
+    totalPaid,
+    totalOutstanding,
     totalSpareParts,
     netProfit,
     pendingPayments,
@@ -268,7 +294,9 @@ export const exportAccountingCsv = async (
   const lines: string[] = [];
 
   lines.push(isRTL ? 'الملخص' : 'Summary');
-  lines.push(`${isRTL ? 'إجمالي الإيرادات' : 'Total revenue'} (${sar}),${data.totalRevenue.toFixed(2)}`);
+  lines.push(`${isRTL ? 'إجمالي الإيرادات (المبالغ المتفق عليها)' : 'Total revenue (accepted amounts)'} (${sar}),${data.totalRevenue.toFixed(2)}`);
+  lines.push(`${isRTL ? 'إجمالي المُحصَّل فعلياً' : 'Total actually collected'} (${sar}),${data.totalPaid.toFixed(2)}`);
+  lines.push(`${isRTL ? 'أرصدة غير مُحصَّلة' : 'Outstanding balances'} (${sar}),${data.totalOutstanding.toFixed(2)}`);
   lines.push(`${isRTL ? 'إجمالي المصروفات (قطع الغيار)' : 'Total expenses (spare parts)'} (${sar}),${data.totalSpareParts.toFixed(2)}`);
   lines.push(`${isRTL ? 'صافي الربح' : 'Net profit'} (${sar}),${data.netProfit.toFixed(2)}`);
   lines.push(`${isRTL ? 'مدفوعات معلقة' : 'Pending payments'} (${sar}),${data.pendingPayments.toFixed(2)}`);
@@ -308,6 +336,8 @@ export const exportAccountingCsv = async (
       isRTL ? 'الفني' : 'Technician',
       isRTL ? 'الخدمة' : 'Service',
       isRTL ? 'الإجمالي' : 'Total',
+      isRTL ? 'المدفوع' : 'Paid',
+      isRTL ? 'المتبقي' : 'Remaining',
       isRTL ? 'قطع الغيار' : 'Spare parts',
       isRTL ? 'الصافي' : 'Net',
       isRTL ? 'التاريخ' : 'Date',
@@ -317,7 +347,8 @@ export const exportAccountingCsv = async (
     lines.push(
       [
         r.orderNumber, r.customer, r.technician, r.service,
-        r.amount.toFixed(2), r.spareParts.toFixed(2), r.net.toFixed(2), r.date.slice(0, 10),
+        r.amount.toFixed(2), r.paid.toFixed(2), r.remaining.toFixed(2),
+        r.spareParts.toFixed(2), r.net.toFixed(2), r.date.slice(0, 10),
       ].map(csvCell).join(',')
     );
   }

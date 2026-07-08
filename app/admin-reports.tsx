@@ -217,7 +217,7 @@ export default function AdminReportsScreen() {
       const byCategoryMap: Record<string, { count: number; total: number }> = {};
       const byTechnicianMap: Record<string, { count: number; total: number }> = {};
       const pickPrice = (o: any): number =>
-        Number(o.final_price ?? o.estimated_price ?? 0);
+        Number(o.accepted_offer_amount ?? o.final_price ?? o.estimated_price ?? 0);
       const pickCity = (o: any): string =>
         (o.delivery_area ?? o.city ?? o.delivery_city ?? '—') as string;
       const pickCategory = (o: any): string =>
@@ -361,7 +361,7 @@ export default function AdminReportsScreen() {
         status: String(o.status ?? ''),
         city: String(o.delivery_area ?? o.city ?? o.delivery_city ?? ''),
         delivery_fee: Number(o.delivery_fee ?? 0),
-        estimated_price: Number(o.final_price ?? o.estimated_price ?? 0),
+        estimated_price: Number(o.accepted_offer_amount ?? o.final_price ?? o.estimated_price ?? 0),
         created_at: String(o.created_at ?? ''),
       }));
       const technicianRows: ExportTechnicianRow[] = data.byTechnician.map((t) => ({

@@ -163,10 +163,11 @@ export default function AdminAccountingScreen() {
 
   const KPIS = data
     ? [
-        { label: isRTL ? 'إجمالي الإيرادات' : 'Total revenue', value: fmt(data.totalRevenue), icon: 'cash-multiple', color: '#10B981' },
+        { label: isRTL ? 'إجمالي الإيرادات (المتفق عليها)' : 'Total revenue (accepted)', value: fmt(data.totalRevenue), icon: 'cash-multiple', color: '#10B981' },
+        { label: isRTL ? 'المُحصَّل فعلياً' : 'Actually collected', value: fmt(data.totalPaid), icon: 'cash-check', color: '#059669' },
+        { label: isRTL ? 'أرصدة غير مُحصَّلة' : 'Outstanding balances', value: fmt(data.totalOutstanding), icon: 'cash-clock', color: '#EF4444' },
         { label: isRTL ? 'تكلفة قطع الغيار' : 'Spare parts cost', value: fmt(data.totalSpareParts), icon: 'cog-outline', color: '#F59E0B' },
         { label: isRTL ? 'صافي الربح' : 'Net profit', value: fmt(data.netProfit), icon: 'trending-up', color: '#3B82F6' },
-        { label: isRTL ? 'مدفوعات معلقة' : 'Pending payments', value: fmt(data.pendingPayments), icon: 'credit-card-clock', color: '#EF4444' },
         { label: isRTL ? 'عمولة المنصة' : 'Platform commission', value: fmt((data.totalRevenue * commissionPct) / 100), icon: 'percent', color: '#8B5CF6' },
       ]
     : [];

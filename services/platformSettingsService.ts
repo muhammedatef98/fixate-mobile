@@ -1,6 +1,13 @@
 import { supabase } from './supabaseClient';
 import { logger } from '../utils/logger';
 import { DEFAULT_RETURN_FEE_SAR } from '../constants/fees';
+import {
+  DEFAULT_PAYMENT_MODE_SETTINGS,
+  isPaymentMode,
+  type PaymentModeSettings,
+} from '../utils/paymentPlan';
+
+export type { PaymentModeSettings } from '../utils/paymentPlan';
 
 // Tiny in-memory cache so paying-attention screens don't hammer the DB.
 // 5 minutes is generous: admins will rarely change these values.
@@ -82,6 +89,10 @@ export interface PlatformSettings {
   // request time to get free delivery (case-insensitive). Empty string
   // means no promo code is active.
   freeDeliveryPromoCode: string;
+  // Payment policy (payment architecture v2). The server snapshots these onto
+  // each order at offer acceptance (accept_order_offer), so switching the
+  // mode here only affects NEW acceptances — live orders keep their snapshot.
+  paymentMode: PaymentModeSettings;
 }
 
 export const PLATFORM_SETTINGS_KEYS = {
@@ -113,6 +124,10 @@ export const PLATFORM_SETTINGS_KEYS = {
   serviceHandoffEnabled: 'service_handoff_enabled',
   freeDeliveryEnabled: 'free_delivery_enabled',
   freeDeliveryPromoCode: 'free_delivery_promo_code',
+  paymentModeActive: 'payment_mode_active',
+  paymentDepositType: 'payment_deposit_type',
+  paymentDepositValue: 'payment_deposit_value',
+  paymentPartialPercent: 'payment_partial_percent',
 } as const;
 
 const boolFromValue = (raw: any, fallback: boolean): boolean => {
@@ -192,6 +207,7 @@ const DEFAULTS: PlatformSettings = {
   serviceHandoffEnabled: true,
   freeDeliveryEnabled: false,
   freeDeliveryPromoCode: '',
+  paymentMode: DEFAULT_PAYMENT_MODE_SETTINGS,
 };
 
 const loadRaw = async (): Promise<Record<string, any>> => {
@@ -249,8 +265,24 @@ export const getPlatformSettings = async (): Promise<PlatformSettings> => {
     serviceHandoffEnabled: boolFromValue(raw[PLATFORM_SETTINGS_KEYS.serviceHandoffEnabled], DEFAULTS.serviceHandoffEnabled),
     freeDeliveryEnabled: boolFromValue(raw[PLATFORM_SETTINGS_KEYS.freeDeliveryEnabled], DEFAULTS.freeDeliveryEnabled),
     freeDeliveryPromoCode: strFromValue(raw[PLATFORM_SETTINGS_KEYS.freeDeliveryPromoCode], DEFAULTS.freeDeliveryPromoCode),
+    paymentMode: paymentModeFromRaw(raw),
   };
 };
+
+const paymentModeFromRaw = (raw: Record<string, any>): PaymentModeSettings => {
+  const mode = strFromValue(raw[PLATFORM_SETTINGS_KEYS.paymentModeActive], DEFAULT_PAYMENT_MODE_SETTINGS.mode);
+  const depositType = strFromValue(raw[PLATFORM_SETTINGS_KEYS.paymentDepositType], DEFAULT_PAYMENT_MODE_SETTINGS.depositType);
+  return {
+    mode: isPaymentMode(mode) ? mode : DEFAULT_PAYMENT_MODE_SETTINGS.mode,
+    depositType: depositType === 'percent' ? 'percent' : 'fixed',
+    depositValue: numFromValue(raw[PLATFORM_SETTINGS_KEYS.paymentDepositValue], DEFAULT_PAYMENT_MODE_SETTINGS.depositValue),
+    partialPercent: numFromValue(raw[PLATFORM_SETTINGS_KEYS.paymentPartialPercent], DEFAULT_PAYMENT_MODE_SETTINGS.partialPercent),
+  };
+};
+
+/** Standalone getter for the active payment policy. */
+export const getPaymentModeSettings = async (): Promise<PaymentModeSettings> =>
+  (await getPlatformSettings()).paymentMode;
 
 /**
  * Lightweight standalone loyalty getter — used by loyalty UI / context which

@@ -3,11 +3,13 @@ export type OrderStatus =
   | 'accepted'
   | 'picking_up'
   | 'diagnosing'
-  // Technician finished the inspection and submitted a final quote.
-  // The customer must accept it before any repair work continues.
+  // LEGACY (pre payment-v2): post-inspection quote awaiting customer
+  // approval. No new orders enter this state — accepting a marketplace offer
+  // now goes straight to 'awaiting_payment'. Kept only so historical rows
+  // still render.
   | 'quoted'
-  // Customer accepted the quote; the order is payment-ready and the
-  // customer is sent to the real payment page.
+  // The customer accepted a technician's offer; the order is payment-ready
+  // and the customer is sent straight to the payment page.
   | 'awaiting_payment'
   | 'waiting_parts'
   | 'repairing'
@@ -169,6 +171,20 @@ export interface Order {
   media_urls?: string[];
   customer_phone?: string;
   technician_phone?: string;
+  // Payment architecture v2 — one field per money concept:
+  //   estimated_price       = the customer's initial estimate (never overwritten)
+  //   accepted_offer_amount = the accepted marketplace offer (price basis)
+  //   payment_mode          = admin policy snapshot at acceptance
+  //   upfront_amount_due    = due immediately after acceptance
+  //   amount_paid           = actually collected (record_order_payment RPC)
+  //   spare_parts_cost      = INTERNAL technician cost — never customer-facing
+  accepted_offer_amount?: number | null;
+  payment_mode?: 'full_upfront' | 'deposit_then_rest' | 'partial_then_final' | null;
+  upfront_amount_due?: number | null;
+  amount_paid?: number | null;
+  amount_paid_at?: string | null;
+  payment_status?: string | null;
+  spare_parts_cost?: number | null;
   // Phase 1 features
   spare_part_quality?: SparePartQuality;
   discount_code?: string;
@@ -227,8 +243,9 @@ export const ORDER_STATUS_LABELS_AR: Record<OrderStatus, string> = {
   accepted: 'مقبول',
   picking_up: 'جاري الاستلام',
   diagnosing: 'تحت الفحص',
-  quoted: 'بانتظار موافقتك على السعر',
-  awaiting_payment: 'بإنتظار الدفع',
+  // Legacy state — rendered for historical rows only.
+  quoted: 'بانتظار تأكيد السعر',
+  awaiting_payment: 'بانتظار تأكيد الدفع',
   waiting_parts: 'انتظار قطع غيار',
   repairing: 'قيد الإصلاح',
   testing: 'اختبار الجودة',
@@ -253,20 +270,15 @@ export const ACTIVE_STATUSES: OrderStatus[] = [
 export const isActiveStatus = (status: OrderStatus): boolean =>
   ACTIVE_STATUSES.includes(status);
 
-// The customer must accept the technician's inspection quote before any
-// repair work continues. Used to gate the accept/reject UX and the
-// technician workflow actions.
-export const isAwaitingQuoteApproval = (status: OrderStatus): boolean =>
-  status === 'quoted';
-
 export const ORDER_STATUS_LABELS_EN: Record<OrderStatus, string> = {
   // Marketplace: an unassigned request is open for technician offers.
   pending: 'Awaiting offers',
   accepted: 'Accepted',
   picking_up: 'Picking up',
   diagnosing: 'Inspecting',
-  quoted: 'Awaiting your approval',
-  awaiting_payment: 'Awaiting payment',
+  // Legacy state — rendered for historical rows only.
+  quoted: 'Awaiting price confirmation',
+  awaiting_payment: 'Awaiting payment confirmation',
   waiting_parts: 'Waiting for parts',
   repairing: 'Repairing',
   testing: 'Quality testing',

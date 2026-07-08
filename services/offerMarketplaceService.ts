@@ -198,7 +198,7 @@ export const acceptOffer = async (offer: OrderOffer): Promise<string> => {
   try {
     void notifyUsers(offer.technician_id, {
       title: 'تم قبول عرضك ✅',
-      body: 'وافق العميل على عرضك. افتح الطلب لبدء العمل.',
+      body: 'وافق العميل على عرضك وهو الآن يؤكد الدفع. ستصلك رسالة عند التأكيد.',
       data: { screen: 'order-details', orderId },
     });
     const { data: losers } = await supabase

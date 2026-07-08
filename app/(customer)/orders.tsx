@@ -150,8 +150,9 @@ export default function OrdersScreen() {
       case 'accepted': return { label: isRTL ? 'مقبول' : 'Accepted', color: COLORS.info, icon: 'checkmark-circle-outline' };
       case 'picking_up': return { label: isRTL ? 'جاري الاستلام' : 'Picking up', color: COLORS.info, icon: 'car-outline' };
       case 'diagnosing': return { label: isRTL ? 'تحت الفحص' : 'Diagnosing', color: COLORS.primary, icon: 'search-outline' };
-      case 'quoted': return { label: isRTL ? 'بانتظار موافقتك على السعر' : 'Awaiting your approval', color: COLORS.warning, icon: 'pricetag-outline' };
-      case 'awaiting_payment': return { label: isRTL ? 'بإنتظار الدفع' : 'Awaiting payment', color: COLORS.warning, icon: 'card-outline' };
+      // 'quoted' is legacy (pre payment-v2) — rendered for old rows only.
+      case 'quoted': return { label: isRTL ? 'بانتظار تأكيد السعر' : 'Price confirmation', color: COLORS.warning, icon: 'pricetag-outline' };
+      case 'awaiting_payment': return { label: isRTL ? 'بانتظار تأكيد الدفع' : 'Confirm payment', color: COLORS.warning, icon: 'card-outline' };
       case 'waiting_parts': return { label: isRTL ? 'انتظار قطع غيار' : 'Waiting parts', color: COLORS.warning, icon: 'time-outline' };
       case 'repairing': return { label: isRTL ? 'قيد الإصلاح' : 'Repairing', color: COLORS.primary, icon: 'construct-outline' };
       case 'testing': return { label: isRTL ? 'اختبار الجودة' : 'Testing', color: COLORS.primary, icon: 'flask-outline' };
@@ -163,42 +164,37 @@ export default function OrdersScreen() {
     }
   };
 
-  // Statuses the order moves into once the customer ACCEPTS the quotation.
-  const POST_QUOTE_ACCEPTED = ['awaiting_payment', 'waiting_parts', 'repairing', 'testing', 'delivering', 'completed'];
-
-  // Reflects the real quotation decision rather than a generic estimate.
+  // Payment architecture v2 — the accepted marketplace offer is the agreed
+  // customer-facing price (legacy rows fall back to the old final_price).
   const getQuoteInfo = (order: any): { label: string; amount: string; color: string } => {
     const sar = isRTL ? 'ر.س' : 'SAR';
-    const quote = order.final_price;
-    if (quote != null && order.status === 'quoted') {
+    const agreed = order.accepted_offer_amount ?? order.final_price;
+    if (agreed != null && order.status === 'awaiting_payment') {
       return {
-        label: isRTL ? 'عرض سعر بانتظار قرارك' : 'Quote — awaiting your decision',
-        amount: `${quote} ${sar}`,
+        label: isRTL ? 'السعر المتفق عليه — أكّد الدفع' : 'Agreed price — confirm payment',
+        amount: `${agreed} ${sar}`,
         color: COLORS.warning,
       };
     }
-    if (quote != null && POST_QUOTE_ACCEPTED.includes(order.status)) {
+    if (agreed != null && !['pending', 'cancelled', 'rejected'].includes(order.status)) {
       return {
-        label: isRTL ? 'عرض السعر المقبول' : 'Accepted quote',
-        amount: `${quote} ${sar}`,
+        label: isRTL ? 'السعر المتفق عليه' : 'Agreed price',
+        amount: `${agreed} ${sar}`,
         color: COLORS.success,
       };
     }
-    if (quote != null && order.status === 'cancelled') {
+    if (agreed != null && order.status === 'cancelled') {
       return {
-        label: isRTL ? 'عرض السعر المرفوض' : 'Rejected quote',
-        amount: `${quote} ${sar}`,
+        label: isRTL ? 'السعر عند الإلغاء' : 'Price at cancellation',
+        amount: `${agreed} ${sar}`,
         color: COLORS.error,
       };
     }
-    // No quotation issued yet — show a clear "not determined" placeholder.
-    // The pre-quote `estimated_price` is just an internal upper-bound used
-    // for routing/loyalty, not a price the customer should be anchored on.
-    // Surfacing it as a "starting price" was misleading: customers read it
-    // as a real charge before the technician even inspects the device.
+    // Open request — the price is set the moment the customer accepts one of
+    // the technicians' offers.
     return {
       label: isRTL ? 'السعر' : 'Price',
-      amount: isRTL ? 'لم يتم التحديد بعد' : 'Not determined yet',
+      amount: isRTL ? 'يتحدد عند قبول أحد العروض' : 'Set when you accept an offer',
       color: COLORS.textSecondary,
     };
   };

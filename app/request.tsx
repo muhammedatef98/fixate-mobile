@@ -260,7 +260,7 @@ export default function RequestScreen() {
   }, []);
 
   // Admin-controlled fees. The real repair price is never known up front —
-  // it is set by the technician's quote after inspection.
+  // it is set by the marketplace offer the customer accepts.
   const inspectionFeeDue = (platformSettings?.inspectionEnabled ?? false)
     ? Math.max(0, platformSettings?.inspectionFee ?? 0)
     : 0;
@@ -1098,8 +1098,8 @@ export default function RequestScreen() {
                   const selected = sparePartQuality === q;
                   // Friendly badges replace explicit numbers so customers
                   // aren't scared away by a high screen-replacement figure.
-                  // The actual price difference still flows into the final
-                  // quote the technician sends after inspection.
+                  // The actual price difference still flows into the offers
+                  // technicians submit on the request.
                   const badge =
                     q === 'original'
                       ? { ar: 'الجودة الأعلى', en: 'Top quality', color: '#10b981' }
@@ -1620,9 +1620,9 @@ export default function RequestScreen() {
               </View>
             </View>
 
-            {/* Pre-inspection cost. The real repair price is only known
-                after the technician inspects the device, so we never show a
-                repair total here. */}
+            {/* Pre-acceptance cost. The real repair price is the marketplace
+                offer the customer accepts, so we never show a repair total
+                here. */}
             <View style={[styles.summaryCard, { marginTop: 12 }]}>
               <Text style={styles.summaryTitle}>{isRTL ? 'التكلفة' : 'Cost'}</Text>
 
@@ -1631,13 +1631,13 @@ export default function RequestScreen() {
                 <View style={{ flex: 1 }}>
                   <Text style={styles.priceNoticeTitle}>
                     {isRTL
-                      ? 'يتم تحديد السعر بعد الفحص'
-                      : 'Price will be determined after inspection'}
+                      ? 'السعر يتحدد بالعرض الذي تقبله'
+                      : 'The price is set by the offer you accept'}
                   </Text>
                   <Text style={styles.priceNoticeBody}>
                     {isRTL
-                      ? 'سيفحص الفني جهازك ثم يرسل لك عرض سعر دقيق للموافقة عليه قبل بدء الإصلاح.'
-                      : 'The technician will inspect your device, then send an accurate quote for you to approve before any repair begins.'}
+                      ? 'سيرسل لك الفنيون القريبون عروض أسعارهم، والعرض الذي تقبله هو السعر النهائي المتفق عليه قبل بدء الإصلاح.'
+                      : 'Nearby technicians will send you their offers — the one you accept is the final agreed price before any repair begins.'}
                   </Text>
                 </View>
               </View>

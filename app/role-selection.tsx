@@ -145,7 +145,9 @@ export default function RoleSelectionScreen() {
           {/* Title */}
           <Text style={styles.title}>Fixate</Text>
           <Text style={styles.subtitle}>
-            {language === 'ar' ? 'شريكك الموثوق للصيانة' : 'Your Trusted Repair Partner'}
+            {language === 'ar'
+              ? 'صيانة أجهزتك الإلكترونية على يد فنيين معتمدين — بسعر متفق عليه قبل بدء الإصلاح'
+              : 'Certified technicians repair your devices — at a price agreed before any work starts'}
           </Text>
 
           {/* Subtitle */}

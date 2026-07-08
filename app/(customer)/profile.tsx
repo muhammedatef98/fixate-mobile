@@ -66,10 +66,10 @@ export default function ProfileScreen() {
         supabase.from('orders').select('*', { count: 'exact', head: true }).eq('user_id', user.id).eq('status', 'completed'),
         supabase.from('user_addresses').select('*', { count: 'exact', head: true }).eq('user_id', user.id),
         // Total amount spent = sum of completed-order prices (final, else estimate).
-        supabase.from('orders').select('final_price, estimated_price').eq('user_id', user.id).eq('status', 'completed'),
+        supabase.from('orders').select('accepted_offer_amount, final_price, estimated_price').eq('user_id', user.id).eq('status', 'completed'),
       ]);
       const spent = (spentRows ?? []).reduce(
-        (sum: number, o: any) => sum + Number(o.final_price ?? o.estimated_price ?? 0),
+        (sum: number, o: any) => sum + Number(o.accepted_offer_amount ?? o.final_price ?? o.estimated_price ?? 0),
         0
       );
       setStats({ total: total ?? 0, completed: completed ?? 0, addresses: addresses ?? 0, spent });

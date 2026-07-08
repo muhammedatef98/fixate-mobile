@@ -40,6 +40,11 @@ import {
 import { getFriendlyError } from '../utils/errorMessages';
 import { logger } from '../utils/logger';
 import { useIsAdmin } from '../hooks/useAdminGuard';
+import {
+  PAYMENT_MODES,
+  PAYMENT_MODE_LABELS,
+  PAYMENT_MODE_DESCRIPTIONS,
+} from '../utils/paymentPlan';
 
 interface FormState {
   inspectionFee: string;
@@ -70,6 +75,10 @@ interface FormState {
   serviceHandoffEnabled: boolean;
   freeDeliveryEnabled: boolean;
   freeDeliveryPromoCode: string;
+  paymentModeActive: string;
+  paymentDepositType: 'fixed' | 'percent';
+  paymentDepositValue: string;
+  paymentPartialPercent: string;
 }
 
 const toForm = (s: PlatformSettings): FormState => ({
@@ -101,6 +110,10 @@ const toForm = (s: PlatformSettings): FormState => ({
   serviceHandoffEnabled: s.serviceHandoffEnabled,
   freeDeliveryEnabled: s.freeDeliveryEnabled,
   freeDeliveryPromoCode: s.freeDeliveryPromoCode,
+  paymentModeActive: s.paymentMode.mode,
+  paymentDepositType: s.paymentMode.depositType,
+  paymentDepositValue: String(s.paymentMode.depositValue),
+  paymentPartialPercent: String(s.paymentMode.partialPercent),
 });
 
 interface FieldErrors {
@@ -115,6 +128,8 @@ interface FieldErrors {
   loyaltyRedeemMaxPct?: string;
   loyaltyTiersJson?: string;
   commitmentFee?: string;
+  paymentDepositValue?: string;
+  paymentPartialPercent?: string;
 }
 
 export default function AdminPlatformSettingsScreen() {
@@ -177,6 +192,12 @@ export default function AdminPlatformSettingsScreen() {
     }
     if (!Number.isFinite(num(f.commitmentFee)) || num(f.commitmentFee) < 0)
       err.commitmentFee = isRTL ? 'أدخل رقماً صحيحاً' : 'Enter a valid number';
+    const dep = num(f.paymentDepositValue);
+    if (!Number.isFinite(dep) || dep < 0 || (f.paymentDepositType === 'percent' && dep > 100))
+      err.paymentDepositValue = isRTL ? 'أدخل قيمة صحيحة' : 'Enter a valid value';
+    const pp = num(f.paymentPartialPercent);
+    if (!Number.isFinite(pp) || pp <= 0 || pp > 100)
+      err.paymentPartialPercent = isRTL ? 'نسبة بين 1 و 100' : 'Percent between 1 and 100';
     if (!f.serviceAreaMessageAr.trim())
       err.serviceAreaMessageAr = isRTL ? 'مطلوب' : 'Required';
     if (!f.serviceAreaMessageEn.trim())
@@ -227,6 +248,10 @@ export default function AdminPlatformSettingsScreen() {
         { key: PLATFORM_SETTINGS_KEYS.serviceHandoffEnabled, value: form.serviceHandoffEnabled },
         { key: PLATFORM_SETTINGS_KEYS.freeDeliveryEnabled, value: form.freeDeliveryEnabled },
         { key: PLATFORM_SETTINGS_KEYS.freeDeliveryPromoCode, value: form.freeDeliveryPromoCode.trim().toUpperCase() },
+        { key: PLATFORM_SETTINGS_KEYS.paymentModeActive, value: form.paymentModeActive },
+        { key: PLATFORM_SETTINGS_KEYS.paymentDepositType, value: form.paymentDepositType },
+        { key: PLATFORM_SETTINGS_KEYS.paymentDepositValue, value: Number(form.paymentDepositValue) },
+        { key: PLATFORM_SETTINGS_KEYS.paymentPartialPercent, value: Number(form.paymentPartialPercent) },
       ]);
       Alert.alert(
         isRTL ? 'تم الحفظ ✓' : 'Saved ✓',
@@ -315,6 +340,99 @@ export default function AdminPlatformSettingsScreen() {
                 : 'Values apply platform-wide. Tap a section to expand it.'}
             </Text>
 
+            {/* 0. Payment policy — how customers pay after accepting an
+                offer. Snapshotted per-order at acceptance, so changing it
+                here only affects NEW acceptances. */}
+            <CollapsibleSection
+              icon="credit-card-settings-outline"
+              iconColor="#0ea5e9"
+              title={isRTL ? 'سياسة الدفع' : 'Payment policy'}
+              subtitle={isRTL ? 'كيف يدفع العميل بعد قبول العرض' : 'How customers pay after accepting an offer'}
+              defaultOpen
+              COLORS={COLORS}
+              isRTL={isRTL}
+            >
+              {PAYMENT_MODES.map((m) => {
+                const active = form.paymentModeActive === m;
+                return (
+                  <TouchableOpacity
+                    key={m}
+                    onPress={() => set({ paymentModeActive: m })}
+                    style={{
+                      flexDirection: isRTL ? 'row-reverse' : 'row',
+                      alignItems: 'center',
+                      gap: 10,
+                      borderWidth: 1.5,
+                      borderColor: active ? COLORS.primary : COLORS.border,
+                      backgroundColor: active ? COLORS.primary + '10' : 'transparent',
+                      borderRadius: 12,
+                      padding: 12,
+                      marginBottom: 8,
+                    }}
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected: active }}
+                  >
+                    <MaterialCommunityIcons
+                      name={active ? 'radiobox-marked' : 'radiobox-blank'}
+                      size={20}
+                      color={active ? COLORS.primary : COLORS.textSecondary}
+                    />
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ color: COLORS.text, fontWeight: '800', fontSize: 13.5, textAlign: isRTL ? 'right' : 'left' }}>
+                        {PAYMENT_MODE_LABELS[m][isRTL ? 'ar' : 'en']}
+                      </Text>
+                      <Text style={{ color: COLORS.textSecondary, fontSize: 11.5, marginTop: 2, lineHeight: 16, textAlign: isRTL ? 'right' : 'left' }}>
+                        {PAYMENT_MODE_DESCRIPTIONS[m][isRTL ? 'ar' : 'en']}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+
+              {form.paymentModeActive === 'deposit_then_rest' && (
+                <>
+                  <SwitchRow
+                    label={isRTL ? 'العربون كنسبة مئوية' : 'Deposit as a percentage'}
+                    hint={isRTL
+                      ? 'عند الإيقاف، يكون العربون مبلغاً ثابتاً بالريال.'
+                      : 'When off, the deposit is a fixed SAR amount.'}
+                    value={form.paymentDepositType === 'percent'}
+                    onChange={(v) => set({ paymentDepositType: v ? 'percent' : 'fixed' })}
+                    COLORS={COLORS} isRTL={isRTL}
+                  />
+                  <FieldNumber
+                    label={form.paymentDepositType === 'percent'
+                      ? (isRTL ? 'نسبة العربون (%)' : 'Deposit percent (%)')
+                      : (isRTL ? 'قيمة العربون (ر.س)' : 'Deposit amount (SAR)')}
+                    hint={isRTL
+                      ? 'يُدفع فور قبول العرض، والباقي بعد الإصلاح.'
+                      : 'Paid right after accepting the offer; the rest after the repair.'}
+                    value={form.paymentDepositValue}
+                    onChangeText={(v) => set({ paymentDepositValue: v })}
+                    error={errors.paymentDepositValue}
+                    COLORS={COLORS} isRTL={isRTL}
+                  />
+                </>
+              )}
+              {form.paymentModeActive === 'partial_then_final' && (
+                <FieldNumber
+                  label={isRTL ? 'نسبة الدفعة الأولى (%)' : 'First payment percent (%)'}
+                  hint={isRTL
+                    ? 'النسبة المدفوعة فور القبول، والمتبقي بعد معرفة الإجمالي النهائي.'
+                    : 'Percent paid at acceptance; the remainder once the final total is known.'}
+                  value={form.paymentPartialPercent}
+                  onChangeText={(v) => set({ paymentPartialPercent: v })}
+                  error={errors.paymentPartialPercent}
+                  COLORS={COLORS} isRTL={isRTL}
+                />
+              )}
+              <Text style={{ color: COLORS.textSecondary, fontSize: 11.5, lineHeight: 16, marginTop: 4, textAlign: isRTL ? 'right' : 'left' }}>
+                {isRTL
+                  ? 'يُثبَّت الوضع على كل طلب لحظة قبول العرض — تغيير السياسة هنا يسري على القبولات الجديدة فقط.'
+                  : 'The mode is snapshotted onto each order at offer acceptance — changing it here affects new acceptances only.'}
+              </Text>
+            </CollapsibleSection>
+
             {/* 1. Confirmation amount */}
             <CollapsibleSection
               icon="cash-lock"
@@ -368,8 +486,8 @@ export default function AdminPlatformSettingsScreen() {
                 <FieldNumber
                   label={isRTL ? 'قيمة رسوم الفحص (ر.س)' : 'Inspection fee (SAR)'}
                   hint={isRTL
-                    ? 'تُحتسب عند رفض العميل لعرض السعر بعد الفحص.'
-                    : 'Charged when the customer rejects the post-inspection quote.'}
+                    ? 'رسوم فحص اختيارية تُطبَّق حسب سياسة المنصة.'
+                    : 'Optional inspection fee applied per platform policy.'}
                   value={form.inspectionFee}
                   onChangeText={(v) => set({ inspectionFee: v })}
                   error={errors.inspectionFee}

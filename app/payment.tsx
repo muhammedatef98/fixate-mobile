@@ -18,20 +18,26 @@ import { RTLIonicon } from '../components/RTLIcon';
 import { safeBack } from '../utils/navigation';
 import { supabase } from '../services/supabaseClient';
 import { getFriendlyError } from '../utils/errorMessages';
+import { getOrderTotals, fmtSAR, type OrderTotals } from '../utils/orderMoney';
+import { PAYMENT_MODE_LABELS } from '../utils/paymentPlan';
+import { notifyUsers } from '../services/notifyService';
+import { logger } from '../utils/logger';
 import {
   getPaymentPageMethods,
   type PaymentMethod,
 } from '../services/paymentMethodsService';
 
 /**
- * The real payment page — reached after the customer accepts a repair quote.
- * Methods are admin-managed (payment_methods table). Cash on Delivery is the
- * only one that "really" settles here; card/Apple Pay record the choice and
- * set payment_status = 'pending_payment' until a server-side gateway confirms
- * the charge. Tabby/Tamara are shown as coming-soon.
+ * The payment page — reached immediately after the customer accepts a
+ * technician's offer (payment architecture v2). The amount due NOW follows
+ * the payment-mode snapshot taken at acceptance (full upfront / deposit /
+ * partial); the rest, if any, is collected after the repair.
+ *
+ * Methods are admin-managed (payment_methods table). Cash on Delivery keeps
+ * payment_status = 'unpaid' (the technician confirms collection later via
+ * record_order_payment); card/Apple Pay record the choice as
+ * 'pending_payment' until a server-side gateway confirms the charge.
  */
-// Brand accent colours for BNPL methods. The official Tabby/Tamara logo
-// assets can be dropped into assets/ and wired via payment_methods.icon later.
 const methodAccent = (code: string, COLORS: any): string => {
   if (code === 'tabby') return '#3EB6A0';
   if (code === 'tamara') return '#E0218A';
@@ -40,29 +46,19 @@ const methodAccent = (code: string, COLORS: any): string => {
 
 export default function PaymentScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ orderId?: string; amount?: string; purpose?: string }>();
+  const params = useLocalSearchParams<{ orderId?: string }>();
   const { language, isDark } = useApp();
   const COLORS = getColors(isDark);
   const SHADOWS = getShadows(isDark);
   const isRTL = language === 'ar';
 
   const orderId = params.orderId ?? '';
-  const amountParam = params.amount ? Number(params.amount) : null;
-  // 'delivery_fee' — the customer rejected the repair quote and only owes
-  // the delivery/visit fee (inspection is free). Default 'repair'.
-  const isDeliveryFee = params.purpose === 'delivery_fee';
 
   const [methods, setMethods] = useState<PaymentMethod[] | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-
-  // Order pricing — loaded so accessories/add-ons can be shown and removed
-  // before the customer pays. Delivery-fee payments skip this entirely.
-  const [repairPrice, setRepairPrice] = useState(0);
-  const [discount, setDiscount] = useState(0);
-  const [deliveryFee, setDeliveryFee] = useState(0);
-  const [accessories, setAccessories] = useState<any[]>([]);
-  const [protection, setProtection] = useState<any[]>([]);
+  const [order, setOrder] = useState<any>(null);
+  const [totals, setTotals] = useState<OrderTotals | null>(null);
   const [removingId, setRemovingId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -75,53 +71,42 @@ export default function PaymentScreen() {
       .catch(() => setMethods([]));
   }, []);
 
-  useEffect(() => {
-    if (!orderId || isDeliveryFee) return;
-    (async () => {
-      const { data } = await supabase
-        .from('orders')
-        .select('final_price, estimated_price, discount_amount, delivery_fee, accessories, protection_addons')
-        .eq('id', orderId)
-        .maybeSingle();
-      if (!data) return;
-      setRepairPrice(Number((data as any).final_price ?? (data as any).estimated_price ?? 0));
-      setDiscount(Number((data as any).discount_amount ?? 0));
-      setDeliveryFee(Number((data as any).delivery_fee ?? 0));
-      setAccessories(Array.isArray((data as any).accessories) ? (data as any).accessories : []);
-      setProtection(Array.isArray((data as any).protection_addons) ? (data as any).protection_addons : []);
-    })();
-  }, [orderId, isDeliveryFee]);
+  const loadOrder = async () => {
+    if (!orderId) return;
+    const { data } = await supabase
+      .from('orders')
+      .select(
+        'id, status, technician_id, accepted_offer_amount, final_price, estimated_price, payment_mode, upfront_amount_due, amount_paid, discount_amount, delivery_fee, accessories, protection_addons'
+      )
+      .eq('id', orderId)
+      .maybeSingle();
+    if (!data) return;
+    setOrder(data);
+    setTotals(getOrderTotals(data as any));
+  };
 
+  useEffect(() => {
+    void loadOrder();
+  }, [orderId]);
+
+  const accessories: any[] = Array.isArray(order?.accessories) ? order.accessories : [];
+  const protection: any[] = Array.isArray(order?.protection_addons) ? order.protection_addons : [];
   const addonRows = [
     ...accessories.map((a) => ({ ...a, kind: 'accessories' as const })),
     ...protection.map((p) => ({ ...p, kind: 'protection_addons' as const })),
   ];
-  const addonsTotal = addonRows.reduce((s, a) => s + Number(a?.price ?? 0), 0);
-  // The real amount the customer pays. For a delivery-fee payment we trust
-  // the param; otherwise we compute it live so add-on removals are reflected.
-  // Repair payment total now includes the delivery fee on the order — the
-  // customer accepted the quote, so they owe repair + delivery (minus discount,
-  // plus any add-ons). Delivery-fee-only payments still trust the param.
-  const amount = isDeliveryFee
-    ? amountParam
-    : Math.max(0, repairPrice - discount + addonsTotal + deliveryFee);
 
   const removeAddon = async (row: { id: string; kind: 'accessories' | 'protection_addons' }) => {
     setRemovingId(row.id);
     try {
-      const nextAcc = row.kind === 'accessories'
-        ? accessories.filter((a) => a.id !== row.id)
-        : accessories;
-      const nextProt = row.kind === 'protection_addons'
-        ? protection.filter((p) => p.id !== row.id)
-        : protection;
+      const nextAcc = row.kind === 'accessories' ? accessories.filter((a) => a.id !== row.id) : accessories;
+      const nextProt = row.kind === 'protection_addons' ? protection.filter((p) => p.id !== row.id) : protection;
       const { error } = await supabase
         .from('orders')
         .update({ accessories: nextAcc, protection_addons: nextProt })
         .eq('id', orderId);
       if (error) throw error;
-      setAccessories(nextAcc);
-      setProtection(nextProt);
+      await loadOrder();
     } catch (e: any) {
       Alert.alert(isRTL ? 'خطأ' : 'Error', getFriendlyError(e, language));
     } finally {
@@ -129,50 +114,68 @@ export default function PaymentScreen() {
     }
   };
 
+  const isSplitMode = totals != null && totals.paymentMode !== 'full_upfront';
+  const remainderAfter = totals ? Math.max(0, totals.total - totals.dueNow) : 0;
+
   const handleConfirm = async () => {
     if (!orderId || !selected) {
       Alert.alert(isRTL ? 'تنبيه' : 'Notice', isRTL ? 'اختر طريقة دفع' : 'Select a payment method');
       return;
     }
     const method = methods?.find((m) => m.code === selected);
-    if (!method || method.is_coming_soon) return;
+    if (!method || method.is_coming_soon || !totals) return;
 
     setSubmitting(true);
     try {
-      // COD settles on completion → payment_status stays 'unpaid'.
-      // Card / Apple Pay record the chosen method and set 'pending_payment'
-      // — NOT 'paid' — because no server-side gateway has confirmed the
-      // charge yet. A webhook / Edge Function must flip this to 'paid' once
-      // the gateway responds.
+      // COD: nothing is actually collected here — the technician confirms the
+      // cash collection later (record_order_payment), so payment_status stays
+      // 'unpaid'. Card/Apple Pay record the chosen method as
+      // 'pending_payment' until a gateway webhook flips it to 'paid'.
       const isCod = method.code === 'cod';
       const { error } = await supabase
         .from('orders')
         .update({
           payment_method: method.code,
           payment_status: isCod ? 'unpaid' : 'pending_payment',
-          status: isDeliveryFee ? 'cancelled' : 'accepted',
+          status: 'accepted',
           updated_at: new Date().toISOString(),
         })
-        .eq('id', orderId);
+        .eq('id', orderId)
+        .eq('status', 'awaiting_payment');
       if (error) throw error;
 
+      // Tell the technician the customer confirmed — work can start.
+      if (order?.technician_id) {
+        try {
+          void notifyUsers(order.technician_id, {
+            title: 'تم تأكيد الطلب ✅',
+            body: 'أكد العميل الدفع — يمكنك بدء العمل على الطلب.',
+            data: { screen: 'order-details', orderId },
+          });
+        } catch (e) {
+          logger.warn('payment-confirmed push failed', e);
+        }
+      }
+
+      const dueNowTxt = fmtSAR(totals.dueNow, isRTL);
+      const restTxt = fmtSAR(remainderAfter, isRTL);
       Alert.alert(
-        isRTL ? 'تم بنجاح ✓' : 'Done ✓',
-        isDeliveryFee
-          ? isCod
+        isRTL ? 'تم تأكيد الطلب ✓' : 'Order confirmed ✓',
+        isCod
+          ? isSplitMode
             ? isRTL
-              ? 'تم تأكيد رسوم التوصيل وستُحصّل نقداً. تم إغلاق الطلب.'
-              : 'Delivery fee confirmed — it will be collected in cash. The request is closed.'
+              ? `سيُحصَّل ${dueNowTxt} نقداً عند بدء الخدمة، والمتبقي (${restTxt}) بعد إتمام الإصلاح.`
+              : `${dueNowTxt} will be collected in cash when the service starts, and the remaining ${restTxt} after the repair is done.`
             : isRTL
-              ? 'تم حفظ طريقة الدفع. سيتم تحصيل رسوم التوصيل لاحقاً. تم إغلاق الطلب.'
-              : 'Payment method saved. The delivery fee will be charged later. The request is now closed.'
-          : isCod
-            ? isRTL
               ? 'تم تأكيد طلبك. سيتم تحصيل المبلغ نقداً عند إتمام الإصلاح.'
               : 'Your order is confirmed. The amount will be collected in cash on completion.'
+          : isSplitMode
+            ? isRTL
+              ? `تم حفظ طريقة الدفع. سيتم تحصيل ${dueNowTxt} الآن والمتبقي (${restTxt}) بعد الإصلاح.`
+              : `Payment method saved. ${dueNowTxt} is charged now and the remaining ${restTxt} after the repair.`
             : isRTL
-              ? 'تم حفظ طريقة الدفع. سيتم تحصيل المبلغ عند إتمام الإصلاح.'
-              : 'Payment method saved. You will be charged once the repair is complete.',
+              ? 'تم حفظ طريقة الدفع. سيتم تحصيل المبلغ كاملاً.'
+              : 'Payment method saved. The full amount will be charged.',
         [{ text: 'OK', onPress: () => safeBack(`/order-details?id=${orderId}` as any) }]
       );
     } catch (e: any) {
@@ -184,6 +187,7 @@ export default function PaymentScreen() {
 
   const styles = makeStyles(COLORS, isRTL, SHADOWS);
   const selectedMethod = methods?.find((m) => m.code === selected);
+  const modeLabel = totals ? PAYMENT_MODE_LABELS[totals.paymentMode][isRTL ? 'ar' : 'en'] : '';
 
   return (
     <SafeAreaView style={styles.container}>
@@ -200,52 +204,46 @@ export default function PaymentScreen() {
       </View>
 
       <ScrollView contentContainerStyle={{ padding: SPACING.m, paddingBottom: 40 }}>
-        {amount != null && amount > 0 && (
+        {totals && (
           <View style={[styles.amountCard, { backgroundColor: COLORS.primary + '12', borderColor: COLORS.primary + '30' }]}>
             <Text style={[styles.amountLabel, { color: COLORS.textSecondary }]}>
-              {isDeliveryFee
-                ? (isRTL ? 'رسوم التوصيل المستحقة' : 'Delivery fee due')
-                : (isRTL ? 'المبلغ المطلوب' : 'Amount due')}
+              {isRTL ? 'المطلوب الآن' : 'Due now'}
             </Text>
             <Text style={[styles.amountValue, { color: COLORS.primary }]}>
-              {amount.toLocaleString(isRTL ? 'ar-SA' : 'en-US')} {isRTL ? 'ر.س' : 'SAR'}
+              {fmtSAR(totals.dueNow, isRTL)}
             </Text>
+            {isSplitMode && (
+              <Text style={{ color: COLORS.textSecondary, fontSize: 12, marginTop: 6, textAlign: 'center' }}>
+                {isRTL
+                  ? `${modeLabel} — المتبقي ${fmtSAR(remainderAfter, isRTL)} بعد الإصلاح`
+                  : `${modeLabel} — remaining ${fmtSAR(remainderAfter, isRTL)} after the repair`}
+              </Text>
+            )}
           </View>
         )}
 
-        {isDeliveryFee && (
-          <View style={[styles.trustNote, { backgroundColor: COLORS.warning + '12', marginTop: 0, marginBottom: 18 }]}>
-            <Ionicons name="information-circle" size={18} color={COLORS.warning} />
-            <Text style={[styles.trustText, { color: COLORS.text }]}>
-              {isRTL
-                ? 'لقد رفضت عرض السعر. الفحص مجاني، وهذه رسوم التوصيل فقط.'
-                : 'You rejected the repair quote. Inspection is free — this is the delivery fee only.'}
-            </Text>
-          </View>
-        )}
-
-        {/* Price breakdown — add-ons are removable before paying */}
-        {!isDeliveryFee && (repairPrice > 0 || addonRows.length > 0 || deliveryFee > 0) && (
+        {/* Price breakdown — the agreed offer is the price basis; add-ons are
+            removable before confirming. */}
+        {totals && (
           <View style={[styles.breakdownCard, { backgroundColor: COLORS.card, borderColor: COLORS.border }]}>
             <Text style={[styles.breakdownTitle, { color: COLORS.text }]}>
               {isRTL ? 'تفاصيل المبلغ' : 'Price breakdown'}
             </Text>
-            {/* Standard order: repair → delivery → add-ons → discount → amount due */}
             <View style={styles.bdRow}>
               <Text style={[styles.bdLabel, { color: COLORS.textSecondary }]}>
-                {isRTL ? 'سعر الإصلاح' : 'Repair price'}
+                {isRTL ? 'السعر المتفق عليه (العرض المقبول)' : 'Agreed price (accepted offer)'}
               </Text>
               <Text style={[styles.bdValue, { color: COLORS.text }]}>
-                {repairPrice.toLocaleString(isRTL ? 'ar-SA' : 'en-US')} {isRTL ? 'ر.س' : 'SAR'}
+                {fmtSAR(totals.agreedAmount, isRTL)}
               </Text>
             </View>
-            {deliveryFee > 0 && (
+            {totals.deliveryFee > 0 && (
               <View style={styles.bdRow}>
                 <Text style={[styles.bdLabel, { color: COLORS.textSecondary }]}>
                   {isRTL ? 'رسوم التوصيل' : 'Delivery fee'}
                 </Text>
                 <Text style={[styles.bdValue, { color: COLORS.text }]}>
-                  +{deliveryFee.toLocaleString(isRTL ? 'ar-SA' : 'en-US')} {isRTL ? 'ر.س' : 'SAR'}
+                  +{fmtSAR(totals.deliveryFee, isRTL)}
                 </Text>
               </View>
             )}
@@ -261,7 +259,7 @@ export default function PaymentScreen() {
                       {isRTL ? a.name_ar : a.name_en}
                     </Text>
                     <Text style={[styles.bdValue, { color: COLORS.text, marginHorizontal: 8 }]}>
-                      +{Number(a.price ?? 0).toLocaleString(isRTL ? 'ar-SA' : 'en-US')} {isRTL ? 'ر.س' : 'SAR'}
+                      +{fmtSAR(Number(a.price ?? 0), isRTL)}
                     </Text>
                     <TouchableOpacity
                       onPress={() => removeAddon(a)}
@@ -279,25 +277,43 @@ export default function PaymentScreen() {
                 ))}
               </>
             )}
-            {discount > 0 && (
+            {totals.discount > 0 && (
               <View style={styles.bdRow}>
                 <Text style={[styles.bdLabel, { color: COLORS.primary }]}>
                   {isRTL ? 'الخصم' : 'Discount'}
                 </Text>
                 <Text style={[styles.bdValue, { color: COLORS.primary }]}>
-                  -{discount.toLocaleString(isRTL ? 'ar-SA' : 'en-US')} {isRTL ? 'ر.س' : 'SAR'}
+                  -{fmtSAR(totals.discount, isRTL)}
                 </Text>
               </View>
             )}
             <View style={[styles.bdDivider, { backgroundColor: COLORS.border }]} />
             <View style={styles.bdRow}>
               <Text style={[styles.bdLabel, { color: COLORS.text, fontWeight: '900', fontSize: 15 }]}>
-                {isRTL ? 'المبلغ المستحق' : 'Amount due'}
+                {isRTL ? 'الإجمالي' : 'Total'}
               </Text>
-              <Text style={[styles.bdValue, { color: COLORS.primary, fontSize: 18, fontWeight: '900' }]}>
-                {(amount ?? 0).toLocaleString(isRTL ? 'ar-SA' : 'en-US')} {isRTL ? 'ر.س' : 'SAR'}
+              <Text style={[styles.bdValue, { color: COLORS.text, fontSize: 16, fontWeight: '900' }]}>
+                {fmtSAR(totals.total, isRTL)}
               </Text>
             </View>
+            <View style={styles.bdRow}>
+              <Text style={[styles.bdLabel, { color: COLORS.text, fontWeight: '900', fontSize: 15 }]}>
+                {isRTL ? 'المطلوب الآن' : 'Due now'}
+              </Text>
+              <Text style={[styles.bdValue, { color: COLORS.primary, fontSize: 18, fontWeight: '900' }]}>
+                {fmtSAR(totals.dueNow, isRTL)}
+              </Text>
+            </View>
+            {isSplitMode && (
+              <View style={styles.bdRow}>
+                <Text style={[styles.bdLabel, { color: COLORS.textSecondary }]}>
+                  {isRTL ? 'المتبقي بعد الإصلاح' : 'Remaining after repair'}
+                </Text>
+                <Text style={[styles.bdValue, { color: COLORS.textSecondary }]}>
+                  {fmtSAR(remainderAfter, isRTL)}
+                </Text>
+              </View>
+            )}
             <Text style={[styles.bdVatNote, { color: COLORS.textSecondary }]}>
               {isRTL ? 'الأسعار شاملة ضريبة القيمة المضافة' : 'Prices include VAT'}
             </Text>

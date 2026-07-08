@@ -133,8 +133,8 @@ export default function PriceCalculatorScreen() {
               </Text>
               <Text style={styles.brandHeroSub}>
                 {isRTL
-                  ? 'عرض سعر سريع — يحدد الفني السعر النهائي بعد الفحص'
-                  : 'A quick quotation — the technician sets the final price after inspection'}
+                  ? 'تقدير سريع — السعر النهائي هو العرض الذي تقبله من الفنيين'
+                  : 'A quick estimate — the final price is the technician offer you accept'}
               </Text>
             </View>
           </View>

@@ -84,14 +84,14 @@ export const getLoyaltySummary = async (userId: string): Promise<LoyaltySummary>
   try {
     const { data } = await supabase
       .from('orders')
-      .select('final_price, estimated_price, status, created_at, device_brand')
+      .select('accepted_offer_amount, final_price, estimated_price, status, created_at, device_brand')
       .eq('user_id', userId)
       .eq('status', 'completed');
 
     const orders = data || [];
     const lifetimeEarned = orders.reduce(
       (sum: number, o: any) =>
-        sum + pointsForSpend(Number(o.final_price ?? o.estimated_price ?? 0)),
+        sum + pointsForSpend(Number(o.accepted_offer_amount ?? o.final_price ?? o.estimated_price ?? 0)),
       0
     );
     return {
@@ -102,7 +102,7 @@ export const getLoyaltySummary = async (userId: string): Promise<LoyaltySummary>
         id: `placeholder-${i}`,
         user_id: userId,
         type: 'earn' as const,
-        points: pointsForSpend(Number(o.final_price ?? o.estimated_price ?? 0)),
+        points: pointsForSpend(Number(o.accepted_offer_amount ?? o.final_price ?? o.estimated_price ?? 0)),
         reason: o.device_brand ? `إصلاح ${o.device_brand}` : 'إصلاح مكتمل',
         created_at: o.created_at,
       })),

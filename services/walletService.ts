@@ -64,12 +64,12 @@ export const getWalletBalance = async (
   try {
     const { data } = await supabase
       .from('orders')
-      .select('estimated_price, final_price, status')
+      .select('accepted_offer_amount, estimated_price, final_price, status')
       .eq('technician_id', technicianId)
       .eq('status', 'completed');
     const rows = data ?? [];
     const balance = rows.reduce(
-      (s: number, r: any) => s + Number((r.final_price ?? r.estimated_price) || 0),
+      (s: number, r: any) => s + Number((r.accepted_offer_amount ?? r.final_price ?? r.estimated_price) || 0),
       0
     );
     return { balance, pendingBackend: true };

@@ -185,7 +185,7 @@ export default function TechnicianHomeScreen() {
       if (!ts) return sum;
       const t = new Date(ts).getTime();
       if (!Number.isFinite(t) || t < startOfDay.getTime()) return sum;
-      const amount = Number((o as any).final_price ?? (o as any).estimated_price ?? 0);
+      const amount = Number((o as any).accepted_offer_amount ?? (o as any).final_price ?? (o as any).estimated_price ?? 0);
       return sum + (Number.isFinite(amount) ? amount : 0);
     }, 0);
   }, [myOrders]);

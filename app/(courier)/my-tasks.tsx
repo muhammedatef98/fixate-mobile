@@ -57,6 +57,10 @@ export default function CourierMyTasksScreen() {
 
   const activeMine = mine.filter((t) => !['completed', 'cancelled'].includes(t.status));
   const doneMine = mine.filter((t) => ['completed', 'cancelled'].includes(t.status));
+  const completedCount = mine.filter((t) => t.status === 'completed').length;
+  const earnedFees = mine
+    .filter((t) => t.status === 'completed')
+    .reduce((s, t) => s + Number(t.courier_fee ?? 0), 0);
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background }} edges={['top']}>
@@ -102,6 +106,33 @@ export default function CourierMyTasksScreen() {
                   {isRTL ? 'إعادة المحاولة' : 'Retry'}
                 </Text>
               </TouchableOpacity>
+            </View>
+          )}
+
+          {mine.length > 0 && (
+            <View style={[styles.statsRow]}>
+              <View style={[styles.statCard, { backgroundColor: COLORS.card, borderColor: COLORS.border }]}>
+                <Text style={{ color: COLORS.primary, fontSize: 20, fontWeight: '900' }}>{activeMine.length}</Text>
+                <Text style={{ color: COLORS.textSecondary, fontSize: 11.5, fontWeight: '700' }}>
+                  {isRTL ? 'نشطة' : 'Active'}
+                </Text>
+              </View>
+              <View style={[styles.statCard, { backgroundColor: COLORS.card, borderColor: COLORS.border }]}>
+                <Text style={{ color: COLORS.text, fontSize: 20, fontWeight: '900' }}>{completedCount}</Text>
+                <Text style={{ color: COLORS.textSecondary, fontSize: 11.5, fontWeight: '700' }}>
+                  {isRTL ? 'مكتملة' : 'Completed'}
+                </Text>
+              </View>
+              {earnedFees > 0 && (
+                <View style={[styles.statCard, { backgroundColor: COLORS.card, borderColor: COLORS.border }]}>
+                  <Text style={{ color: '#10B981', fontSize: 20, fontWeight: '900' }}>
+                    {earnedFees.toLocaleString(isRTL ? 'ar-SA' : 'en-US')}
+                  </Text>
+                  <Text style={{ color: COLORS.textSecondary, fontSize: 11.5, fontWeight: '700' }}>
+                    {isRTL ? 'أجور (ر.س)' : 'Fees (SAR)'}
+                  </Text>
+                </View>
+              )}
             </View>
           )}
 
@@ -168,6 +199,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
   },
   empty: { alignItems: 'center', paddingVertical: 60, gap: 4 },
+  statsRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  statCard: {
+    flex: 1,
+    borderWidth: 1,
+    borderRadius: 14,
+    paddingVertical: 12,
+    alignItems: 'center',
+    gap: 2,
+  },
   browseBtn: {
     marginTop: 16,
     paddingHorizontal: 22,

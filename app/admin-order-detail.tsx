@@ -16,6 +16,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useApp } from '../contexts/AppContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useIsAdmin } from '../hooks/useAdminGuard';
+import { PAYMENT_MODE_LABELS, type PaymentMode } from '../utils/paymentPlan';
 import { getColors, SPACING, BORDER_RADIUS } from '../constants/theme';
 import { RTLIonicon } from '../components/RTLIcon';
 import { safeBack } from '../utils/navigation';
@@ -326,16 +327,18 @@ export default function AdminOrderDetailScreen() {
           {/* Pricing */}
           <Section title={isRTL ? 'التسعير' : 'Pricing'} icon="cash-multiple" COLORS={COLORS} isRTL={isRTL}>
             <Row
-              k={
-                order.technician_id
-                  ? isRTL ? 'العرض المقبول' : 'Accepted offer'
-                  : isRTL ? 'التقدير المبدئي' : 'Initial estimate'
-              }
+              k={isRTL ? 'التقدير المبدئي' : 'Initial estimate'}
               v={`${fmt(order.estimated_price)} ${sar}`}
               styles={styles}
             />
-            {order.final_price != null && (
-              <Row k={isRTL ? 'السعر النهائي' : 'Final price'} v={`${fmt(order.final_price)} ${sar}`} styles={styles} strong />
+            {order.accepted_offer_amount != null && (
+              <Row k={isRTL ? 'العرض المقبول (السعر المتفق عليه)' : 'Accepted offer (agreed price)'} v={`${fmt(order.accepted_offer_amount)} ${sar}`} styles={styles} strong />
+            )}
+            {order.accepted_offer_amount == null && order.final_price != null && (
+              <Row k={isRTL ? 'السعر النهائي (نظام سابق)' : 'Final price (legacy)'} v={`${fmt(order.final_price)} ${sar}`} styles={styles} strong />
+            )}
+            {Number(order.spare_parts_cost) > 0 && (
+              <Row k={isRTL ? 'تكلفة قطع الغيار (داخلية)' : 'Spare-part cost (internal)'} v={`${fmt(order.spare_parts_cost)} ${sar}`} styles={styles} />
             )}
             {Number(order.delivery_fee) > 0 && (
               <Row k={isRTL ? 'رسوم التوصيل' : 'Delivery fee'} v={`${fmt(order.delivery_fee)} ${sar}`} styles={styles} />
@@ -363,6 +366,26 @@ export default function AdminOrderDetailScreen() {
           {/* Payment */}
           <Section title={isRTL ? 'الدفع' : 'Payment'} icon="credit-card-outline" COLORS={COLORS} isRTL={isRTL}>
             <Row k={isRTL ? 'طريقة الدفع' : 'Method'} v={order.payment_method || '—'} styles={styles} />
+            {!!order.payment_mode && (
+              <Row
+                k={isRTL ? 'سياسة الدفع' : 'Payment policy'}
+                v={PAYMENT_MODE_LABELS[order.payment_mode as PaymentMode]?.[isRTL ? 'ar' : 'en'] ?? order.payment_mode}
+                styles={styles}
+              />
+            )}
+            {order.upfront_amount_due != null && (
+              <Row k={isRTL ? 'المطلوب مقدماً' : 'Due upfront'} v={`${fmt(order.upfront_amount_due)} ${sar}`} styles={styles} />
+            )}
+            <Row k={isRTL ? 'المدفوع فعلياً' : 'Amount paid'} v={`${fmt(order.amount_paid ?? 0)} ${sar}`} styles={styles} strong />
+            {(() => {
+              const totalDue = Number(order.accepted_offer_amount ?? order.final_price ?? order.estimated_price ?? 0)
+                + Number(order.delivery_fee ?? 0)
+                - Number(order.discount_amount ?? 0);
+              const remaining = Math.max(0, totalDue - Number(order.amount_paid ?? 0));
+              return remaining > 0 ? (
+                <Row k={isRTL ? 'المتبقي' : 'Remaining balance'} v={`${fmt(remaining)} ${sar}`} styles={styles} />
+              ) : null;
+            })()}
             {payStatus && (
               <View style={styles.kvRow}>
                 <Text style={styles.kvKey}>{isRTL ? 'حالة الدفع' : 'Status'}</Text>

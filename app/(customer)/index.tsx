@@ -192,8 +192,9 @@ export default function CustomerHomeScreen() {
     }
   };
 
-  // Count of orders awaiting the customer's price approval — drives the
-  // badge on the "Quotes" quick action (FEAT-02).
+  // Count of orders awaiting the customer's payment confirmation — drives the
+  // badge on the quick action (payment v2: the accepted offer goes straight
+  // to payment, there is no separate quote-approval state anymore).
   const loadPendingQuotes = async () => {
     if (!user?.id) return;
     try {
@@ -201,7 +202,7 @@ export default function CustomerHomeScreen() {
         .from('orders')
         .select('id', { count: 'exact', head: true })
         .eq('user_id', user.id)
-        .eq('status', 'quoted');
+        .eq('status', 'awaiting_payment');
       setPendingQuotes(count ?? 0);
     } catch (e) {
       logger.warn('home loadPendingQuotes failed', e);
