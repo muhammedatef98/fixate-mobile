@@ -29,6 +29,7 @@ import {
   getMyOffers,
   type OrderOffer,
 } from '../../services/offerMarketplaceService';
+import { subscribeUnique } from '../../utils/realtimeChannel';
 import {
   latestRelevantOffer,
   technicianOfferStateMeta,
@@ -98,6 +99,10 @@ export default function AvailableOrdersScreen() {
   const [eligible, setEligible] = useState<boolean | null>(null);
   // Marketplace: my submitted offers keyed by order_id, plus the offer sheet.
   const [myOffers, setMyOffers] = useState<Record<string, OrderOffer>>({});
+  // Realtime: freshly-arrived open requests are staged here instead of being
+  // spliced into the list mid-read — a tap on the "new requests" chip merges
+  // them, preserving the technician's scroll/reading context.
+  const [incomingOrders, setIncomingOrders] = useState<orderService.Order[]>([]);
   const [offerTarget, setOfferTarget] = useState<orderService.Order | null>(null);
   const [offerAmount, setOfferAmount] = useState('');
   const [offerNote, setOfferNote] = useState('');
@@ -163,6 +168,50 @@ export default function AvailableOrdersScreen() {
     }
   };
 
+  // Live marketplace pool: new open requests arrive without manual refresh;
+  // requests claimed/closed elsewhere disappear silently (removal is safe —
+  // it never reorders what the technician is reading).
+  useEffect(() => {
+    return subscribeUnique('orders-marketplace-pool', (ch) =>
+      ch.on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'orders' },
+        (payload: any) => {
+          const row = payload.new ?? {};
+          const oldRow = payload.old ?? {};
+          const isOpen = row.status === 'pending' && !row.technician_id;
+          if (payload.eventType === 'INSERT' && isOpen) {
+            setIncomingOrders((prev) =>
+              prev.some((o) => o.id === row.id) ? prev : [row as orderService.Order, ...prev]
+            );
+            return;
+          }
+          if (payload.eventType === 'UPDATE') {
+            if (!isOpen) {
+              // Claimed / cancelled — drop it everywhere, quietly.
+              setOrders((prev) => prev.filter((o) => o.id !== row.id));
+              setIncomingOrders((prev) => prev.filter((o) => o.id !== row.id));
+            }
+            return;
+          }
+          if (payload.eventType === 'DELETE' && oldRow.id) {
+            setOrders((prev) => prev.filter((o) => o.id !== oldRow.id));
+            setIncomingOrders((prev) => prev.filter((o) => o.id !== oldRow.id));
+          }
+        }
+      )
+    );
+  }, []);
+
+  const mergeIncoming = () => {
+    setOrders((prev) => {
+      const known = new Set(prev.map((o) => o.id));
+      const fresh = incomingOrders.filter((o) => !known.has(o.id));
+      return [...fresh, ...prev];
+    });
+    setIncomingOrders([]);
+  };
+
   const loadOrders = async () => {
     try {
       setLoading(true);
@@ -182,6 +231,7 @@ export default function AvailableOrdersScreen() {
       setErrorMessage(null);
       const availableOrders = await orderService.getAvailableOrders();
       setOrders(availableOrders || []);
+      setIncomingOrders([]);
 
       // My submitted offers, so cards show "you already quoted X" instead of
       // letting the technician double-submit blindly.
@@ -548,6 +598,38 @@ export default function AvailableOrdersScreen() {
       )}
 
       {renderCategoryFilters()}
+
+      {/* New requests arrived over realtime — one tap merges them at the top
+          without disturbing the current reading position until then. */}
+      {incomingOrders.length > 0 && (
+        <TouchableOpacity
+          onPress={mergeIncoming}
+          style={{
+            flexDirection: isRTL ? 'row-reverse' : 'row',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 8,
+            marginHorizontal: 16,
+            marginBottom: 8,
+            paddingVertical: 11,
+            borderRadius: 999,
+            backgroundColor: COLORS.primary,
+          }}
+          accessibilityRole="button"
+          accessibilityLabel={
+            language === 'ar'
+              ? `${incomingOrders.length} طلبات جديدة — اضغط للعرض`
+              : `${incomingOrders.length} new requests — tap to show`
+          }
+        >
+          <MaterialCommunityIcons name="arrow-up-circle-outline" size={18} color="#fff" />
+          <Text style={{ color: '#fff', fontWeight: '800', fontSize: 13.5 }}>
+            {language === 'ar'
+              ? `${incomingOrders.length} ${incomingOrders.length === 1 ? 'طلب جديد وصل' : 'طلبات جديدة وصلت'} — اضغط للعرض`
+              : `${incomingOrders.length} new ${incomingOrders.length === 1 ? 'request' : 'requests'} arrived — tap to show`}
+          </Text>
+        </TouchableOpacity>
+      )}
 
       {loading ? (
         <View style={{ paddingTop: 16, paddingHorizontal: 16 }}>

@@ -11,6 +11,7 @@ import {
   sanitizeInput,
   validateCoordinates,
   normalizeSaudiPhone,
+  validateDocNumber,
 } from '../utils/validation';
 
 describe('validateEmail', () => {
@@ -224,5 +225,19 @@ describe('normalizeSaudiPhone', () => {
 
   it('leaves +966 format unchanged', () => {
     expect(normalizeSaudiPhone('+966512345678')).toBe('+966512345678');
+  });
+});
+
+describe('validateDocNumber (courier license / vehicle registration)', () => {
+  test('accepts realistic document numbers', () => {
+    expect(validateDocNumber('DL-1234567').valid).toBe(true);
+    expect(validateDocNumber('12345678').valid).toBe(true);
+    expect(validateDocNumber('  AB1234 ').valid).toBe(true);
+  });
+
+  test('rejects too-short, too-long and garbage input', () => {
+    expect(validateDocNumber('12').valid).toBe(false);
+    expect(validateDocNumber('X'.repeat(25)).valid).toBe(false);
+    expect(validateDocNumber('12 34!@').valid).toBe(false);
   });
 });

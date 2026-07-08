@@ -60,6 +60,8 @@ export interface CourierProfile {
   city: string | null;
   vehicle_type: 'car' | 'motorcycle' | 'van' | null;
   id_number: string | null;
+  driver_license_number: string | null;
+  vehicle_registration_number: string | null;
   verification_status: string;
   verification_notes: string | null;
   courier_status: string;
@@ -89,6 +91,8 @@ export interface CourierApplication {
   city: string;
   vehicle_type: 'car' | 'motorcycle' | 'van';
   id_number?: string;
+  driver_license_number: string;
+  vehicle_registration_number: string;
 }
 
 /** Create or resubmit the courier application (status returns to submitted). */
@@ -102,6 +106,8 @@ export const submitCourierApplication = async (
       city: app.city,
       vehicle_type: app.vehicle_type,
       id_number: app.id_number ?? null,
+      driver_license_number: app.driver_license_number,
+      vehicle_registration_number: app.vehicle_registration_number,
       verification_status: 'submitted',
       updated_at: new Date().toISOString(),
     },

@@ -4,6 +4,7 @@ import {
   canSubmitNewOffer,
   technicianOfferStateMeta,
   customerEstimateDisplay,
+  countNewPendingOffers,
   type OfferStatus,
 } from '../utils/offerStatus';
 
@@ -133,5 +134,32 @@ describe('customerEstimateDisplay (technician-facing estimate)', () => {
   test('arabic variant is provided', () => {
     expect(customerEstimateDisplay(120, true).value).toContain('ر.س');
     expect(customerEstimateDisplay(0, true).value).toBe('يُحدد بعد الفحص');
+  });
+});
+
+describe('countNewPendingOffers (customer offer-arrival signal)', () => {
+  const rows = [
+    { status: 'pending', created_at: '2026-07-08T10:00:00Z' },
+    { status: 'pending', created_at: '2026-07-08T12:00:00Z' },
+    { status: 'rejected', created_at: '2026-07-08T13:00:00Z' },
+  ];
+
+  test('counts only pending offers newer than last-seen', () => {
+    expect(countNewPendingOffers(rows, '2026-07-08T11:00:00Z')).toBe(1);
+  });
+
+  test('everything counts as new when never seen', () => {
+    expect(countNewPendingOffers(rows, null)).toBe(2);
+  });
+
+  test('clears (hides at zero) once the screen was viewed after the latest offer', () => {
+    expect(countNewPendingOffers(rows, '2026-07-08T14:00:00Z')).toBe(0);
+  });
+
+  test('non-pending offers never trigger the signal', () => {
+    expect(countNewPendingOffers(
+      [{ status: 'rejected', created_at: '2026-07-08T15:00:00Z' }],
+      null
+    )).toBe(0);
   });
 });

@@ -29,6 +29,8 @@ interface AdminCourierRow {
   city: string | null;
   vehicle_type: string | null;
   id_number: string | null;
+  driver_license_number?: string | null;
+  vehicle_registration_number?: string | null;
   verification_status: string;
   verification_notes: string | null;
   courier_status: string;
@@ -202,7 +204,9 @@ export default function AdminCouriersScreen() {
             ' · ' +
             (c.vehicle_type || '—') +
             (c.id_number ? ` · ${isRTL ? 'هوية' : 'ID'}: ${c.id_number}` : '') +
-            ` · ${isRTL ? 'توصيلات' : 'deliveries'}: ${c.total_deliveries}`}
+            ` · ${isRTL ? 'توصيلات' : 'deliveries'}: ${c.total_deliveries}` +
+            (c.driver_license_number ? ` · ${isRTL ? 'رخصة' : 'License'}: ${c.driver_license_number}` : '') +
+            (c.vehicle_registration_number ? ` · ${isRTL ? 'استمارة' : 'Reg'}: ${c.vehicle_registration_number}` : '')}
         </Text>
         {!!c.verification_notes && (
           <Text style={{ color: COLORS.textSecondary, fontSize: 12, marginTop: 4, fontStyle: 'italic', textAlign: isRTL ? 'right' : 'left' }}>

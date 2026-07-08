@@ -577,3 +577,21 @@ export const validateForm = (
 
   return { valid, errors };
 };
+
+/**
+ * Official document number (driver license, vehicle registration/istimara):
+ * 4–20 chars, letters/digits/dash only — loose enough for regional formats,
+ * strict enough to reject garbage.
+ */
+export const validateDocNumber = (
+  value: string
+): { valid: boolean; message?: string } => {
+  const v = value.trim();
+  if (v.length < 4 || v.length > 20) {
+    return { valid: false, message: 'Document number must be 4-20 characters' };
+  }
+  if (!/^[A-Za-z0-9\u0621-\u064A-]+$/.test(v)) {
+    return { valid: false, message: 'Document number contains invalid characters' };
+  }
+  return { valid: true };
+};

@@ -151,3 +151,18 @@ export const customerEstimateDisplay = (
     isEstimate: true,
   };
 };
+
+/**
+ * How many LIVE (pending) offers arrived after the customer last opened the
+ * offers screen for this order. Drives the "new offers" signal — it hides at
+ * zero and clears once the screen is viewed (lastSeen advances).
+ */
+export const countNewPendingOffers = (
+  offers: { status: OfferStatus | string; created_at: string }[],
+  lastSeenIso: string | null
+): number => {
+  const lastSeen = lastSeenIso ? new Date(lastSeenIso).getTime() : 0;
+  return offers.filter(
+    (o) => o.status === 'pending' && new Date(o.created_at).getTime() > lastSeen
+  ).length;
+};

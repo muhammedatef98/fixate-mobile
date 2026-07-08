@@ -27,6 +27,7 @@ import {
 } from '../services/offerMarketplaceService';
 import { getOrderById, type Order } from '../services/orderService';
 import { getFriendlyError } from '../utils/errorMessages';
+import { markOffersSeen } from '../utils/offersSeen';
 import { logger } from '../utils/logger';
 
 /**
@@ -63,6 +64,8 @@ export default function OrderOffersScreen() {
 
   useEffect(() => {
     void load();
+    // Opening this screen counts as 'seen' — clears the new-offers badge.
+    if (orderId) void markOffersSeen(String(orderId));
     if (!orderId) return;
     const cleanup = subscribeToOrderOffers(String(orderId), () => void load());
     return cleanup;

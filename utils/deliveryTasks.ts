@@ -126,3 +126,45 @@ export const nextDeliveryAction = (
       return null;
   }
 };
+
+interface CourierStatsInput {
+  task_type: DeliveryTaskType;
+  status: DeliveryTaskStatus;
+  courier_fee: number | string | null;
+}
+
+export interface CourierStats {
+  completed: number;
+  active: number;
+  pickupCompleted: number;
+  returnCompleted: number;
+  feesEarned: number;
+}
+
+/**
+ * Courier profile stats, derived from the courier's own delivery tasks (the
+ * source of truth) — never from denormalized counters. Fees count completed
+ * tasks only.
+ */
+export const computeCourierStats = (tasks: CourierStatsInput[]): CourierStats => {
+  const stats: CourierStats = {
+    completed: 0,
+    active: 0,
+    pickupCompleted: 0,
+    returnCompleted: 0,
+    feesEarned: 0,
+  };
+  for (const t of tasks) {
+    if (t.status === 'completed') {
+      stats.completed += 1;
+      if (t.task_type === 'pickup') stats.pickupCompleted += 1;
+      else stats.returnCompleted += 1;
+      const fee = Number(t.courier_fee ?? 0);
+      if (Number.isFinite(fee) && fee > 0) stats.feesEarned += fee;
+    } else if (t.status === 'accepted' || t.status === 'picked_up' || t.status === 'delivered') {
+      stats.active += 1;
+    }
+  }
+  stats.feesEarned = Math.round(stats.feesEarned * 100) / 100;
+  return stats;
+};

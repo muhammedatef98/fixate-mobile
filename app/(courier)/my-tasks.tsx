@@ -156,9 +156,28 @@ export default function CourierMyTasksScreen() {
             </View>
           ) : (
             <>
+              {activeMine.length > 0 && (
+                <Text
+                  style={{
+                    color: COLORS.text,
+                    fontSize: 13,
+                    fontWeight: '800',
+                    textAlign: isRTL ? 'right' : 'left',
+                  }}
+                >
+                  {isRTL ? `المهمات النشطة (${activeMine.length})` : `Active tasks (${activeMine.length})`}
+                </Text>
+              )}
               {activeMine.map((t) => (
                 <DeliveryTaskCard key={t.id} task={t} mode="mine" onOpen={openTask} />
               ))}
+              {activeMine.length === 0 && doneMine.length > 0 && (
+                <Text style={{ color: COLORS.textSecondary, fontSize: 13, textAlign: 'center', paddingVertical: 8 }}>
+                  {isRTL
+                    ? 'لا توجد مهمة نشطة الآن — تصفح المهمات المتاحة لبدء توصيلة جديدة.'
+                    : 'No active task right now — browse available tasks to start a new delivery.'}
+                </Text>
+              )}
               {doneMine.length > 0 && (
                 <Text
                   style={{
@@ -169,7 +188,7 @@ export default function CourierMyTasksScreen() {
                     textAlign: isRTL ? 'right' : 'left',
                   }}
                 >
-                  {isRTL ? 'المكتملة' : 'Completed'}
+                  {isRTL ? `السجل (${doneMine.length})` : `History (${doneMine.length})`}
                 </Text>
               )}
               {doneMine.map((t) => (

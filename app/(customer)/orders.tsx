@@ -12,6 +12,9 @@ import { logger } from '../../utils/logger';
 import { fmtMyRequestDate } from '../../utils/dateFormat';
 import { getColors, getShadows, BORDER_RADIUS } from '../../constants/theme';
 import { getFriendlyError } from '../../utils/errorMessages';
+import { subscribeToOrderOffers } from '../../services/offerMarketplaceService';
+import { countNewPendingOffers } from '../../utils/offerStatus';
+import { getOffersLastSeenMap } from '../../utils/offersSeen';
 import { RTLIonicon } from '../../components/RTLIcon';
 import { PressableScale } from '../../components/ui/PressableScale';
 import RatingModal from '../../components/RatingModal';
@@ -83,6 +86,10 @@ export default function OrdersScreen() {
   const [filter, setFilter] = useState<OrderFilterKey>('all');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [ratingOrder, setRatingOrder] = useState<{ id: string; technician_id: string | null } | null>(null);
+  // Offer-arrival signal per open order: total live offers + how many arrived
+  // since the customer last opened the offers screen (meaningful, clears on
+  // view — see utils/offersSeen).
+  const [offerBadges, setOfferBadges] = useState<Record<string, { pending: number; fresh: number }>>({});
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(20)).current;
@@ -135,6 +142,7 @@ export default function OrdersScreen() {
       // Load all of the user's orders; the status chips filter client-side.
       const data = await requests.getUserOrders();
       setOrders(data);
+      void loadOfferBadges(data);
     } catch (error: any) {
       logger.error('Error loading orders:', error);
       setErrorMessage(getFriendlyError(error, language));
@@ -143,6 +151,50 @@ export default function OrdersScreen() {
       setRefreshing(false);
     }
   };
+
+  // One batched query for all open orders' live offers, joined with the
+  // per-device "last seen" timestamps to derive the fresh count.
+  const loadOfferBadges = async (allOrders: any[]) => {
+    try {
+      const openIds = allOrders
+        .filter((o) => o.status === 'pending' && !o.technician_id)
+        .map((o) => o.id);
+      if (openIds.length === 0) {
+        setOfferBadges({});
+        return;
+      }
+      const [{ data: offerRows }, lastSeenMap] = await Promise.all([
+        supabase
+          .from('order_offers')
+          .select('order_id, status, created_at')
+          .in('order_id', openIds)
+          .eq('status', 'pending'),
+        getOffersLastSeenMap(openIds),
+      ]);
+      const badges: Record<string, { pending: number; fresh: number }> = {};
+      for (const id of openIds) {
+        const rows = (offerRows ?? []).filter((r: any) => r.order_id === id);
+        badges[id] = {
+          pending: rows.length,
+          fresh: countNewPendingOffers(rows as any, lastSeenMap[id] ?? null),
+        };
+      }
+      setOfferBadges(badges);
+    } catch (e) {
+      logger.warn('offer badges load failed', e);
+    }
+  };
+
+  // Live offer arrivals on open orders (usually 0–3 subscriptions) so the
+  // badge updates without a manual refresh. Re-runs when the open set changes.
+  useEffect(() => {
+    const open = orders.filter((o) => o.status === 'pending' && !o.technician_id);
+    if (open.length === 0) return;
+    const cleanups = open.map((o) =>
+      subscribeToOrderOffers(o.id, () => void loadOfferBadges(orders))
+    );
+    return () => cleanups.forEach((fn) => fn());
+  }, [orders.map((o) => `${o.id}:${o.status}`).join(',')]);
 
   const getStatusInfo = (status: string) => {
     switch (status) {
@@ -264,12 +316,44 @@ export default function OrdersScreen() {
                   style={[styles.orderCard, { borderLeftColor: status.color, borderLeftWidth: 4 }]}
                   onPress={() => router.push(`/order-details?id=${order.id}`)}
                 >
-                  {/* Top: status pill on the lead side */}
+                  {/* Top: status pill + live-offers signal */}
                   <View style={styles.cardTopRow}>
                     <View style={[styles.statusPill, { backgroundColor: status.color + '15' }]}>
                       <Ionicons name={status.icon as any} size={11} color={status.color} />
                       <Text style={[styles.statusPillText, { color: status.color }]}>{status.label}</Text>
                     </View>
+                    {(() => {
+                      const badge = offerBadges[order.id];
+                      if (!badge || badge.pending === 0) return null;
+                      const hasFresh = badge.fresh > 0;
+                      return (
+                        <TouchableOpacity
+                          onPress={() =>
+                            router.push({ pathname: '/order-offers', params: { orderId: order.id } } as any)
+                          }
+                          style={[
+                            styles.offersChip,
+                            { backgroundColor: hasFresh ? COLORS.primary : COLORS.primary + '15' },
+                          ]}
+                          accessibilityRole="button"
+                          accessibilityLabel={
+                            isRTL ? `${badge.pending} عروض على هذا الطلب` : `${badge.pending} offers on this request`
+                          }
+                        >
+                          {hasFresh && <View style={styles.offersFreshDot} />}
+                          <MaterialCommunityIcons
+                            name="cash-multiple"
+                            size={12}
+                            color={hasFresh ? '#fff' : COLORS.primary}
+                          />
+                          <Text style={[styles.offersChipText, { color: hasFresh ? '#fff' : COLORS.primary }]}>
+                            {hasFresh
+                              ? isRTL ? `${badge.fresh} جديد` : `${badge.fresh} new`
+                              : isRTL ? `${badge.pending} عروض` : `${badge.pending} offers`}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })()}
                   </View>
 
                   {/* Device row: icon + name */}
@@ -351,6 +435,16 @@ const createStyles = (COLORS: any, isRTL: boolean, SHADOWS: any) => StyleSheet.c
   filterText: { fontSize: 14, fontWeight: '700', color: COLORS.textSecondary },
   activeFilterText: { color: '#fff' },
   scrollContent: { paddingHorizontal: 16, paddingTop: 8 },
+  offersChip: {
+    flexDirection: isRTL ? 'row-reverse' : 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+  },
+  offersChipText: { fontSize: 11.5, fontWeight: '800' },
+  offersFreshDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#fff' },
   emptyState: { alignItems: 'center', marginTop: 80 },
   emptyText: { fontSize: 16, color: COLORS.textSecondary, marginTop: 16, marginBottom: 20 },
   loginPromptBtn: { backgroundColor: COLORS.primary, paddingHorizontal: 24, minHeight: 48, justifyContent: 'center', borderRadius: BORDER_RADIUS.sm, ...SHADOWS.small },

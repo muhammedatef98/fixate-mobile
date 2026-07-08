@@ -6,7 +6,13 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useApp } from '../../contexts/AppContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { getColors, getShadows, SPACING, BORDER_RADIUS } from '../../constants/theme';
-import { getMyCourierProfile, type CourierProfile } from '../../services/courierService';
+import {
+  getMyCourierProfile,
+  getMyDeliveryTasks,
+  type CourierProfile,
+} from '../../services/courierService';
+import { computeCourierStats, type CourierStats } from '../../utils/deliveryTasks';
+import { formatAppDateOnly } from '../../lib/formatDate';
 import { COURIER_NAV_HEIGHT } from '../../components/BottomNavCourier';
 import { logger } from '../../utils/logger';
 
@@ -31,12 +37,20 @@ export default function CourierProfileScreen() {
   const isRTL = language === 'ar';
 
   const [courier, setCourier] = useState<CourierProfile | null>(null);
+  // Stats derive from the courier's actual delivery tasks (source of truth),
+  // not the denormalized counter — see computeCourierStats.
+  const [stats, setStats] = useState<CourierStats | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
     if (!user) return;
     try {
-      setCourier(await getMyCourierProfile(user.id));
+      const [profile, tasks] = await Promise.all([
+        getMyCourierProfile(user.id),
+        getMyDeliveryTasks(user.id),
+      ]);
+      setCourier(profile);
+      setStats(computeCourierStats(tasks));
     } catch (e) {
       logger.warn('courier profile load failed', e);
     }
@@ -159,6 +173,46 @@ export default function CourierProfileScreen() {
           </View>
         </View>
 
+        {/* Performance — real numbers from the courier's own tasks. */}
+        <View style={[styles.card, { backgroundColor: COLORS.card, borderColor: COLORS.border }, SHADOWS.small]}>
+          <Text style={[styles.sectionTitle, { color: COLORS.text, textAlign: isRTL ? 'right' : 'left' }]}>
+            {isRTL ? 'أدائي' : 'My performance'}
+          </Text>
+          <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', gap: 10 }}>
+            <View style={[styles.statTile, { backgroundColor: COLORS.primary + '0F' }]}>
+              <Text style={{ color: COLORS.primary, fontSize: 22, fontWeight: '900' }}>
+                {stats?.completed ?? 0}
+              </Text>
+              <Text style={[styles.statLabel, { color: COLORS.textSecondary }]}>
+                {isRTL ? 'توصيلة مكتملة' : 'Completed'}
+              </Text>
+            </View>
+            <View style={[styles.statTile, { backgroundColor: '#10b9810F' }]}>
+              <Text style={{ color: '#10b981', fontSize: 22, fontWeight: '900' }}>
+                {(stats?.feesEarned ?? 0).toLocaleString(isRTL ? 'ar-SA' : 'en-US')}
+              </Text>
+              <Text style={[styles.statLabel, { color: COLORS.textSecondary }]}>
+                {isRTL ? 'أجور (ر.س)' : 'Fees (SAR)'}
+              </Text>
+            </View>
+            <View style={[styles.statTile, { backgroundColor: '#0EA5E90F' }]}>
+              <Text style={{ color: '#0EA5E9', fontSize: 22, fontWeight: '900' }}>
+                {stats?.active ?? 0}
+              </Text>
+              <Text style={[styles.statLabel, { color: COLORS.textSecondary }]}>
+                {isRTL ? 'نشطة الآن' : 'Active now'}
+              </Text>
+            </View>
+          </View>
+          {(stats?.completed ?? 0) > 0 && (
+            <Text style={{ color: COLORS.textSecondary, fontSize: 12, marginTop: 10, textAlign: isRTL ? 'right' : 'left' }}>
+              {isRTL
+                ? `${stats?.pickupCompleted ?? 0} استلام · ${stats?.returnCompleted ?? 0} إعادة`
+                : `${stats?.pickupCompleted ?? 0} pickups · ${stats?.returnCompleted ?? 0} returns`}
+            </Text>
+          )}
+        </View>
+
         {/* Work profile */}
         <View style={[styles.card, { backgroundColor: COLORS.card, borderColor: COLORS.border }, SHADOWS.small]}>
           <Text style={[styles.sectionTitle, { color: COLORS.text, textAlign: isRTL ? 'right' : 'left' }]}>
@@ -174,11 +228,27 @@ export default function CourierProfileScreen() {
             label={isRTL ? 'وسيلة التوصيل' : 'Vehicle'}
             value={vehicle ? (isRTL ? vehicle.ar : vehicle.en) : isRTL ? 'غير محددة' : 'Not set'}
           />
-          <Row
-            icon="package-variant-closed"
-            label={isRTL ? 'التوصيلات المكتملة' : 'Completed deliveries'}
-            value={String(courier?.total_deliveries ?? 0)}
-          />
+          {!!courier?.driver_license_number && (
+            <Row
+              icon="card-account-details-star-outline"
+              label={isRTL ? 'رخصة القيادة' : 'Driver license'}
+              value={courier.driver_license_number}
+            />
+          )}
+          {!!courier?.vehicle_registration_number && (
+            <Row
+              icon="clipboard-text-outline"
+              label={isRTL ? 'استمارة المركبة' : 'Vehicle registration'}
+              value={courier.vehicle_registration_number}
+            />
+          )}
+          {!!courier?.created_at && (
+            <Row
+              icon="calendar-check-outline"
+              label={isRTL ? 'مندوب منذ' : 'Courier since'}
+              value={formatAppDateOnly(courier.created_at, isRTL)}
+            />
+          )}
           <TouchableOpacity
             style={[styles.editBtn, { borderColor: COLORS.primary }]}
             onPress={() => router.push('/courier-onboarding' as any)}
@@ -253,6 +323,14 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   sectionTitle: { fontSize: 15, fontWeight: '800', marginBottom: 12 },
+  statTile: {
+    flex: 1,
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: 'center',
+    gap: 3,
+  },
+  statLabel: { fontSize: 11, fontWeight: '700' },
   row: { alignItems: 'center', gap: 12, paddingVertical: 8 },
   rowIcon: {
     width: 34,

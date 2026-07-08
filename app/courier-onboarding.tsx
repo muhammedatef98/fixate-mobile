@@ -24,6 +24,7 @@ import {
 } from '../services/courierService';
 import * as userService from '../services/userService';
 import { getFriendlyError } from '../utils/errorMessages';
+import { validateDocNumber } from '../utils/validation';
 import { logger } from '../utils/logger';
 
 const VEHICLES: { id: 'car' | 'motorcycle' | 'van'; ar: string; en: string; icon: string }[] = [
@@ -50,6 +51,8 @@ export default function CourierOnboardingScreen() {
   const [city, setCity] = useState('');
   const [vehicle, setVehicle] = useState<'car' | 'motorcycle' | 'van'>('car');
   const [idNumber, setIdNumber] = useState('');
+  const [licenseNumber, setLicenseNumber] = useState('');
+  const [registrationNumber, setRegistrationNumber] = useState('');
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
@@ -66,6 +69,8 @@ export default function CourierOnboardingScreen() {
         setCity(profile.city ?? '');
         setVehicle((profile.vehicle_type as any) ?? 'car');
         setIdNumber(profile.id_number ?? '');
+        setLicenseNumber(profile.driver_license_number ?? '');
+        setRegistrationNumber(profile.vehicle_registration_number ?? '');
       }
       setLoading(false);
     })();
@@ -97,6 +102,25 @@ export default function CourierOnboardingScreen() {
       );
       return;
     }
+    // Verification documents — required for the admin review.
+    if (!validateDocNumber(licenseNumber).valid) {
+      Alert.alert(
+        isRTL ? 'تنبيه' : 'Missing info',
+        isRTL
+          ? 'اكتب رقم رخصة القيادة (4–20 حرفاً/رقماً)'
+          : 'Enter a valid driver license number (4–20 letters/digits)'
+      );
+      return;
+    }
+    if (!validateDocNumber(registrationNumber).valid) {
+      Alert.alert(
+        isRTL ? 'تنبيه' : 'Missing info',
+        isRTL
+          ? 'اكتب رقم استمارة/تسجيل المركبة (4–20 حرفاً/رقماً)'
+          : 'Enter a valid vehicle registration / form number (4–20 letters/digits)'
+      );
+      return;
+    }
     setSubmitting(true);
     try {
       // Identity lives on the users row (name shown to admins and customers);
@@ -109,6 +133,8 @@ export default function CourierOnboardingScreen() {
         city: city.trim(),
         vehicle_type: vehicle,
         id_number: idNumber.trim() || undefined,
+        driver_license_number: licenseNumber.trim(),
+        vehicle_registration_number: registrationNumber.trim(),
       });
       Alert.alert(
         isRTL ? 'تم الإرسال ✓' : 'Submitted ✓',
@@ -278,6 +304,47 @@ export default function CourierOnboardingScreen() {
                 textAlign={isRTL ? 'right' : 'left'}
               />
             </View>
+          </View>
+
+          <View style={{ gap: 6 }}>
+            <Text style={[styles.label, { color: COLORS.text, textAlign: isRTL ? 'right' : 'left' }]}>
+              {isRTL ? 'رقم رخصة القيادة' : 'Driver license number'}
+            </Text>
+            <View style={[styles.inputWrap, { backgroundColor: COLORS.card, borderColor: COLORS.border, flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+              <MaterialCommunityIcons name="card-account-details-star-outline" size={20} color={COLORS.textSecondary} />
+              <TextInput
+                style={[styles.input, { color: COLORS.text }]}
+                placeholder={isRTL ? 'كما في الرخصة' : 'As printed on your license'}
+                placeholderTextColor={COLORS.textSecondary}
+                value={licenseNumber}
+                onChangeText={setLicenseNumber}
+                autoCapitalize="characters"
+                textAlign={isRTL ? 'right' : 'left'}
+              />
+            </View>
+          </View>
+
+          <View style={{ gap: 6 }}>
+            <Text style={[styles.label, { color: COLORS.text, textAlign: isRTL ? 'right' : 'left' }]}>
+              {isRTL ? 'رقم استمارة / تسجيل المركبة' : 'Vehicle registration / form number'}
+            </Text>
+            <View style={[styles.inputWrap, { backgroundColor: COLORS.card, borderColor: COLORS.border, flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+              <MaterialCommunityIcons name="clipboard-text-outline" size={20} color={COLORS.textSecondary} />
+              <TextInput
+                style={[styles.input, { color: COLORS.text }]}
+                placeholder={isRTL ? 'استمارة السيارة أو الدراجة' : 'Car or motorcycle registration'}
+                placeholderTextColor={COLORS.textSecondary}
+                value={registrationNumber}
+                onChangeText={setRegistrationNumber}
+                autoCapitalize="characters"
+                textAlign={isRTL ? 'right' : 'left'}
+              />
+            </View>
+            <Text style={{ color: COLORS.textSecondary, fontSize: 11.5, textAlign: isRTL ? 'right' : 'left' }}>
+              {isRTL
+                ? 'تُستخدم هذه البيانات للتحقق فقط ولا تظهر للعملاء.'
+                : 'Used for verification only — never shown to customers.'}
+            </Text>
           </View>
 
           <TouchableOpacity

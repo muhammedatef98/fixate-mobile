@@ -41,6 +41,7 @@ import { resolveStorageUrls } from '../utils/resolveStorageUrls';
 import { getOrderTimeline, actorTypeLabel, type OrderTimelineEvent } from '../services/orderTimelineService';
 import { getDeliveryTasksForOrder, deliveryLegLabel, type DeliveryTask } from '../services/courierService';
 import { isCourierChatOpen } from '../services/courierChatService';
+import { getPendingOfferCount, subscribeToOrderOffers } from '../services/offerMarketplaceService';
 import { formatAppDate } from '../lib/formatDate';
 
 const ORDER_TIMELINE: { status: string; arLabel: string; enLabel: string; icon: string }[] = [
@@ -94,6 +95,7 @@ export default function OrderDetailsScreen() {
   const [timeline, setTimeline] = useState<OrderTimelineEvent[]>([]);
   const [cancellingOrder, setCancellingOrder] = useState(false);
   const [deliveryTasks, setDeliveryTasks] = useState<DeliveryTask[]>([]);
+  const [pendingOfferCount, setPendingOfferCount] = useState(0);
 
   const styles = makeStyles(isRTL);
 
@@ -113,6 +115,14 @@ export default function OrderDetailsScreen() {
 
   // §13 — load the detailed status-change timeline. Refreshes whenever the
   // order's status changes (the trigger appends a new row server-side).
+  // Live offer count for the open-request CTA badge.
+  useEffect(() => {
+    if (!order?.id || order.status !== 'pending') return;
+    const refresh = () => getPendingOfferCount(order.id as string).then(setPendingOfferCount).catch(() => {});
+    refresh();
+    return subscribeToOrderOffers(order.id as string, refresh);
+  }, [order?.id, order?.status]);
+
   useEffect(() => {
     if (!order?.id) return;
     getOrderTimeline(order.id as string).then(setTimeline).catch(() => {});
@@ -1058,7 +1068,11 @@ export default function OrderDetailsScreen() {
             >
               <MaterialCommunityIcons name="cash-multiple" size={20} color="#fff" />
               <Text style={styles.actionButtonText}>
-                {isRTL ? 'عروض الفنيين' : 'View offers'}
+                {pendingOfferCount > 0
+                  ? isRTL
+                    ? `عروض الفنيين (${pendingOfferCount})`
+                    : `View offers (${pendingOfferCount})`
+                  : isRTL ? 'عروض الفنيين' : 'View offers'}
               </Text>
             </TouchableOpacity>
           )}
