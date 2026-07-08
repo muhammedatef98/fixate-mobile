@@ -39,6 +39,7 @@ import { getOrderTotals, fmtSAR } from '../utils/orderMoney';
 import { PAYMENT_MODE_LABELS } from '../utils/paymentPlan';
 import { resolveStorageUrls } from '../utils/resolveStorageUrls';
 import { getOrderTimeline, actorTypeLabel, type OrderTimelineEvent } from '../services/orderTimelineService';
+import { getDeliveryTasksForOrder, deliveryLegLabel, type DeliveryTask } from '../services/courierService';
 import { formatAppDate } from '../lib/formatDate';
 
 const ORDER_TIMELINE: { status: string; arLabel: string; enLabel: string; icon: string }[] = [
@@ -66,7 +67,7 @@ const COURIER_TIMELINE_LABELS: Record<string, { ar: string; en: string; icon: st
   courier_pickup_delivered: { ar: 'تم تسليم الجهاز للفني', en: 'Device delivered to the technician', icon: 'account-wrench' },
   courier_return_accepted: { ar: 'المندوب في الطريق لإعادة الجهاز', en: 'Courier heading out to return your device', icon: 'moped' },
   courier_return_picked_up: { ar: 'استلم المندوب الجهاز من الفني', en: 'Courier collected the device from the technician', icon: 'package-up' },
-  courier_return_delivered: { ar: 'تمت إعادة الجهاز إليك', en: 'Device returned to you', icon: 'home-check' },
+  courier_return_delivered: { ar: 'تمت إعادة الجهاز إليك', en: 'Device returned to you', icon: 'check-decagram' },
 };
 
 export default function OrderDetailsScreen() {
@@ -91,6 +92,7 @@ export default function OrderDetailsScreen() {
   const [resolvedUrls, setResolvedUrls] = useState<string[]>([]);
   const [timeline, setTimeline] = useState<OrderTimelineEvent[]>([]);
   const [cancellingOrder, setCancellingOrder] = useState(false);
+  const [deliveryTasks, setDeliveryTasks] = useState<DeliveryTask[]>([]);
 
   const styles = makeStyles(isRTL);
 
@@ -113,6 +115,11 @@ export default function OrderDetailsScreen() {
   useEffect(() => {
     if (!order?.id) return;
     getOrderTimeline(order.id as string).then(setTimeline).catch(() => {});
+    // Pickup & delivery orders: custody strip data (who has the device now).
+    const fulfillment = (order as any).fulfillment_type ?? order.service_type;
+    if (['pickup', 'pickup_delivery'].includes(fulfillment as string)) {
+      getDeliveryTasksForOrder(order.id as string).then(setDeliveryTasks).catch(() => {});
+    }
   }, [order?.id, order?.status]);
 
   // FEAT-04 — animate the status hero + stepper whenever the status changes
@@ -367,6 +374,61 @@ export default function OrderDetailsScreen() {
             {(order as any).order_number ?? `#${order.id?.slice(0, 8)}`}
           </Text>
         </Animated.View>
+
+        {/* Custody strip — for pickup & delivery orders, one line that always
+            answers "where is my device right now", driven by the courier
+            leg's state (shared deliveryLegLabel mapping). */}
+        {!isCancelled && deliveryTasks.length > 0 && (() => {
+          const active = deliveryTasks.find((t) => !['completed', 'cancelled'].includes(t.status));
+          const lastDone = [...deliveryTasks].reverse().find((t) => t.status === 'completed');
+          const shown = active ?? lastDone;
+          if (!shown) return null;
+          // After the pickup leg closes and before a return leg exists, the
+          // device is simply with the technician being repaired.
+          const withTechnician =
+            !active && lastDone?.task_type === 'pickup' &&
+            !['delivering', 'completed'].includes(order.status);
+          const label = withTechnician
+            ? (isRTL
+                ? 'جهازك الآن مع الفني — جاري العمل عليه'
+                : 'Your device is with the technician — being worked on')
+            : deliveryLegLabel(shown.task_type, shown.status)[isRTL ? 'ar' : 'en'];
+          const moving = active && ['accepted', 'picked_up'].includes(active.status);
+          return (
+            <View
+              style={{
+                marginHorizontal: 16,
+                marginBottom: SPACING.md,
+                flexDirection: isRTL ? 'row-reverse' : 'row',
+                alignItems: 'center',
+                gap: 10,
+                backgroundColor: COLORS.primary + '10',
+                borderColor: COLORS.primary + '30',
+                borderWidth: 1,
+                borderRadius: BORDER_RADIUS.md,
+                padding: 12,
+              }}
+            >
+              <MaterialCommunityIcons
+                name={withTechnician ? 'account-wrench' : moving ? 'moped' : 'package-variant-closed'}
+                size={22}
+                color={COLORS.primary}
+              />
+              <Text
+                style={{
+                  flex: 1,
+                  color: COLORS.text,
+                  fontSize: 13.5,
+                  fontWeight: '700',
+                  lineHeight: 19,
+                  textAlign: isRTL ? 'right' : 'left',
+                }}
+              >
+                {label}
+              </Text>
+            </View>
+          );
+        })()}
 
         {!isCancelled &&
           order.technician_id &&

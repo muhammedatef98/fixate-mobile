@@ -20,10 +20,12 @@ import {
   getDeliveryTaskById,
   advanceDeliveryTask,
   nextDeliveryAction,
-  DELIVERY_STATUS_LABELS,
+  deliveryLegLabel,
   type DeliveryTask,
   type DeliveryTaskStatus,
 } from '../../../services/courierService';
+import OsmMap from '../../../components/OsmMap';
+import LiveTrackingMap from '../../../components/LiveTrackingMap';
 import { isCourierChatOpen } from '../../../services/courierChatService';
 import { getFriendlyError } from '../../../utils/errorMessages';
 import { logger } from '../../../utils/logger';
@@ -79,7 +81,7 @@ export default function CourierTaskDetailScreen() {
 
   const handleAdvance = async () => {
     if (!task) return;
-    const action = nextDeliveryAction(task.status);
+    const action = nextDeliveryAction(task.status, task.task_type);
     if (!action) return;
     setUpdating(true);
     try {
@@ -131,7 +133,7 @@ export default function CourierTaskDetailScreen() {
     );
   }
 
-  const action = nextDeliveryAction(task.status);
+  const action = nextDeliveryAction(task.status, task.task_type);
   const isPickupLeg = task.task_type === 'pickup';
   const currentStepIndex = STEPS.indexOf(task.status);
   const chatOpen = isCourierChatOpen(task.status);
@@ -206,7 +208,7 @@ export default function CourierTaskDetailScreen() {
             {isRTL ? 'الحالة الحالية' : 'Current status'}
           </Text>
           <Text style={{ color: COLORS.text, fontSize: 17, fontWeight: '800', marginTop: 4, textAlign: isRTL ? 'right' : 'left' }}>
-            {DELIVERY_STATUS_LABELS[task.status]?.[isRTL ? 'ar' : 'en'] ?? task.status}
+            {deliveryLegLabel(task.task_type, task.status)[isRTL ? 'ar' : 'en']}
           </Text>
           {task.status !== 'cancelled' && (
             <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', gap: 6, marginTop: 14 }}>
@@ -299,6 +301,49 @@ export default function CourierTaskDetailScreen() {
                     {isRTL ? 'مراسلة الفني' : 'Chat'}
                   </Text>
                 </TouchableOpacity>
+              )}
+            </View>
+
+            {/* Location of the current target party — same map pattern the
+                customer app uses. Technician stop → live technician position
+                (LiveTrackingMap handles the "no signal yet" fallback);
+                customer stop → static pin from the task coordinates. */}
+            <View style={{ marginTop: 14 }}>
+              <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                <MaterialCommunityIcons
+                  name={currentStop === technicianStop ? 'account-wrench' : 'map-marker-account'}
+                  size={16}
+                  color={COLORS.primary}
+                />
+                <Text style={{ color: COLORS.text, fontWeight: '800', fontSize: 13 }}>
+                  {currentStop === technicianStop
+                    ? isRTL ? 'موقع الفني (مباشر عند توفره)' : 'Technician location (live when available)'
+                    : isRTL ? 'موقع العميل' : 'Customer location'}
+                </Text>
+              </View>
+              {currentStop === technicianStop ? (
+                <LiveTrackingMap
+                  orderId={task.order_id}
+                  customerLat={currentStop.lat ?? undefined}
+                  customerLng={currentStop.lng ?? undefined}
+                  height={180}
+                />
+              ) : currentStop.lat != null && currentStop.lng != null ? (
+                <View style={{ height: 180, borderRadius: 14, overflow: 'hidden', borderWidth: 1, borderColor: COLORS.border }}>
+                  <OsmMap
+                    latitude={Number(currentStop.lat)}
+                    longitude={Number(currentStop.lng)}
+                    zoom={15}
+                    markers={[{ lat: Number(currentStop.lat), lng: Number(currentStop.lng), color: '#ef4444' }]}
+                    style={{ flex: 1 }}
+                  />
+                </View>
+              ) : (
+                <Text style={{ color: COLORS.textSecondary, fontSize: 12.5, textAlign: isRTL ? 'right' : 'left' }}>
+                  {isRTL
+                    ? 'لا يتوفر موقع دقيق — استخدم الاتصال أو المحادثة للتنسيق.'
+                    : 'No precise location available — coordinate by phone or chat.'}
+                </Text>
               )}
             </View>
           </View>

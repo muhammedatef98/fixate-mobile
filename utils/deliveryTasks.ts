@@ -6,6 +6,14 @@
  *
  * Lifecycle (enforced server-side by advance_delivery_task):
  *   available → accepted → picked_up → delivered → completed (or cancelled)
+ *
+ * A task is one custody leg of the device's journey:
+ *   pickup leg:  customer → courier → technician
+ *   return leg:  technician → courier → customer
+ * `deliveryLegLabel` is the single human-readable mapping of (leg, status) →
+ * "where the device is right now", shared by the courier cards/detail, the
+ * technician view and the customer's tracking strip so custody wording never
+ * drifts between roles.
  */
 
 export type DeliveryTaskType = 'pickup' | 'return';
@@ -30,15 +38,88 @@ export const DELIVERY_STATUS_LABELS: Record<
   cancelled: { ar: 'ملغاة', en: 'Cancelled' },
 };
 
-/** The single next action a courier can take on a task, or null when done. */
-export const nextDeliveryAction = (
+/**
+ * Human custody label for a delivery leg + status — "where is the device and
+ * who is moving it". Neutral phrasing that works for customer, courier and
+ * technician surfaces alike.
+ */
+export const deliveryLegLabel = (
+  taskType: DeliveryTaskType,
   status: DeliveryTaskStatus
+): { ar: string; en: string } => {
+  if (taskType === 'pickup') {
+    switch (status) {
+      case 'available':
+        return { ar: 'بانتظار مندوب لاستلام الجهاز من العميل', en: 'Waiting for a courier to collect the device from the customer' };
+      case 'accepted':
+        return { ar: 'المندوب في الطريق لاستلام الجهاز من العميل', en: 'Courier on the way to collect the device from the customer' };
+      case 'picked_up':
+        return { ar: 'الجهاز مع المندوب — في الطريق إلى الفني', en: 'Device with the courier — on the way to the technician' };
+      case 'delivered':
+        return { ar: 'وصل الجهاز إلى الفني', en: 'Device handed to the technician' };
+      case 'completed':
+        return { ar: 'الجهاز الآن مع الفني', en: 'Device is now with the technician' };
+      case 'cancelled':
+        return { ar: 'أُلغيت مهمة الاستلام', en: 'Pickup task cancelled' };
+    }
+  }
+  switch (status) {
+    case 'available':
+      return { ar: 'بانتظار مندوب لإعادة الجهاز من الفني', en: 'Waiting for a courier to return the device from the technician' };
+    case 'accepted':
+      return { ar: 'المندوب في الطريق إلى الفني لاستلام الجهاز', en: 'Courier on the way to the technician to collect the device' };
+    case 'picked_up':
+      return { ar: 'استلم المندوب الجهاز من الفني — في الطريق إلى العميل', en: 'Courier picked up from the technician — on the way back to the customer' };
+    case 'delivered':
+      return { ar: 'وصل الجهاز إلى العميل', en: 'Device delivered back to the customer' };
+    case 'completed':
+      return { ar: 'تم تسليم الجهاز للعميل', en: 'Device returned to the customer' };
+    case 'cancelled':
+      return { ar: 'أُلغيت مهمة الإعادة', en: 'Return task cancelled' };
+  }
+};
+
+/**
+ * The single next action a courier can take on a task, or null when done.
+ * Pass the task type to get leg-aware button copy ("Confirm pickup from
+ * customer" vs "…from technician"); without it the generic copy is kept for
+ * backward compatibility.
+ */
+export const nextDeliveryAction = (
+  status: DeliveryTaskStatus,
+  taskType?: DeliveryTaskType
 ): { next: DeliveryTaskStatus; ar: string; en: string } | null => {
+  const isPickup = taskType === 'pickup';
+  const isReturn = taskType === 'return';
   switch (status) {
     case 'accepted':
-      return { next: 'picked_up', ar: 'تأكيد استلام الجهاز', en: 'Confirm pickup' };
+      return {
+        next: 'picked_up',
+        ar: isPickup
+          ? 'تأكيد استلام الجهاز من العميل'
+          : isReturn
+            ? 'تأكيد استلام الجهاز من الفني'
+            : 'تأكيد استلام الجهاز',
+        en: isPickup
+          ? 'Confirm pickup from customer'
+          : isReturn
+            ? 'Confirm pickup from technician'
+            : 'Confirm pickup',
+      };
     case 'picked_up':
-      return { next: 'delivered', ar: 'تأكيد تسليم الجهاز', en: 'Confirm delivery' };
+      return {
+        next: 'delivered',
+        ar: isPickup
+          ? 'تأكيد تسليم الجهاز للفني'
+          : isReturn
+            ? 'تأكيد تسليم الجهاز للعميل'
+            : 'تأكيد تسليم الجهاز',
+        en: isPickup
+          ? 'Confirm hand-over to technician'
+          : isReturn
+            ? 'Confirm delivery to customer'
+            : 'Confirm delivery',
+      };
     case 'delivered':
       return { next: 'completed', ar: 'إنهاء المهمة', en: 'Complete task' };
     default:

@@ -135,11 +135,37 @@ export default function CourierAvailableScreen() {
           {available.length === 0 ? (
             <View style={styles.empty}>
               <MaterialCommunityIcons name="truck-fast-outline" size={64} color={COLORS.textSecondary} />
-              <Text style={{ color: COLORS.textSecondary, fontSize: 15, textAlign: 'center', marginTop: 12 }}>
-                {isRTL
-                  ? 'لا توجد مهمات توصيل متاحة حالياً. ستظهر هنا فور توفرها.'
-                  : 'No delivery tasks available right now. New tasks appear here instantly.'}
+              <Text style={{ color: COLORS.text, fontSize: 16, fontWeight: '800', textAlign: 'center', marginTop: 12 }}>
+                {isRTL ? 'لا توجد مهمات متاحة الآن' : 'No tasks available right now'}
               </Text>
+              <Text style={{ color: COLORS.textSecondary, fontSize: 13.5, lineHeight: 20, textAlign: 'center', marginTop: 6 }}>
+                {isRTL
+                  ? 'تظهر المهمات الجديدة هنا فوراً — أبقِ التطبيق مفتوحاً أو اسحب للتحديث.'
+                  : 'New tasks appear here instantly — keep the app open or pull to refresh.'}
+              </Text>
+              <View style={[styles.hintCard, { backgroundColor: COLORS.card, borderColor: COLORS.border }]}>
+                <Text style={{ color: COLORS.text, fontWeight: '800', fontSize: 13, marginBottom: 8, textAlign: isRTL ? 'right' : 'left' }}>
+                  {isRTL ? 'كيف تعمل المهمات؟' : 'How tasks work'}
+                </Text>
+                {[
+                  isRTL
+                    ? 'مهمة الاستلام: خذ الجهاز من العميل وسلّمه للفني.'
+                    : 'Pickup task: collect the device from the customer and hand it to the technician.',
+                  isRTL
+                    ? 'مهمة الإعادة: خذ الجهاز المُصلَح من الفني وأعده للعميل.'
+                    : 'Return task: collect the repaired device from the technician and return it to the customer.',
+                  isRTL
+                    ? 'بعد قبول المهمة تظهر لك الاتجاهات والاتصال ومحادثة الفني حسب مرحلتك.'
+                    : 'Once you accept, directions, calling and the technician chat appear for your current stage.',
+                ].map((line, i) => (
+                  <View key={i} style={{ flexDirection: isRTL ? 'row-reverse' : 'row', gap: 8, marginBottom: 6 }}>
+                    <MaterialCommunityIcons name="check-circle-outline" size={15} color={COLORS.primary} style={{ marginTop: 2 }} />
+                    <Text style={{ flex: 1, color: COLORS.textSecondary, fontSize: 12.5, lineHeight: 18, textAlign: isRTL ? 'right' : 'left' }}>
+                      {line}
+                    </Text>
+                  </View>
+                ))}
+              </View>
             </View>
           ) : (
             available.map((t) => (
@@ -173,7 +199,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 10,
   },
-  empty: { alignItems: 'center', paddingVertical: 60 },
+  empty: { alignItems: 'center', paddingVertical: 40, paddingHorizontal: 8 },
+  hintCard: {
+    alignSelf: 'stretch',
+    borderWidth: 1,
+    borderRadius: 14,
+    padding: 14,
+    marginTop: 20,
+  },
   errorBanner: {
     flexDirection: 'row',
     alignItems: 'center',

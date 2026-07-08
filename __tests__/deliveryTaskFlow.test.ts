@@ -1,7 +1,9 @@
 import {
   nextDeliveryAction,
+  deliveryLegLabel,
   DELIVERY_STATUS_LABELS,
   type DeliveryTaskStatus,
+  type DeliveryTaskType,
 } from '../utils/deliveryTasks';
 
 describe('nextDeliveryAction (courier task state machine)', () => {
@@ -40,5 +42,46 @@ describe('DELIVERY_STATUS_LABELS', () => {
       expect(DELIVERY_STATUS_LABELS[s]?.ar).toBeTruthy();
       expect(DELIVERY_STATUS_LABELS[s]?.en).toBeTruthy();
     }
+  });
+});
+
+describe('nextDeliveryAction (leg-aware copy)', () => {
+  it('names the counterpart per leg', () => {
+    expect(nextDeliveryAction('accepted', 'pickup')?.en).toContain('customer');
+    expect(nextDeliveryAction('accepted', 'return')?.en).toContain('technician');
+    expect(nextDeliveryAction('picked_up', 'pickup')?.en).toContain('technician');
+    expect(nextDeliveryAction('picked_up', 'return')?.en).toContain('customer');
+  });
+
+  it('keeps the same transitions regardless of leg', () => {
+    for (const leg of ['pickup', 'return'] as DeliveryTaskType[]) {
+      expect(nextDeliveryAction('accepted', leg)?.next).toBe('picked_up');
+      expect(nextDeliveryAction('picked_up', leg)?.next).toBe('delivered');
+      expect(nextDeliveryAction('delivered', leg)?.next).toBe('completed');
+      expect(nextDeliveryAction('completed', leg)).toBeNull();
+    }
+  });
+});
+
+describe('deliveryLegLabel (custody wording)', () => {
+  const statuses: DeliveryTaskStatus[] = [
+    'available', 'accepted', 'picked_up', 'delivered', 'completed', 'cancelled',
+  ];
+
+  it('covers every (leg, status) pair in both languages', () => {
+    for (const leg of ['pickup', 'return'] as DeliveryTaskType[]) {
+      for (const st of statuses) {
+        const l = deliveryLegLabel(leg, st);
+        expect(l.ar).toBeTruthy();
+        expect(l.en).toBeTruthy();
+      }
+    }
+  });
+
+  it('reflects the hand-off direction', () => {
+    expect(deliveryLegLabel('pickup', 'picked_up').en).toContain('technician');
+    expect(deliveryLegLabel('pickup', 'completed').en).toContain('technician');
+    expect(deliveryLegLabel('return', 'picked_up').en).toContain('customer');
+    expect(deliveryLegLabel('return', 'completed').en).toContain('customer');
   });
 });

@@ -971,32 +971,6 @@ export default function ManageOrderScreen() {
               </Text>
             </View>
           )}
-          {/* §12 — request a spare part from a supplier (accepted/active orders).
-              Positioned directly below the service-method row. */}
-          {!isTerminal && order.status !== 'pending' && (
-            <TouchableOpacity
-              onPress={() => setSparePartSheet(true)}
-              accessibilityRole="button"
-              accessibilityLabel={isRTL ? 'طلب قطعة غيار' : 'Request a spare part'}
-              style={{
-                flexDirection: isRTL ? 'row-reverse' : 'row',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 8,
-                marginTop: 12,
-                paddingVertical: 12,
-                borderRadius: BORDER_RADIUS.md,
-                borderWidth: 1.5,
-                borderColor: COLORS.primary,
-                backgroundColor: COLORS.primary + '12',
-              }}
-            >
-              <MaterialCommunityIcons name="package-variant-closed" size={18} color={COLORS.primary} />
-              <Text style={{ color: COLORS.primary, fontWeight: '800', fontSize: 14 }}>
-                {isRTL ? 'طلب قطعة غيار' : 'Request a spare part'}
-              </Text>
-            </TouchableOpacity>
-          )}
           {Array.isArray((order as any).accessories) && (order as any).accessories.length > 0 && (
             <View style={styles.infoRow}>
               <MaterialCommunityIcons name="headphones" size={20} color={COLORS.textSecondary} />
@@ -1088,6 +1062,35 @@ export default function ManageOrderScreen() {
               )}
             </>
           ) : null}
+
+          {/* §12 — request a spare part from a supplier (accepted/active
+              orders). Kept at the end of the device-info block: it's a
+              secondary utility action, so it shouldn't interrupt the
+              read-through of the device/order facts above. */}
+          {!isTerminal && order.status !== 'pending' && (
+            <TouchableOpacity
+              onPress={() => setSparePartSheet(true)}
+              accessibilityRole="button"
+              accessibilityLabel={isRTL ? 'طلب قطعة غيار' : 'Request a spare part'}
+              style={{
+                flexDirection: isRTL ? 'row-reverse' : 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 8,
+                marginTop: 12,
+                paddingVertical: 12,
+                borderRadius: BORDER_RADIUS.md,
+                borderWidth: 1.5,
+                borderColor: COLORS.primary,
+                backgroundColor: COLORS.primary + '12',
+              }}
+            >
+              <MaterialCommunityIcons name="package-variant-closed" size={18} color={COLORS.primary} />
+              <Text style={{ color: COLORS.primary, fontWeight: '800', fontSize: 14 }}>
+                {isRTL ? 'طلب قطعة غيار' : 'Request a spare part'}
+              </Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Location & Map */}

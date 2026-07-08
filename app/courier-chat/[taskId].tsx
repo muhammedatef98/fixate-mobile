@@ -25,7 +25,7 @@ import { formatAppTimeOnly } from '../../lib/formatDate';
 import { logger } from '../../utils/logger';
 import {
   getDeliveryTaskById,
-  DELIVERY_STATUS_LABELS,
+  deliveryLegLabel,
   type DeliveryTask,
 } from '../../services/courierService';
 import {
@@ -198,7 +198,7 @@ export default function CourierChatScreen() {
                 ? isRTL ? 'مهمة استلام' : 'Pickup task'
                 : isRTL ? 'مهمة إعادة' : 'Return task'}
               {' · '}
-              {DELIVERY_STATUS_LABELS[task.status]?.[isRTL ? 'ar' : 'en'] ?? task.status}
+              {deliveryLegLabel(task.task_type, task.status)[isRTL ? 'ar' : 'en']}
             </Text>
           </View>
         </View>

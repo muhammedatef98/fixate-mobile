@@ -14,6 +14,7 @@ import { TECH_NAV_HEIGHT } from '../../components/BottomNavTech';
 import { logger } from '../../utils/logger';
 import { selection } from '../../utils/haptics';
 import { formatAppDateOnly, formatAppTimeOnly } from '../../lib/formatDate';
+import { deliveryLegLabel, type DeliveryTaskStatus, type DeliveryTaskType } from '../../utils/deliveryTasks';
 
 /**
  * Technician "Chats" tab — one row per order the technician is involved in,
@@ -28,6 +29,20 @@ type ChatRow = {
   /** Row identity: "[Device] — #[Order Number]" (Fix 6b). */
   title: string;
   orderStatus: string;
+  lastMessage: string | null;
+  lastAt: string | null;
+  unread: number;
+};
+
+/** One courier↔technician conversation (one per delivery task). */
+type CourierChatRow = {
+  taskId: string;
+  /** "[Device] — #[Order Number]" — same identity pattern as customer rows. */
+  title: string;
+  taskType: DeliveryTaskType;
+  taskStatus: DeliveryTaskStatus;
+  courierName: string;
+  courierAvatar: string | null;
   lastMessage: string | null;
   lastAt: string | null;
   unread: number;
@@ -64,6 +79,11 @@ export default function TechnicianChats() {
   const { user } = useAuth();
 
   const [rows, setRows] = useState<ChatRow[]>([]);
+  // Courier conversations live in their own tab: they are operational
+  // (per-delivery-task) threads, not customer support — mixing them into one
+  // list made courier messages effectively invisible.
+  const [courierRows, setCourierRows] = useState<CourierChatRow[]>([]);
+  const [tab, setTab] = useState<'customers' | 'couriers'>('customers');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -157,6 +177,90 @@ export default function TechnicianChats() {
         }
       }
 
+      // ── Courier conversations: one per delivery task on my orders that
+      // has an assigned courier. Loaded here (not merged into the customer
+      // list) so each leg is exactly one unambiguous thread.
+      try {
+        const myOrderIds = ownedList.map((o: any) => o.id);
+        if (myOrderIds.length > 0) {
+          const { data: tasks } = await supabase
+            .from('delivery_tasks')
+            .select('id, order_id, task_type, status, courier_id, created_at')
+            .in('order_id', myOrderIds)
+            .not('courier_id', 'is', null)
+            .neq('status', 'cancelled')
+            .order('created_at', { ascending: false });
+
+          const taskList = tasks ?? [];
+          if (taskList.length > 0) {
+            const taskIds = taskList.map((t: any) => t.id);
+            const courierIds = Array.from(
+              new Set(taskList.map((t: any) => t.courier_id).filter(Boolean))
+            );
+            const [{ data: courierMsgs }, { data: courierCards }] = await Promise.all([
+              supabase
+                .from('courier_chat_messages')
+                .select('task_id, content, created_at, sender_id, is_read')
+                .in('task_id', taskIds)
+                .order('created_at', { ascending: false }),
+              courierIds.length > 0
+                ? supabase
+                    .from('public_user_cards')
+                    .select('id, name, avatar_url')
+                    .in('id', courierIds)
+                : Promise.resolve({ data: [] as any[] }),
+            ]);
+
+            const cardById = new Map<string, any>(
+              (courierCards ?? []).map((c: any) => [c.id, c])
+            );
+            const latestByTask = new Map<string, any>();
+            const unreadByTask = new Map<string, number>();
+            for (const m of courierMsgs ?? []) {
+              if (!latestByTask.has(m.task_id)) latestByTask.set(m.task_id, m);
+              if (m.sender_id !== user.id && m.is_read === false) {
+                unreadByTask.set(m.task_id, (unreadByTask.get(m.task_id) ?? 0) + 1);
+              }
+            }
+            const orderById = new Map<string, any>(ownedList.map((o: any) => [o.id, o]));
+            const courierBuilt: CourierChatRow[] = taskList.map((t: any) => {
+              const o = orderById.get(t.order_id);
+              const orderNo = o?.order_number
+                ? `#${o.order_number}`
+                : `#${String(t.order_id).slice(0, 8)}`;
+              const deviceLabel =
+                [o?.device_brand, o?.device_model].filter(Boolean).join(' ').trim() ||
+                (isRTL ? 'جهاز' : 'Device');
+              const card = t.courier_id ? cardById.get(t.courier_id) : null;
+              const last = latestByTask.get(t.id);
+              return {
+                taskId: t.id,
+                title: `${deviceLabel} — ${orderNo}`,
+                taskType: t.task_type as DeliveryTaskType,
+                taskStatus: t.status as DeliveryTaskStatus,
+                courierName: card?.name || (isRTL ? 'مندوب التوصيل' : 'Courier'),
+                courierAvatar: card?.avatar_url ?? null,
+                lastMessage: last?.content ?? null,
+                lastAt: last?.created_at ?? t.created_at ?? null,
+                unread: unreadByTask.get(t.id) ?? 0,
+              };
+            });
+            courierBuilt.sort((a, b) => {
+              const ta = a.lastAt ? new Date(a.lastAt).getTime() : 0;
+              const tb = b.lastAt ? new Date(b.lastAt).getTime() : 0;
+              return tb - ta;
+            });
+            setCourierRows(courierBuilt);
+          } else {
+            setCourierRows([]);
+          }
+        } else {
+          setCourierRows([]);
+        }
+      } catch (e) {
+        logger.warn('chats: courier threads load failed', e);
+      }
+
       const built: ChatRow[] = list.map((o: any) => {
         const last = latestByOrder.get(o.id);
         const cust = o.user_id ? customersById.get(o.user_id) : null;
@@ -210,6 +314,11 @@ export default function TechnicianChats() {
     router.push(`/chat/${row.orderId}` as any);
   };
 
+  const openCourierChat = (row: CourierChatRow) => {
+    selection();
+    router.push({ pathname: '/courier-chat/[taskId]', params: { taskId: row.taskId } } as any);
+  };
+
   const formatWhen = (iso: string | null) => {
     if (!iso) return '';
     const d = new Date(iso);
@@ -260,6 +369,49 @@ export default function TechnicianChats() {
     );
   };
 
+  const renderCourierItem = ({ item }: { item: CourierChatRow }) => {
+    const legLabel = deliveryLegLabel(item.taskType, item.taskStatus)[isRTL ? 'ar' : 'en'];
+    const closed = item.taskStatus === 'completed' || item.taskStatus === 'cancelled';
+    const chipColor = closed ? '#10B981' : '#0EA5E9';
+    return (
+      <TouchableOpacity
+        activeOpacity={0.85}
+        onPress={() => openCourierChat(item)}
+        style={styles.row}
+        accessibilityRole="button"
+        accessibilityLabel={`${item.title}, ${legLabel}`}
+      >
+        <View style={styles.courierAvatar}>
+          <MaterialCommunityIcons name="moped" size={24} color="#0EA5E9" />
+        </View>
+        <View style={styles.rowBody}>
+          <View style={styles.rowTop}>
+            <Text style={styles.name} numberOfLines={1}>{item.title}</Text>
+            <Text style={styles.when}>{formatWhen(item.lastAt)}</Text>
+          </View>
+          <Text style={styles.preview} numberOfLines={1}>
+            {item.lastMessage
+              ? item.lastMessage
+              : (isRTL ? 'لا توجد رسائل بعد — نسّق التسليم' : 'No messages yet — coordinate the hand-over')}
+          </Text>
+          <View style={styles.metaRow}>
+            <View style={[styles.statusChip, { backgroundColor: chipColor + '18' }]}>
+              <View style={[styles.statusDot, { backgroundColor: chipColor }]} />
+              <Text style={[styles.statusChipText, { color: chipColor }]} numberOfLines={1}>
+                {legLabel}
+              </Text>
+            </View>
+            {item.unread > 0 ? (
+              <View style={styles.unreadBadge}>
+                <Text style={styles.unreadText}>{item.unread}</Text>
+              </View>
+            ) : null}
+          </View>
+        </View>
+      </TouchableOpacity>
+    );
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={C.background} />
@@ -268,15 +420,50 @@ export default function TechnicianChats() {
         <Text style={styles.headerTitle}>{isRTL ? 'المحادثات' : 'Chats'}</Text>
         <View style={styles.headerCountChip}>
           <Ionicons name="chatbubbles" size={12} color={C.primary} />
-          <Text style={styles.headerCountText}>{rows.length}</Text>
+          <Text style={styles.headerCountText}>
+            {tab === 'customers' ? rows.length : courierRows.length}
+          </Text>
         </View>
+      </View>
+
+      {/* Customer vs courier conversations — separate operational threads. */}
+      <View style={styles.tabsRow}>
+        {([
+          { key: 'customers' as const, label: isRTL ? 'العملاء' : 'Customers', icon: 'account-outline' as const, count: rows.reduce((s, r) => s + r.unread, 0) },
+          { key: 'couriers' as const, label: isRTL ? 'مندوبو التوصيل' : 'Couriers', icon: 'moped' as const, count: courierRows.reduce((s, r) => s + r.unread, 0) },
+        ]).map((t) => {
+          const active = tab === t.key;
+          return (
+            <TouchableOpacity
+              key={t.key}
+              onPress={() => { selection(); setTab(t.key); }}
+              style={[styles.tabBtn, active && { backgroundColor: C.primary }]}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: active }}
+            >
+              <MaterialCommunityIcons
+                name={t.icon}
+                size={15}
+                color={active ? '#fff' : C.textSecondary}
+              />
+              <Text style={[styles.tabBtnText, { color: active ? '#fff' : C.textSecondary }]}>
+                {t.label}
+              </Text>
+              {t.count > 0 && (
+                <View style={[styles.tabBadge, { backgroundColor: active ? '#ffffff30' : C.primary }]}>
+                  <Text style={styles.tabBadgeText}>{t.count}</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          );
+        })}
       </View>
 
       {loading ? (
         <View style={styles.centerFill}>
           <ActivityIndicator color={C.primary} />
         </View>
-      ) : rows.length === 0 ? (
+      ) : tab === 'customers' && rows.length === 0 ? (
         <View style={styles.emptyWrap}>
           <MaterialCommunityIcons name="chat-outline" size={64} color={C.textLight} />
           <Text style={styles.emptyTitle}>
@@ -288,11 +475,42 @@ export default function TechnicianChats() {
               : 'Your chats with customers will appear here once you accept your first repair job.'}
           </Text>
         </View>
-      ) : (
+      ) : tab === 'couriers' && courierRows.length === 0 ? (
+        <View style={styles.emptyWrap}>
+          <MaterialCommunityIcons name="moped-outline" size={64} color={C.textLight} />
+          <Text style={styles.emptyTitle}>
+            {isRTL ? 'لا توجد محادثات توصيل' : 'No courier conversations'}
+          </Text>
+          <Text style={styles.emptyBody}>
+            {isRTL
+              ? 'عندما يقبل مندوب مهمة استلام أو إعادة لأحد طلباتك، تظهر محادثتكما هنا لتنسيق التسليم.'
+              : 'When a courier accepts a pickup or return task on one of your orders, your conversation appears here to coordinate the hand-over.'}
+          </Text>
+        </View>
+      ) : tab === 'customers' ? (
         <FlatList
           data={rows}
           keyExtractor={(it) => it.orderId}
           renderItem={renderItem}
+          contentContainerStyle={{
+            padding: 16,
+            paddingBottom: TECH_NAV_HEIGHT + 24,
+            gap: 10,
+          }}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={() => { setRefreshing(true); load(); }}
+              tintColor={C.primary}
+            />
+          }
+        />
+      ) : (
+        <FlatList
+          data={courierRows}
+          keyExtractor={(it) => it.taskId}
+          renderItem={renderCourierItem}
           contentContainerStyle={{
             padding: 16,
             paddingBottom: TECH_NAV_HEIGHT + 24,
@@ -374,6 +592,36 @@ const createStyles = (C: any, isRTL: boolean, SHADOWS: any) =>
     },
     unreadText: { color: '#fff', fontSize: 11, fontWeight: '800' },
 
+    tabsRow: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      gap: 8,
+      paddingHorizontal: 16,
+      paddingBottom: 10,
+    },
+    tabBtn: {
+      flex: 1,
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 6,
+      paddingVertical: 9,
+      borderRadius: 999,
+      backgroundColor: C.card,
+      borderWidth: 1,
+      borderColor: C.border,
+    },
+    tabBtnText: { fontSize: 13, fontWeight: '800' },
+    tabBadge: {
+      minWidth: 18, height: 18, borderRadius: 9,
+      alignItems: 'center', justifyContent: 'center',
+      paddingHorizontal: 5,
+    },
+    tabBadgeText: { color: '#fff', fontSize: 10, fontWeight: '800' },
+    courierAvatar: {
+      width: 50, height: 50, borderRadius: 25,
+      alignItems: 'center', justifyContent: 'center',
+      backgroundColor: '#0EA5E918',
+    },
     emptyWrap: {
       flex: 1, alignItems: 'center', justifyContent: 'center',
       paddingHorizontal: SPACING.xl, gap: 10,

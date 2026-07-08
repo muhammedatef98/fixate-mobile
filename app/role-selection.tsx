@@ -142,13 +142,9 @@ export default function RoleSelectionScreen() {
             />
           </View>
 
-          {/* Title */}
+          {/* Title — no tagline underneath: the screen reads logo → title →
+              role question, so the extra sentence was removed for balance. */}
           <Text style={styles.title}>Fixate</Text>
-          <Text style={styles.subtitle}>
-            {language === 'ar'
-              ? 'صيانة أجهزتك الإلكترونية على يد فنيين معتمدين — بسعر متفق عليه قبل بدء الإصلاح'
-              : 'Certified technicians repair your devices — at a price agreed before any work starts'}
-          </Text>
 
           {/* Subtitle */}
           <Text style={styles.question}>
@@ -311,12 +307,7 @@ const createStyles = (COLORS: any, SHADOWS: any, isRTL: boolean) => StyleSheet.c
     fontSize: 40,
     fontWeight: 'bold',
     color: COLORS.text,
-    marginBottom: SPACING.xs,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: COLORS.textSecondary,
-    marginBottom: SPACING.xxl,
+    marginBottom: SPACING.xl,
   },
   question: {
     fontSize: 20,

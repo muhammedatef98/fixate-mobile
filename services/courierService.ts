@@ -13,6 +13,7 @@ import { notifyUsers } from './notifyService';
 
 import {
   nextDeliveryAction,
+  deliveryLegLabel,
   DELIVERY_STATUS_LABELS,
   type DeliveryTaskType,
   type DeliveryTaskStatus,
@@ -22,6 +23,7 @@ import {
 // unit-tested); re-exported here so existing imports keep working.
 export {
   nextDeliveryAction,
+  deliveryLegLabel,
   DELIVERY_STATUS_LABELS,
   type DeliveryTaskType,
   type DeliveryTaskStatus,
