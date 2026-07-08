@@ -14,6 +14,7 @@ import { logger } from '../utils/logger';
 import { subscribeUnique } from '../utils/realtimeChannel';
 import { notifyUsers } from './notifyService';
 import { validatePrice } from '../utils/validation';
+import { latestRelevantOffer, dedupeOffersByTechnician } from '../utils/offerStatus';
 
 export type OrderOfferStatus =
   | 'pending'
@@ -44,7 +45,9 @@ export interface OrderOffer {
 export const OFFER_STATUS_LABELS: Record<OrderOfferStatus, { ar: string; en: string }> = {
   pending: { ar: 'بانتظار قرارك', en: 'Awaiting your decision' },
   accepted: { ar: 'مقبول', en: 'Accepted' },
-  rejected: { ar: 'مرفوض', en: 'Rejected' },
+  // Distinct from 'expired': the customer explicitly declined THIS offer;
+  // the technician may still send a revised one while the order is open.
+  rejected: { ar: 'رفضته — قد يصلك عرض جديد منه', en: 'You declined it — they may re-offer' },
   expired: { ar: 'انتهى — تم اختيار فني آخر', en: 'Closed — another offer was chosen' },
   withdrawn: { ar: 'مسحوب من الفني', en: 'Withdrawn by technician' },
 };
@@ -103,7 +106,10 @@ export const getOffersForOrder = async (orderId: string): Promise<OrderOffer[]> 
     logger.warn('getOffersForOrder failed', error);
     return [];
   }
-  const offers = (data ?? []) as OrderOffer[];
+  // Resubmission after rejection means a technician can have several
+  // historical rows here — the customer sees one entry per technician
+  // (their latest relevant offer), live offers first.
+  const offers = dedupeOffersByTechnician((data ?? []) as OrderOffer[]);
 
   // Enrich with the technician's public display card + stats. The users table
   // is RLS-locked to own-row reads, so names come from the public_user_cards
@@ -147,7 +153,11 @@ export const getPendingOfferCount = async (orderId: string): Promise<number> => 
   return count ?? 0;
 };
 
-/** Technician: my offer on a specific order (or null). */
+/**
+ * Technician: my current position on a specific order (or null). With
+ * resubmission there can be several historical rows — the live pending offer
+ * wins, otherwise the most recent decided one (so a fresh rejection shows).
+ */
 export const getMyOfferForOrder = async (
   technicianId: string,
   orderId: string
@@ -157,12 +167,12 @@ export const getMyOfferForOrder = async (
     .select('*')
     .eq('order_id', orderId)
     .eq('technician_id', technicianId)
-    .maybeSingle();
+    .order('created_at', { ascending: false });
   if (error) {
     logger.warn('getMyOfferForOrder failed', error);
     return null;
   }
-  return data;
+  return latestRelevantOffer((data ?? []) as OrderOffer[]);
 };
 
 /** Technician: all my offers (for the "my offers" awareness on lists). */

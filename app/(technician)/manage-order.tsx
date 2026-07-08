@@ -60,6 +60,11 @@ import {
 } from '../../services/courierService';
 import { isCourierChatOpen } from '../../services/courierChatService';
 import { getOrderTotals, fmtSAR } from '../../utils/orderMoney';
+import {
+  technicianOfferStateMeta,
+  customerEstimateDisplay,
+  type OfferStatus,
+} from '../../utils/offerStatus';
 
 // Human-readable label for how the customer wants the device serviced.
 // Mirrors fulfillmentLabel in available-orders.tsx.
@@ -270,13 +275,18 @@ export default function ManageOrderScreen() {
     }
     setSubmittingOffer(true);
     try {
+      const wasResubmission = myOffer?.status === 'rejected' || myOffer?.status === 'withdrawn';
       const offer = await submitOffer(id as string, amount, offerNote.trim() || undefined);
       setMyOffer(offer);
       Alert.alert(
         isRTL ? 'تم الإرسال ✓' : 'Sent ✓',
-        isRTL
-          ? 'وصل عرضك للعميل. سيصلك إشعار إذا تم قبوله.'
-          : "Your offer reached the customer. You'll be notified if it's accepted."
+        wasResubmission
+          ? isRTL
+            ? 'وصل عرضك الجديد للعميل. سيصلك إشعار إذا تم قبوله.'
+            : "Your new offer reached the customer. You'll be notified if it's accepted."
+          : isRTL
+            ? 'وصل عرضك للعميل. سيصلك إشعار إذا تم قبوله.'
+            : "Your offer reached the customer. You'll be notified if it's accepted."
       );
     } catch (error: any) {
       logger.error('Error submitting offer:', error);
@@ -653,9 +663,71 @@ export default function ManageOrderScreen() {
             </View>
             <Text style={{ color: COLORS.textSecondary, fontSize: 13, lineHeight: 20, textAlign: isRTL ? 'right' : 'left', marginBottom: 10 }}>
               {isRTL
-                ? 'يرى العميل عرضك مع عروض الفنيين الآخرين ويختار واحداً. السعر الظاهر للعميل تقديري فقط.'
-                : 'The customer compares offers from nearby technicians and picks one. The price the customer saw is an estimate only.'}
+                ? 'يرى العميل عرضك مع عروض الفنيين الآخرين ويختار واحداً.'
+                : 'The customer compares offers from nearby technicians and picks one.'}
             </Text>
+
+            {/* The customer's starting estimate — context for pricing the
+                offer. Explicitly an estimate, never a committed price. */}
+            <View
+              style={{
+                flexDirection: isRTL ? 'row-reverse' : 'row',
+                alignItems: 'center',
+                gap: 8,
+                backgroundColor: COLORS.primary + '0F',
+                borderRadius: BORDER_RADIUS.md,
+                padding: 10,
+                marginBottom: 12,
+              }}
+            >
+              <MaterialCommunityIcons name="calculator-variant-outline" size={18} color={COLORS.primary} />
+              <Text style={{ flex: 1, color: COLORS.text, fontSize: 12.5, fontWeight: '700', textAlign: isRTL ? 'right' : 'left' }}>
+                {customerEstimateDisplay((order as any).estimated_price, isRTL).label}
+                {': '}
+                {customerEstimateDisplay((order as any).estimated_price, isRTL).value}
+              </Text>
+              <Text style={{ color: COLORS.textSecondary, fontSize: 10.5, fontWeight: '700' }}>
+                {isRTL ? 'ليس سعراً نهائياً' : 'Not a final price'}
+              </Text>
+            </View>
+
+            {/* Customer declined my previous offer — explicit, with a clear
+                invitation to re-offer (this is NOT "order unavailable"). */}
+            {myOffer && (myOffer.status === 'rejected' || myOffer.status === 'withdrawn') && (
+              <View
+                style={{
+                  flexDirection: isRTL ? 'row-reverse' : 'row',
+                  alignItems: 'center',
+                  gap: 8,
+                  backgroundColor: myOffer.status === 'rejected' ? '#EF444412' : COLORS.textSecondary + '12',
+                  borderRadius: BORDER_RADIUS.md,
+                  padding: 10,
+                  marginBottom: 10,
+                }}
+              >
+                <MaterialCommunityIcons
+                  name={myOffer.status === 'rejected' ? 'close-octagon-outline' : 'undo-variant'}
+                  size={18}
+                  color={myOffer.status === 'rejected' ? '#DC2626' : COLORS.textSecondary}
+                />
+                <Text
+                  style={{
+                    flex: 1,
+                    color: myOffer.status === 'rejected' ? '#B91C1C' : COLORS.textSecondary,
+                    fontSize: 12.5,
+                    fontWeight: '700',
+                    lineHeight: 18,
+                    textAlign: isRTL ? 'right' : 'left',
+                  }}
+                >
+                  {myOffer.status === 'rejected'
+                    ? (isRTL
+                        ? `رفض العميل عرضك السابق (${Math.round(myOffer.amount)} ر.س) — يمكنك تقديم عرض جديد بسعر مختلف.`
+                        : `The customer declined your previous offer (${Math.round(myOffer.amount)} SAR) — you can send a new one at a different price.`)
+                    : technicianOfferStateMeta(myOffer.status as OfferStatus)[isRTL ? 'ar' : 'en']}
+                </Text>
+              </View>
+            )}
 
             {myOffer?.status === 'pending' && (
               <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 8, marginBottom: 10 }}>
@@ -708,7 +780,9 @@ export default function ManageOrderScreen() {
                 <Text style={{ color: '#fff', fontWeight: '800', fontSize: 15 }}>
                   {myOffer?.status === 'pending'
                     ? isRTL ? 'تحديث العرض' : 'Update offer'
-                    : isRTL ? 'إرسال العرض' : 'Send offer'}
+                    : myOffer?.status === 'rejected' || myOffer?.status === 'withdrawn'
+                      ? isRTL ? 'إرسال عرض جديد' : 'Send a new offer'
+                      : isRTL ? 'إرسال العرض' : 'Send offer'}
                 </Text>
               )}
             </TouchableOpacity>

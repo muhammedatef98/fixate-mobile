@@ -29,6 +29,12 @@ import {
   getMyOffers,
   type OrderOffer,
 } from '../../services/offerMarketplaceService';
+import {
+  latestRelevantOffer,
+  technicianOfferStateMeta,
+  customerEstimateDisplay,
+  type OfferStatus,
+} from '../../utils/offerStatus';
 import { subscribeToPendingOrders, subscribeToAvailableOrderRemovals } from '../../services/realtimeService';
 import { supabase } from '../../services/supabaseClient';
 import { safeBack } from '../../utils/navigation';
@@ -181,8 +187,15 @@ export default function AvailableOrdersScreen() {
       // letting the technician double-submit blindly.
       if (user?.id) {
         const offers = await getMyOffers(user.id);
+        // Resubmission after rejection → multiple historical rows per order;
+        // the card shows the latest relevant one (live pending wins).
+        const grouped: Record<string, OrderOffer[]> = {};
+        for (const o of offers) (grouped[o.order_id] ??= []).push(o);
         const map: Record<string, OrderOffer> = {};
-        for (const o of offers) map[o.order_id] = o;
+        for (const [orderId, list] of Object.entries(grouped)) {
+          const top = latestRelevantOffer(list);
+          if (top) map[orderId] = top;
+        }
         setMyOffers(map);
       }
     } catch (error: any) {
@@ -401,15 +414,51 @@ export default function AvailableOrdersScreen() {
           </ScrollView>
         )}
 
+        {/* Customer declined my previous offer — say so explicitly (this is
+            NOT "order unavailable") and invite a revised offer. */}
+        {myOffer && (myOffer.status === 'rejected' || myOffer.status === 'withdrawn') && (
+          <View
+            style={{
+              flexDirection: language === 'ar' ? 'row-reverse' : 'row',
+              alignItems: 'center',
+              gap: 8,
+              backgroundColor: myOffer.status === 'rejected' ? '#EF444412' : COLORS.textSecondary + '12',
+              borderRadius: 10,
+              padding: 10,
+              marginTop: 10,
+            }}
+          >
+            <MaterialCommunityIcons
+              name={myOffer.status === 'rejected' ? 'close-octagon-outline' : 'undo-variant'}
+              size={17}
+              color={myOffer.status === 'rejected' ? '#DC2626' : COLORS.textSecondary}
+            />
+            <Text
+              style={{
+                flex: 1,
+                color: myOffer.status === 'rejected' ? '#B91C1C' : COLORS.textSecondary,
+                fontSize: 12.5,
+                fontWeight: '700',
+                lineHeight: 18,
+                textAlign: language === 'ar' ? 'right' : 'left',
+              }}
+            >
+              {myOffer.status === 'rejected'
+                ? (language === 'ar'
+                    ? `رفض العميل عرضك السابق (${Math.round(myOffer.amount)} ر.س)`
+                    : `The customer declined your previous offer (${Math.round(myOffer.amount)} SAR)`)
+                : technicianOfferStateMeta(myOffer.status as OfferStatus)[language === 'ar' ? 'ar' : 'en']}
+            </Text>
+          </View>
+        )}
+
         <View style={styles.orderFooter}>
           <View style={styles.priceContainer}>
             <Text style={styles.priceLabel}>
-              {language === 'ar' ? 'التقدير المبدئي للعميل' : "Customer's initial estimate"}
+              {customerEstimateDisplay(order.estimated_price, language === 'ar').label}
             </Text>
             <Text style={styles.priceValue}>
-              {order.estimated_price
-                ? `${order.estimated_price} ${language === 'ar' ? 'ر.س' : 'SAR'}`
-                : language === 'ar' ? 'حسب الفحص' : 'On inspection'}
+              {customerEstimateDisplay(order.estimated_price, language === 'ar').value}
             </Text>
           </View>
 
@@ -433,14 +482,22 @@ export default function AvailableOrdersScreen() {
             onPress={() => handleOpenOffer(order)}
           >
             <MaterialCommunityIcons
-              name={myOffer?.status === 'pending' ? 'pencil-outline' : 'cash-plus'}
+              name={
+                myOffer?.status === 'pending'
+                  ? 'pencil-outline'
+                  : myOffer?.status === 'rejected' || myOffer?.status === 'withdrawn'
+                    ? 'refresh'
+                    : 'cash-plus'
+              }
               size={18}
               color="#FFF"
             />
             <Text style={styles.acceptButtonText}>
               {myOffer?.status === 'pending'
                 ? language === 'ar' ? `عرضك: ${Math.round(myOffer.amount)} ر.س` : `Your offer: ${Math.round(myOffer.amount)}`
-                : language === 'ar' ? 'قدّم عرض سعر' : 'Submit offer'}
+                : myOffer?.status === 'rejected' || myOffer?.status === 'withdrawn'
+                  ? language === 'ar' ? 'قدّم عرضاً جديداً' : 'Send a new offer'
+                  : language === 'ar' ? 'قدّم عرض سعر' : 'Submit offer'}
             </Text>
           </TouchableOpacity>
         </View>
