@@ -84,6 +84,12 @@ export default function CourierChatScreen() {
 
     const cleanup = subscribeToCourierChat(String(taskId), (msg) => {
       setMessages((prev) => (prev.some((m) => m.id === msg.id) ? prev : [...prev, msg]));
+      // The reader is looking at the thread right now — mark incoming
+      // messages read immediately so the chats list never shows a phantom
+      // unread badge for a conversation that was open. Best-effort.
+      if (user?.id && msg.sender_id !== user.id) {
+        void markCourierChatRead(String(taskId), user.id);
+      }
       setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 80);
     });
     return cleanup;
