@@ -202,6 +202,9 @@ export default function TechnicianChats() {
                 .from('courier_chat_messages')
                 .select('task_id, content, created_at, sender_id, is_read')
                 .in('task_id', taskIds)
+                // RLS already hides the courier↔customer thread from
+                // technicians; the explicit filter keeps intent obvious.
+                .eq('thread', 'technician')
                 .order('created_at', { ascending: false }),
               courierIds.length > 0
                 ? supabase

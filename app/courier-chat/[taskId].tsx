@@ -35,16 +35,25 @@ import {
   subscribeToCourierChat,
   isCourierChatOpen,
   type CourierChatMessage,
+  type CourierChatThread,
 } from '../../services/courierChatService';
+import {
+  isCourierChatThread,
+  partyPhone,
+  threadCounterpartLabel,
+} from '../../utils/courierChatThreads';
 
 /**
- * Courier ↔ technician operational chat, scoped to one delivery task. The
- * customer is never part of this conversation. Sending is blocked (banner)
- * once the task completes or cancels — enforced server-side by RLS; the UI
- * just mirrors it.
+ * Courier chat, scoped to one delivery task. Two isolated threads live on a
+ * task (?thread= param, RLS-partitioned):
+ *   technician — courier ↔ the order's technician (default)
+ *   customer   — courier ↔ the order's customer
+ * Sending is blocked (banner) once the task completes or cancels — enforced
+ * server-side by RLS; the UI just mirrors it.
  */
 export default function CourierChatScreen() {
-  const { taskId } = useLocalSearchParams();
+  const { taskId, thread: threadParam } = useLocalSearchParams<{ taskId: string; thread?: string }>();
+  const thread: CourierChatThread = isCourierChatThread(threadParam) ? threadParam : 'technician';
   const router = useRouter();
   const { language, isDark } = useApp();
   const { user } = useAuth();
@@ -69,11 +78,11 @@ export default function CourierChatScreen() {
       try {
         const [t, msgs] = await Promise.all([
           getDeliveryTaskById(String(taskId)),
-          getCourierChatMessages(String(taskId)),
+          getCourierChatMessages(String(taskId), thread),
         ]);
         setTask(t);
         setMessages(msgs);
-        if (user?.id) void markCourierChatRead(String(taskId), user.id);
+        if (user?.id) void markCourierChatRead(String(taskId), user.id, thread);
       } catch (e) {
         logger.warn('courier chat load failed', e);
       } finally {
@@ -88,12 +97,12 @@ export default function CourierChatScreen() {
       // messages read immediately so the chats list never shows a phantom
       // unread badge for a conversation that was open. Best-effort.
       if (user?.id && msg.sender_id !== user.id) {
-        void markCourierChatRead(String(taskId), user.id);
+        void markCourierChatRead(String(taskId), user.id, thread);
       }
       setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 80);
-    });
+    }, thread);
     return cleanup;
-  }, [taskId, user?.id]);
+  }, [taskId, user?.id, thread]);
 
   const chatOpen = !!task && isCourierChatOpen(task.status);
 
@@ -103,7 +112,7 @@ export default function CourierChatScreen() {
     setDraft('');
     setSending(true);
     try {
-      await sendCourierChatMessage(String(taskId), user.id, content);
+      await sendCourierChatMessage(String(taskId), user.id, content, thread);
     } catch (e) {
       logger.warn('courier chat send failed', e);
       setDraft(content);
@@ -118,12 +127,10 @@ export default function CourierChatScreen() {
 
   // The other party from each side's perspective + their phone for the call
   // shortcut (contact fields were stamped onto the task at creation time).
-  const counterpartName = isCourier
-    ? isRTL ? 'الفني' : 'Technician'
-    : isRTL ? 'مندوب التوصيل' : 'Courier';
-  const counterpartPhone = isCourier
-    ? (task?.task_type === 'pickup' ? task?.dropoff_contact_phone : task?.pickup_contact_phone)
-    : null;
+  // The courier calls the thread's party; the technician/customer have no
+  // courier phone on the task, so their call shortcut stays hidden.
+  const counterpartName = threadCounterpartLabel(thread, isCourier, isRTL);
+  const counterpartPhone = isCourier && task ? partyPhone(task, thread) : null;
 
   const renderMessage = ({ item }: { item: CourierChatMessage }) => {
     const isMe = item.sender_id === user?.id;
@@ -193,7 +200,11 @@ export default function CourierChatScreen() {
         </TouchableOpacity>
         <View style={styles.headerCenter}>
           <View style={[styles.headerAvatar, { backgroundColor: COLORS.primary }]}>
-            <MaterialCommunityIcons name={isCourier ? 'account-wrench' : 'moped'} size={18} color="#fff" />
+            <MaterialCommunityIcons
+              name={!isCourier ? 'moped' : thread === 'technician' ? 'account-wrench' : 'account-outline'}
+              size={18}
+              color="#fff"
+            />
           </View>
           <View style={{ flex: 1 }}>
             <Text style={[styles.headerTitle, { color: COLORS.text }]} numberOfLines={1}>
@@ -244,9 +255,13 @@ export default function CourierChatScreen() {
                 {isRTL ? 'نسّقا التسليم هنا 🤝' : 'Coordinate the hand-over here 🤝'}
               </Text>
               <Text style={{ color: COLORS.textSecondary, marginTop: 6, textAlign: 'center', fontSize: 13 }}>
-                {isRTL
-                  ? 'هذه المحادثة بين المندوب والفني فقط، وتُغلق تلقائياً عند اكتمال المهمة.'
-                  : 'This chat is between the courier and the technician only, and closes automatically when the task completes.'}
+                {thread === 'technician'
+                  ? isRTL
+                    ? 'هذه المحادثة بين المندوب والفني فقط، وتُغلق تلقائياً عند اكتمال المهمة.'
+                    : 'This chat is between the courier and the technician only, and closes automatically when the task completes.'
+                  : isRTL
+                    ? 'هذه المحادثة بين المندوب والعميل فقط، وتُغلق تلقائياً عند اكتمال المهمة.'
+                    : 'This chat is between the courier and the customer only, and closes automatically when the task completes.'}
               </Text>
             </View>
           }

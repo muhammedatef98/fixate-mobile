@@ -40,6 +40,7 @@ import { PAYMENT_MODE_LABELS } from '../utils/paymentPlan';
 import { resolveStorageUrls } from '../utils/resolveStorageUrls';
 import { getOrderTimeline, actorTypeLabel, type OrderTimelineEvent } from '../services/orderTimelineService';
 import { getDeliveryTasksForOrder, deliveryLegLabel, type DeliveryTask } from '../services/courierService';
+import { isCourierChatOpen } from '../services/courierChatService';
 import { formatAppDate } from '../lib/formatDate';
 
 const ORDER_TIMELINE: { status: string; arLabel: string; enLabel: string; icon: string }[] = [
@@ -394,14 +395,15 @@ export default function OrderDetailsScreen() {
                 : 'Your device is with the technician — being worked on')
             : deliveryLegLabel(shown.task_type, shown.status)[isRTL ? 'ar' : 'en'];
           const moving = active && ['accepted', 'picked_up'].includes(active.status);
+          // While a courier is actively on a leg, the customer can message
+          // them directly (customer thread — the technician never sees it).
+          const courierChatTask =
+            active && active.courier_id && isCourierChatOpen(active.status) ? active : null;
           return (
             <View
               style={{
                 marginHorizontal: 16,
                 marginBottom: SPACING.md,
-                flexDirection: isRTL ? 'row-reverse' : 'row',
-                alignItems: 'center',
-                gap: 10,
                 backgroundColor: COLORS.primary + '10',
                 borderColor: COLORS.primary + '30',
                 borderWidth: 1,
@@ -409,23 +411,58 @@ export default function OrderDetailsScreen() {
                 padding: 12,
               }}
             >
-              <MaterialCommunityIcons
-                name={withTechnician ? 'account-wrench' : moving ? 'moped' : 'package-variant-closed'}
-                size={22}
-                color={COLORS.primary}
-              />
-              <Text
+              <View
                 style={{
-                  flex: 1,
-                  color: COLORS.text,
-                  fontSize: 13.5,
-                  fontWeight: '700',
-                  lineHeight: 19,
-                  textAlign: isRTL ? 'right' : 'left',
+                  flexDirection: isRTL ? 'row-reverse' : 'row',
+                  alignItems: 'center',
+                  gap: 10,
                 }}
               >
-                {label}
-              </Text>
+                <MaterialCommunityIcons
+                  name={withTechnician ? 'account-wrench' : moving ? 'moped' : 'package-variant-closed'}
+                  size={22}
+                  color={COLORS.primary}
+                />
+                <Text
+                  style={{
+                    flex: 1,
+                    color: COLORS.text,
+                    fontSize: 13.5,
+                    fontWeight: '700',
+                    lineHeight: 19,
+                    textAlign: isRTL ? 'right' : 'left',
+                  }}
+                >
+                  {label}
+                </Text>
+              </View>
+              {userType === 'customer' && courierChatTask && (
+                <TouchableOpacity
+                  onPress={() =>
+                    router.push({
+                      pathname: '/courier-chat/[taskId]',
+                      params: { taskId: courierChatTask.id, thread: 'customer' },
+                    } as any)
+                  }
+                  style={{
+                    flexDirection: isRTL ? 'row-reverse' : 'row',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 8,
+                    backgroundColor: COLORS.primary,
+                    borderRadius: BORDER_RADIUS.md,
+                    paddingVertical: 10,
+                    marginTop: 10,
+                  }}
+                  accessibilityRole="button"
+                  accessibilityLabel={isRTL ? 'مراسلة مندوب التوصيل' : 'Chat with the courier'}
+                >
+                  <MaterialCommunityIcons name="chat-outline" size={17} color="#fff" />
+                  <Text style={{ color: '#fff', fontWeight: '800', fontSize: 13.5 }}>
+                    {isRTL ? 'مراسلة مندوب التوصيل' : 'Chat with the courier'}
+                  </Text>
+                </TouchableOpacity>
+              )}
             </View>
           );
         })()}

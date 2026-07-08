@@ -27,6 +27,10 @@ import {
 import OsmMap from '../../../components/OsmMap';
 import LiveTrackingMap from '../../../components/LiveTrackingMap';
 import { isCourierChatOpen } from '../../../services/courierChatService';
+import {
+  subscribeToTechnicianLocation,
+  type TechnicianLocation,
+} from '../../../services/locationTrackingService';
 import { getFriendlyError } from '../../../utils/errorMessages';
 import { logger } from '../../../utils/logger';
 
@@ -62,6 +66,16 @@ export default function CourierTaskDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [updating, setUpdating] = useState(false);
+  // Technician live position — RLS only serves it during the exact window
+  // where the technician is this courier's target stop, so subscribing here
+  // is safe and simply yields nothing outside that window.
+  const [techLoc, setTechLoc] = useState<TechnicianLocation | null>(null);
+
+  useEffect(() => {
+    if (!task?.order_id) return;
+    const unsub = subscribeToTechnicianLocation(task.order_id, (loc) => setTechLoc(loc));
+    return unsub;
+  }, [task?.order_id]);
 
   const load = useCallback(async () => {
     const t = await getDeliveryTaskById(String(id));
@@ -263,46 +277,83 @@ export default function CourierTaskDetailScreen() {
             <Text style={{ color: COLORS.textSecondary, fontSize: 14, marginTop: 4, lineHeight: 21, textAlign: isRTL ? 'right' : 'left' }}>
               {currentStop.address || missingAddressHint(currentStop)}
             </Text>
-            <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', gap: 10, marginTop: 14, flexWrap: 'wrap' }}>
-              {(currentStop.lat != null || currentStop.address) && (
-                <TouchableOpacity
-                  style={[styles.smallBtn, { backgroundColor: COLORS.primary, borderColor: COLORS.primary }]}
-                  onPress={() => openMaps(currentStop.lat, currentStop.lng, currentStop.address)}
-                  accessibilityRole="button"
-                >
-                  <MaterialCommunityIcons name="navigation-variant-outline" size={16} color="#fff" />
-                  <Text style={{ color: '#fff', fontWeight: '700', fontSize: 13 }}>
-                    {isRTL ? 'الاتجاهات' : 'Directions'}
-                  </Text>
-                </TouchableOpacity>
-              )}
-              {!!currentStop.phone && (
-                <TouchableOpacity
-                  style={[styles.smallBtn, { borderColor: COLORS.primary }]}
-                  onPress={() => void Linking.openURL(`tel:${currentStop.phone}`)}
-                  accessibilityRole="button"
-                >
-                  <MaterialCommunityIcons name="phone-outline" size={16} color={COLORS.primary} />
-                  <Text style={{ color: COLORS.primary, fontWeight: '700', fontSize: 13 }}>
-                    {isRTL ? 'اتصال' : 'Call'}
-                  </Text>
-                </TouchableOpacity>
-              )}
-              {chatOpen && currentStop === technicianStop && (
-                <TouchableOpacity
-                  style={[styles.smallBtn, { borderColor: COLORS.primary }]}
-                  onPress={() =>
-                    router.push({ pathname: '/courier-chat/[taskId]', params: { taskId: task.id } } as any)
-                  }
-                  accessibilityRole="button"
-                >
-                  <MaterialCommunityIcons name="chat-outline" size={16} color={COLORS.primary} />
-                  <Text style={{ color: COLORS.primary, fontWeight: '700', fontSize: 13 }}>
-                    {isRTL ? 'مراسلة الفني' : 'Chat'}
-                  </Text>
-                </TouchableOpacity>
-              )}
-            </View>
+            {(() => {
+              const targetIsTechnician = currentStop === technicianStop;
+              // Technician navigation prefers the LIVE position; static task
+              // coords / address are the fallback. Customer navigation uses
+              // the stamped task coordinates as before.
+              const navLat = targetIsTechnician ? (techLoc?.latitude ?? currentStop.lat) : currentStop.lat;
+              const navLng = targetIsTechnician ? (techLoc?.longitude ?? currentStop.lng) : currentStop.lng;
+              const canNavigate = navLat != null || !!currentStop.address;
+              return (
+                <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', gap: 10, marginTop: 14, flexWrap: 'wrap' }}>
+                  {canNavigate ? (
+                    <TouchableOpacity
+                      style={[styles.smallBtn, { backgroundColor: COLORS.primary, borderColor: COLORS.primary }]}
+                      onPress={() => openMaps(navLat, navLng, currentStop.address)}
+                      accessibilityRole="button"
+                      accessibilityLabel={targetIsTechnician
+                        ? isRTL ? 'الاتجاهات إلى الفني' : 'Directions to technician'
+                        : isRTL ? 'الاتجاهات إلى العميل' : 'Directions to customer'}
+                    >
+                      <MaterialCommunityIcons
+                        name={targetIsTechnician ? 'account-wrench' : 'map-marker-account'}
+                        size={16}
+                        color="#fff"
+                      />
+                      <Text style={{ color: '#fff', fontWeight: '700', fontSize: 13 }}>
+                        {targetIsTechnician
+                          ? isRTL ? 'الاتجاهات إلى الفني' : 'Directions to technician'
+                          : isRTL ? 'الاتجاهات إلى العميل' : 'Directions to customer'}
+                      </Text>
+                    </TouchableOpacity>
+                  ) : (
+                    <View style={[styles.smallBtn, { borderColor: COLORS.border, opacity: 0.7 }]}>
+                      <MaterialCommunityIcons name="map-marker-off-outline" size={16} color={COLORS.textSecondary} />
+                      <Text style={{ color: COLORS.textSecondary, fontWeight: '700', fontSize: 13 }}>
+                        {targetIsTechnician
+                          ? isRTL ? 'موقع الفني غير متاح بعد' : 'Technician location not available yet'
+                          : isRTL ? 'الموقع غير متاح' : 'Location not available'}
+                      </Text>
+                    </View>
+                  )}
+                  {!!currentStop.phone && (
+                    <TouchableOpacity
+                      style={[styles.smallBtn, { borderColor: COLORS.primary }]}
+                      onPress={() => void Linking.openURL(`tel:${currentStop.phone}`)}
+                      accessibilityRole="button"
+                    >
+                      <MaterialCommunityIcons name="phone-outline" size={16} color={COLORS.primary} />
+                      <Text style={{ color: COLORS.primary, fontWeight: '700', fontSize: 13 }}>
+                        {isRTL ? 'اتصال' : 'Call'}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                  {chatOpen && (
+                    <TouchableOpacity
+                      style={[styles.smallBtn, { borderColor: COLORS.primary }]}
+                      onPress={() =>
+                        router.push({
+                          pathname: '/courier-chat/[taskId]',
+                          params: {
+                            taskId: task.id,
+                            thread: targetIsTechnician ? 'technician' : 'customer',
+                          },
+                        } as any)
+                      }
+                      accessibilityRole="button"
+                    >
+                      <MaterialCommunityIcons name="chat-outline" size={16} color={COLORS.primary} />
+                      <Text style={{ color: COLORS.primary, fontWeight: '700', fontSize: 13 }}>
+                        {targetIsTechnician
+                          ? isRTL ? 'مراسلة الفني' : 'Chat with technician'
+                          : isRTL ? 'مراسلة العميل' : 'Chat with customer'}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              );
+            })()}
 
             {/* Location of the current target party — same map pattern the
                 customer app uses. Technician stop → live technician position
@@ -368,6 +419,28 @@ export default function CourierTaskDetailScreen() {
               <Text style={{ color: COLORS.textSecondary, fontSize: 12.5, marginTop: 6, textAlign: isRTL ? 'right' : 'left' }} numberOfLines={2}>
                 {[otherStop.name, otherStop.address].filter(Boolean).join(' — ')}
               </Text>
+            )}
+            {chatOpen && (
+              <TouchableOpacity
+                onPress={() =>
+                  router.push({
+                    pathname: '/courier-chat/[taskId]',
+                    params: {
+                      taskId: task.id,
+                      thread: otherStop === technicianStop ? 'technician' : 'customer',
+                    },
+                  } as any)
+                }
+                style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 6, marginTop: 8 }}
+                accessibilityRole="button"
+              >
+                <MaterialCommunityIcons name="chat-outline" size={14} color={COLORS.primary} />
+                <Text style={{ color: COLORS.primary, fontWeight: '700', fontSize: 12.5 }}>
+                  {otherStop === technicianStop
+                    ? isRTL ? 'مراسلة الفني' : 'Chat with technician'
+                    : isRTL ? 'مراسلة العميل' : 'Chat with customer'}
+                </Text>
+              </TouchableOpacity>
             )}
           </View>
         )}
