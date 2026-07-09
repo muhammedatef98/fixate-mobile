@@ -27,11 +27,23 @@ import { getFriendlyError } from '../utils/errorMessages';
 import { validateDocNumber } from '../utils/validation';
 import { logger } from '../utils/logger';
 
-const VEHICLES: { id: 'car' | 'motorcycle' | 'van'; ar: string; en: string; icon: string }[] = [
+type VehicleId = 'car' | 'motorcycle' | 'van';
+
+const VEHICLES: { id: VehicleId; ar: string; en: string; icon: string }[] = [
   { id: 'car', ar: 'سيارة', en: 'Car', icon: 'car' },
   { id: 'motorcycle', ar: 'دراجة نارية', en: 'Motorcycle', icon: 'motorbike' },
   { id: 'van', ar: 'فان', en: 'Van', icon: 'van-utility' },
 ];
+
+// The vehicle-registration document is named differently per vehicle type in
+// KSA (سيارة/فان = استمارة، دراجة = رخصة سير), so the field label, placeholder
+// and helper adapt to the selected vehicle — this is what makes the form read
+// as operationally accurate rather than a generic text box.
+const REGISTRATION_COPY: Record<VehicleId, { labelAr: string; labelEn: string; phAr: string; phEn: string }> = {
+  car: { labelAr: 'رقم استمارة السيارة', labelEn: 'Vehicle registration (Istimara) number', phAr: 'كما في الاستمارة', phEn: 'As printed on the Istimara' },
+  motorcycle: { labelAr: 'رقم رخصة سير الدراجة', labelEn: 'Motorcycle registration number', phAr: 'كما في رخصة السير', phEn: 'As printed on the registration' },
+  van: { labelAr: 'رقم استمارة الفان', labelEn: 'Van registration (Istimara) number', phAr: 'كما في الاستمارة', phEn: 'As printed on the Istimara' },
+};
 
 /**
  * Courier application: the minimum profile the ops team needs to review a
@@ -49,7 +61,7 @@ export default function CourierOnboardingScreen() {
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
   const [city, setCity] = useState('');
-  const [vehicle, setVehicle] = useState<'car' | 'motorcycle' | 'van'>('car');
+  const [vehicle, setVehicle] = useState<VehicleId>('car');
   const [idNumber, setIdNumber] = useState('');
   const [licenseNumber, setLicenseNumber] = useState('');
   const [registrationNumber, setRegistrationNumber] = useState('');
@@ -306,6 +318,15 @@ export default function CourierOnboardingScreen() {
             </View>
           </View>
 
+          <Text style={[styles.sectionLabel, { color: COLORS.primary, textAlign: isRTL ? 'right' : 'left', marginTop: 4 }]}>
+            {isRTL ? 'مستندات التحقق' : 'Verification documents'}
+          </Text>
+          <Text style={{ color: COLORS.textSecondary, fontSize: 12.5, lineHeight: 19, textAlign: isRTL ? 'right' : 'left', marginTop: -SPACING.sm }}>
+            {isRTL
+              ? 'مطلوبة للموافقة على حسابك كمندوب. تُستخدم للتحقق فقط ولا تظهر للعملاء.'
+              : 'Required to approve your courier account. Used for verification only — never shown to customers.'}
+          </Text>
+
           <View style={{ gap: 6 }}>
             <Text style={[styles.label, { color: COLORS.text, textAlign: isRTL ? 'right' : 'left' }]}>
               {isRTL ? 'رقم رخصة القيادة' : 'Driver license number'}
@@ -326,13 +347,13 @@ export default function CourierOnboardingScreen() {
 
           <View style={{ gap: 6 }}>
             <Text style={[styles.label, { color: COLORS.text, textAlign: isRTL ? 'right' : 'left' }]}>
-              {isRTL ? 'رقم استمارة / تسجيل المركبة' : 'Vehicle registration / form number'}
+              {isRTL ? REGISTRATION_COPY[vehicle].labelAr : REGISTRATION_COPY[vehicle].labelEn}
             </Text>
             <View style={[styles.inputWrap, { backgroundColor: COLORS.card, borderColor: COLORS.border, flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
               <MaterialCommunityIcons name="clipboard-text-outline" size={20} color={COLORS.textSecondary} />
               <TextInput
                 style={[styles.input, { color: COLORS.text }]}
-                placeholder={isRTL ? 'استمارة السيارة أو الدراجة' : 'Car or motorcycle registration'}
+                placeholder={isRTL ? REGISTRATION_COPY[vehicle].phAr : REGISTRATION_COPY[vehicle].phEn}
                 placeholderTextColor={COLORS.textSecondary}
                 value={registrationNumber}
                 onChangeText={setRegistrationNumber}
@@ -340,10 +361,10 @@ export default function CourierOnboardingScreen() {
                 textAlign={isRTL ? 'right' : 'left'}
               />
             </View>
-            <Text style={{ color: COLORS.textSecondary, fontSize: 11.5, textAlign: isRTL ? 'right' : 'left' }}>
+            <Text style={{ color: COLORS.textLight, fontSize: 11.5, textAlign: isRTL ? 'right' : 'left' }}>
               {isRTL
-                ? 'تُستخدم هذه البيانات للتحقق فقط ولا تظهر للعملاء.'
-                : 'Used for verification only — never shown to customers.'}
+                ? `مرتبطة بوسيلة التوصيل المختارة: ${VEHICLES.find((v) => v.id === vehicle)?.ar}.`
+                : `Matched to your selected vehicle: ${VEHICLES.find((v) => v.id === vehicle)?.en}.`}
             </Text>
           </View>
 
