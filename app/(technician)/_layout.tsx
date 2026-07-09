@@ -210,12 +210,15 @@ export default function TechnicianLayout() {
       <Stack
         screenOptions={{
           headerShown: false,
-          // Soft crossfade between the persistent tabs (Home / Chats /
-          // Community / Jobs). 'none' made every replace() feel like a hard
-          // cut — especially visible when the destination shows a skeleton
-          // for a frame. Fade keeps switches instant but smooth.
-          animation: 'fade',
-          animationDuration: 150,
+          // Default for detail pushes (manage-order, job, earnings, ratings,
+          // service-availability, notifications…): a light, fast directional
+          // slide so opening a screen reads as forward motion — matching the
+          // rest of the app while staying snappy (200ms vs the root's 250ms).
+          // RTL flips the slide direction so "forward" always enters from the
+          // trailing edge. The four persistent tab destinations override this
+          // with a soft crossfade below, so switching tabs never slides.
+          animation: isRTL ? 'slide_from_left' : 'slide_from_right',
+          animationDuration: 200,
           gestureEnabled: true,
           gestureDirection: 'horizontal',
           // iOS glass header to match the root navigator (only visible if a
@@ -237,23 +240,27 @@ export default function TechnicianLayout() {
           headerBackTitle: isRTL ? 'رجوع' : 'Back',
         }}
       >
-        <Stack.Screen name="index" />
-        <Stack.Screen name="my-orders" />
-        <Stack.Screen name="chats" />
-        <Stack.Screen name="earnings" />
-        <Stack.Screen name="available-orders" />
+        {/* Tab destinations — soft, instant crossfade so switching between the
+            four persistent tabs (Home / Jobs / Chats / Community / Profile)
+            never reads as a directional page slide. */}
+        <Stack.Screen name="index" options={{ animation: 'fade', animationDuration: 150 }} />
+        <Stack.Screen name="my-orders" options={{ animation: 'fade', animationDuration: 150 }} />
+        <Stack.Screen name="chats" options={{ animation: 'fade', animationDuration: 150 }} />
+        <Stack.Screen name="available-orders" options={{ animation: 'fade', animationDuration: 150 }} />
         {/* Explicit registration — without this expo-router can fall through
             to the root-level app/profile.tsx because both files compile to
             the same /profile URL. Declaring it here pins resolution to the
             technician group's profile screen. */}
-        <Stack.Screen name="profile" />
+        <Stack.Screen name="profile" options={{ animation: 'fade', animationDuration: 150 }} />
+        <Stack.Screen name="community" options={{ headerShown: false, animation: 'fade', animationDuration: 150 }} />
+        {/* Detail / flow screens — inherit the light directional slide. */}
+        <Stack.Screen name="earnings" />
         <Stack.Screen name="notifications" options={{ headerShown: false }} />
         <Stack.Screen name="delete-account" options={{ headerShown: false }} />
         <Stack.Screen name="manage-order" options={{ headerShown: false }} />
         <Stack.Screen name="job/[id]" />
         <Stack.Screen name="service-availability" options={{ headerShown: false }} />
         <Stack.Screen name="ratings" options={{ headerShown: false }} />
-        <Stack.Screen name="community" options={{ headerShown: false }} />
       </Stack>
       {showBottomNav && <BottomNavTech />}
     </View>

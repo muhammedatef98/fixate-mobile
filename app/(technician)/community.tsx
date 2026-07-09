@@ -53,6 +53,18 @@ import {
 // Tag filter chips shown above the feed ("الكل" + the four post tags).
 const TAG_FILTERS: (CommunityTag | 'all')[] = ['all', ...COMMUNITY_TAGS];
 
+// The tag values are stored in Arabic (they are the DB keys), so they must be
+// mapped to a localized label for display — otherwise the filter chips, the
+// composer selector and the post pills all show Arabic even in English mode.
+const TAG_LABELS: Record<CommunityTag, { ar: string; en: string }> = {
+  'عام':   { ar: 'عام',   en: 'General' },
+  'سؤال':  { ar: 'سؤال',  en: 'Question' },
+  'مشكلة': { ar: 'مشكلة', en: 'Problem' },
+  'نصيحة': { ar: 'نصيحة', en: 'Tip' },
+};
+const tagLabel = (tag: CommunityTag, isRTL: boolean): string =>
+  isRTL ? TAG_LABELS[tag].ar : TAG_LABELS[tag].en;
+
 const MAX_POST_LEN = 1000;
 const MAX_INDENT_DEPTH = 4; // visual indent cap; nesting continues logically
 
@@ -449,7 +461,7 @@ export default function CommunityScreen() {
               <Text style={styles.authorName} numberOfLines={1}>{item.author_name}</Text>
               {item.tag ? (
                 <View style={styles.postTagPill}>
-                  <Text style={styles.postTagPillText}>{item.tag}</Text>
+                  <Text style={styles.postTagPillText}>{tagLabel(item.tag, isRTL)}</Text>
                 </View>
               ) : null}
             </View>
@@ -699,7 +711,7 @@ export default function CommunityScreen() {
                 activeOpacity={0.85}
               >
                 <Text style={[styles.tagChipText, active && styles.tagChipTextActive]}>
-                  {t === 'all' ? (isRTL ? 'الكل' : 'All') : t}
+                  {t === 'all' ? (isRTL ? 'الكل' : 'All') : tagLabel(t, isRTL)}
                 </Text>
               </TouchableOpacity>
             );
@@ -810,7 +822,7 @@ export default function CommunityScreen() {
                     onPress={() => setPostTag(t)}
                     activeOpacity={0.85}
                   >
-                    <Text style={[styles.tagChipText, active && styles.tagChipTextActive]}>{t}</Text>
+                    <Text style={[styles.tagChipText, active && styles.tagChipTextActive]}>{tagLabel(t, isRTL)}</Text>
                   </TouchableOpacity>
                 );
               })}

@@ -189,6 +189,21 @@ function RootLayoutContent() {
     return <BlockedScreen status={accountStatus} />;
   }
 
+  // Unified transition for the whole market module. Every market-* screen is
+  // registered at the root, so without a shared style they silently inherit
+  // whatever the navigator default is — and any future per-screen tweak would
+  // make one market screen slide differently from the next. Pinning one fast,
+  // light, RTL-aware slide here keeps the market flow feeling consistent and
+  // snappy (200ms) end to end. headerShown stays false — market screens draw
+  // their own in-screen headers.
+  const marketScreenOptions = {
+    headerShown: false,
+    animation: (language === 'ar' ? 'slide_from_left' : 'slide_from_right') as
+      | 'slide_from_left'
+      | 'slide_from_right',
+    animationDuration: 200,
+  };
+
   return (
     <View style={{ flex: 1 }}>
       {/* Visible, opaque status bar. translucent={false} makes Android reserve
@@ -350,13 +365,13 @@ function RootLayoutContent() {
         <Stack.Screen name="loyalty" options={{ headerShown: false }} />
         <Stack.Screen name="admin-discount-codes" options={{ headerShown: false }} />
         <Stack.Screen name="admin-market" options={{ headerShown: false }} />
-        <Stack.Screen name="market" options={{ headerShown: false }} />
-        <Stack.Screen name="market-new" options={{ headerShown: false }} />
-        <Stack.Screen name="market-detail" options={{ headerShown: false }} />
-        <Stack.Screen name="market-seller" options={{ headerShown: false }} />
-        <Stack.Screen name="market-chat" options={{ headerShown: false }} />
-        <Stack.Screen name="market-messages" options={{ headerShown: false }} />
-        <Stack.Screen name="my-listings" options={{ headerShown: false }} />
+        <Stack.Screen name="market" options={marketScreenOptions} />
+        <Stack.Screen name="market-new" options={marketScreenOptions} />
+        <Stack.Screen name="market-detail" options={marketScreenOptions} />
+        <Stack.Screen name="market-seller" options={marketScreenOptions} />
+        <Stack.Screen name="market-chat" options={marketScreenOptions} />
+        <Stack.Screen name="market-messages" options={marketScreenOptions} />
+        <Stack.Screen name="my-listings" options={marketScreenOptions} />
         <Stack.Screen name="admin-broadcasts" options={{ headerShown: false }} />
         <Stack.Screen name="admin-reports" options={{ headerShown: false }} />
         <Stack.Screen name="admin-order-detail" options={{ headerShown: false }} />

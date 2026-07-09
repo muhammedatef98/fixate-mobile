@@ -171,31 +171,34 @@ export default function NotificationsScreen() {
     const meta = TYPE_META[item.type] ?? FALLBACK_META;
     const title = isRTL ? item.title_ar : item.title_en;
     const body = isRTL ? item.body_ar : item.body_en;
+    const unread = !item.is_read;
     return (
       <PressableScale
         to={0.985}
         onPress={() => handlePress(item)}
-        style={[styles.card, !item.is_read && styles.cardUnread]}
+        style={unread ? [styles.card, styles.cardUnread] : styles.card}
       >
-        <View style={[styles.iconContainer, { backgroundColor: meta.color + '20' }]}>
+        <View style={[styles.iconContainer, { backgroundColor: meta.color + (unread ? '22' : '18') }]}>
           {meta.pack === 'mci' ? (
-            <MaterialCommunityIcons name={meta.icon} size={24} color={meta.color} />
+            <MaterialCommunityIcons name={meta.icon} size={19} color={meta.color} />
           ) : (
-            <Ionicons name={meta.icon} size={24} color={meta.color} />
+            <Ionicons name={meta.icon} size={19} color={meta.color} />
           )}
         </View>
         <View style={styles.info}>
-          <Text style={styles.title} numberOfLines={1}>
-            {title}
-          </Text>
+          <View style={styles.topRow}>
+            {unread && <View style={styles.unreadDot} />}
+            <Text style={[styles.title, unread && styles.titleUnread]} numberOfLines={1}>
+              {title}
+            </Text>
+            <Text style={styles.time}>{timeAgo(item.created_at, isRTL)}</Text>
+          </View>
           {!!body && (
             <Text style={styles.body} numberOfLines={2}>
               {body}
             </Text>
           )}
-          <Text style={styles.time}>{timeAgo(item.created_at, isRTL)}</Text>
         </View>
-        {!item.is_read && <View style={styles.unreadDot} />}
       </PressableScale>
     );
   };
@@ -301,70 +304,77 @@ const makeStyles = (C: any, isRTL: boolean, SHADOWS: any) =>
     },
     markAllText: { fontSize: 12.5, fontWeight: '800', color: C.primary },
     sectionHeader: {
-      fontSize: 13,
+      fontSize: 12,
       fontWeight: '800',
-      color: C.textSecondary,
+      letterSpacing: 0.4,
+      textTransform: 'uppercase',
+      color: C.textLight,
       textAlign: isRTL ? 'right' : 'left',
-      marginTop: 6,
+      marginTop: 14,
       marginBottom: 8,
       marginHorizontal: 4,
     },
     loader: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+    // Flatter, lighter list rows: a hairline border instead of a per-card
+    // shadow keeps the list calm and reduces the "stack of heavy cards"
+    // repetition. Density is tighter (10/12 padding, 6 gap between rows).
     card: {
       flexDirection: isRTL ? 'row-reverse' : 'row',
-      padding: 16,
-      marginBottom: 12,
+      paddingVertical: 11,
+      paddingHorizontal: 12,
+      marginBottom: 6,
       alignItems: 'center',
       backgroundColor: C.card,
-      borderRadius: BORDER_RADIUS.md,
-      gap: 14,
-      ...SHADOWS.small,
+      borderRadius: 14,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: C.border,
+      gap: 12,
     },
     cardUnread: {
-      borderWidth: 1,
-      borderColor: C.primary + '40',
+      borderColor: C.primary + '33',
       backgroundColor: C.primarySoft,
     },
     iconContainer: {
-      width: 48,
-      height: 48,
-      borderRadius: 16,
+      width: 38,
+      height: 38,
+      borderRadius: 11,
       justifyContent: 'center',
       alignItems: 'center',
-      // Soft ring + lift gives each badge a touch of depth so the new
-      // filled glyphs don't read as flat blocks of colour.
-      borderWidth: StyleSheet.hairlineWidth,
-      borderColor: 'rgba(0,0,0,0.05)',
-      shadowColor: '#000',
-      shadowOpacity: 0.05,
-      shadowRadius: 4,
-      shadowOffset: { width: 0, height: 2 },
-      elevation: 1,
     },
-    info: { flex: 1 },
+    info: { flex: 1, gap: 2 },
+    topRow: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
+      gap: 6,
+    },
     title: {
-      fontSize: 15,
-      fontWeight: '700',
-      marginBottom: 3,
+      flex: 1,
+      fontSize: 14,
+      fontWeight: '600',
       color: C.text,
       textAlign: isRTL ? 'right' : 'left',
     },
+    titleUnread: {
+      fontWeight: '800',
+    },
     body: {
-      fontSize: 13,
-      marginBottom: 4,
+      fontSize: 12.5,
       color: C.textSecondary,
       textAlign: isRTL ? 'right' : 'left',
-      lineHeight: 19,
+      lineHeight: 18,
     },
     time: {
       fontSize: 11,
+      fontWeight: '600',
       color: C.textLight,
-      textAlign: isRTL ? 'right' : 'left',
+      // Fixed width keeps the timestamp from squeezing the title and gives the
+      // whole column a clean right-edge rhythm.
+      textAlign: isRTL ? 'left' : 'right',
     },
     unreadDot: {
-      width: 9,
-      height: 9,
-      borderRadius: 5,
+      width: 7,
+      height: 7,
+      borderRadius: 4,
       backgroundColor: C.primary,
     },
   });
