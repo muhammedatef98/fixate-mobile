@@ -58,15 +58,10 @@ export default function TechnicianProfile() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(20)).current;
-
-  useEffect(() => {
-    Animated.parallel([
-      Animated.timing(fadeAnim, { toValue: 1, duration: 300, useNativeDriver: true }),
-      Animated.timing(slideAnim, { toValue: 0, duration: 300, useNativeDriver: true }),
-    ]).start();
-  }, []);
+  // Paint content instantly — the Stack navigator provides the entrance
+  // motion, so a screen-level mount fade only adds perceived lag on tab-in.
+  const fadeAnim = useRef(new Animated.Value(1)).current;
+  const slideAnim = useRef(new Animated.Value(0)).current;
 
   const load = async () => {
     if (!authUser?.id) { setLoading(false); return; }

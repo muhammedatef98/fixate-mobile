@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -18,7 +18,6 @@ import { RTLIonicon } from '../../components/RTLIcon';
 import { getColors, getShadows, SPACING, BORDER_RADIUS } from '../../constants/theme';
 import { PressableScale } from '../../components/ui/PressableScale';
 import { safeBack } from '../../utils/navigation';
-import { PROTECTION_ADDONS, getAccessorySuggestions } from '../../types/order';
 
 const { width } = Dimensions.get('window');
 
@@ -96,7 +95,7 @@ const SERVICES: Service[] = [
     nameAr: 'الطابعات',
     nameEn: 'Printers',
     icon: 'printer',
-    color: '#6366f1',
+    color: '#0ea5e9',
     descAr: 'حل مشاكل الطباعة والصيانة الدورية',
     descEn: 'Printing issues & maintenance',
     available: false,
@@ -120,6 +119,33 @@ const FEATURES = [
   { icon: 'flash-outline', ar: 'خدمة في نفس اليوم', en: 'Same-day service', color: '#8b5cf6' },
 ];
 
+// The customer journey, distilled to three honest steps. Grounding "how it
+// works" on the page is what turns a link list into a screen the customer
+// actually trusts — they know exactly what happens after they tap Request.
+const STEPS = [
+  {
+    icon: 'clipboard-text-outline',
+    ar: 'اطلب الصيانة',
+    en: 'Request a repair',
+    subAr: 'اختر جهازك وصف العطل في أقل من دقيقة',
+    subEn: 'Pick your device and describe the fault in under a minute',
+  },
+  {
+    icon: 'moped-outline',
+    ar: 'نستلم ونشخّص',
+    en: 'We pick up & diagnose',
+    subAr: 'مندوبنا يستلم جهازك ويفحصه فنيّ معتمد',
+    subEn: 'A courier collects it and a verified technician inspects it',
+  },
+  {
+    icon: 'shield-check-outline',
+    ar: 'إصلاح وإرجاع بضمان',
+    en: 'Repair & return, guaranteed',
+    subAr: 'توافق على السعر، نصلح، ونعيده لك مع ضمان سنة',
+    subEn: 'Approve the price, we fix it, and return it with a 1-year warranty',
+  },
+];
+
 export default function ServicesScreen() {
   const router = useRouter();
   const { language, isDark } = useApp();
@@ -129,52 +155,20 @@ export default function ServicesScreen() {
   const styles = makeStyles(COLORS, isRTL, SHADOWS);
 
   const fade = useRef(new Animated.Value(0)).current;
-  const slide = useRef(new Animated.Value(20)).current;
-  const [shopFilter, setShopFilter] = useState<'all' | 'protection' | 'accessories'>('all');
+  const slide = useRef(new Animated.Value(12)).current;
 
-  type ShopItem = {
-    id: string;
-    nameAr: string;
-    nameEn: string;
-    price: number;
-    icon: string;
-    color: string;
-    kind: 'protection' | 'accessories';
-  };
-  const shopItems: ShopItem[] = [
-    ...PROTECTION_ADDONS.map((p) => ({
-      id: `prot_${p.id}`,
-      nameAr: p.name_ar,
-      nameEn: p.name_en,
-      price: p.price,
-      icon: 'shield-check',
-      color: '#10b981',
-      kind: 'protection' as const,
-    })),
-    ...getAccessorySuggestions('phone').map((a) => ({
-      id: `acc_${a.id}`,
-      nameAr: a.name_ar,
-      nameEn: a.name_en,
-      price: a.price,
-      icon:
-        a.id === 'charger' ? 'flash' :
-        a.id === 'cable' ? 'cable-data' :
-        a.id === 'adapter' ? 'power-plug' :
-        a.id === 'case' ? 'cellphone-text' :
-        a.id === 'screen_protector' ? 'shield-outline' :
-        'tools',
-      color: '#3b82f6',
-      kind: 'accessories' as const,
-    })),
-  ];
-  const filteredShop = shopFilter === 'all' ? shopItems : shopItems.filter((s) => s.kind === shopFilter);
+  const priceLabel = (p?: number) =>
+    p == null ? '' : isRTL ? `من ${p} ر.س` : `from SAR ${p}`;
 
   useEffect(() => {
+    // Light, quick entrance — the screen paints almost immediately.
     Animated.parallel([
-      Animated.timing(fade, { toValue: 1, duration: 360, useNativeDriver: true }),
-      Animated.spring(slide, { toValue: 0, friction: 8, useNativeDriver: true }),
+      Animated.timing(fade, { toValue: 1, duration: 220, useNativeDriver: true }),
+      Animated.spring(slide, { toValue: 0, friction: 9, tension: 90, useNativeDriver: true }),
     ]).start();
   }, []);
+
+  const availableCount = SERVICES.filter((s) => s.available).length;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -196,24 +190,20 @@ export default function ServicesScreen() {
 
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ padding: SPACING.m, paddingBottom: 100 }}
+        contentContainerStyle={{ padding: SPACING.m, paddingBottom: 110 }}
       >
         <Animated.View style={{ opacity: fade, transform: [{ translateY: slide }] }}>
-          {/* Hero — friendly intro + CTA */}
+          {/* Hero — one clear promise, one clear action */}
           <View style={[styles.hero, { backgroundColor: COLORS.primary }]}>
             <View style={styles.heroLeft}>
-              <Text style={styles.heroEyebrow}>
-                {isRTL ? 'خدمة Fixate' : 'Fixate service'}
-              </Text>
+              <Text style={styles.heroEyebrow}>{isRTL ? 'خدمة Fixate' : 'Fixate service'}</Text>
               <Text style={styles.heroTitle}>
                 {isRTL ? 'صيانة موثوقة\nبفنيين معتمدين' : 'Trusted repairs\nfrom verified pros'}
               </Text>
               <View style={styles.heroBadge}>
                 <MaterialCommunityIcons name="clock-fast" size={13} color="#fff" />
                 <Text style={styles.heroBadgeText}>
-                  {isRTL
-                    ? 'يصلك الفني في وقت قياسي'
-                    : 'A technician reaches you in record time'}
+                  {isRTL ? 'يصلك الفني في وقت قياسي' : 'A technician reaches you fast'}
                 </Text>
               </View>
               <TouchableOpacity
@@ -221,14 +211,12 @@ export default function ServicesScreen() {
                 style={styles.heroCta}
                 accessibilityRole="button"
               >
-                <Text style={styles.heroCtaText}>
-                  {isRTL ? 'اطلب الآن' : 'Request now'}
-                </Text>
+                <Text style={styles.heroCtaText}>{isRTL ? 'اطلب الآن' : 'Request now'}</Text>
                 <RTLIonicon name="arrow-forward" size={16} color={COLORS.primary} />
               </TouchableOpacity>
             </View>
             <View style={styles.heroIconWrap}>
-              <MaterialCommunityIcons name="tools" size={68} color="#ffffff20" />
+              <MaterialCommunityIcons name="tools" size={68} color="#ffffff22" />
             </View>
           </View>
 
@@ -252,13 +240,12 @@ export default function ServicesScreen() {
               {isRTL ? 'تصفّح حسب الجهاز' : 'Browse by device'}
             </Text>
             <Text style={[styles.sectionMeta, { color: COLORS.textSecondary }]}>
-              {isRTL
-                ? `${SERVICES.filter((s) => s.available).length} من ${SERVICES.length} متاحة`
-                : `${SERVICES.filter((s) => s.available).length} of ${SERVICES.length} available`}
+              {isRTL ? `${availableCount} متاحة` : `${availableCount} available`}
             </Text>
           </View>
 
-          {/* Service grid (2 columns) */}
+          {/* Service grid (2 columns) — now surfaces a from-price so the screen
+              answers the customer's first question before they tap in. */}
           <View style={styles.grid}>
             {SERVICES.map((s) => (
               <PressableScale
@@ -266,8 +253,8 @@ export default function ServicesScreen() {
                 to={0.97}
                 style={[
                   styles.tile,
-                  { backgroundColor: COLORS.card },
-                  !s.available && { opacity: 0.6 },
+                  { backgroundColor: COLORS.card, borderColor: COLORS.border },
+                  !s.available && { opacity: 0.62 },
                 ]}
                 onPress={() => {
                   if (s.available) router.push('/request');
@@ -286,8 +273,10 @@ export default function ServicesScreen() {
                   {isRTL ? s.descAr : s.descEn}
                 </Text>
                 <View style={styles.tileFoot}>
-                  {!s.available && (
-                    <View style={[styles.soonPill, { backgroundColor: COLORS.textSecondary + '20' }]}>
+                  {s.available ? (
+                    <Text style={[styles.tilePrice, { color: s.color }]}>{priceLabel(s.fromPrice)}</Text>
+                  ) : (
+                    <View style={[styles.soonPill, { backgroundColor: COLORS.textSecondary + '18' }]}>
                       <Text style={[styles.soonText, { color: COLORS.textSecondary }]}>
                         {isRTL ? 'قريباً' : 'Coming soon'}
                       </Text>
@@ -298,142 +287,113 @@ export default function ServicesScreen() {
             ))}
           </View>
 
-          {/* Fixate Shop — a store-like upsell experience inside Services */}
-          <View style={[styles.shopHero, { backgroundColor: '#0F172A' }]}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.shopHeroEyebrow}>{isRTL ? 'متجر Fixate' : 'Fixate Shop'}</Text>
-              <Text style={styles.shopHeroTitle}>
-                {isRTL ? 'إكسسوارات وحماية لجهازك' : 'Accessories & protection for your device'}
-              </Text>
-              <Text style={styles.shopHeroSub}>
-                {isRTL
-                  ? 'أضفها مع طلب الصيانة وادفع كل شيء مرة واحدة'
-                  : 'Add them with your repair request and pay once'}
-              </Text>
-            </View>
-            <MaterialCommunityIcons name="storefront-outline" size={56} color="#ffffff20" />
+          {/* How it works — a calm, connected 3-step timeline. This is the
+              section that makes the page feel intentional: the customer sees
+              the whole journey before committing. */}
+          <View style={[styles.sectionRow, { marginTop: 26 }]}>
+            <Text style={[styles.sectionTitle, { color: COLORS.text }]}>
+              {isRTL ? 'كيف تعمل الخدمة' : 'How it works'}
+            </Text>
           </View>
-
-          <View style={styles.shopChipsRow}>
-            {([
-              { id: 'all', ar: 'الكل', en: 'All' },
-              { id: 'protection', ar: 'حماية', en: 'Protection' },
-              { id: 'accessories', ar: 'إكسسوارات', en: 'Accessories' },
-            ] as const).map((c) => {
-              const active = shopFilter === c.id;
-              return (
-                <TouchableOpacity
-                  key={c.id}
-                  onPress={() => setShopFilter(c.id as any)}
-                  style={[
-                    styles.shopChip,
-                    {
-                      backgroundColor: active ? COLORS.primary : COLORS.card,
-                      borderColor: active ? COLORS.primary : COLORS.border,
-                    },
-                  ]}
-                >
-                  <Text style={{ color: active ? '#fff' : COLORS.text, fontWeight: '700', fontSize: 13 }}>
-                    {isRTL ? c.ar : c.en}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-
-          <View style={styles.upsellGrid}>
-            {filteredShop.map((s) => (
-              <PressableScale
-                key={s.id}
-                to={0.97}
-                style={[styles.shopCard, { backgroundColor: COLORS.card }]}
-                onPress={() => router.push('/request')}
-                accessibilityRole="button"
-                accessibilityLabel={isRTL ? s.nameAr : s.nameEn}
-              >
-                <View style={[styles.shopCardIcon, { backgroundColor: s.color + '15' }]}>
-                  <MaterialCommunityIcons name={s.icon as any} size={28} color={s.color} />
+          <View style={[styles.stepsCard, { backgroundColor: COLORS.card, borderColor: COLORS.border }]}>
+            {STEPS.map((step, i) => (
+              <View key={i} style={styles.stepRow}>
+                <View style={styles.stepRail}>
+                  <View style={[styles.stepDot, { backgroundColor: COLORS.primary + '15' }]}>
+                    <MaterialCommunityIcons name={step.icon as any} size={20} color={COLORS.primary} />
+                  </View>
+                  {i < STEPS.length - 1 && (
+                    <View style={[styles.stepLine, { backgroundColor: COLORS.border }]} />
+                  )}
                 </View>
-                <Text style={[styles.tileName, { color: COLORS.text }]} numberOfLines={2}>
-                  {isRTL ? s.nameAr : s.nameEn}
-                </Text>
-                <View style={[styles.shopAddBtn, { backgroundColor: COLORS.primary, marginTop: 6 }]}>
-                  <Ionicons name="add" size={16} color="#fff" />
-                  <Text style={styles.shopAddBtnText}>
-                    {isRTL ? 'أضف للطلب' : 'Add to request'}
+                <View style={styles.stepBody}>
+                  <View style={styles.stepTitleRow}>
+                    <Text style={[styles.stepIndex, { color: COLORS.primary }]}>
+                      {isRTL ? `الخطوة ${i + 1}` : `Step ${i + 1}`}
+                    </Text>
+                  </View>
+                  <Text style={[styles.stepTitle, { color: COLORS.text }]}>
+                    {isRTL ? step.ar : step.en}
+                  </Text>
+                  <Text style={[styles.stepSub, { color: COLORS.textSecondary }]}>
+                    {isRTL ? step.subAr : step.subEn}
                   </Text>
                 </View>
-              </PressableScale>
+              </View>
             ))}
           </View>
 
-          {/* Fixate Market — lives inside Services (not a homepage block). */}
+          {/* Explore Fixate — the marketplace destinations, consolidated into a
+              clean pair of rows instead of competing hero blocks. */}
           <View style={[styles.sectionRow, { marginTop: 26 }]}>
             <Text style={[styles.sectionTitle, { color: COLORS.text }]}>
-              {isRTL ? 'المزيد في Fixate' : 'More on Fixate'}
+              {isRTL ? 'المزيد في Fixate' : 'Explore Fixate'}
             </Text>
           </View>
-          <TouchableOpacity
+
+          <PressableScale
             onPress={() => router.push('/market')}
-            style={[styles.helpCard, { backgroundColor: COLORS.card, borderColor: COLORS.border, marginTop: 4 }]}
+            to={0.985}
+            style={[styles.linkCard, { backgroundColor: COLORS.card, borderColor: COLORS.border }]}
             accessibilityRole="button"
             accessibilityLabel={isRTL ? 'سوق Fixate' : 'Fixate Market'}
           >
-            <View style={[styles.helpIcon, { backgroundColor: '#7C3AED15' }]}>
+            <View style={[styles.linkIcon, { backgroundColor: '#7C3AED15' }]}>
               <MaterialCommunityIcons name="storefront-outline" size={22} color="#7C3AED" />
             </View>
             <View style={{ flex: 1, marginHorizontal: 12 }}>
-              <Text style={[styles.helpTitle, { color: COLORS.text }]}>
+              <Text style={[styles.linkTitle, { color: COLORS.text }]}>
                 {isRTL ? 'سوق Fixate' : 'Fixate Market'}
               </Text>
-              <Text style={[styles.helpSub, { color: COLORS.textSecondary }]}>
+              <Text style={[styles.linkSub, { color: COLORS.textSecondary }]}>
                 {isRTL
                   ? 'بيع واشترِ أجهزة مستعملة وإكسسوارات وقطع غيار'
                   : 'Buy & sell used devices, accessories and spare parts'}
               </Text>
             </View>
             <RTLIonicon name="chevron-forward" size={20} color="#7C3AED" />
-          </TouchableOpacity>
+          </PressableScale>
 
-          {/* Salvage devices — deep link into the Market with the salvage
-              chip pre-selected so the customer skips browsing. */}
-          <TouchableOpacity
+          {/* Salvage devices — deep link into the Market with the salvage chip
+              pre-selected so the customer skips browsing. */}
+          <PressableScale
             onPress={() => router.push({ pathname: '/market', params: { device: 'salvage' } } as any)}
-            style={[styles.helpCard, { backgroundColor: COLORS.card, borderColor: COLORS.border, marginTop: 10 }]}
+            to={0.985}
+            style={[styles.linkCard, { backgroundColor: COLORS.card, borderColor: COLORS.border, marginTop: 10 }]}
             accessibilityRole="button"
             accessibilityLabel={isRTL ? 'بيع وشراء أجهزة التشليح' : 'Buy & sell salvage devices'}
           >
-            <View style={[styles.helpIcon, { backgroundColor: '#EA580C15' }]}>
+            <View style={[styles.linkIcon, { backgroundColor: '#EA580C15' }]}>
               <MaterialCommunityIcons name="tools" size={22} color="#EA580C" />
             </View>
             <View style={{ flex: 1, marginHorizontal: 12 }}>
-              <Text style={[styles.helpTitle, { color: COLORS.text }]}>
-                {isRTL ? 'بيع وشراء أجهزة التشليح' : 'Buy & sell salvage devices'}
+              <Text style={[styles.linkTitle, { color: COLORS.text }]}>
+                {isRTL ? 'أجهزة التشليح' : 'Salvage devices'}
               </Text>
-              <Text style={[styles.helpSub, { color: COLORS.textSecondary }]}>
+              <Text style={[styles.linkSub, { color: COLORS.textSecondary }]}>
                 {isRTL
                   ? 'أجهزة وقطع غيار للتشليح بأسعار مناسبة'
                   : 'Salvage devices and parts at the right price'}
               </Text>
             </View>
             <RTLIonicon name="chevron-forward" size={20} color="#EA580C" />
-          </TouchableOpacity>
+          </PressableScale>
 
           {/* Help card — opens in-app live support */}
           <PressableScale
             onPress={() => router.push('/support-chat')}
             to={0.985}
-            style={[styles.helpCard, { backgroundColor: COLORS.card }]}
+            style={[styles.helpCard, { backgroundColor: COLORS.primary + '0D', borderColor: COLORS.primary + '22' }]}
             accessibilityRole="button"
           >
-            <View style={[styles.helpIcon, { backgroundColor: COLORS.primary + '15' }]}>
+            <View style={[styles.linkIcon, { backgroundColor: COLORS.primary + '18' }]}>
               <Ionicons name="chatbubble-ellipses-outline" size={22} color={COLORS.primary} />
             </View>
             <View style={{ flex: 1, marginHorizontal: 12 }}>
-              <Text style={[styles.helpTitle, { color: COLORS.text }]}>
+              <Text style={[styles.linkTitle, { color: COLORS.text }]}>
                 {isRTL ? 'لم تجد خدمتك؟' : "Didn't find your service?"}
               </Text>
-              <Text style={[styles.helpSub, { color: COLORS.textSecondary }]}>
+              <Text style={[styles.linkSub, { color: COLORS.textSecondary }]}>
                 {isRTL
                   ? 'تواصل مع فريق الدعم وسنساعدك في إيجاد الفني المناسب'
                   : 'Chat with support and we will match you with a tech'}
@@ -501,17 +461,6 @@ const makeStyles = (C: any, isRTL: boolean, SHADOWS: any) =>
       textAlign: isRTL ? 'right' : 'left',
       writingDirection: isRTL ? 'rtl' : 'ltr',
     },
-    heroSubtitle: {
-      color: '#ffffffcc',
-      fontSize: 12,
-      marginTop: 4,
-      lineHeight: 18,
-      textAlign: isRTL ? 'right' : 'left',
-      writingDirection: isRTL ? 'rtl' : 'ltr',
-    },
-    // Pill-shaped badge sitting under the hero title. Glass-style — soft
-    // translucent fill on the brand color, white text + icon. Generic
-    // promise (no city names) so it stays correct as coverage expands.
     heroBadge: {
       alignSelf: isRTL ? 'flex-end' : 'flex-start',
       flexDirection: isRTL ? 'row-reverse' : 'row',
@@ -565,6 +514,7 @@ const makeStyles = (C: any, isRTL: boolean, SHADOWS: any) =>
       paddingHorizontal: 12,
       paddingVertical: 12,
       borderRadius: BORDER_RADIUS.md,
+      borderWidth: 1,
       ...SHADOWS.small,
     },
     featureIconWrap: {
@@ -584,7 +534,7 @@ const makeStyles = (C: any, isRTL: boolean, SHADOWS: any) =>
       marginBottom: 12,
     },
     sectionTitle: { fontSize: 20, fontWeight: '800' },
-    sectionMeta: { fontSize: 13, fontWeight: '500' },
+    sectionMeta: { fontSize: 13, fontWeight: '600' },
 
     // Grid
     grid: {
@@ -596,7 +546,8 @@ const makeStyles = (C: any, isRTL: boolean, SHADOWS: any) =>
       width: (width - SPACING.m * 2 - 12) / 2,
       borderRadius: BORDER_RADIUS.md,
       padding: 16,
-      minHeight: 160,
+      minHeight: 168,
+      borderWidth: 1,
       ...SHADOWS.small,
     },
     tileIconWrap: {
@@ -609,67 +560,8 @@ const makeStyles = (C: any, isRTL: boolean, SHADOWS: any) =>
     },
     tileName: { fontSize: 14, fontWeight: '700', textAlign: isRTL ? 'right' : 'left' },
     tileDesc: { fontSize: 11, marginTop: 4, lineHeight: 16, textAlign: isRTL ? 'right' : 'left' },
-    tileFoot: { marginTop: 10 },
-    tilePrice: { fontSize: 12, fontWeight: '700' },
-    subGroupTitle: { fontSize: 13, fontWeight: '700', marginBottom: 10, textAlign: isRTL ? 'right' : 'left' },
-    upsellGrid: {
-      flexDirection: isRTL ? 'row-reverse' : 'row',
-      flexWrap: 'wrap',
-      gap: 12,
-    },
-    upsellCard: {
-      width: (width - SPACING.m * 2 - 12) / 2,
-      borderRadius: BORDER_RADIUS.md,
-      padding: 14,
-      ...SHADOWS.small,
-    },
-    shopHero: {
-      flexDirection: isRTL ? 'row-reverse' : 'row',
-      alignItems: 'center',
-      gap: 12,
-      borderRadius: BORDER_RADIUS.md,
-      padding: 18,
-      marginTop: 22,
-      marginBottom: 12,
-    },
-    shopHeroEyebrow: { color: '#94a3b8', fontSize: 11, fontWeight: '800', letterSpacing: 1.2, marginBottom: 6, textAlign: isRTL ? 'right' : 'left' },
-    shopHeroTitle: { color: '#fff', fontSize: 17, fontWeight: '800', textAlign: isRTL ? 'right' : 'left' },
-    shopHeroSub: { color: '#cbd5e1', fontSize: 12, marginTop: 4, lineHeight: 17, textAlign: isRTL ? 'right' : 'left' },
-    shopChipsRow: {
-      flexDirection: isRTL ? 'row-reverse' : 'row',
-      gap: 8,
-      marginBottom: 14,
-    },
-    shopChip: {
-      paddingHorizontal: 14,
-      paddingVertical: 8,
-      borderRadius: 999,
-      borderWidth: 1,
-    },
-    shopCard: {
-      width: (width - SPACING.m * 2 - 12) / 2,
-      borderRadius: BORDER_RADIUS.md,
-      padding: 14,
-      ...SHADOWS.small,
-    },
-    shopCardIcon: {
-      width: 56,
-      height: 56,
-      borderRadius: 14,
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginBottom: 10,
-    },
-    shopAddBtn: {
-      flexDirection: isRTL ? 'row-reverse' : 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: 4,
-      paddingVertical: 8,
-      borderRadius: 999,
-      marginTop: 10,
-    },
-    shopAddBtnText: { color: '#fff', fontWeight: '700', fontSize: 12 },
+    tileFoot: { marginTop: 'auto', paddingTop: 10 },
+    tilePrice: { fontSize: 13, fontWeight: '800', textAlign: isRTL ? 'right' : 'left' },
     soonPill: {
       alignSelf: isRTL ? 'flex-end' : 'flex-start',
       paddingHorizontal: 8,
@@ -678,22 +570,92 @@ const makeStyles = (C: any, isRTL: boolean, SHADOWS: any) =>
     },
     soonText: { fontSize: 10, fontWeight: '700' },
 
-    // Help card
-    helpCard: {
+    // How it works — stepped timeline
+    stepsCard: {
+      borderRadius: BORDER_RADIUS.lg,
+      borderWidth: 1,
+      paddingVertical: 18,
+      paddingHorizontal: 16,
+      ...SHADOWS.small,
+    },
+    stepRow: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'stretch',
+    },
+    stepRail: {
+      width: 40,
+      alignItems: 'center',
+    },
+    stepDot: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    stepLine: {
+      flex: 1,
+      width: 2,
+      marginVertical: 4,
+      borderRadius: 1,
+    },
+    stepBody: {
+      flex: 1,
+      marginHorizontal: 14,
+      paddingBottom: 20,
+    },
+    stepTitleRow: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
+    },
+    stepIndex: {
+      fontSize: 11,
+      fontWeight: '800',
+      letterSpacing: 0.8,
+      textTransform: 'uppercase',
+      textAlign: isRTL ? 'right' : 'left',
+    },
+    stepTitle: {
+      fontSize: 15,
+      fontWeight: '800',
+      marginTop: 3,
+      textAlign: isRTL ? 'right' : 'left',
+      writingDirection: isRTL ? 'rtl' : 'ltr',
+    },
+    stepSub: {
+      fontSize: 12.5,
+      lineHeight: 18,
+      marginTop: 3,
+      textAlign: isRTL ? 'right' : 'left',
+      writingDirection: isRTL ? 'rtl' : 'ltr',
+    },
+
+    // Link rows (Market / Salvage)
+    linkCard: {
       flexDirection: isRTL ? 'row-reverse' : 'row',
       alignItems: 'center',
       borderRadius: BORDER_RADIUS.md,
+      borderWidth: 1,
       padding: 16,
-      marginTop: 24,
       ...SHADOWS.small,
     },
-    helpIcon: {
+    linkIcon: {
       width: 44,
       height: 44,
       borderRadius: 12,
       alignItems: 'center',
       justifyContent: 'center',
     },
-    helpTitle: { fontSize: 14, fontWeight: '700' },
-    helpSub: { fontSize: 12, marginTop: 2, lineHeight: 16 },
+    linkTitle: { fontSize: 14, fontWeight: '700', textAlign: isRTL ? 'right' : 'left' },
+    linkSub: { fontSize: 12, marginTop: 2, lineHeight: 16, textAlign: isRTL ? 'right' : 'left' },
+
+    // Help card
+    helpCard: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
+      borderRadius: BORDER_RADIUS.md,
+      borderWidth: 1,
+      padding: 16,
+      marginTop: 22,
+    },
   });

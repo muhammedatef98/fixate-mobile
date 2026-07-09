@@ -77,7 +77,7 @@ export default function ActiveJobScreen() {
       Animated.parallel([
         Animated.timing(fadeAnim, {
           toValue: 1,
-          duration: 500,
+          duration: 220,
           useNativeDriver: true,
         }),
         Animated.spring(slideAnim, {

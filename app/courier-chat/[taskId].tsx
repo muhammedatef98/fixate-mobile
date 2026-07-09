@@ -125,6 +125,28 @@ export default function CourierChatScreen() {
     }
   };
 
+  // Dial the counterpart. A lightweight confirm keeps an accidental header tap
+  // from silently launching the dialer, and names who's about to be called so
+  // the courier always knows whether they're reaching the technician or the
+  // customer — the two threads never blur.
+  const handleCall = (phone: string) => {
+    Alert.alert(
+      isRTL ? `الاتصال بـ ${counterpartName}` : `Call ${counterpartName}`,
+      phone,
+      [
+        { text: isRTL ? 'إلغاء' : 'Cancel', style: 'cancel' },
+        {
+          text: isRTL ? 'اتصال' : 'Call',
+          onPress: () => {
+            Linking.openURL(`tel:${phone}`).catch((e) =>
+              logger.warn('courier call failed', e)
+            );
+          },
+        },
+      ]
+    );
+  };
+
   // The other party from each side's perspective + their phone for the call
   // shortcut (contact fields were stamped onto the task at creation time).
   // The courier calls the thread's party; the technician/customer have no
@@ -221,15 +243,18 @@ export default function CourierChatScreen() {
         </View>
         {counterpartPhone && chatOpen ? (
           <TouchableOpacity
-            onPress={() => Linking.openURL(`tel:${counterpartPhone}`)}
-            style={[styles.callBtn, { backgroundColor: COLORS.primary + '15' }]}
+            onPress={() => handleCall(counterpartPhone)}
+            style={[styles.callBtn, { backgroundColor: COLORS.primary }]}
             accessibilityRole="button"
-            accessibilityLabel={isRTL ? 'اتصال' : 'Call'}
+            accessibilityLabel={
+              isRTL ? `اتصال بـ ${counterpartName}` : `Call ${counterpartName}`
+            }
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
-            <Ionicons name="call" size={18} color={COLORS.primary} />
+            <Ionicons name="call" size={17} color="#fff" />
           </TouchableOpacity>
         ) : (
-          <View style={{ width: 36 }} />
+          <View style={{ width: 40 }} />
         )}
       </View>
 
@@ -346,11 +371,16 @@ const makeStyles = (C: any, isRTL: boolean) =>
     headerTitle: { fontSize: 16, fontWeight: '800' },
     headerSubtitle: { fontSize: 12, marginTop: 2 },
     callBtn: {
-      width: 36,
-      height: 36,
-      borderRadius: 18,
+      width: 40,
+      height: 40,
+      borderRadius: 20,
       alignItems: 'center',
       justifyContent: 'center',
+      shadowColor: C.primary,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.28,
+      shadowRadius: 5,
+      elevation: 3,
     },
     messageRow: { flexDirection: 'row', marginTop: 6 },
     bubble: {

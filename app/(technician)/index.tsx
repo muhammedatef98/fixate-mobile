@@ -87,7 +87,9 @@ export default function TechnicianHomeScreen() {
   const [isAvailable, setIsAvailable] = useState(true);
   const [togglingAvailability, setTogglingAvailability] = useState(false);
 
-  const fadeAnim = useRef(new Animated.Value(0)).current;
+  // Content renders at full opacity immediately — the Stack navigator owns the
+  // entrance motion, so a screen-level mount fade only delays perceived paint.
+  const fadeAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
     if (!user) return;
@@ -135,12 +137,6 @@ export default function TechnicianHomeScreen() {
 
   useEffect(() => {
     loadOrders();
-    
-    Animated.timing(fadeAnim, {
-      toValue: 1,
-      duration: 500,
-      useNativeDriver: true,
-    }).start();
   }, []);
 
   const loadOrders = async () => {
