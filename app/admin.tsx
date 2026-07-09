@@ -597,6 +597,12 @@ export default function AdminDashboardScreen() {
           onPress={() => router.push('/admin-orders')}
         />
         <AdminActionCard
+          icon="shield-check-outline" iconColor="#8b5cf6"
+          title={isRTL ? 'ضمانات الإصلاح' : 'Repair Warranties'}
+          subtitle={isRTL ? 'متابعة الضمانات السارية والمنتهية لكل إصلاح' : 'Track active & expired warranties per repair'}
+          onPress={() => router.push('/admin-warranties' as any)}
+        />
+        <AdminActionCard
           icon="storefront-outline" iconColor="#f59e0b"
           title={isRTL ? 'إعلانات السوق' : 'Market Listings'}
           subtitle={isRTL ? 'الموافقة على الإعلانات المعلّقة أو رفضها' : 'Approve or reject pending listings'}

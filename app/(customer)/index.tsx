@@ -470,16 +470,7 @@ export default function CustomerHomeScreen() {
 
             {/* 3 — Repair warranty (status + expiry of last repair) */}
             <PressableScale
-              onPress={() =>
-                recentOrder
-                  ? router.push(`/order-details?id=${recentOrder.id}`)
-                  : Alert.alert(
-                      isRTL ? 'ضمان الإصلاح' : 'Repair warranty',
-                      isRTL
-                        ? 'كل إصلاح يشمل ضمان سنة كاملة. سيظهر تاريخ الانتهاء هنا بعد أول إصلاح مكتمل.'
-                        : 'Every repair includes a 1-year warranty. The expiry date shows here after your first completed repair.'
-                    )
-              }
+              onPress={() => router.push('/warranty')}
               style={[styles.actionCard, { backgroundColor: COLORS.card, borderColor: COLORS.border }]}
               accessibilityRole="button"
               accessibilityLabel={isRTL ? 'ضمان الإصلاح' : 'Repair warranty'}

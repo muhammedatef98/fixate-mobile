@@ -382,6 +382,8 @@ function RootLayoutContent() {
             navigator header so it doesn't appear duplicated above the
             custom one. */}
         <Stack.Screen name="notifications" options={{ headerShown: false }} />
+        <Stack.Screen name="warranty" options={{ headerShown: false }} />
+        <Stack.Screen name="admin-warranties" options={{ headerShown: false }} />
         <Stack.Screen name="admin" options={{ headerShown: false }} />
         <Stack.Screen name="edit-profile" options={{ headerShown: false }} />
         <Stack.Screen name="support-chat" options={{ headerShown: false }} />
