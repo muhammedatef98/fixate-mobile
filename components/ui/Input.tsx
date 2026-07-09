@@ -75,7 +75,7 @@ export const Input: React.FC<InputProps> = ({ label, error, icon, style, ...prop
 const styles = StyleSheet.create({
   inputContainer: {
     alignItems: 'center',
-    borderRadius: BORDER_RADIUS.sm,
+    borderRadius: BORDER_RADIUS.md,
     minHeight: 48,
     paddingHorizontal: SPACING.s,
   },

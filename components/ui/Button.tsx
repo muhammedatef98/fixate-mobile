@@ -85,6 +85,7 @@ export const Button: React.FC<ButtonProps> = ({
           styles.container,
           { backgroundColor: bg() },
           variant === 'outline' && { borderWidth: 1.5, borderColor: disabled ? C.border : C.primary },
+          variant === 'secondary' && { borderWidth: 1, borderColor: C.border },
           pad(),
           variant === 'primary' && !disabled && SHADOWS.small,
           style,
@@ -114,7 +115,7 @@ export const Button: React.FC<ButtonProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    borderRadius: BORDER_RADIUS.sm,
+    borderRadius: BORDER_RADIUS.md,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',

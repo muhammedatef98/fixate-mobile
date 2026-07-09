@@ -31,7 +31,7 @@ export const Card: React.FC<CardProps> = ({
   };
   const variantStyle =
     variant === 'elevated'
-      ? SHADOWS.small
+      ? { ...SHADOWS.small, borderWidth: 1, borderColor: C.border }
       : variant === 'outlined'
       ? { borderWidth: 1, borderColor: C.border, backgroundColor: 'transparent' as const }
       : {};

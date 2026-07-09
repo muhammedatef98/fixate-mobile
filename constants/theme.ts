@@ -43,9 +43,10 @@ const LIGHT_COLORS = {
 
   white: '#FFFFFF',
   black: '#000000',
-  border: '#E8ECF1',
-  borderStrong: '#D9DFE7',
-  input: '#E8ECF1',
+  // Softer, lower-contrast hairlines — borders should whisper, not divide.
+  border: '#EAEEF3',
+  borderStrong: '#DBE1E9',
+  input: '#EAEEF3',
 
   success: '#16A34A',
   successSoft: '#E8F6EC',
@@ -164,6 +165,9 @@ export const FONTS = {
   extraBold: 'IBMPlexSansArabic_700Bold',
 };
 
+// NOTE: no letterSpacing here on purpose — this app is Arabic-first and
+// letter-spacing breaks Arabic cursive letter-joining. Hierarchy comes from
+// size/weight/color contrast instead.
 export const TYPOGRAPHY = {
   h1: {
     fontFamily: FONTS.bold,
@@ -210,149 +214,157 @@ export const BORDER_RADIUS = {
 };
 
 // Light Mode Shadows
+// Premium, soft, downward-cast elevation. Shadows use a cool near-black slate
+// (#0C1220) at low opacity + generous blur — the modern "lift off the page"
+// look used by polished global apps — instead of hard diagonal grey offsets.
+// Every key is preserved; the legacy `neu*` names now resolve to the same
+// refined soft shadows so existing screens upgrade automatically.
+const SHADOW_INK_LIGHT = '#0C1220';
 const LIGHT_SHADOWS = {
   neu: {
-    shadowColor: '#E5E7EB',
-    shadowOffset: { width: 4, height: 4 },
-    shadowOpacity: 0.8,
-    shadowRadius: 8,
+    shadowColor: SHADOW_INK_LIGHT,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.07,
+    shadowRadius: 10,
     elevation: 2,
   },
   neuPressed: {
-    shadowColor: '#000000',
+    shadowColor: SHADOW_INK_LIGHT,
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
+    shadowOpacity: 0.04,
+    shadowRadius: 3,
     elevation: 1,
   },
   neuFlat: {
-    shadowColor: '#E5E7EB',
-    shadowOffset: { width: 4, height: 4 },
-    shadowOpacity: 0.8,
-    shadowRadius: 8,
+    shadowColor: SHADOW_INK_LIGHT,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.07,
+    shadowRadius: 10,
     elevation: 2,
   },
   neuSmall: {
-    shadowColor: '#E5E7EB',
-    shadowOffset: { width: 2, height: 2 },
-    shadowOpacity: 0.8,
-    shadowRadius: 4,
+    shadowColor: SHADOW_INK_LIGHT,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
     elevation: 1,
   },
   neuInset: {
-    shadowColor: '#000000',
-    shadowOffset: { width: -2, height: -2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    shadowColor: SHADOW_INK_LIGHT,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 3,
     elevation: 1,
   },
   small: {
-    shadowColor: '#000',
+    shadowColor: SHADOW_INK_LIGHT,
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
     elevation: 2,
   },
   medium: {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
+    shadowColor: SHADOW_INK_LIGHT,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.09,
+    shadowRadius: 18,
     elevation: 4,
   },
   large: {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.12,
-    shadowRadius: 24,
-    elevation: 8,
+    shadowColor: SHADOW_INK_LIGHT,
+    shadowOffset: { width: 0, height: 14 },
+    shadowOpacity: 0.13,
+    shadowRadius: 32,
+    elevation: 10,
   },
   neuLarge: {
-    shadowColor: '#D1D5DB',
-    shadowOffset: { width: 12, height: 12 },
-    shadowOpacity: 1,
-    shadowRadius: 24,
-    elevation: 12,
+    shadowColor: SHADOW_INK_LIGHT,
+    shadowOffset: { width: 0, height: 14 },
+    shadowOpacity: 0.13,
+    shadowRadius: 32,
+    elevation: 10,
   },
   primaryGlow: {
     shadowColor: '#10B981',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.22,
+    shadowRadius: 16,
     elevation: 6,
   },
 };
 
 // Dark Mode Shadows
+// Pure-black, downward-cast and restrained. On dark surfaces the border does
+// most of the "lift"; shadows only add quiet depth so cards don't look muddy.
 const DARK_SHADOWS = {
   neu: {
     shadowColor: '#000000',
-    shadowOffset: { width: 5, height: 5 },
-    shadowOpacity: 0.5,
-    shadowRadius: 10,
-    elevation: 0,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.32,
+    shadowRadius: 12,
+    elevation: 2,
   },
   neuPressed: {
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.3,
-    shadowRadius: 2,
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
     elevation: 1,
   },
   neuFlat: {
     shadowColor: '#000000',
-    shadowOffset: { width: 5, height: 5 },
-    shadowOpacity: 0.5,
-    shadowRadius: 10,
-    elevation: 0,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.32,
+    shadowRadius: 12,
+    elevation: 2,
   },
   neuSmall: {
     shadowColor: '#000000',
-    shadowOffset: { width: 3, height: 3 },
-    shadowOpacity: 0.4,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
     shadowRadius: 6,
-    elevation: 0,
+    elevation: 1,
   },
   neuInset: {
     shadowColor: '#000000',
-    shadowOffset: { width: -2, height: -2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
     elevation: 1,
   },
   small: {
-    shadowColor: '#000',
+    shadowColor: '#000000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
+    shadowOpacity: 0.28,
+    shadowRadius: 8,
     elevation: 2,
   },
   medium: {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 12,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.38,
+    shadowRadius: 18,
     elevation: 4,
   },
   large: {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 14 },
     shadowOpacity: 0.5,
-    shadowRadius: 24,
-    elevation: 8,
+    shadowRadius: 32,
+    elevation: 10,
   },
   neuLarge: {
     shadowColor: '#000000',
-    shadowOffset: { width: 12, height: 12 },
-    shadowOpacity: 0.6,
-    shadowRadius: 24,
-    elevation: 12,
+    shadowOffset: { width: 0, height: 14 },
+    shadowOpacity: 0.5,
+    shadowRadius: 32,
+    elevation: 10,
   },
   primaryGlow: {
     shadowColor: '#10B981',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.5,
-    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.35,
+    shadowRadius: 16,
     elevation: 6,
   },
 };
@@ -363,10 +375,12 @@ export const getShadows = (isDark: boolean) => isDark ? DARK_SHADOWS : LIGHT_SHA
 // Default export (light mode for backward compatibility)
 export const SHADOWS = LIGHT_SHADOWS;
 
+// Motion stays light, fast and elegant — quick, confident transitions with no
+// sluggish delays. Tuned snappier than the old 200/300/500 defaults.
 export const ANIMATIONS = {
   duration: {
-    fast: 200,
-    normal: 300,
-    slow: 500,
+    fast: 140,
+    normal: 220,
+    slow: 360,
   },
 };
