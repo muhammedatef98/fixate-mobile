@@ -43,10 +43,11 @@ const LIGHT_COLORS = {
 
   white: '#FFFFFF',
   black: '#000000',
-  // Softer, lower-contrast hairlines — borders should whisper, not divide.
-  border: '#EAEEF3',
+  // Soft, low-contrast hairlines — present enough to give inputs a clear
+  // resting edge, quiet enough that dividers still whisper rather than divide.
+  border: '#E4E9EF',
   borderStrong: '#DBE1E9',
-  input: '#EAEEF3',
+  input: '#E4E9EF',
 
   success: '#16A34A',
   successSoft: '#E8F6EC',
