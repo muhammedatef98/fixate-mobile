@@ -55,6 +55,7 @@ import {
   type DiscountCode,
 } from '../services/discountService';
 import { getPlatformSettings, type PlatformSettings } from '../services/platformSettingsService';
+import { getAccessories, getProtection } from '../services/pricingRegistryService';
 import ServiceCenterCard from '../components/ServiceCenterCard';
 import {
   getRequestStepMethods,
@@ -191,6 +192,13 @@ export default function RequestScreen() {
     estimateForIssue(selectedIssue, {
       sparePartQuality,
       regionCode: selectedCityRegion?.code ?? null,
+      context: {
+        deviceType: selectedDeviceType,
+        brand: selectedDeviceType === 'other' ? otherDeviceName.trim() : selectedBrand?.name ?? null,
+        model: selectedDeviceType === 'other' ? otherDeviceModel.trim() : selectedModel ?? null,
+        category: (selectedIssue as any).category ?? null,
+        repairType: selectedIssue.id,
+      },
     })
       .then((res) => {
         if (!cancelled) setEstimate(res);
@@ -201,12 +209,33 @@ export default function RequestScreen() {
     return () => {
       cancelled = true;
     };
-  }, [selectedIssue?.id, sparePartQuality, selectedCityRegion?.code]);
+  }, [selectedIssue?.id, sparePartQuality, selectedCityRegion?.code, selectedBrand?.id, selectedModel, otherDeviceName, otherDeviceModel, selectedDeviceType]);
 
   // Payment + optional upsells captured in the Details step.
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash');
   const [selectedAccessories, setSelectedAccessories] = useState<AddonItem[]>([]);
   const [selectedProtection, setSelectedProtection] = useState<AddonItem[]>([]);
+  // Admin-managed catalog (§4) with the hardcoded suggestions as the seed so
+  // the list is never empty before the async load resolves.
+  const [accessoryCatalog, setAccessoryCatalog] = useState<AddonItem[]>(
+    () => getAccessorySuggestions(null)
+  );
+  const [protectionCatalog, setProtectionCatalog] = useState<AddonItem[]>(
+    () => PROTECTION_ADDONS
+  );
+  useEffect(() => {
+    let cancelled = false;
+    Promise.all([getAccessories(selectedDeviceType), getProtection()])
+      .then(([acc, prot]) => {
+        if (cancelled) return;
+        setAccessoryCatalog(acc);
+        setProtectionCatalog(prot);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedDeviceType]);
 
   // Card form (UI-only — no real gateway). Used for a masked review summary.
   const [cardName, setCardName] = useState('');
@@ -1304,7 +1333,7 @@ export default function RequestScreen() {
                 {isRTL ? 'إكسسوارات مقترحة (اختياري)' : 'Suggested accessories (optional)'}
               </Text>
               <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', flexWrap: 'wrap', gap: 8 }}>
-                {getAccessorySuggestions(selectedDeviceType).map((acc) => {
+                {accessoryCatalog.map((acc) => {
                   const selected = selectedAccessories.some((x) => x.id === acc.id);
                   return (
                     <AnimatedTouchable
@@ -1336,7 +1365,7 @@ export default function RequestScreen() {
                 {isRTL ? 'حماية إضافية (اختياري)' : 'Protection add-ons (optional)'}
               </Text>
               <View style={{ gap: 8 }}>
-                {PROTECTION_ADDONS.map((p) => {
+                {protectionCatalog.map((p) => {
                   const selected = selectedProtection.some((x) => x.id === p.id);
                   return (
                     <AnimatedTouchable

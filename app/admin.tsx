@@ -646,6 +646,18 @@ export default function AdminDashboardScreen() {
           onPress={() => router.push('/admin-service-areas' as any)}
         />
         <AdminActionCard
+          icon="tune-variant" iconColor="#f59e0b"
+          title={isRTL ? 'تسعير الإصلاح' : 'Repair Pricing'}
+          subtitle={isRTL ? 'قواعد أسعار الإصلاح لكل جهاز/ماركة/موديل/عطل' : 'Pricing rules per device / brand / model / repair'}
+          onPress={() => router.push('/admin-pricing-rules' as any)}
+        />
+        <AdminActionCard
+          icon="tag-multiple" iconColor="#8b5cf6"
+          title={isRTL ? 'الإكسسوارات والحماية' : 'Accessories & Protection'}
+          subtitle={isRTL ? 'إدارة أسعار الإضافات في إنشاء الطلب' : 'Manage add-on pricing in request creation'}
+          onPress={() => router.push('/admin-pricing-addons' as any)}
+        />
+        <AdminActionCard
           icon="sale" iconColor="#ec4899"
           title={isRTL ? 'عروض وخصومات' : 'Offers & Discounts'}
           subtitle={isRTL ? 'إنشاء وإدارة العروض الترويجية للعملاء' : 'Create & manage customer promotions'}

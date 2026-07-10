@@ -402,6 +402,8 @@ function RootLayoutContent() {
         <Stack.Screen name="admin-accounting" options={{ headerShown: false }} />
         <Stack.Screen name="admin-suppliers" options={{ headerShown: false }} />
         <Stack.Screen name="admin-service-areas" options={{ headerShown: false }} />
+        <Stack.Screen name="admin-pricing-rules" options={{ headerShown: false }} />
+        <Stack.Screen name="admin-pricing-addons" options={{ headerShown: false }} />
         <Stack.Screen name="admin-offers" options={{ headerShown: false }} />
         <Stack.Screen name="admin-community" options={{ headerShown: false }} />
         <Stack.Screen name="admin-billing" options={{ headerShown: false }} />

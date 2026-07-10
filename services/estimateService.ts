@@ -25,6 +25,7 @@ import {
 } from '../utils/estimate';
 import type { Issue } from '../constants/repairData';
 import type { SparePartQuality } from '../types/order';
+import { resolveRepairPrice, type RepairPriceContext } from './pricingRegistryService';
 
 export const PRICING_ESTIMATES_KEY = 'pricing_estimates_v1';
 
@@ -62,7 +63,12 @@ export const invalidateEstimateConfigCache = (): void => {
  */
 export const estimateForIssue = async (
   issue: Pick<Issue, 'id' | 'estimatedPrice' | 'priceRange'>,
-  opts?: { sparePartQuality?: SparePartQuality; regionCode?: string | null }
+  opts?: {
+    sparePartQuality?: SparePartQuality;
+    regionCode?: string | null;
+    /** Device attributes for the managed pricing_rules registry (§5/§16). */
+    context?: RepairPriceContext;
+  }
 ): Promise<EstimateResult> => {
   let config: EstimateConfig | null = null;
   try {
@@ -70,10 +76,32 @@ export const estimateForIssue = async (
   } catch {
     config = null;
   }
+
+  // Admin-managed repair price (pricing_rules) takes precedence over the
+  // repairData baseline when a rule matches; the spare-part tier + region
+  // multipliers still apply on top, keeping it consistent with the invoice.
+  // No rule → null → we keep the current baseline behaviour untouched.
+  let baseTypical = issue.estimatedPrice ?? 0;
+  let baseMin = issue.priceRange?.min;
+  let baseMax = issue.priceRange?.max;
+  try {
+    const managed = await resolveRepairPrice({
+      ...opts?.context,
+      repairType: opts?.context?.repairType ?? issue.id,
+    });
+    if (managed != null) {
+      baseTypical = managed;
+      baseMin = undefined;
+      baseMax = undefined;
+    }
+  } catch {
+    // ignore — fall back to baseline
+  }
+
   return computeEstimate({
-    baseTypical: issue.estimatedPrice ?? 0,
-    baseMin: issue.priceRange?.min,
-    baseMax: issue.priceRange?.max,
+    baseTypical,
+    baseMin,
+    baseMax,
     issueId: issue.id,
     sparePartQuality: opts?.sparePartQuality,
     regionCode: opts?.regionCode ?? null,
