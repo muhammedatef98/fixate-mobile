@@ -259,6 +259,24 @@ export default function TermsScreen() {
 
 22.7. تحتفظ المنصّة بحقها المطلق في تعليق أو إنهاء أي حساب، وحجب أي مستحقات مرتبطة بمخالفة أو احتيال، والإبلاغ عن أي نشاط غير مشروع للجهات المختصة، دون إشعار مسبق ودون أدنى مسؤولية.
 
+## 23. سوق الأجهزة المستعملة (Marketplace) — إخلاء مسؤولية مشدّد
+
+23.1. قسم السوق داخل التطبيق هو منصّة عرض وربط بين بائعين ومشترين مستقلين فقط. المنصّة ليست بائعاً ولا مشترياً ولا وسيطاً في أي صفقة، ولا تمتلك أو تحوز أو تفحص أو تضمن أي منتج معروض.
+
+23.2. تقع المسؤولية الكاملة عن دقة وصف المنتج، وحالته، وأصالته، وملكيته، ومطابقته، وسلامته القانونية، على عاتق البائع وحده. ويتحمّل المشتري وحده مسؤولية معاينة المنتج والتحقق منه قبل الشراء (مبدأ «البضاعة المباعة كما هي»).
+
+23.3. لا تضمن المنصّة جودة أي منتج، أو صحّة أي إعلان، أو صدق أي طرف، أو إتمام أي صفقة، أو توفّر المنتج، أو أهليّة أي مستخدم للبيع أو الشراء.
+
+23.4. جميع المدفوعات والتسليمات في السوق تتم مباشرةً بين البائع والمشتري وعلى مسؤوليتهما وحدهما. لا تتدخّل المنصّة في تحصيل الأموال أو حجزها أو ردّها، ولا تتحمّل أي مسؤولية عن الاحتيال، أو عدم الدفع، أو الشيكات المرتجعة، أو المنتجات المزيّفة أو المسروقة أو غير المطابقة.
+
+23.5. جميع النزاعات المتعلقة بالسوق — بما في ذلك خلافات الجودة أو السعر أو الوصف أو التسليم أو حالة المنتج أو الاسترجاع أو ما بعد البيع — تُحلّ مباشرةً بين البائع والمشتري. تُخلى المنصّة تماماً من أي مسؤولية عنها، وأي تدخّل من فريق الدعم يكون بصفة تيسيرية فقط ودون التزام أو ضمان.
+
+23.6. يُمنع منعاً باتاً عرض أي منتجات مقلّدة أو مسروقة أو محظورة أو مخالفة للأنظمة، ويتحمّل المخالف كامل المسؤولية القانونية. وتحتفظ المنصّة بحقها في إزالة أي إعلان وتعليق أو إنهاء أي حساب والإبلاغ عن أي نشاط غير مشروع دون إشعار.
+
+23.7. ينصح بشدّة بإتمام المعاينة والتسليم في أماكن عامة وآمنة. المنصّة غير مسؤولة عن أي ضرر شخصي أو مادي أو خسارة تنشأ عن اللقاءات أو التعاملات بين مستخدمي السوق.
+
+23.8. يوافق كل مستخدم للسوق على إبراء ذمّة المنصّة وتعويضها عن أي مطالبات أو خسائر أو أضرار تنشأ عن تعاملاته في السوق أو إخلاله بهذه الشروط.
+
 ## 18. الاتصال بنا
 
 إذا كان لديك أي استفسارات حول هذه الشروط، يرجى التواصل معنا:
@@ -268,7 +286,7 @@ export default function TermsScreen() {
 
 ---
 
-**بقبولك لهذه الشروط، فإنك تقر بأنك قرأتها وفهمتها ووافقت عليها، وتلتزم بجميع التزامات دورك (عميل / فني / مندوب توصيل) الواردة أعلاه.**
+**بقبولك لهذه الشروط، فإنك تقر بأنك قرأتها وفهمتها ووافقت عليها، وتلتزم بجميع التزامات دورك (عميل / فني / مندوب توصيل / بائع أو مشترٍ في السوق) الواردة أعلاه.**
 `;
 
   const termsEn = `
@@ -514,6 +532,24 @@ b. Efforts are made to resolve disputes amicably through the support team; faili
 
 22.7. The platform reserves the absolute right to suspend or terminate any account, withhold any dues connected to a violation or fraud, and report any unlawful activity to the competent authorities, without prior notice and without the slightest liability.
 
+## 23. Used-Device Marketplace — Strengthened Disclaimer
+
+23.1. The in-app Marketplace is only a listing and connection platform between independent buyers and sellers. The platform is neither a buyer nor a seller nor a party to any transaction, and does not own, hold, inspect or guarantee any listed item.
+
+23.2. The seller alone is fully responsible for the accuracy of the item description, its condition, authenticity, ownership, conformity and legal status. The buyer alone is responsible for inspecting and verifying the item before purchase ("sold as is").
+
+23.3. The platform does not guarantee the quality of any item, the truthfulness of any listing or party, the completion of any transaction, item availability, or any user's eligibility to buy or sell.
+
+23.4. All Marketplace payments and hand-overs occur directly between buyer and seller and at their sole responsibility. The platform does not collect, hold or refund funds, and bears no liability for fraud, non-payment, bounced payments, or counterfeit, stolen or non-conforming items.
+
+23.5. All Marketplace disputes — including disagreements over quality, price, description, delivery, item condition, returns or after-sale matters — are resolved directly between buyer and seller. The platform is fully released from any liability for them, and any support intervention is facilitative only, without obligation or guarantee.
+
+23.6. Listing counterfeit, stolen, prohibited or unlawful items is strictly forbidden and is the violator's full legal responsibility. The platform reserves the right to remove any listing, suspend or terminate any account, and report unlawful activity without notice.
+
+23.7. Inspection and hand-over in safe, public places is strongly advised. The platform is not responsible for any personal injury, property damage or loss arising from meetings or dealings between Marketplace users.
+
+23.8. Every Marketplace user agrees to release and indemnify the platform against any claims, losses or damages arising from their Marketplace dealings or their breach of these terms.
+
 ## 18. Contact Us
 
 If you have any questions about these terms, please contact us:
@@ -523,7 +559,7 @@ If you have any questions about these terms, please contact us:
 
 ---
 
-**By accepting these terms, you acknowledge that you have read, understood and agreed to them, and that you accept all obligations of your role (customer / technician / courier) set out above.**
+**By accepting these terms, you acknowledge that you have read, understood and agreed to them, and that you accept all obligations of your role (customer / technician / courier / marketplace buyer or seller) set out above.**
 `;
 
   return (

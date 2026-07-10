@@ -357,6 +357,21 @@ export default function MarketNewScreen() {
               ? 'لن يظهر إعلانك إلا بعد موافقة فريق المراجعة، وسيتم إشعارك عند القبول'
               : "Your listing won't be visible until reviewed and approved. You'll be notified upon approval."}
           </Text>
+
+          {/* §6 — marketplace disclaimer: the platform is only a venue; deals
+              are strictly between buyer and seller. */}
+          <Text style={styles.publishNote}>
+            {isRTL
+              ? 'السوق منصّة ربط فقط؛ الصفقات والدفع والتسليم تتم مباشرة بينك وبين الطرف الآخر وعلى مسؤوليتكما. المنصّة غير مسؤولة عن جودة المنتج أو النزاعات. بالنشر فإنك توافق على '
+              : 'The Marketplace is a connection venue only; deals, payment and hand-over are directly between you and the other party and at your responsibility. The platform is not liable for item quality or disputes. By publishing you agree to the '}
+            <Text
+              style={{ color: COLORS.primary, fontWeight: '700' }}
+              onPress={() => router.push('/terms' as any)}
+            >
+              {isRTL ? 'الشروط والأحكام' : 'Terms & Conditions'}
+            </Text>
+            {isRTL ? ' (قسم السوق).' : ' (Marketplace section).'}
+          </Text>
         </ScrollView>
       </KeyboardAvoidingView>
 
