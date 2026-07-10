@@ -329,6 +329,28 @@ export const subscribeToAvailableDeliveryTasks = (
     )
   );
 
+/**
+ * Live updates for the courier's OWN tasks (status advances, new return-leg
+ * tasks assigned to them, etc.) so the my-tasks list never needs a manual
+ * refresh. Filtered to the courier's rows to keep it quiet.
+ */
+export const subscribeToMyDeliveryTasks = (
+  courierId: string,
+  onChange: () => void
+): (() => void) =>
+  subscribeUnique(`delivery-tasks-mine-${courierId}`, (ch) =>
+    ch.on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'delivery_tasks',
+        filter: `courier_id=eq.${courierId}`,
+      },
+      () => onChange()
+    )
+  );
+
 // ── Notifications (best-effort, never block the action) ────────────────────
 
 const DELIVERY_PUSH_AR: Partial<Record<DeliveryTaskStatus, string>> = {

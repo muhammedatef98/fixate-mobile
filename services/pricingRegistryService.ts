@@ -253,3 +253,104 @@ export const adminDeleteRule = async (id: string): Promise<void> => {
   if (error) throw error;
   invalidatePricingCache();
 };
+
+// ── CSV / file import (§5) ────────────────────────────────────────────────────
+
+export interface ImportResult {
+  inserted: number;
+  skipped: number;
+  errors: string[];
+}
+
+const num = (v: string | undefined): number | null => {
+  if (v == null || v.trim() === '') return null;
+  const n = Number(v);
+  return Number.isFinite(n) && n >= 0 ? n : null;
+};
+
+/**
+ * Import repair pricing rules from parsed CSV objects (headers:
+ * device_type, brand, model, category, repair_type, price, note). Rows land
+ * with source='import'. A row needs a valid price and at least one match
+ * field. Returns a per-import summary; bad rows are skipped, not fatal.
+ */
+export const adminImportRules = async (
+  rows: Record<string, string>[]
+): Promise<ImportResult> => {
+  const payload: any[] = [];
+  const errors: string[] = [];
+  rows.forEach((r, i) => {
+    const price = num(r.price);
+    if (price == null) {
+      errors.push(`Row ${i + 2}: invalid or missing price`);
+      return;
+    }
+    const rec = {
+      device_type: nz(r.device_type),
+      brand: nz(r.brand),
+      model: nz(r.model),
+      category: nz(r.category),
+      repair_type: nz(r.repair_type),
+      price,
+      note: nz(r.note),
+      active: true,
+      source: 'import' as const,
+    };
+    if (!rec.device_type && !rec.brand && !rec.model && !rec.category && !rec.repair_type) {
+      errors.push(`Row ${i + 2}: needs at least one match field`);
+      return;
+    }
+    payload.push(rec);
+  });
+  if (payload.length === 0) {
+    return { inserted: 0, skipped: rows.length, errors };
+  }
+  const { error } = await supabase.from('pricing_rules').insert(payload);
+  if (error) throw error;
+  invalidatePricingCache();
+  return { inserted: payload.length, skipped: rows.length - payload.length, errors };
+};
+
+/**
+ * Import accessory/protection items from parsed CSV objects (headers:
+ * kind, device_type, item_key, name_ar, name_en, price, sort).
+ */
+export const adminImportAddons = async (
+  rows: Record<string, string>[]
+): Promise<ImportResult> => {
+  const payload: any[] = [];
+  const errors: string[] = [];
+  rows.forEach((r, i) => {
+    const price = num(r.price);
+    const kind = r.kind?.trim().toLowerCase();
+    if (kind !== 'accessory' && kind !== 'protection') {
+      errors.push(`Row ${i + 2}: kind must be accessory or protection`);
+      return;
+    }
+    if (!r.item_key?.trim() || !r.name_ar?.trim() || !r.name_en?.trim()) {
+      errors.push(`Row ${i + 2}: item_key, name_ar and name_en are required`);
+      return;
+    }
+    if (price == null) {
+      errors.push(`Row ${i + 2}: invalid or missing price`);
+      return;
+    }
+    payload.push({
+      kind,
+      device_type: nz(r.device_type),
+      item_key: r.item_key.trim(),
+      name_ar: r.name_ar.trim(),
+      name_en: r.name_en.trim(),
+      price,
+      sort: Number(r.sort) || 0,
+      active: true,
+    });
+  });
+  if (payload.length === 0) {
+    return { inserted: 0, skipped: rows.length, errors };
+  }
+  const { error } = await supabase.from('pricing_addons').insert(payload);
+  if (error) throw error;
+  invalidatePricingCache();
+  return { inserted: payload.length, skipped: rows.length - payload.length, errors };
+};

@@ -6,7 +6,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useApp } from '../../contexts/AppContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { getColors, SPACING } from '../../constants/theme';
-import { getMyDeliveryTasks, type DeliveryTask } from '../../services/courierService';
+import { getMyDeliveryTasks, subscribeToMyDeliveryTasks, type DeliveryTask } from '../../services/courierService';
 import DeliveryTaskCard from '../../components/courier/DeliveryTaskCard';
 import { COURIER_NAV_HEIGHT } from '../../components/BottomNavCourier';
 import { SkeletonOrderCard } from '../../components/SkeletonLoader';
@@ -45,6 +45,21 @@ export default function CourierMyTasksScreen() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  // Live: reflect status advances and newly-assigned tasks without a manual
+  // refresh. A short debounce coalesces bursts (e.g. accept → picked_up).
+  useEffect(() => {
+    if (!user?.id) return;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const cleanup = subscribeToMyDeliveryTasks(user.id, () => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => void load(), 300);
+    });
+    return () => {
+      if (timer) clearTimeout(timer);
+      cleanup();
+    };
+  }, [user?.id, load]);
 
   const handleRefresh = async () => {
     setRefreshing(true);

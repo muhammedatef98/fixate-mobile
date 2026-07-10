@@ -21,6 +21,11 @@ import { getColors, getShadows, SPACING, BORDER_RADIUS } from '../../constants/t
 import { useApp } from '../../contexts/AppContext';
 import { useAuth } from '../../contexts/AuthContext';
 import * as orderService from '../../services/orderService';
+import {
+  subscribeToPendingOrders,
+  subscribeToAvailableOrderRemovals,
+  subscribeToOrders,
+} from '../../services/realtimeService';
 import { supabase } from '../../services/supabaseClient';
 import { logger } from '../../utils/logger';
 import NotificationBell from '../../components/NotificationBell';
@@ -138,6 +143,50 @@ export default function TechnicianHomeScreen() {
   useEffect(() => {
     loadOrders();
   }, []);
+
+  // Live updates so the technician never needs to pull-to-refresh: new requests
+  // appear at the top of the available pool, taken/cancelled ones drop out
+  // instantly, and the technician's own orders update in place (e.g. when a
+  // customer accepts their offer). All updates are deduped by id and applied
+  // with functional setState so re-renders stay minimal.
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const cleanupNew = subscribeToPendingOrders((order) => {
+      if (order.technician_id) return;
+      setAvailableOrders((prev) =>
+        prev.some((o) => o.id === order.id) ? prev : [order, ...prev]
+      );
+    });
+
+    const cleanupRemove = subscribeToAvailableOrderRemovals((orderId) => {
+      setAvailableOrders((prev) => prev.filter((o) => o.id !== orderId));
+    });
+
+    const cleanupMine = subscribeToOrders((order) => {
+      if (order.technician_id === user.id) {
+        // One of my orders changed (accepted offer, status advance, payment…):
+        // upsert into My Orders and make sure it's not still in the pool.
+        setMyOrders((prev) => {
+          const idx = prev.findIndex((o) => o.id === order.id);
+          if (idx === -1) return [order, ...prev];
+          const next = [...prev];
+          next[idx] = { ...next[idx], ...order };
+          return next;
+        });
+        setAvailableOrders((prev) => prev.filter((o) => o.id !== order.id));
+      } else if (order.status !== 'pending' || order.technician_id) {
+        // A visible pending order left the pool (assigned/expired/cancelled).
+        setAvailableOrders((prev) => prev.filter((o) => o.id !== order.id));
+      }
+    });
+
+    return () => {
+      cleanupNew();
+      cleanupRemove();
+      cleanupMine();
+    };
+  }, [user?.id]);
 
   const loadOrders = async () => {
     try {

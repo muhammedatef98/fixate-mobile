@@ -24,9 +24,11 @@ import {
   adminListAddons,
   adminSaveAddon,
   adminDeleteAddon,
+  adminImportAddons,
   type PricingAddonRow,
   type AddonInput,
 } from '../services/pricingRegistryService';
+import CsvImportModal from '../components/CsvImportModal';
 import { getFriendlyError } from '../utils/errorMessages';
 import { logger } from '../utils/logger';
 
@@ -57,6 +59,7 @@ export default function AdminPricingAddonsScreen() {
   const [sort, setSort] = useState('0');
   const [active, setActive] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -185,6 +188,16 @@ export default function AdminPricingAddonsScreen() {
         onRightPress={openNew}
       />
       <ScrollView contentContainerStyle={{ padding: SPACING.m, paddingBottom: 60 }}>
+        <TouchableOpacity
+          onPress={() => setImportOpen(true)}
+          style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderWidth: 1, borderColor: COLORS.primary, borderRadius: BORDER_RADIUS.md, paddingVertical: 11, marginBottom: 14 }}
+          accessibilityRole="button"
+        >
+          <MaterialCommunityIcons name="file-upload-outline" size={18} color={COLORS.primary} />
+          <Text style={{ color: COLORS.primary, fontWeight: '700', fontSize: 13 }}>
+            {isRTL ? 'استيراد من Excel/CSV' : 'Import from Excel/CSV'}
+          </Text>
+        </TouchableOpacity>
         {rows.length === 0 && (
           <AdminEmptyState
             icon="tag-multiple-outline"
@@ -274,6 +287,16 @@ export default function AdminPricingAddonsScreen() {
           </View>
         </KeyboardAvoidingView>
       </Modal>
+
+      <CsvImportModal
+        visible={importOpen}
+        onClose={() => setImportOpen(false)}
+        title={isRTL ? 'استيراد الإضافات' : 'Import add-ons'}
+        headerLine="kind,device_type,item_key,name_ar,name_en,price,sort"
+        sampleLine="accessory,phone,charger,شاحن,Charger,60,1"
+        onImport={adminImportAddons}
+        onDone={load}
+      />
     </SafeAreaView>
   );
 }

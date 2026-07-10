@@ -137,6 +137,23 @@ export default function ManageOrderScreen() {
   const [photoTarget, setPhotoTarget] = useState<'before' | 'after'>('before');
   const [sparePartSheet, setSparePartSheet] = useState(false);
   const [savingEta, setSavingEta] = useState(false);
+  const [etaPickerOpen, setEtaPickerOpen] = useState(false);
+
+  const saveEta = async (next: string | null) => {
+    const prev = order?.estimated_repair ?? null;
+    setOrder((o) => (o ? { ...o, estimated_repair: next } : o));
+    setEtaPickerOpen(false);
+    setSavingEta(true);
+    try {
+      if (order) await setEstimatedRepair(order.id, next);
+    } catch (e) {
+      logger.warn('setEstimatedRepair failed', e);
+      setOrder((o) => (o ? { ...o, estimated_repair: prev } : o));
+      Alert.alert(isRTL ? 'خطأ' : 'Error', isRTL ? 'تعذّر حفظ المدة' : 'Could not save the estimate');
+    } finally {
+      setSavingEta(false);
+    }
+  };
   const [uploadingPhotos, setUploadingPhotos] = useState(false);
   const [claimedByOther, setClaimedByOther] = useState(false);
   // Marketplace: my offer on this (still-open) request.
@@ -998,48 +1015,76 @@ export default function ManageOrderScreen() {
                 ? 'يراها العميل في تفاصيل طلبه. تخص الإصلاح فقط وليست وقت الاستلام أو التوصيل.'
                 : 'Shown to the customer in their order. Repair time only — not pickup or delivery.'}
             </Text>
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, justifyContent: isRTL ? 'flex-end' : 'flex-start' }}>
+            {/* Clean dropdown selector (hour-based) */}
+            <TouchableOpacity
+              disabled={savingEta}
+              onPress={() => setEtaPickerOpen(true)}
+              style={{
+                flexDirection: isRTL ? 'row-reverse' : 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                borderWidth: 1,
+                borderColor: COLORS.border,
+                borderRadius: BORDER_RADIUS.md,
+                paddingVertical: 12,
+                paddingHorizontal: 14,
+                backgroundColor: COLORS.background,
+              }}
+              accessibilityRole="button"
+              accessibilityLabel={isRTL ? 'اختر المدة المتوقعة' : 'Select estimated duration'}
+            >
+              <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 8 }}>
+                <MaterialCommunityIcons name="timer-sand" size={18} color={COLORS.primary} />
+                <Text style={{ color: order.estimated_repair ? COLORS.text : COLORS.textSecondary, fontWeight: '600', fontSize: 14 }}>
+                  {estimatedRepairLabel(order.estimated_repair, isRTL) ?? (isRTL ? 'اختر المدة…' : 'Select a duration…')}
+                </Text>
+              </View>
+              {savingEta ? (
+                <ActivityIndicator size="small" color={COLORS.primary} />
+              ) : (
+                <MaterialCommunityIcons name="chevron-down" size={20} color={COLORS.textSecondary} />
+              )}
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* Estimated-duration dropdown list */}
+        <Modal visible={etaPickerOpen} transparent animationType="fade" onRequestClose={() => setEtaPickerOpen(false)}>
+          <TouchableOpacity
+            style={{ flex: 1, backgroundColor: '#00000066', justifyContent: 'center', padding: 28 }}
+            activeOpacity={1}
+            onPress={() => setEtaPickerOpen(false)}
+          >
+            <View style={{ backgroundColor: COLORS.card, borderRadius: BORDER_RADIUS.lg, overflow: 'hidden' }}>
+              <Text style={{ color: COLORS.text, fontWeight: '800', fontSize: 15, padding: 16, textAlign: isRTL ? 'right' : 'left' }}>
+                {isRTL ? 'المدة المتوقعة للإصلاح' : 'Estimated repair time'}
+              </Text>
               {ESTIMATED_REPAIR_OPTIONS.map((opt) => {
                 const selected = order.estimated_repair === opt.key;
                 return (
                   <TouchableOpacity
                     key={opt.key}
-                    disabled={savingEta}
-                    onPress={async () => {
-                      const next = selected ? null : opt.key;
-                      const prev = order.estimated_repair;
-                      setOrder((o) => (o ? { ...o, estimated_repair: next } : o));
-                      setSavingEta(true);
-                      try {
-                        await setEstimatedRepair(order.id, next);
-                      } catch (e) {
-                        logger.warn('setEstimatedRepair failed', e);
-                        setOrder((o) => (o ? { ...o, estimated_repair: prev } : o));
-                        Alert.alert(isRTL ? 'خطأ' : 'Error', isRTL ? 'تعذّر حفظ المدة' : 'Could not save the estimate');
-                      } finally {
-                        setSavingEta(false);
-                      }
-                    }}
+                    onPress={() => void saveEta(selected ? null : opt.key)}
                     style={{
-                      paddingVertical: 8,
-                      paddingHorizontal: 14,
-                      borderRadius: BORDER_RADIUS.md,
-                      borderWidth: 1,
-                      borderColor: selected ? COLORS.primary : COLORS.border,
-                      backgroundColor: selected ? COLORS.primary : 'transparent',
+                      flexDirection: isRTL ? 'row-reverse' : 'row',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      paddingVertical: 14,
+                      paddingHorizontal: 16,
+                      borderTopWidth: 1,
+                      borderTopColor: COLORS.border,
                     }}
-                    accessibilityRole="button"
-                    accessibilityState={{ selected }}
                   >
-                    <Text style={{ color: selected ? '#fff' : COLORS.text, fontWeight: '600', fontSize: 13 }}>
+                    <Text style={{ color: selected ? COLORS.primary : COLORS.text, fontWeight: selected ? '800' : '500', fontSize: 15 }}>
                       {isRTL ? opt.ar : opt.en}
                     </Text>
+                    {selected && <MaterialCommunityIcons name="check" size={20} color={COLORS.primary} />}
                   </TouchableOpacity>
                 );
               })}
             </View>
-          </View>
-        )}
+          </TouchableOpacity>
+        </Modal>
 
         {/* Customer Info — strictly from the customer's profile.
             Falls back to a clear "not available" label rather than the
