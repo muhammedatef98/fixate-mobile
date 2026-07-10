@@ -59,6 +59,8 @@ export interface Order {
   final_price?: number | null;
   quote_notes?: string | null;
   quoted_at?: string | null;
+  // Technician-set repair-time bucket (see utils/estimatedRepair.ts).
+  estimated_repair?: string | null;
   // Payment architecture v2 (see types/order.ts for full semantics).
   accepted_offer_amount?: number | null;
   payment_mode?: 'full_upfront' | 'deposit_then_rest' | 'partial_then_final' | null;

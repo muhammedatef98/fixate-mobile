@@ -203,6 +203,9 @@ export interface Order {
   // records when the technician submitted the quote (best-effort column).
   quote_notes?: string | null;
   quoted_at?: string | null;
+  // Technician-set repair-time bucket key (see utils/estimatedRepair.ts),
+  // shown to the customer. Not courier/pickup timing.
+  estimated_repair?: string | null;
   created_at?: string;
   updated_at?: string;
 }

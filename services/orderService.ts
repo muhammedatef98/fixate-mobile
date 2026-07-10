@@ -210,6 +210,36 @@ export const updateOrderStatus = async (
   return data;
 };
 
+/**
+ * Technician sets/updates the estimated repair time on their assigned order.
+ * `key` is a canonical bucket (see utils/estimatedRepair.ts) or null to clear.
+ * Notifies the customer so it surfaces immediately in their order view.
+ */
+export const setEstimatedRepair = async (
+  orderId: string,
+  key: string | null
+): Promise<Order | null> => {
+  const { data, error } = await supabase
+    .from('orders')
+    .update({ estimated_repair: key })
+    .eq('id', orderId)
+    .select()
+    .maybeSingle();
+  if (error) {
+    logger.warn('setEstimatedRepair error', error);
+    throw error;
+  }
+  if (data && key) {
+    pushOrderToClient(
+      data.user_id,
+      'المدة المتوقعة للإصلاح',
+      'حدّد الفني المدة المتوقعة لإصلاح جهازك',
+      data.id
+    );
+  }
+  return data;
+};
+
 export const addPriceToOrder = async (
   orderId: string,
   price: number

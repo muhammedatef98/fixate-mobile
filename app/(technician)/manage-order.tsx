@@ -53,7 +53,8 @@ import {
   startBroadcastingLocation,
   stopBroadcastingLocation,
 } from '../../services/locationTrackingService';
-import { recordOrderPayment } from '../../services/orderService';
+import { recordOrderPayment, setEstimatedRepair } from '../../services/orderService';
+import { ESTIMATED_REPAIR_OPTIONS, estimatedRepairLabel } from '../../utils/estimatedRepair';
 import {
   getDeliveryTasksForOrder,
   type DeliveryTask,
@@ -135,6 +136,7 @@ export default function ManageOrderScreen() {
   const [photoSheetOpen, setPhotoSheetOpen] = useState(false);
   const [photoTarget, setPhotoTarget] = useState<'before' | 'after'>('before');
   const [sparePartSheet, setSparePartSheet] = useState(false);
+  const [savingEta, setSavingEta] = useState(false);
   const [uploadingPhotos, setUploadingPhotos] = useState(false);
   const [claimedByOther, setClaimedByOther] = useState(false);
   // Marketplace: my offer on this (still-open) request.
@@ -964,6 +966,62 @@ export default function ManageOrderScreen() {
                 </Text>
               </TouchableOpacity>
             )}
+          </View>
+        )}
+
+        {/* Estimated repair time — technician's repair-duration promise to the
+            customer. Active repair states only, never on pending/terminal
+            orders, and kept clearly distinct from courier/pickup timing. */}
+        {order.status !== 'pending' && !isTerminal && (
+          <View style={[styles.card, { backgroundColor: COLORS.card }, SHADOWS.medium]}>
+            <Text style={[styles.cardTitle, { color: COLORS.text, textAlign: isRTL ? 'right' : 'left' }]}>
+              {isRTL ? 'المدة المتوقعة للإصلاح' : 'Estimated repair time'}
+            </Text>
+            <Text style={{ color: COLORS.textSecondary, fontSize: 12, marginBottom: 12, textAlign: isRTL ? 'right' : 'left' }}>
+              {isRTL
+                ? 'يراها العميل في تفاصيل طلبه. تخص الإصلاح فقط وليست وقت الاستلام أو التوصيل.'
+                : 'Shown to the customer in their order. Repair time only — not pickup or delivery.'}
+            </Text>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, justifyContent: isRTL ? 'flex-end' : 'flex-start' }}>
+              {ESTIMATED_REPAIR_OPTIONS.map((opt) => {
+                const selected = order.estimated_repair === opt.key;
+                return (
+                  <TouchableOpacity
+                    key={opt.key}
+                    disabled={savingEta}
+                    onPress={async () => {
+                      const next = selected ? null : opt.key;
+                      const prev = order.estimated_repair;
+                      setOrder((o) => (o ? { ...o, estimated_repair: next } : o));
+                      setSavingEta(true);
+                      try {
+                        await setEstimatedRepair(order.id, next);
+                      } catch (e) {
+                        logger.warn('setEstimatedRepair failed', e);
+                        setOrder((o) => (o ? { ...o, estimated_repair: prev } : o));
+                        Alert.alert(isRTL ? 'خطأ' : 'Error', isRTL ? 'تعذّر حفظ المدة' : 'Could not save the estimate');
+                      } finally {
+                        setSavingEta(false);
+                      }
+                    }}
+                    style={{
+                      paddingVertical: 8,
+                      paddingHorizontal: 14,
+                      borderRadius: BORDER_RADIUS.md,
+                      borderWidth: 1,
+                      borderColor: selected ? COLORS.primary : COLORS.border,
+                      backgroundColor: selected ? COLORS.primary : 'transparent',
+                    }}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected }}
+                  >
+                    <Text style={{ color: selected ? '#fff' : COLORS.text, fontWeight: '600', fontSize: 13 }}>
+                      {isRTL ? opt.ar : opt.en}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
           </View>
         )}
 

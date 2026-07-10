@@ -36,6 +36,7 @@ import InvoiceDownloadButton from '../components/InvoiceDownloadButton';
 import { getPlatformSettings } from '../services/platformSettingsService';
 import { useLoyalty } from '../contexts/LoyaltyContext';
 import { getOrderTotals, fmtSAR } from '../utils/orderMoney';
+import { estimatedRepairLabel } from '../utils/estimatedRepair';
 import { PAYMENT_MODE_LABELS } from '../utils/paymentPlan';
 import { resolveStorageUrls } from '../utils/resolveStorageUrls';
 import { getOrderTimeline, actorTypeLabel, type OrderTimelineEvent } from '../services/orderTimelineService';
@@ -385,6 +386,40 @@ export default function OrderDetailsScreen() {
             {(order as any).order_number ?? `#${order.id?.slice(0, 8)}`}
           </Text>
         </Animated.View>
+
+        {/* Estimated repair time — the technician's repair-duration promise,
+            shown once set while the repair is active. Repair time only; the
+            custody strip below answers courier/pickup/delivery timing. */}
+        {!isCancelled && order.status !== 'completed' && (() => {
+          const etaLabel = estimatedRepairLabel((order as any).estimated_repair, isRTL);
+          if (!etaLabel) return null;
+          return (
+            <View
+              style={{
+                marginHorizontal: 16,
+                marginBottom: SPACING.md,
+                backgroundColor: COLORS.card,
+                borderColor: COLORS.border,
+                borderWidth: 1,
+                borderRadius: BORDER_RADIUS.md,
+                padding: 12,
+                flexDirection: isRTL ? 'row-reverse' : 'row',
+                alignItems: 'center',
+                gap: 10,
+              }}
+            >
+              <MaterialCommunityIcons name="timer-sand" size={22} color={COLORS.primary} />
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: COLORS.textSecondary, fontSize: 12, textAlign: isRTL ? 'right' : 'left' }}>
+                  {isRTL ? 'المدة المتوقعة للإصلاح' : 'Estimated repair time'}
+                </Text>
+                <Text style={{ color: COLORS.text, fontSize: 15, fontWeight: '700', textAlign: isRTL ? 'right' : 'left' }}>
+                  {etaLabel}
+                </Text>
+              </View>
+            </View>
+          );
+        })()}
 
         {/* Custody strip — for pickup & delivery orders, one line that always
             answers "where is my device right now", driven by the courier

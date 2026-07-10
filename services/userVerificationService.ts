@@ -269,7 +269,7 @@ export const adminRejectVerification = async (
   reason: string,
 ): Promise<void> => {
   if (!reason.trim()) throw new Error('Rejection reason is required');
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('user_verifications')
     .update({
       status: 'rejected',
@@ -277,8 +277,20 @@ export const adminRejectVerification = async (
       reviewed_at: new Date().toISOString(),
       rejection_reason: reason.trim(),
     })
-    .eq('id', id);
+    .eq('id', id)
+    .select('user_id')
+    .single();
   if (error) throw error;
+  // Mirror the approve path: push the reason so the user knows what to fix and
+  // can resubmit. The in-app bell is created by the notify_verification_review
+  // trigger; this push is best-effort on top of it.
+  if (data?.user_id) {
+    void notifyUsers(data.user_id, {
+      title: '❌ لم يُقبل التوثيق · Verification not approved',
+      body: reason.trim(),
+      data: { screen: 'profile' },
+    });
+  }
 };
 
 /**
