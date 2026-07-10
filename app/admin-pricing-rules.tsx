@@ -29,8 +29,19 @@ import {
   type RuleInput,
 } from '../services/pricingRegistryService';
 import CsvImportModal from '../components/CsvImportModal';
+import SelectField from '../components/SelectField';
+import {
+  DEVICE_TYPE_OPTIONS,
+  brandOptions,
+  modelOptions,
+  repairTypeOptions,
+  type Opt,
+} from '../constants/pricingOptions';
 import { getFriendlyError } from '../utils/errorMessages';
 import { logger } from '../utils/logger';
+
+const toSelect = (opts: Opt[], isRTL: boolean) =>
+  opts.map((o) => ({ id: o.value, label: isRTL ? o.ar : o.en }));
 
 /**
  * Repair pricing registry (§5/§16). Each rule prices a slice of the catalog;
@@ -248,11 +259,42 @@ export default function AdminPricingRulesScreen() {
                   : 'Leave a field blank for "any". The most specific matching rule wins.'}
               </Text>
 
-              <Field label={isRTL ? 'نوع الجهاز' : 'Device type'} value={deviceType} onChange={setDeviceType} styles={styles} placeholder="phone / tablet / laptop" />
-              <Field label={isRTL ? 'الماركة' : 'Brand'} value={brand} onChange={setBrand} styles={styles} placeholder="Apple" />
-              <Field label={isRTL ? 'الموديل' : 'Model'} value={model} onChange={setModel} styles={styles} placeholder="iPhone 15 Pro" />
-              <Field label={isRTL ? 'الفئة' : 'Category'} value={category} onChange={setCategory} styles={styles} placeholder="screen" />
-              <Field label={isRTL ? 'نوع العطل (repair id)' : 'Repair type (issue id)'} value={repairType} onChange={setRepairType} styles={styles} placeholder="screen_replacement" />
+              <Text style={styles.label}>{isRTL ? 'نوع الجهاز' : 'Device type'}</Text>
+              <SelectField
+                value={deviceType}
+                options={toSelect(DEVICE_TYPE_OPTIONS, isRTL)}
+                onSelect={(v) => { setDeviceType(v); setBrand(''); setModel(''); setRepairType(''); }}
+                placeholder={isRTL ? 'الكل' : 'Any'}
+                isRTL={isRTL}
+              />
+              <View style={{ height: 12 }} />
+              <Text style={styles.label}>{isRTL ? 'الماركة' : 'Brand'}</Text>
+              <SelectField
+                value={brand}
+                options={[{ id: '', label: isRTL ? 'الكل' : 'Any' }, ...toSelect(brandOptions(deviceType || null), isRTL)]}
+                onSelect={(v) => { setBrand(v); setModel(''); }}
+                placeholder={isRTL ? 'الكل' : 'Any'}
+                isRTL={isRTL}
+              />
+              <View style={{ height: 12 }} />
+              <Text style={styles.label}>{isRTL ? 'الموديل' : 'Model'}</Text>
+              <SelectField
+                value={model}
+                options={[{ id: '', label: isRTL ? 'الكل' : 'Any' }, ...toSelect(modelOptions(brand || null), isRTL)]}
+                onSelect={setModel}
+                placeholder={brand ? (isRTL ? 'الكل' : 'Any') : (isRTL ? 'اختر الماركة أولاً' : 'Pick a brand first')}
+                isRTL={isRTL}
+              />
+              <View style={{ height: 12 }} />
+              <Text style={styles.label}>{isRTL ? 'نوع العطل / الإصلاح' : 'Repair type'}</Text>
+              <SelectField
+                value={repairType}
+                options={[{ id: '', label: isRTL ? 'الكل' : 'Any' }, ...toSelect(repairTypeOptions(deviceType || null), isRTL)]}
+                onSelect={setRepairType}
+                placeholder={isRTL ? 'الكل' : 'Any'}
+                isRTL={isRTL}
+              />
+              <View style={{ height: 12 }} />
               <Field label={isRTL ? 'السعر (ر.س)' : 'Price (SAR)'} value={price} onChange={(v) => setPrice(v.replace(/[^0-9.]/g, ''))} styles={styles} keyboardType="numeric" />
               <Field label={isRTL ? 'ملاحظة (اختياري)' : 'Note (optional)'} value={note} onChange={setNote} styles={styles} />
 

@@ -11,6 +11,7 @@ import {
   Dimensions,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useApp } from '../../contexts/AppContext';
 import BottomNav from '../../components/BottomNav';
@@ -122,27 +123,44 @@ const FEATURES = [
 // The customer journey, distilled to three honest steps. Grounding "how it
 // works" on the page is what turns a link list into a screen the customer
 // actually trusts — they know exactly what happens after they tap Request.
+// The real Fixate journey — a marketplace request → offers → accept & pay →
+// handover → repair → return-with-warranty flow. Kept accurate to how the app
+// actually behaves (not a generic pickup-and-fix explanation).
 const STEPS = [
   {
     icon: 'clipboard-text-outline',
     ar: 'اطلب الصيانة',
-    en: 'Request a repair',
-    subAr: 'اختر جهازك وصف العطل في أقل من دقيقة',
-    subEn: 'Pick your device and describe the fault in under a minute',
+    en: 'Create your request',
+    subAr: 'اختر جهازك وصف العطل، فيصل طلبك مباشرةً لفنيين معتمدين قريبين منك',
+    subEn: 'Pick your device and describe the fault — your request goes live to nearby verified technicians',
   },
   {
-    icon: 'moped-outline',
-    ar: 'نستلم ونشخّص',
-    en: 'We pick up & diagnose',
-    subAr: 'مندوبنا يستلم جهازك ويفحصه فنيّ معتمد',
-    subEn: 'A courier collects it and a verified technician inspects it',
+    icon: 'cash-multiple',
+    ar: 'قارن العروض واختر',
+    en: 'Compare offers & choose',
+    subAr: 'يصلك عدة عروض أسعار من الفنيين، تختار الأنسب لك (يبقى الطلب مفتوحاً حتى ٣٠ دقيقة)',
+    subEn: 'Technicians send you price offers; pick the one that suits you (the request stays open up to 30 minutes)',
+  },
+  {
+    icon: 'credit-card-check-outline',
+    ar: 'أكّد وادفع',
+    en: 'Accept & confirm payment',
+    subAr: 'بقبولك للعرض يصبح هو السعر المتفق عليه، وتؤكّد الدفع حسب سياسة المنصّة',
+    subEn: 'Accepting an offer sets the agreed price; you confirm payment per the platform policy',
+  },
+  {
+    icon: 'tools',
+    ar: 'الاستلام والإصلاح',
+    en: 'Handover & repair',
+    subAr: 'زيارة الفني إليك أو استلام عبر مندوب أو تسليم باليد — ثم الفحص والإصلاح مع مدة متوقعة واضحة',
+    subEn: 'A mobile visit, a courier pickup, or a drop-off — then the technician diagnoses, repairs, and shares an estimated repair time',
   },
   {
     icon: 'shield-check-outline',
-    ar: 'إصلاح وإرجاع بضمان',
-    en: 'Repair & return, guaranteed',
-    subAr: 'توافق على السعر، نصلح، ونعيده لك مع ضمان سنة',
-    subEn: 'Approve the price, we fix it, and return it with a 1-year warranty',
+    ar: 'الاستلام مع ضمان',
+    en: 'Get it back, guaranteed',
+    subAr: 'يُعاد إليك جهازك، وتُنهي الدفع، ويبقى الإصلاح مضموناً لمدة سنة كاملة',
+    subEn: 'Your device is returned, you settle any balance, and the repair is backed by a full 1-year warranty',
   },
 ];
 
@@ -195,6 +213,13 @@ export default function ServicesScreen() {
         <Animated.View style={{ opacity: fade, transform: [{ translateY: slide }] }}>
           {/* Hero — one clear promise, one clear action */}
           <View style={[styles.hero, { backgroundColor: COLORS.primary }]}>
+            <LinearGradient
+              colors={[COLORS.gradientStart, COLORS.gradientEnd]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={StyleSheet.absoluteFill}
+            />
+            <View pointerEvents="none" style={styles.heroBlob} />
             <View style={styles.heroLeft}>
               <Text style={styles.heroEyebrow}>{isRTL ? 'خدمة Fixate' : 'Fixate service'}</Text>
               <Text style={styles.heroTitle}>
@@ -433,11 +458,22 @@ const makeStyles = (C: any, isRTL: boolean, SHADOWS: any) =>
     // Hero
     hero: {
       flexDirection: isRTL ? 'row-reverse' : 'row',
-      borderRadius: 20,
-      padding: 18,
-      marginBottom: 16,
+      borderRadius: 24,
+      padding: 20,
+      marginBottom: 18,
       overflow: 'hidden',
-      minHeight: 160,
+      minHeight: 168,
+      shadowColor: C.primary,
+      shadowOpacity: 0.3,
+      shadowOffset: { width: 0, height: 10 },
+      shadowRadius: 20,
+      elevation: 8,
+    },
+    heroBlob: {
+      position: 'absolute',
+      width: 170, height: 170, borderRadius: 85,
+      backgroundColor: '#ffffff14',
+      top: -60, [isRTL ? 'left' : 'right']: -40,
     },
     heroLeft: {
       flex: 1,

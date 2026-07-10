@@ -29,8 +29,19 @@ import {
   type AddonInput,
 } from '../services/pricingRegistryService';
 import CsvImportModal from '../components/CsvImportModal';
+import SelectField from '../components/SelectField';
+import {
+  DEVICE_TYPE_OPTIONS,
+  ACCESSORY_PRESETS,
+  PROTECTION_PRESETS,
+  type Opt,
+} from '../constants/pricingOptions';
 import { getFriendlyError } from '../utils/errorMessages';
 import { logger } from '../utils/logger';
+
+const CUSTOM = '__custom__';
+const toSelect = (opts: Opt[], isRTL: boolean) =>
+  opts.map((o) => ({ id: o.value, label: isRTL ? o.ar : o.en }));
 
 /**
  * Admin catalog for the accessory & protection add-ons offered during request
@@ -57,6 +68,8 @@ export default function AdminPricingAddonsScreen() {
   const [nameEn, setNameEn] = useState('');
   const [price, setPrice] = useState('');
   const [sort, setSort] = useState('0');
+  // Which preset the item_key came from ('' = none yet, CUSTOM = free entry).
+  const [presetChoice, setPresetChoice] = useState('');
   const [active, setActive] = useState(true);
   const [saving, setSaving] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
@@ -85,8 +98,28 @@ export default function AdminPricingAddonsScreen() {
     setNameEn('');
     setPrice('');
     setSort('0');
+    setPresetChoice('');
     setActive(true);
     setModalOpen(true);
+  };
+
+  const presetsFor = (k: 'accessory' | 'protection'): Opt[] =>
+    k === 'protection' ? PROTECTION_PRESETS : ACCESSORY_PRESETS;
+
+  // Selecting a preset pre-fills the stable key + bilingual names; "custom"
+  // reveals free-text entry for a new item.
+  const choosePreset = (choice: string) => {
+    setPresetChoice(choice);
+    if (choice === CUSTOM || choice === '') {
+      if (choice === CUSTOM) { setItemKey(''); setNameAr(''); setNameEn(''); }
+      return;
+    }
+    const p = presetsFor(kind).find((o) => o.value === choice);
+    if (p) {
+      setItemKey(p.value);
+      setNameAr(p.ar);
+      setNameEn(p.en);
+    }
   };
 
   const openEdit = (r: PricingAddonRow) => {
@@ -98,6 +131,8 @@ export default function AdminPricingAddonsScreen() {
     setNameEn(r.name_en);
     setPrice(String(r.price));
     setSort(String(r.sort));
+    const known = presetsFor(r.kind).some((o) => o.value === r.item_key);
+    setPresetChoice(known ? r.item_key : CUSTOM);
     setActive(r.active);
     setModalOpen(true);
   };
@@ -253,7 +288,7 @@ export default function AdminPricingAddonsScreen() {
                 {(['accessory', 'protection'] as const).map((k) => (
                   <TouchableOpacity
                     key={k}
-                    onPress={() => setKind(k)}
+                    onPress={() => { setKind(k); setPresetChoice(''); }}
                     style={[styles.kindChip, kind === k && { backgroundColor: COLORS.primary, borderColor: COLORS.primary }]}
                   >
                     <Text style={{ color: kind === k ? '#fff' : COLORS.text, fontWeight: '600' }}>
@@ -263,8 +298,34 @@ export default function AdminPricingAddonsScreen() {
                 ))}
               </View>
 
-              <Field label={isRTL ? 'نوع الجهاز (اختياري: phone/tablet/…)' : 'Device type (optional: phone/tablet/…)'} value={deviceType} onChange={setDeviceType} styles={styles} placeholder="phone" />
-              <Field label={isRTL ? 'المعرّف (item key)' : 'Item key'} value={itemKey} onChange={setItemKey} styles={styles} placeholder="charger" />
+              <Text style={styles.label}>{isRTL ? 'نوع الجهاز' : 'Device type'}</Text>
+              <SelectField
+                value={deviceType}
+                options={[{ id: '', label: isRTL ? 'كل الأجهزة' : 'All devices' }, ...toSelect(DEVICE_TYPE_OPTIONS, isRTL)]}
+                onSelect={setDeviceType}
+                placeholder={isRTL ? 'كل الأجهزة' : 'All devices'}
+                isRTL={isRTL}
+              />
+              <View style={{ height: 12 }} />
+
+              <Text style={styles.label}>
+                {kind === 'protection' ? (isRTL ? 'نوع الحماية' : 'Protection type') : (isRTL ? 'نوع الإكسسوار' : 'Accessory type')}
+              </Text>
+              <SelectField
+                value={presetChoice}
+                options={[
+                  ...toSelect(presetsFor(kind), isRTL),
+                  { id: CUSTOM, label: isRTL ? 'أخرى (إدخال يدوي)' : 'Other (custom)' },
+                ]}
+                onSelect={choosePreset}
+                placeholder={isRTL ? 'اختر النوع' : 'Choose a type'}
+                isRTL={isRTL}
+              />
+              <View style={{ height: 12 }} />
+
+              {presetChoice === CUSTOM && (
+                <Field label={isRTL ? 'المعرّف (item key)' : 'Item key'} value={itemKey} onChange={setItemKey} styles={styles} placeholder="charger" />
+              )}
               <Field label={isRTL ? 'الاسم بالعربية' : 'Name (Arabic)'} value={nameAr} onChange={setNameAr} styles={styles} />
               <Field label={isRTL ? 'الاسم بالإنجليزية' : 'Name (English)'} value={nameEn} onChange={setNameEn} styles={styles} />
               <Field label={isRTL ? 'السعر (ر.س)' : 'Price (SAR)'} value={price} onChange={(v) => setPrice(v.replace(/[^0-9.]/g, ''))} styles={styles} keyboardType="numeric" />

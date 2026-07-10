@@ -12,6 +12,7 @@ import {
   Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { getColors, getShadows, SPACING, BORDER_RADIUS } from '../../constants/theme';
 import { useApp } from '../../contexts/AppContext';
@@ -332,9 +333,21 @@ export default function CustomerHomeScreen() {
             accessibilityRole="button"
             accessibilityLabel={isRTL ? 'اطلب صيانة جديدة' : 'Request a new repair'}
           >
-            {/* Soft decorative circles for depth */}
+            <LinearGradient
+              colors={[COLORS.gradientStart, COLORS.gradientEnd]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={StyleSheet.absoluteFill}
+            />
+            {/* Soft decorative circles + oversized watermark for depth */}
             <View pointerEvents="none" style={styles.ctaBlob1} />
             <View pointerEvents="none" style={styles.ctaBlob2} />
+            <MaterialCommunityIcons
+              name="tools"
+              size={128}
+              color="#ffffff14"
+              style={{ position: 'absolute', bottom: -18, [isRTL ? 'left' : 'right']: -14 }}
+            />
             <View style={{ flex: 1 }}>
               <View style={styles.ctaEyebrowRow}>
                 <MaterialCommunityIcons name="lightning-bolt" size={13} color="#fff" />
