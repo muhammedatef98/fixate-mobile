@@ -13,7 +13,10 @@ import {
   Platform,
   Alert,
   RefreshControl,
+  Modal,
+  ScrollView,
 } from 'react-native';
+import { ORDER_STATUS_LABELS_AR, ORDER_STATUS_LABELS_EN } from '../types/order';
 import { useRouter } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useApp } from '../contexts/AppContext';
@@ -62,6 +65,9 @@ export default function AdminSupportScreen() {
   const [messages, setMessages] = useState<support.SupportMessage[]>([]);
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
+  const [contextOpen, setContextOpen] = useState(false);
+  const [context, setContext] = useState<support.SupportUserContext | null>(null);
+  const [contextLoading, setContextLoading] = useState(false);
   const listRef = useRef<FlatList>(null);
   useScrollToEndOnKeyboard(listRef);
   const messagesChannelRef = useRef<any>(null);
@@ -78,10 +84,11 @@ export default function AdminSupportScreen() {
 
   useEffect(() => {
     if (!allowed) return;
-    // Opportunistic auto-close of idle threads each time admin opens the
-    // inbox. The DB-side cron job is authoritative; this just keeps the
-    // list tidy in real time even without cron configured.
-    support.closeIdleThreads(5).catch(() => {});
+    // Opportunistic idle sweep each time an admin opens the inbox. The DB-side
+    // cron (support-idle-sweep) is authoritative; this keeps the list current
+    // in real time. It warns the user first, then closes after the grace
+    // window — never an abrupt close.
+    support.sweepIdleThreads(5, 1).catch(() => {});
     loadThreads(statusFilter);
     // subscribeAllThreads now returns its own cleanup callable.
     return support.subscribeAllThreads(() => loadThreads(statusFilter));
@@ -122,6 +129,20 @@ export default function AdminSupportScreen() {
     messagesChannelRef.current = null;
     setActive(null);
     setMessages([]);
+  };
+
+  const openContext = async () => {
+    if (!active) return;
+    setContextOpen(true);
+    setContext(null);
+    setContextLoading(true);
+    try {
+      setContext(await support.getUserSupportContext(active.user_id));
+    } catch (e) {
+      logger.warn('admin-support: user context load failed', e);
+    } finally {
+      setContextLoading(false);
+    }
   };
 
   const handleCloseThread = () => {
@@ -332,17 +353,23 @@ export default function AdminSupportScreen() {
           iconSize={22}
           rtl
         />
-        <View style={{ flex: 1, alignItems: 'center' }}>
+        <TouchableOpacity style={{ flex: 1, alignItems: 'center' }} onPress={openContext} accessibilityRole="button" accessibilityLabel={isRTL ? 'معلومات العميل' : 'User info'}>
           <Text style={[styles.title, { color: COLORS.text }]} numberOfLines={1}>
             {active.user_name || active.user_email || 'User'}
           </Text>
-          <Text style={{ color: COLORS.textSecondary, fontSize: 11, marginTop: 2 }} numberOfLines={1}>
-            {active.assigned_admin_name
-              ? (isRTL ? `قيد المعالجة لدى ${active.assigned_admin_name}` : `Assigned to ${active.assigned_admin_name}`)
-              : (isRTL ? 'بانتظار رد موظف' : 'Waiting for an agent')}
+          <Text style={{ color: COLORS.primary, fontSize: 11, marginTop: 2 }} numberOfLines={1}>
+            {isRTL ? 'عرض ملف العميل وطلباته ›' : 'View profile & orders ›'}
           </Text>
-        </View>
+        </TouchableOpacity>
         <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 4 }}>
+          <TouchableOpacity
+            onPress={openContext}
+            accessibilityRole="button"
+            accessibilityLabel={isRTL ? 'معلومات العميل' : 'User info'}
+            style={{ padding: 6 }}
+          >
+            <MaterialCommunityIcons name="information-outline" size={22} color={COLORS.primary} />
+          </TouchableOpacity>
           {active.status !== 'closed' && active.assigned_admin_id !== user?.id && (
             <TouchableOpacity
               onPress={assignToMe}
@@ -440,6 +467,77 @@ export default function AdminSupportScreen() {
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
+
+      {/* §9 — user context panel: who the agent is talking to, their profile,
+          and their related orders/requests for quick inspection. */}
+      <Modal visible={contextOpen} transparent animationType="slide" onRequestClose={() => setContextOpen(false)}>
+        <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: '#00000066' }}>
+          <View style={{ backgroundColor: COLORS.background, borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: '85%', paddingBottom: 24 }}>
+            <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', justifyContent: 'space-between', padding: SPACING.md, borderBottomWidth: 1, borderBottomColor: COLORS.border }}>
+              <Text style={{ color: COLORS.text, fontSize: 17, fontWeight: '800' }}>
+                {isRTL ? 'ملف العميل' : 'User profile'}
+              </Text>
+              <TouchableOpacity onPress={() => setContextOpen(false)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                <Ionicons name="close" size={24} color={COLORS.text} />
+              </TouchableOpacity>
+            </View>
+            {contextLoading ? (
+              <ActivityIndicator color={COLORS.primary} style={{ marginVertical: 40 }} />
+            ) : (
+              <ScrollView contentContainerStyle={{ padding: SPACING.md }}>
+                {context?.profile && (
+                  <View style={{ backgroundColor: COLORS.card, borderRadius: BORDER_RADIUS.md, borderWidth: 1, borderColor: COLORS.border, padding: 14, marginBottom: 16 }}>
+                    {[
+                      [isRTL ? 'الاسم' : 'Name', context.profile.name || (isRTL ? 'غير متوفر' : 'N/A')],
+                      [isRTL ? 'البريد' : 'Email', context.profile.email || '—'],
+                      [isRTL ? 'الهاتف' : 'Phone', context.profile.phone || '—'],
+                      [isRTL ? 'الدور' : 'Role', context.profile.role || '—'],
+                      [isRTL ? 'موثّق' : 'Verified', context.profile.is_verified ? (isRTL ? 'نعم' : 'Yes') : (isRTL ? 'لا' : 'No')],
+                      [isRTL ? 'حالة الحساب' : 'Account', context.profile.account_status || 'active'],
+                    ].map(([k, v]) => (
+                      <View key={k} style={{ flexDirection: isRTL ? 'row-reverse' : 'row', justifyContent: 'space-between', paddingVertical: 5 }}>
+                        <Text style={{ color: COLORS.textSecondary, fontSize: 13 }}>{k}</Text>
+                        <Text style={{ color: COLORS.text, fontSize: 13, fontWeight: '600', flexShrink: 1, textAlign: isRTL ? 'left' : 'right', marginHorizontal: 8 }} numberOfLines={1}>{v}</Text>
+                      </View>
+                    ))}
+                  </View>
+                )}
+                <Text style={{ color: COLORS.text, fontWeight: '800', fontSize: 14, marginBottom: 8, textAlign: isRTL ? 'right' : 'left' }}>
+                  {isRTL ? `الطلبات (${context?.orders.length ?? 0})` : `Orders (${context?.orders.length ?? 0})`}
+                </Text>
+                {(context?.orders ?? []).length === 0 ? (
+                  <Text style={{ color: COLORS.textSecondary, fontSize: 13, textAlign: isRTL ? 'right' : 'left' }}>
+                    {isRTL ? 'لا توجد طلبات' : 'No orders'}
+                  </Text>
+                ) : (
+                  (context?.orders ?? []).map((o) => (
+                    <TouchableOpacity
+                      key={o.id}
+                      onPress={() => {
+                        setContextOpen(false);
+                        router.push({ pathname: '/admin-order-detail', params: { id: o.id } } as any);
+                      }}
+                      style={{ backgroundColor: COLORS.card, borderRadius: BORDER_RADIUS.md, borderWidth: 1, borderColor: COLORS.border, padding: 12, marginBottom: 8, flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 10 }}
+                    >
+                      <MaterialCommunityIcons name="clipboard-text-outline" size={20} color={COLORS.primary} />
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ color: COLORS.text, fontWeight: '700', fontSize: 13, textAlign: isRTL ? 'right' : 'left' }} numberOfLines={1}>
+                          {o.order_number ? `#${o.order_number} · ` : ''}{o.device_brand} {o.device_model}
+                        </Text>
+                        <Text style={{ color: COLORS.textSecondary, fontSize: 11, marginTop: 2, textAlign: isRTL ? 'right' : 'left' }}>
+                          {(isRTL ? ORDER_STATUS_LABELS_AR : ORDER_STATUS_LABELS_EN)[o.status as keyof typeof ORDER_STATUS_LABELS_AR] ?? o.status}
+                          {o.created_at ? ` · ${adminTimeAgo(o.created_at, isRTL)}` : ''}
+                        </Text>
+                      </View>
+                      <RTLIonicon name="chevron-forward" size={18} color={COLORS.textSecondary} />
+                    </TouchableOpacity>
+                  ))
+                )}
+              </ScrollView>
+            )}
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }

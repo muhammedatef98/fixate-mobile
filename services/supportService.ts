@@ -5,6 +5,57 @@ import { notifyUsers } from './notifyService';
 
 export type SupportStatus = 'open' | 'waiting' | 'assigned' | 'closed';
 
+/** Operational context an agent needs while handling a support thread (§9). */
+export interface SupportUserContext {
+  profile: {
+    id: string;
+    name: string | null;
+    email: string | null;
+    phone: string | null;
+    role: string | null;
+    is_verified: boolean | null;
+    account_status: string | null;
+    created_at: string | null;
+  } | null;
+  orders: {
+    id: string;
+    order_number: string | null;
+    device_brand: string | null;
+    device_model: string | null;
+    status: string;
+    created_at: string | null;
+  }[];
+}
+
+/**
+ * Load the user behind a support thread plus their recent orders/requests so
+ * the agent can see who they're talking to and inspect their context without
+ * leaving the conversation. Admin RLS gates the reads.
+ */
+export const getUserSupportContext = async (
+  userId: string
+): Promise<SupportUserContext> => {
+  const [profileRes, ordersRes] = await Promise.all([
+    supabase
+      .from('users')
+      .select('id, name, email, phone, role, is_verified, account_status, created_at')
+      .eq('id', userId)
+      .maybeSingle(),
+    supabase
+      .from('orders')
+      .select('id, order_number, device_brand, device_model, status, created_at')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(20),
+  ]);
+  if (profileRes.error) logger.warn('support context profile failed', profileRes.error);
+  if (ordersRes.error) logger.warn('support context orders failed', ordersRes.error);
+  return {
+    profile: (profileRes.data ?? null) as SupportUserContext['profile'],
+    orders: (ordersRes.data ?? []) as SupportUserContext['orders'],
+  };
+};
+
 export interface SupportThread {
   id: string;
   user_id: string;
@@ -235,6 +286,32 @@ export const closeIdleThreads = async (idleMinutes = 5): Promise<number> => {
     return typeof data === 'number' ? data : 0;
   } catch (e) {
     logger.warn('closeIdleThreads threw', e);
+    return 0;
+  }
+};
+
+/**
+ * Notify-then-close idle sweep (§9): warns the user with a system message at
+ * `warnMinutes` of inactivity, then closes `graceMinutes` later if they still
+ * haven't replied. A new user message clears the warning and reopens the
+ * thread. Returns the number of threads closed on this pass.
+ */
+export const sweepIdleThreads = async (
+  warnMinutes = 5,
+  graceMinutes = 1
+): Promise<number> => {
+  try {
+    const { data, error } = await supabase.rpc('support_idle_sweep', {
+      warn_minutes: warnMinutes,
+      grace_minutes: graceMinutes,
+    });
+    if (error) {
+      logger.warn('support_idle_sweep failed', error);
+      return 0;
+    }
+    return typeof data === 'number' ? data : 0;
+  } catch (e) {
+    logger.warn('sweepIdleThreads threw', e);
     return 0;
   }
 };
