@@ -924,19 +924,35 @@ export default function ManageOrderScreen() {
         {/* Courier coordination — pickup&delivery orders with a live courier
             leg get a direct courier chat (customer is never part of it). */}
         {deliveryTask && isCourierChatOpen(deliveryTask.status) && (
-          <TouchableOpacity
-            style={[styles.chatButton, { backgroundColor: '#0EA5E9', marginBottom: SPACING.m }, SHADOWS.small]}
-            onPress={() => router.push({
-              pathname: '/courier-chat/[taskId]',
-              params: { taskId: deliveryTask.id },
-            } as any)}
-            accessibilityRole="button"
-          >
-            <MaterialCommunityIcons name="moped" size={22} color="#FFFFFF" />
-            <Text style={styles.chatButtonText}>
-              {isRTL ? 'مراسلة مندوب التوصيل' : 'Chat with courier'}
-            </Text>
-          </TouchableOpacity>
+          <View style={[styles.actionButtonRow, { marginBottom: SPACING.m }]}>
+            <TouchableOpacity
+              style={[styles.chatButton, { backgroundColor: '#0EA5E9', flex: 1 }, SHADOWS.small]}
+              onPress={() => router.push({
+                pathname: '/courier-chat/[taskId]',
+                params: { taskId: deliveryTask.id },
+              } as any)}
+              accessibilityRole="button"
+            >
+              <MaterialCommunityIcons name="moped" size={22} color="#FFFFFF" />
+              <Text style={styles.chatButtonText}>
+                {isRTL ? 'مراسلة المندوب' : 'Chat courier'}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.chatButton, { backgroundColor: '#8B5CF6', flex: 1 }, SHADOWS.small]}
+              onPress={() => router.push({
+                pathname: '/track-courier/[taskId]',
+                params: { taskId: deliveryTask.id },
+              } as any)}
+              accessibilityRole="button"
+              accessibilityLabel={isRTL ? 'تتبع المندوب' : 'Track courier'}
+            >
+              <MaterialCommunityIcons name="map-marker-path" size={22} color="#FFFFFF" />
+              <Text style={styles.chatButtonText}>
+                {isRTL ? 'تتبع المندوب' : 'Track courier'}
+              </Text>
+            </TouchableOpacity>
+          </View>
         )}
 
         {/* Action Buttons — hidden on terminal/rejected orders (Fix 4). */}

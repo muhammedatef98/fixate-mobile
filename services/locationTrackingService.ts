@@ -50,6 +50,83 @@ export const stopBroadcastingLocation = async () => {
   }
 };
 
+// ── Courier live location (§12) ───────────────────────────────────────────────
+
+export interface CourierLocation {
+  task_id: string;
+  order_id: string;
+  courier_id: string;
+  latitude: number;
+  longitude: number;
+  heading?: number | null;
+  updated_at?: string;
+}
+
+let courierWatcher: Location.LocationSubscription | null = null;
+
+/** Courier begins broadcasting their position for one active delivery task. */
+export const startBroadcastingCourierLocation = async (
+  courierId: string,
+  taskId: string,
+  orderId: string
+) => {
+  await stopBroadcastingCourierLocation();
+  const { status } = await Location.requestForegroundPermissionsAsync();
+  if (status !== 'granted') {
+    logger.warn('Courier location permission not granted');
+    return;
+  }
+  courierWatcher = await Location.watchPositionAsync(
+    { accuracy: Location.Accuracy.High, timeInterval: 5000, distanceInterval: 20 },
+    async (pos) => {
+      try {
+        await supabase.from('courier_locations').upsert(
+          {
+            task_id: taskId,
+            order_id: orderId,
+            courier_id: courierId,
+            latitude: pos.coords.latitude,
+            longitude: pos.coords.longitude,
+            heading: pos.coords.heading ?? null,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: 'task_id' }
+        );
+      } catch (e) {
+        logger.error('upsert courier location failed', e);
+      }
+    }
+  );
+};
+
+export const stopBroadcastingCourierLocation = async () => {
+  if (courierWatcher) {
+    courierWatcher.remove();
+    courierWatcher = null;
+  }
+};
+
+/** Technician (or customer) subscribes to a task's live courier position. */
+export const subscribeToCourierLocation = (
+  taskId: string,
+  callback: (loc: CourierLocation | null) => void
+) => {
+  supabase
+    .from('courier_locations')
+    .select('*')
+    .eq('task_id', taskId)
+    .maybeSingle()
+    .then(({ data }) => callback((data as CourierLocation) ?? null));
+
+  return subscribeUnique(`courier-loc-${taskId}`, (ch) =>
+    ch.on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'courier_locations', filter: `task_id=eq.${taskId}` },
+      (payload: any) => callback((payload.new as CourierLocation) ?? null)
+    )
+  );
+};
+
 export const subscribeToTechnicianLocation = (
   orderId: string,
   callback: (loc: TechnicianLocation | null) => void

@@ -29,8 +29,11 @@ import LiveTrackingMap from '../../../components/LiveTrackingMap';
 import { isCourierChatOpen } from '../../../services/courierChatService';
 import {
   subscribeToTechnicianLocation,
+  startBroadcastingCourierLocation,
+  stopBroadcastingCourierLocation,
   type TechnicianLocation,
 } from '../../../services/locationTrackingService';
+import { useAuth } from '../../../contexts/AuthContext';
 import { getFriendlyError } from '../../../utils/errorMessages';
 import { logger } from '../../../utils/logger';
 
@@ -58,6 +61,7 @@ export default function CourierTaskDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams();
   const { language, isDark } = useApp();
+  const { user } = useAuth();
   const COLORS = getColors(isDark);
   const SHADOWS = getShadows(isDark);
   const isRTL = language === 'ar';
@@ -76,6 +80,21 @@ export default function CourierTaskDetailScreen() {
     const unsub = subscribeToTechnicianLocation(task.order_id, (loc) => setTechLoc(loc));
     return unsub;
   }, [task?.order_id]);
+
+  // §12 — broadcast the courier's own live position while the task is active
+  // so the order's technician (and customer) can track the delivery. Stops
+  // automatically when the task leaves the active window or the screen closes.
+  useEffect(() => {
+    const active = task && ['accepted', 'picked_up'].includes(task.status);
+    if (active && user?.id && task?.id && task?.order_id) {
+      void startBroadcastingCourierLocation(user.id, task.id, task.order_id);
+    } else {
+      void stopBroadcastingCourierLocation();
+    }
+    return () => {
+      void stopBroadcastingCourierLocation();
+    };
+  }, [task?.id, task?.order_id, task?.status, user?.id]);
 
   const load = useCallback(async () => {
     const t = await getDeliveryTaskById(String(id));
