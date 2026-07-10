@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
+import LoadingScreen from '../../components/LoadingScreen';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useApp } from '../../contexts/AppContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -100,11 +101,7 @@ export default function TechnicianLayout() {
   }, [user, gate.kind]);
 
   if (authLoading || gate.kind === 'loading') {
-    return (
-      <View style={[styles.center, { backgroundColor: COLORS.background }]}>
-        <ActivityIndicator color={COLORS.primary} />
-      </View>
-    );
+    return <LoadingScreen />;
   }
 
   if (gate.kind === 'no-profile') {
