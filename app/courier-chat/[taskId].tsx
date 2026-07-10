@@ -40,8 +40,10 @@ import {
 import {
   isCourierChatThread,
   partyPhone,
+  partyName,
   threadCounterpartLabel,
 } from '../../utils/courierChatThreads';
+import { supabase } from '../../services/supabaseClient';
 
 /**
  * Courier chat, scoped to one delivery task. Two isolated threads live on a
@@ -62,6 +64,11 @@ export default function CourierChatScreen() {
   const insets = useSafeAreaInsets();
 
   const [task, setTask] = useState<DeliveryTask | null>(null);
+  const [orderInfo, setOrderInfo] = useState<{
+    device_brand: string | null;
+    device_model: string | null;
+    order_number: string | null;
+  } | null>(null);
   const [messages, setMessages] = useState<CourierChatMessage[]>([]);
   const [draft, setDraft] = useState('');
   const [loading, setLoading] = useState(true);
@@ -82,6 +89,17 @@ export default function CourierChatScreen() {
         ]);
         setTask(t);
         setMessages(msgs);
+        // Device + order-number context for the chat header. RLS lets the
+        // customer/technician read their order; if the courier can't, this
+        // simply stays null and the header falls back to the leg label.
+        if (t?.order_id) {
+          supabase
+            .from('orders')
+            .select('device_brand, device_model, order_number')
+            .eq('id', t.order_id)
+            .maybeSingle()
+            .then(({ data }) => setOrderInfo(data ?? null));
+        }
         if (user?.id) void markCourierChatRead(String(taskId), user.id, thread);
       } catch (e) {
         logger.warn('courier chat load failed', e);
@@ -152,7 +170,16 @@ export default function CourierChatScreen() {
   // The courier calls the thread's party (customer/technician); the
   // technician/customer call the courier, whose phone is stamped on the task
   // at accept time (courier_contact_phone).
-  const counterpartName = threadCounterpartLabel(thread, isCourier, isRTL);
+  // The courier sees the actual party name (customer/technician) stamped on
+  // the task; the customer/technician always see "Courier".
+  const counterpartName =
+    (isCourier && task ? partyName(task, thread) : null) ||
+    threadCounterpartLabel(thread, isCourier, isRTL);
+  const deviceLabel = orderInfo
+    ? [orderInfo.device_brand, orderInfo.device_model].filter(Boolean).join(' ')
+    : '';
+  const orderRef = orderInfo?.order_number ? `#${orderInfo.order_number}` : '';
+  const contextLine = [deviceLabel, orderRef].filter(Boolean).join(' · ');
   const counterpartPhone = task
     ? isCourier
       ? partyPhone(task, thread)
@@ -238,9 +265,11 @@ export default function CourierChatScreen() {
               {counterpartName}
             </Text>
             <Text style={[styles.headerSubtitle, { color: COLORS.textSecondary }]} numberOfLines={1}>
-              {task.task_type === 'pickup'
-                ? isRTL ? 'مهمة استلام' : 'Pickup task'
-                : isRTL ? 'مهمة إعادة' : 'Return task'}
+              {contextLine
+                ? contextLine
+                : task.task_type === 'pickup'
+                  ? isRTL ? 'مهمة استلام' : 'Pickup task'
+                  : isRTL ? 'مهمة إعادة' : 'Return task'}
               {' · '}
               {deliveryLegLabel(task.task_type, task.status)[isRTL ? 'ar' : 'en']}
             </Text>

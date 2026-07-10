@@ -425,7 +425,7 @@ export default function ChatScreen() {
               {otherPartyName}
             </Text>
             <Text style={[styles.headerSubtitle, { color: COLORS.textSecondary }]} numberOfLines={1}>
-              {order?.device_brand} {order?.device_model} · #{(order?.id ?? '').slice(0, 6)}
+              {order?.device_brand} {order?.device_model} · #{order?.order_number ?? (order?.id ?? '').slice(0, 6)}
             </Text>
           </View>
         </View>

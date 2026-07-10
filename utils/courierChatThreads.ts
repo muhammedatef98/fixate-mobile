@@ -42,6 +42,21 @@ export const partyPhone = (
     ? task.pickup_contact_phone
     : task.dropoff_contact_phone;
 
+interface TaskContactNames {
+  task_type: DeliveryTaskType;
+  pickup_contact_name: string | null;
+  dropoff_contact_name: string | null;
+}
+
+/** Display name of the given party on a task (null when never stamped). */
+export const partyName = (
+  task: TaskContactNames,
+  party: CourierChatThread
+): string | null =>
+  partyStop(task.task_type, party) === 'pickup'
+    ? task.pickup_contact_name
+    : task.dropoff_contact_name;
+
 /**
  * Header title for a thread from the viewer's seat: the courier sees the
  * other party; the technician/customer always sees the courier.
