@@ -45,6 +45,7 @@ export interface DeliveryTask {
   dropoff_longitude: number | null;
   dropoff_contact_name: string | null;
   dropoff_contact_phone: string | null;
+  courier_contact_phone: string | null;
   notes: string | null;
   courier_fee: number | null;
   created_at: string;

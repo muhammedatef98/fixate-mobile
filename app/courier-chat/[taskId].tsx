@@ -149,10 +149,15 @@ export default function CourierChatScreen() {
 
   // The other party from each side's perspective + their phone for the call
   // shortcut (contact fields were stamped onto the task at creation time).
-  // The courier calls the thread's party; the technician/customer have no
-  // courier phone on the task, so their call shortcut stays hidden.
+  // The courier calls the thread's party (customer/technician); the
+  // technician/customer call the courier, whose phone is stamped on the task
+  // at accept time (courier_contact_phone).
   const counterpartName = threadCounterpartLabel(thread, isCourier, isRTL);
-  const counterpartPhone = isCourier && task ? partyPhone(task, thread) : null;
+  const counterpartPhone = task
+    ? isCourier
+      ? partyPhone(task, thread)
+      : task.courier_contact_phone
+    : null;
 
   const renderMessage = ({ item }: { item: CourierChatMessage }) => {
     const isMe = item.sender_id === user?.id;

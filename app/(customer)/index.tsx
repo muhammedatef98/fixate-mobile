@@ -137,7 +137,9 @@ export default function CustomerHomeScreen() {
   // First name only. Empty string when a brand-new signup has neither a
   // profile name nor an email handle — the greeting then renders alone (no
   // awkward blank / "there" / "صديقي" placeholder after it).
-  const displayName = resolveGreetingName(userProfile?.name, user?.email);
+  const displayName =
+    resolveGreetingName(userProfile?.name, user?.email) ||
+    (isRTL ? 'عميلنا العزيز' : 'Valued customer');
 
   useEffect(() => {
     Animated.parallel([
