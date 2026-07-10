@@ -27,6 +27,7 @@ import { getWalletBalance } from '../../services/customerWalletService';
 import { RTLIonicon, RTLMaterialIcon } from '../../components/RTLIcon';
 import { PressableScale, AnimatedTouchable } from '../../components/ui/PressableScale';
 import { Skeleton } from '../../components/ui/Skeleton';
+import HomeHighlightsCarousel from '../../components/HomeHighlightsCarousel';
 
 const { width } = Dimensions.get('window');
 
@@ -294,6 +295,9 @@ export default function CustomerHomeScreen() {
           <Text style={[styles.greetingSub, { color: COLORS.textSecondary }]}>
             {isRTL ? 'إصلاح احترافي لأجهزتك، أينما كنت' : 'Expert device repair, wherever you are'}
           </Text>
+
+          {/* §13 — auto-rotating app highlights */}
+          <HomeHighlightsCarousel />
 
           {/* Wallet balance pill (§15) */}
           <TouchableOpacity
