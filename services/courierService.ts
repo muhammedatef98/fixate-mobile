@@ -63,6 +63,11 @@ export interface CourierProfile {
   id_number: string | null;
   driver_license_number: string | null;
   vehicle_registration_number: string | null;
+  license_image_url: string | null;
+  registration_image_url: string | null;
+  id_image_url: string | null;
+  selfie_url: string | null;
+  challenge_text: string | null;
   verification_status: string;
   verification_notes: string | null;
   courier_status: string;
@@ -94,13 +99,86 @@ export interface CourierApplication {
   id_number?: string;
   driver_license_number: string;
   vehicle_registration_number: string;
+  // §7 — verification documents + identity challenge. Local image URIs to be
+  // uploaded, plus the anti-replay challenge text shown when the selfie was
+  // taken. Stored paths land on the couriers row via submitCourierApplication.
+  licenseImageUri?: string;
+  registrationImageUri?: string;
+  idImageUri?: string;
+  selfieImageUri?: string;
+  challengeText?: string;
 }
+
+const COURIER_DOC_BUCKET = 'user-id-documents';
+
+/**
+ * Upload a courier verification image into the courier's own folder in the
+ * private ID-documents bucket (owner-write / admin-read RLS). Mirrors the
+ * customer KYC uploader: base64 → decode → upload, guarding the zero-byte bug.
+ */
+export const uploadCourierDoc = async (
+  userId: string,
+  uri: string,
+  kind: 'license' | 'registration' | 'id' | 'selfie'
+): Promise<string> => {
+  const { decode } = await import('base64-arraybuffer');
+  const { readAsStringAsync } = await import('expo-file-system/legacy');
+  const { manipulateAsync, SaveFormat } = await import('expo-image-manipulator');
+
+  let sourceUri = uri;
+  try {
+    const m = await manipulateAsync(uri, [{ resize: { width: 1600 } }], {
+      compress: 0.85,
+      format: SaveFormat.JPEG,
+    });
+    sourceUri = m.uri;
+  } catch (e) {
+    logger.warn('uploadCourierDoc compress failed, using original', e);
+  }
+
+  const path = `${userId}/courier-${kind}-${Date.now()}.jpg`;
+  const base64 = await readAsStringAsync(sourceUri, { encoding: 'base64' });
+  const bytes = decode(base64);
+  if (bytes.byteLength === 0) throw new Error(`Refusing to upload empty ${kind} image`);
+  const { error } = await supabase.storage
+    .from(COURIER_DOC_BUCKET)
+    .upload(path, bytes, { contentType: 'image/jpeg', upsert: false });
+  if (error) throw error;
+  return path;
+};
+
+/** Signed URL for a private courier document (admin review). */
+export const getCourierDocUrl = async (
+  path: string | null,
+  expiresInSeconds = 60 * 10
+): Promise<string | null> => {
+  if (!path) return null;
+  const { data, error } = await supabase.storage
+    .from(COURIER_DOC_BUCKET)
+    .createSignedUrl(path, expiresInSeconds);
+  if (error) {
+    logger.warn('getCourierDocUrl failed', error);
+    return null;
+  }
+  return data?.signedUrl ?? null;
+};
 
 /** Create or resubmit the courier application (status returns to submitted). */
 export const submitCourierApplication = async (
   userId: string,
   app: CourierApplication
 ): Promise<void> => {
+  // Upload any provided verification images first; only new local URIs (file:/
+  // content:) are uploaded, so re-submits that keep an existing stored path
+  // are left untouched.
+  const isLocal = (u?: string) => !!u && /^(file:|content:|assets-library:|ph:)/.test(u);
+  const [licensePath, registrationPath, idPath, selfiePath] = await Promise.all([
+    isLocal(app.licenseImageUri) ? uploadCourierDoc(userId, app.licenseImageUri!, 'license') : Promise.resolve(app.licenseImageUri ?? null),
+    isLocal(app.registrationImageUri) ? uploadCourierDoc(userId, app.registrationImageUri!, 'registration') : Promise.resolve(app.registrationImageUri ?? null),
+    isLocal(app.idImageUri) ? uploadCourierDoc(userId, app.idImageUri!, 'id') : Promise.resolve(app.idImageUri ?? null),
+    isLocal(app.selfieImageUri) ? uploadCourierDoc(userId, app.selfieImageUri!, 'selfie') : Promise.resolve(app.selfieImageUri ?? null),
+  ]);
+
   const { error } = await supabase.from('couriers').upsert(
     {
       user_id: userId,
@@ -109,6 +187,11 @@ export const submitCourierApplication = async (
       id_number: app.id_number ?? null,
       driver_license_number: app.driver_license_number,
       vehicle_registration_number: app.vehicle_registration_number,
+      license_image_url: licensePath,
+      registration_image_url: registrationPath,
+      id_image_url: idPath,
+      selfie_url: selfiePath,
+      challenge_text: app.challengeText ?? null,
       verification_status: 'submitted',
       updated_at: new Date().toISOString(),
     },

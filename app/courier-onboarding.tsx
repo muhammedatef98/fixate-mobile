@@ -10,10 +10,12 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import { useApp } from '../contexts/AppContext';
 import { useAuth } from '../contexts/AuthContext';
 import { getColors, SPACING, BORDER_RADIUS } from '../constants/theme';
@@ -22,6 +24,7 @@ import {
   getMyCourierProfile,
   submitCourierApplication,
 } from '../services/courierService';
+import { generateChallenge } from '../services/userVerificationService';
 import * as userService from '../services/userService';
 import { getFriendlyError } from '../utils/errorMessages';
 import { validateDocNumber } from '../utils/validation';
@@ -65,8 +68,47 @@ export default function CourierOnboardingScreen() {
   const [idNumber, setIdNumber] = useState('');
   const [licenseNumber, setLicenseNumber] = useState('');
   const [registrationNumber, setRegistrationNumber] = useState('');
+  // §7 — verification document images + identity challenge selfie.
+  const [licenseImage, setLicenseImage] = useState<string | null>(null);
+  const [registrationImage, setRegistrationImage] = useState<string | null>(null);
+  const [idImage, setIdImage] = useState<string | null>(null);
+  const [selfieImage, setSelfieImage] = useState<string | null>(null);
+  const [challenge, setChallenge] = useState('');
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    setChallenge((prev) => generateChallenge(isRTL, prev || null));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const pickImage = async (setter: (uri: string) => void) => {
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) {
+      Alert.alert(isRTL ? 'الإذن مرفوض' : 'Permission denied', isRTL ? 'يرجى السماح بالوصول للمعرض' : 'Please allow gallery access');
+      return;
+    }
+    const res = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.8,
+      allowsEditing: false,
+    });
+    if (!res.canceled && res.assets[0]?.uri) setter(res.assets[0].uri);
+  };
+
+  const captureSelfie = async () => {
+    const perm = await ImagePicker.requestCameraPermissionsAsync();
+    if (!perm.granted) {
+      Alert.alert(isRTL ? 'الإذن مرفوض' : 'Permission denied', isRTL ? 'يرجى السماح باستخدام الكاميرا' : 'Please allow camera access');
+      return;
+    }
+    const res = await ImagePicker.launchCameraAsync({
+      cameraType: ImagePicker.CameraType.front,
+      quality: 0.8,
+      allowsEditing: false,
+    });
+    if (!res.canceled && res.assets[0]?.uri) setSelfieImage(res.assets[0].uri);
+  };
 
   useEffect(() => {
     if (!user) {
@@ -83,6 +125,12 @@ export default function CourierOnboardingScreen() {
         setIdNumber(profile.id_number ?? '');
         setLicenseNumber(profile.driver_license_number ?? '');
         setRegistrationNumber(profile.vehicle_registration_number ?? '');
+        // Preserve previously-uploaded document paths on re-submission; the
+        // uploader treats a non-local (stored) path as "keep as-is".
+        setLicenseImage(profile.license_image_url ?? null);
+        setRegistrationImage(profile.registration_image_url ?? null);
+        setIdImage(profile.id_image_url ?? null);
+        setSelfieImage(profile.selfie_url ?? null);
       }
       setLoading(false);
     })();
@@ -133,6 +181,20 @@ export default function CourierOnboardingScreen() {
       );
       return;
     }
+    // §7 — document images + identity selfie are mandatory (re-submissions may
+    // already carry a stored path, so a previously-saved value counts).
+    if (!licenseImage) {
+      Alert.alert(isRTL ? 'تنبيه' : 'Missing info', isRTL ? 'أرفق صورة رخصة القيادة' : 'Attach a photo of your driver license');
+      return;
+    }
+    if (!registrationImage) {
+      Alert.alert(isRTL ? 'تنبيه' : 'Missing info', isRTL ? 'أرفق صورة استمارة/تسجيل المركبة' : 'Attach a photo of the vehicle registration / form');
+      return;
+    }
+    if (!selfieImage) {
+      Alert.alert(isRTL ? 'تنبيه' : 'Missing info', isRTL ? 'التقط صورة شخصية أثناء تنفيذ التحدي' : 'Take a selfie performing the challenge');
+      return;
+    }
     setSubmitting(true);
     try {
       // Identity lives on the users row (name shown to admins and customers);
@@ -147,6 +209,11 @@ export default function CourierOnboardingScreen() {
         id_number: idNumber.trim() || undefined,
         driver_license_number: licenseNumber.trim(),
         vehicle_registration_number: registrationNumber.trim(),
+        licenseImageUri: licenseImage ?? undefined,
+        registrationImageUri: registrationImage ?? undefined,
+        idImageUri: idImage ?? undefined,
+        selfieImageUri: selfieImage ?? undefined,
+        challengeText: challenge,
       });
       Alert.alert(
         isRTL ? 'تم الإرسال ✓' : 'Submitted ✓',
@@ -368,6 +435,66 @@ export default function CourierOnboardingScreen() {
             </Text>
           </View>
 
+          {/* §7 — document photos + live identity challenge */}
+          <View style={{ backgroundColor: COLORS.card, borderColor: COLORS.border, borderWidth: 1, borderRadius: BORDER_RADIUS.lg, padding: SPACING.m, marginBottom: SPACING.m }}>
+            <Text style={{ color: COLORS.text, fontSize: 15, fontWeight: '800', marginBottom: 4, textAlign: isRTL ? 'right' : 'left' }}>
+              {isRTL ? 'صور المستندات والتحقق من الهوية' : 'Document photos & identity check'}
+            </Text>
+            <Text style={{ color: COLORS.textSecondary, fontSize: 12, marginBottom: 14, textAlign: isRTL ? 'right' : 'left' }}>
+              {isRTL
+                ? 'مستنداتك خاصة ولا تظهر للعملاء — يراجعها فريق التحقق فقط.'
+                : 'Your documents are private and never shown to customers — only the review team sees them.'}
+            </Text>
+
+            <DocTile
+              label={isRTL ? 'صورة رخصة القيادة' : 'Driver license photo'}
+              uri={licenseImage}
+              onPress={() => pickImage(setLicenseImage)}
+              COLORS={COLORS}
+              isRTL={isRTL}
+            />
+            <DocTile
+              label={isRTL ? 'صورة استمارة/تسجيل المركبة' : 'Vehicle registration / form photo'}
+              uri={registrationImage}
+              onPress={() => pickImage(setRegistrationImage)}
+              COLORS={COLORS}
+              isRTL={isRTL}
+            />
+            <DocTile
+              label={isRTL ? 'صورة الهوية/الإقامة (اختياري)' : 'National ID / Iqama photo (optional)'}
+              uri={idImage}
+              onPress={() => pickImage(setIdImage)}
+              COLORS={COLORS}
+              isRTL={isRTL}
+            />
+
+            {/* Live identity challenge */}
+            <View style={{ backgroundColor: COLORS.primary + '10', borderRadius: BORDER_RADIUS.md, padding: 12, marginTop: 6 }}>
+              <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Text style={{ color: COLORS.text, fontWeight: '700', fontSize: 13 }}>
+                  {isRTL ? 'تحدّي التحقق' : 'Verification challenge'}
+                </Text>
+                <TouchableOpacity onPress={() => setChallenge((p) => generateChallenge(isRTL, p || null))} accessibilityRole="button">
+                  <MaterialCommunityIcons name="refresh" size={18} color={COLORS.primary} />
+                </TouchableOpacity>
+              </View>
+              <Text style={{ color: COLORS.primary, fontSize: 15, fontWeight: '800', marginTop: 6, textAlign: isRTL ? 'right' : 'left' }}>
+                {challenge}
+              </Text>
+              <Text style={{ color: COLORS.textSecondary, fontSize: 11.5, marginTop: 4, textAlign: isRTL ? 'right' : 'left' }}>
+                {isRTL ? 'التقط صورة شخصية مباشرة أثناء تنفيذ التعليمة أعلاه.' : 'Take a live selfie while performing the instruction above.'}
+              </Text>
+              <DocTile
+                label={isRTL ? 'الصورة الشخصية (كاميرا مباشرة)' : 'Selfie (live camera)'}
+                uri={selfieImage}
+                onPress={captureSelfie}
+                COLORS={COLORS}
+                isRTL={isRTL}
+                camera
+              />
+            </View>
+          </View>
+
           <TouchableOpacity
             style={[styles.submit, { backgroundColor: COLORS.primary, opacity: submitting ? 0.7 : 1 }]}
             onPress={handleSubmit}
@@ -385,6 +512,58 @@ export default function CourierOnboardingScreen() {
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
+  );
+}
+
+function DocTile({
+  label,
+  uri,
+  onPress,
+  COLORS,
+  isRTL,
+  camera,
+}: {
+  label: string;
+  uri: string | null;
+  onPress: () => void;
+  COLORS: any;
+  isRTL: boolean;
+  camera?: boolean;
+}) {
+  const done = !!uri;
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      accessibilityRole="button"
+      style={{
+        flexDirection: isRTL ? 'row-reverse' : 'row',
+        alignItems: 'center',
+        gap: 12,
+        borderWidth: 1,
+        borderColor: done ? '#10B981' : COLORS.border,
+        borderRadius: BORDER_RADIUS.md,
+        padding: 10,
+        marginTop: 10,
+        marginBottom: 2,
+        backgroundColor: done ? '#10B98112' : 'transparent',
+      }}
+    >
+      {uri ? (
+        <Image source={{ uri }} style={{ width: 44, height: 44, borderRadius: 8 }} />
+      ) : (
+        <View style={{ width: 44, height: 44, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.primary + '15' }}>
+          <MaterialCommunityIcons name={camera ? 'camera-outline' : 'file-image-plus-outline'} size={22} color={COLORS.primary} />
+        </View>
+      )}
+      <Text style={{ flex: 1, color: COLORS.text, fontSize: 13, fontWeight: '600', textAlign: isRTL ? 'right' : 'left' }}>
+        {label}
+      </Text>
+      <MaterialCommunityIcons
+        name={done ? 'check-circle' : camera ? 'camera' : 'upload'}
+        size={20}
+        color={done ? '#10B981' : COLORS.textSecondary}
+      />
+    </TouchableOpacity>
   );
 }
 

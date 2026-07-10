@@ -9,6 +9,8 @@ import {
   RefreshControl,
   Alert,
   Platform,
+  Modal,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -19,7 +21,7 @@ import { RTLIonicon } from '../components/RTLIcon';
 import { useAdminGuard } from '../hooks/useAdminGuard';
 import { supabase } from '../services/supabaseClient';
 import { notifyUsers } from '../services/notifyService';
-import { DELIVERY_STATUS_LABELS, type DeliveryTask } from '../services/courierService';
+import { DELIVERY_STATUS_LABELS, getCourierDocUrl, type DeliveryTask } from '../services/courierService';
 import { getFriendlyError } from '../utils/errorMessages';
 import { logger } from '../utils/logger';
 
@@ -31,6 +33,11 @@ interface AdminCourierRow {
   id_number: string | null;
   driver_license_number?: string | null;
   vehicle_registration_number?: string | null;
+  license_image_url?: string | null;
+  registration_image_url?: string | null;
+  id_image_url?: string | null;
+  selfie_url?: string | null;
+  challenge_text?: string | null;
   verification_status: string;
   verification_notes: string | null;
   courier_status: string;
@@ -65,6 +72,31 @@ export default function AdminCouriersScreen() {
 
   const [tab, setTab] = useState<TabKey>('applications');
   const [couriers, setCouriers] = useState<AdminCourierRow[]>([]);
+  const [docsFor, setDocsFor] = useState<AdminCourierRow | null>(null);
+  const [docUrls, setDocUrls] = useState<{ label: string; url: string }[]>([]);
+  const [docsLoading, setDocsLoading] = useState(false);
+
+  const openDocs = async (c: AdminCourierRow) => {
+    setDocsFor(c);
+    setDocUrls([]);
+    setDocsLoading(true);
+    const items: { label: string; path?: string | null }[] = [
+      { label: isRTL ? 'رخصة القيادة' : 'Driver license', path: c.license_image_url },
+      { label: isRTL ? 'استمارة/تسجيل المركبة' : 'Vehicle registration', path: c.registration_image_url },
+      { label: isRTL ? 'الهوية/الإقامة' : 'National ID / Iqama', path: c.id_image_url },
+      { label: isRTL ? 'الصورة الشخصية (التحدي)' : 'Selfie (challenge)', path: c.selfie_url },
+    ];
+    try {
+      const resolved = await Promise.all(
+        items.map(async (it) => ({ label: it.label, url: it.path ? await getCourierDocUrl(it.path) : null }))
+      );
+      setDocUrls(resolved.filter((r): r is { label: string; url: string } => !!r.url));
+    } catch (e) {
+      logger.warn('courier docs load failed', e);
+    } finally {
+      setDocsLoading(false);
+    }
+  };
   const [tasks, setTasks] = useState<DeliveryTask[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -212,6 +244,18 @@ export default function AdminCouriersScreen() {
           <Text style={{ color: COLORS.textSecondary, fontSize: 12, marginTop: 4, fontStyle: 'italic', textAlign: isRTL ? 'right' : 'left' }}>
             {c.verification_notes}
           </Text>
+        )}
+        {(c.license_image_url || c.registration_image_url || c.selfie_url || c.id_image_url) && (
+          <TouchableOpacity
+            onPress={() => void openDocs(c)}
+            style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 8, marginTop: 10 }}
+            accessibilityRole="button"
+          >
+            <MaterialCommunityIcons name="file-image-outline" size={18} color={COLORS.primary} />
+            <Text style={{ color: COLORS.primary, fontWeight: '700', fontSize: 13 }}>
+              {isRTL ? 'عرض مستندات التحقق' : 'View verification documents'}
+            </Text>
+          </TouchableOpacity>
         )}
         {['submitted', 'pending', 'changes_requested'].includes(c.verification_status) && (
           <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', gap: 8, marginTop: 12 }}>
@@ -367,6 +411,46 @@ export default function AdminCouriersScreen() {
           )}
         </ScrollView>
       )}
+
+      {/* §7 — courier verification document review */}
+      <Modal visible={!!docsFor} transparent animationType="slide" onRequestClose={() => setDocsFor(null)}>
+        <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: '#00000066' }}>
+          <View style={{ backgroundColor: COLORS.background, borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: '88%', paddingBottom: 24 }}>
+            <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', justifyContent: 'space-between', padding: SPACING.md, borderBottomWidth: 1, borderBottomColor: COLORS.border }}>
+              <Text style={{ color: COLORS.text, fontSize: 16, fontWeight: '800' }}>
+                {isRTL ? 'مستندات التحقق' : 'Verification documents'}
+              </Text>
+              <TouchableOpacity onPress={() => setDocsFor(null)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                <MaterialCommunityIcons name="close" size={24} color={COLORS.text} />
+              </TouchableOpacity>
+            </View>
+            {docsFor?.challenge_text ? (
+              <View style={{ paddingHorizontal: SPACING.md, paddingTop: 12 }}>
+                <Text style={{ color: COLORS.textSecondary, fontSize: 12 }}>{isRTL ? 'نص التحدي المطلوب في الصورة الشخصية:' : 'Challenge the selfie must show:'}</Text>
+                <Text style={{ color: COLORS.text, fontSize: 14, fontWeight: '700', marginTop: 2, textAlign: isRTL ? 'right' : 'left' }}>{docsFor.challenge_text}</Text>
+              </View>
+            ) : null}
+            {docsLoading ? (
+              <ActivityIndicator color={COLORS.primary} style={{ marginVertical: 40 }} />
+            ) : (
+              <ScrollView contentContainerStyle={{ padding: SPACING.md, gap: 16 }}>
+                {docUrls.length === 0 ? (
+                  <Text style={{ color: COLORS.textSecondary, textAlign: 'center', paddingVertical: 30 }}>
+                    {isRTL ? 'لا توجد صور متاحة' : 'No images available'}
+                  </Text>
+                ) : (
+                  docUrls.map((d) => (
+                    <View key={d.label}>
+                      <Text style={{ color: COLORS.text, fontWeight: '700', fontSize: 13, marginBottom: 6, textAlign: isRTL ? 'right' : 'left' }}>{d.label}</Text>
+                      <Image source={{ uri: d.url }} style={{ width: '100%', height: 220, borderRadius: BORDER_RADIUS.md, backgroundColor: COLORS.card }} resizeMode="contain" />
+                    </View>
+                  ))
+                )}
+              </ScrollView>
+            )}
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
