@@ -51,6 +51,7 @@ interface FormState {
   inspectionEnabled: boolean;
   returnFee: string;
   commissionRate: string;
+  requestLifetimeMinutes: string;
   easternProvinceEnabled: boolean;
   serviceAreaMessageAr: string;
   serviceAreaMessageEn: string;
@@ -86,6 +87,7 @@ const toForm = (s: PlatformSettings): FormState => ({
   inspectionEnabled: s.inspectionEnabled,
   returnFee: String(s.returnFee),
   commissionRate: String(s.commissionRate),
+  requestLifetimeMinutes: String(s.requestLifetimeMinutes),
   easternProvinceEnabled: s.easternProvinceEnabled,
   serviceAreaMessageAr: s.serviceAreaMessageAr,
   serviceAreaMessageEn: s.serviceAreaMessageEn,
@@ -120,6 +122,7 @@ interface FieldErrors {
   inspectionFee?: string;
   returnFee?: string;
   commissionRate?: string;
+  requestLifetimeMinutes?: string;
   serviceAreaMessageAr?: string;
   serviceAreaMessageEn?: string;
   loyaltyPointsPerSAR?: string;
@@ -173,6 +176,9 @@ export default function AdminPlatformSettingsScreen() {
       err.inspectionFee = isRTL ? 'أدخل رقماً صحيحاً' : 'Enter a valid number';
     if (!Number.isFinite(num(f.returnFee)) || num(f.returnFee) < 0)
       err.returnFee = isRTL ? 'أدخل رقماً صحيحاً' : 'Enter a valid number';
+    const life = num(f.requestLifetimeMinutes);
+    if (!Number.isFinite(life) || life < 1)
+      err.requestLifetimeMinutes = isRTL ? 'دقيقة واحدة على الأقل' : 'At least 1 minute';
     const rate = num(f.commissionRate);
     if (!Number.isFinite(rate) || rate < 0 || rate > 1)
       err.commissionRate = isRTL ? 'النسبة بين 0 و 1' : 'Rate must be 0–1';
@@ -224,6 +230,7 @@ export default function AdminPlatformSettingsScreen() {
         { key: PLATFORM_SETTINGS_KEYS.inspectionEnabled, value: form.inspectionEnabled },
         { key: PLATFORM_SETTINGS_KEYS.returnFee, value: Number(form.returnFee) },
         { key: PLATFORM_SETTINGS_KEYS.commissionRate, value: Number(form.commissionRate) },
+        { key: PLATFORM_SETTINGS_KEYS.requestLifetimeMinutes, value: Math.max(1, Math.round(Number(form.requestLifetimeMinutes) || 30)) },
         { key: PLATFORM_SETTINGS_KEYS.easternProvinceEnabled, value: form.easternProvinceEnabled },
         { key: PLATFORM_SETTINGS_KEYS.serviceAreaMessageAr, value: form.serviceAreaMessageAr.trim() },
         { key: PLATFORM_SETTINGS_KEYS.serviceAreaMessageEn, value: form.serviceAreaMessageEn.trim() },
@@ -524,6 +531,27 @@ export default function AdminPlatformSettingsScreen() {
                 value={form.commissionRate}
                 onChangeText={(v) => set({ commissionRate: v })}
                 error={errors.commissionRate}
+                COLORS={COLORS} isRTL={isRTL}
+              />
+            </CollapsibleSection>
+
+            {/* Request lifetime (§8) */}
+            <CollapsibleSection
+              icon="timer-sand"
+              iconColor="#6366f1"
+              title={isRTL ? 'مدة بقاء الطلب' : 'Request lifetime'}
+              subtitle={isRTL ? 'المدة قبل انتهاء الطلب تلقائياً' : 'Time before a request auto-expires'}
+              COLORS={COLORS}
+              isRTL={isRTL}
+            >
+              <FieldNumber
+                label={isRTL ? 'مدة بقاء الطلب (دقائق)' : 'Request lifetime (minutes)'}
+                hint={isRTL
+                  ? 'يبقى الطلب مفتوحاً للعروض لهذه المدة. إذا لم يقبل العميل أي عرض خلالها ينتهي تلقائياً.'
+                  : 'A new request stays open for offers this long. If no offer is accepted in time it auto-expires.'}
+                value={form.requestLifetimeMinutes}
+                onChangeText={(v) => set({ requestLifetimeMinutes: v })}
+                error={errors.requestLifetimeMinutes}
                 COLORS={COLORS} isRTL={isRTL}
               />
             </CollapsibleSection>

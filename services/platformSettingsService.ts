@@ -93,6 +93,9 @@ export interface PlatformSettings {
   // each order at offer acceptance (accept_order_offer), so switching the
   // mode here only affects NEW acceptances — live orders keep their snapshot.
   paymentMode: PaymentModeSettings;
+  // §8 — how long (minutes) a new customer request stays open for offers
+  // before the auto-expire cron closes it. Default 30.
+  requestLifetimeMinutes: number;
 }
 
 export const PLATFORM_SETTINGS_KEYS = {
@@ -119,6 +122,7 @@ export const PLATFORM_SETTINGS_KEYS = {
   pushNotificationsEnabled: 'push_notifications_enabled',
   ratingsEnabled: 'ratings_enabled',
   marketplaceEnabled: 'marketplace_enabled',
+  requestLifetimeMinutes: 'request_lifetime_minutes',
   serviceMobileEnabled: 'service_mobile_enabled',
   servicePickupEnabled: 'service_pickup_enabled',
   serviceHandoffEnabled: 'service_handoff_enabled',
@@ -208,6 +212,7 @@ const DEFAULTS: PlatformSettings = {
   freeDeliveryEnabled: false,
   freeDeliveryPromoCode: '',
   paymentMode: DEFAULT_PAYMENT_MODE_SETTINGS,
+  requestLifetimeMinutes: 30,
 };
 
 const loadRaw = async (): Promise<Record<string, any>> => {
@@ -266,6 +271,7 @@ export const getPlatformSettings = async (): Promise<PlatformSettings> => {
     freeDeliveryEnabled: boolFromValue(raw[PLATFORM_SETTINGS_KEYS.freeDeliveryEnabled], DEFAULTS.freeDeliveryEnabled),
     freeDeliveryPromoCode: strFromValue(raw[PLATFORM_SETTINGS_KEYS.freeDeliveryPromoCode], DEFAULTS.freeDeliveryPromoCode),
     paymentMode: paymentModeFromRaw(raw),
+    requestLifetimeMinutes: numFromValue(raw[PLATFORM_SETTINGS_KEYS.requestLifetimeMinutes], DEFAULTS.requestLifetimeMinutes),
   };
 };
 

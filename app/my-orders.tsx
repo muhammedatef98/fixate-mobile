@@ -114,6 +114,13 @@ const ORDER_STATUS_CONFIG = {
     color: '#EF4444',
     progress: 0,
   },
+  expired: {
+    ar: 'انتهت المهلة',
+    en: 'Expired',
+    icon: 'timer-off-outline',
+    color: '#94A3B8',
+    progress: 0,
+  },
 };
 
 export default function MyOrdersScreen() {
@@ -143,9 +150,9 @@ export default function MyOrdersScreen() {
   const getFilteredOrders = () => {
     switch (filter) {
       case 'active':
-        return orders.filter(o => !['completed', 'cancelled', 'rejected'].includes(o.status));
+        return orders.filter(o => !['completed', 'cancelled', 'rejected', 'expired'].includes(o.status));
       case 'completed':
-        return orders.filter(o => ['completed', 'cancelled', 'rejected'].includes(o.status));
+        return orders.filter(o => ['completed', 'cancelled', 'rejected', 'expired'].includes(o.status));
       default:
         return orders;
     }

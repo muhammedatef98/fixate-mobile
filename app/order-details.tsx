@@ -314,7 +314,7 @@ export default function OrderDetailsScreen() {
   const currentStepIndex = getCurrentStepIndex();
   // Treat rejected like cancelled for the happy-path timeline (hidden); the
   // dedicated rejection notice card renders the reason instead (FEAT-03).
-  const isCancelled = order.status === 'cancelled' || order.status === 'rejected';
+  const isCancelled = order.status === 'cancelled' || order.status === 'rejected' || order.status === 'expired';
   const statusColor = getStatusColor(order.status);
   const orderFulfillment = (order as any).fulfillment_type ?? order.service_type;
   const usesServiceCenter = orderFulfillment === 'personal_handoff';
@@ -650,6 +650,43 @@ export default function OrderDetailsScreen() {
                 justifyContent: 'center',
                 gap: 8,
                 backgroundColor: '#DC2626',
+                paddingVertical: 13,
+                borderRadius: BORDER_RADIUS.md,
+                marginTop: 14,
+              }}
+              accessibilityRole="button"
+            >
+              <Ionicons name="add-circle-outline" size={18} color="#fff" />
+              <Text style={{ color: '#fff', fontWeight: '800', fontSize: 15 }}>
+                {isRTL ? 'إنشاء طلب جديد' : 'Create a new request'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* §8 — request expired (no offer accepted in time). Terminal; invite
+            the customer to re-create. */}
+        {order.status === 'expired' && (
+          <View style={[styles.card, { backgroundColor: COLORS.card, borderColor: COLORS.border, borderWidth: 1 }, SHADOWS.small]}>
+            <View style={[styles.cardHeader, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+              <MaterialCommunityIcons name="timer-off-outline" size={24} color={COLORS.textSecondary} />
+              <Text style={[styles.cardTitle, { color: COLORS.text }]}>
+                {isRTL ? 'انتهت مهلة الطلب' : 'Request expired'}
+              </Text>
+            </View>
+            <Text style={{ color: COLORS.textSecondary, fontSize: 14, lineHeight: 22, marginTop: 8, textAlign: isRTL ? 'right' : 'left', writingDirection: isRTL ? 'rtl' : 'ltr' }}>
+              {isRTL
+                ? 'لم يتم قبول أي عرض خلال المدة المتاحة، لذا انتهت صلاحية هذا الطلب. يمكنك إنشاء طلب جديد بسهولة.'
+                : 'No offer was accepted within the available window, so this request expired. You can create a new one anytime.'}
+            </Text>
+            <TouchableOpacity
+              onPress={() => router.replace('/request' as any)}
+              style={{
+                flexDirection: isRTL ? 'row-reverse' : 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 8,
+                backgroundColor: COLORS.primary,
                 paddingVertical: 13,
                 borderRadius: BORDER_RADIUS.md,
                 marginTop: 14,

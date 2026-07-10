@@ -17,6 +17,7 @@ const STATUS_LABEL_AR: Record<string, string> = {
   completed: 'تم اكتمال طلبك',
   cancelled: 'تم إلغاء طلبك',
   rejected: 'تم رفض طلبك',
+  expired: 'انتهت مهلة طلبك دون قبول أي عرض',
 };
 
 // Fire-and-forget push helper — never let a push failure block the action.

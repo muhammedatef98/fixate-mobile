@@ -18,7 +18,10 @@ export type OrderStatus =
   | 'completed'
   | 'cancelled'
   // Technician declined the request, with a reason saved on the order (FEAT-03).
-  | 'rejected';
+  | 'rejected'
+  // §8 — the request stayed open past the admin-configured lifetime with no
+  // accepted offer; the auto-expire cron closed it. Terminal.
+  | 'expired';
 
 // Fulfillment / hand-over modes a customer can choose:
 //   mobile           – the technician comes to the customer's location
@@ -256,6 +259,7 @@ export const ORDER_STATUS_LABELS_AR: Record<OrderStatus, string> = {
   completed: 'مكتمل',
   cancelled: 'ملغي',
   rejected: 'مرفوض',
+  expired: 'انتهت المهلة',
 };
 
 export const ACTIVE_STATUSES: OrderStatus[] = [
@@ -289,7 +293,9 @@ export const ORDER_STATUS_LABELS_EN: Record<OrderStatus, string> = {
   completed: 'Completed',
   cancelled: 'Cancelled',
   rejected: 'Rejected',
+  expired: 'Expired',
 };
 
 export const isTerminalStatus = (status: OrderStatus): boolean =>
-  status === 'completed' || status === 'cancelled' || status === 'rejected';
+  status === 'completed' || status === 'cancelled' || status === 'rejected' ||
+  status === 'expired';

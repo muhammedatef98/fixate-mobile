@@ -212,6 +212,7 @@ export default function OrdersScreen() {
       case 'completed': return { label: isRTL ? 'مكتمل' : 'Completed', color: COLORS.success, icon: 'checkbox-outline' };
       case 'cancelled': return { label: isRTL ? 'ملغي' : 'Cancelled', color: COLORS.error, icon: 'close-circle-outline' };
       case 'rejected': return { label: isRTL ? 'مرفوض' : 'Rejected', color: COLORS.error, icon: 'close-circle-outline' };
+      case 'expired': return { label: isRTL ? 'انتهت مهلة الطلب' : 'Request expired', color: COLORS.textSecondary, icon: 'time-outline' };
       default: return { label: status, color: COLORS.textSecondary, icon: 'help-circle-outline' };
     }
   };
