@@ -285,45 +285,44 @@ export default function CustomerHomeScreen() {
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 110 }}>
         <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }], paddingHorizontal: SPACING.m, paddingTop: SPACING.s, paddingBottom: SPACING.m }}>
-          {/* Greeting */}
-          <Text style={[styles.greetingSmall, { color: COLORS.textSecondary }]}>{greeting} 👋</Text>
-          {displayName ? (
-            <Text style={[styles.greetingName, { color: COLORS.text }]} numberOfLines={1}>
-              {displayName}
-            </Text>
-          ) : null}
+          {/* Greeting + wallet on one row — compact, balanced header */}
+          <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.greetingSmall, { color: COLORS.textSecondary }]}>{greeting} 👋</Text>
+              {displayName ? (
+                <Text style={[styles.greetingName, { color: COLORS.text }]} numberOfLines={1}>
+                  {displayName}
+                </Text>
+              ) : null}
+            </View>
+            {/* Wallet balance pill (§15) */}
+            <TouchableOpacity
+              onPress={() => router.push('/wallet')}
+              activeOpacity={0.85}
+              accessibilityRole="button"
+              accessibilityLabel={isRTL ? 'محفظتي' : 'My wallet'}
+              style={{
+                flexDirection: isRTL ? 'row-reverse' : 'row',
+                alignItems: 'center',
+                gap: 6,
+                backgroundColor: COLORS.primary + '12',
+                borderWidth: 1,
+                borderColor: COLORS.primary + '30',
+                paddingHorizontal: 12,
+                paddingVertical: 8,
+                borderRadius: 999,
+                marginTop: 4,
+              }}
+            >
+              <MaterialCommunityIcons name="wallet-outline" size={16} color={COLORS.primary} />
+              <Text style={{ color: COLORS.primary, fontWeight: '800', fontSize: 13.5 }}>
+                {walletBalance.toFixed(2)} {isRTL ? 'ر.س' : 'SAR'}
+              </Text>
+            </TouchableOpacity>
+          </View>
           <Text style={[styles.greetingSub, { color: COLORS.textSecondary }]}>
             {isRTL ? 'إصلاح احترافي لأجهزتك، أينما كنت' : 'Expert device repair, wherever you are'}
           </Text>
-
-          {/* §13 — auto-rotating app highlights */}
-          <HomeHighlightsCarousel />
-
-          {/* Wallet balance pill (§15) */}
-          <TouchableOpacity
-            onPress={() => router.push('/wallet')}
-            activeOpacity={0.85}
-            accessibilityRole="button"
-            accessibilityLabel={isRTL ? 'محفظتي' : 'My wallet'}
-            style={{
-              flexDirection: isRTL ? 'row-reverse' : 'row',
-              alignItems: 'center',
-              gap: 8,
-              alignSelf: isRTL ? 'flex-end' : 'flex-start',
-              backgroundColor: COLORS.primary + '12',
-              borderWidth: 1,
-              borderColor: COLORS.primary + '30',
-              paddingHorizontal: 12,
-              paddingVertical: 8,
-              borderRadius: 999,
-              marginBottom: 16,
-            }}
-          >
-            <MaterialCommunityIcons name="wallet-outline" size={16} color={COLORS.primary} />
-            <Text style={{ color: COLORS.primary, fontWeight: '800', fontSize: 13.5 }}>
-              {isRTL ? `محفظتي: ${walletBalance.toFixed(2)} ر.س` : `Wallet: ${walletBalance.toFixed(2)} SAR`}
-            </Text>
-          </TouchableOpacity>
 
           {/* Primary CTA — the green action box under the welcome section */}
           <AnimatedTouchable
@@ -357,6 +356,11 @@ export default function CustomerHomeScreen() {
               <RTLIonicon name="arrow-forward" size={24} color={COLORS.primary} />
             </View>
           </AnimatedTouchable>
+
+          {/* §13 — auto-rotating app highlights, below the primary CTA */}
+          <View style={{ marginTop: 18 }}>
+            <HomeHighlightsCarousel />
+          </View>
 
           {/* First-load skeleton (replaces blank flash before data lands) */}
           {loading && !activeOrder && !recentOrder && (
