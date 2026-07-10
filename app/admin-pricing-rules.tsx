@@ -288,7 +288,7 @@ function Field({
         onChangeText={onChange}
         keyboardType={keyboardType ?? 'default'}
         placeholder={placeholder}
-        placeholderTextColor={styles._ph}
+        placeholderTextColor="#9AA0A6"
       />
     </>
   );
@@ -297,7 +297,6 @@ function Field({
 const createStyles = (COLORS: any, isRTL: boolean) =>
   StyleSheet.create({
     container: { flex: 1, backgroundColor: COLORS.background },
-    _ph: COLORS.textSecondary,
     row: {
       flexDirection: isRTL ? 'row-reverse' : 'row',
       alignItems: 'center',
