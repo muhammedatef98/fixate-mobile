@@ -10,6 +10,7 @@ import {
   Animated,
   StatusBar,
   Modal,
+  RefreshControl,
 } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -141,6 +142,7 @@ export default function CustomerHomeScreen() {
   const [unreadNotifications, setUnreadNotifications] = useState(0);
   const [tipSheetOpen, setTipSheetOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(20)).current;
 
@@ -151,6 +153,19 @@ export default function CustomerHomeScreen() {
     resolveGreetingName(userProfile?.name, user?.email) ||
     (isRTL ? 'عميلنا العزيز' : 'Valued customer');
 
+  // All home data in one place so both the initial load and pull-to-refresh
+  // fetch the same set (wallet, active/recent order, pending quotes, unread).
+  const loadHomeData = useCallback(async () => {
+    if (!user?.id) return;
+    await Promise.allSettled([
+      getWalletBalance(user.id).then(setWalletBalance).catch(() => {}),
+      loadActiveOrder(),
+      loadRecentOrder(),
+      loadPendingQuotes(),
+      getUnreadCount(user.id).then(setUnreadNotifications).catch(() => {}),
+    ]);
+  }, [user?.id]);
+
   useEffect(() => {
     Animated.parallel([
       Animated.timing(fadeAnim, { toValue: 1, duration: 400, useNativeDriver: true }),
@@ -158,17 +173,21 @@ export default function CustomerHomeScreen() {
     ]).start();
     (async () => {
       try {
-        await Promise.allSettled([
-          user?.id ? getWalletBalance(user.id).then(setWalletBalance).catch(() => {}) : Promise.resolve(),
-          user?.id ? loadActiveOrder() : Promise.resolve(),
-          user?.id ? loadRecentOrder() : Promise.resolve(),
-          user?.id ? loadPendingQuotes() : Promise.resolve(),
-        ]);
+        await loadHomeData();
       } finally {
         setLoading(false);
       }
     })();
-  }, [user?.id]);
+  }, [user?.id, loadHomeData]);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await loadHomeData();
+    } finally {
+      setRefreshing(false);
+    }
+  }, [loadHomeData]);
 
   // Refresh the unread-notifications badge every time the home tab regains
   // focus (e.g. returning from the notifications screen after reading some),
@@ -329,6 +348,14 @@ export default function CustomerHomeScreen() {
           underneath either, on any screen size. */}
       <ScrollView
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={COLORS.primary}
+            colors={[COLORS.primary]}
+          />
+        }
         contentContainerStyle={{
           // Clear the taller of the two floating layers — the FAB's top edge,
           // which now sits a gap above the bar, is the real content ceiling.
