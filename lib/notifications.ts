@@ -1,8 +1,16 @@
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
+import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 import { supabase } from './supabase';
 import { logger } from '../utils/logger';
+
+// The EAS project the Expo push service issues tokens against. In a bare /
+// dev-client build (which is what we ship) getExpoPushTokenAsync() cannot infer
+// this on its own, so it MUST be passed explicitly or the call throws.
+const EXPO_PROJECT_ID: string | undefined =
+  (Constants.expoConfig?.extra as any)?.eas?.projectId ??
+  (Constants as any).easConfig?.projectId;
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -90,10 +98,25 @@ export const notificationManager = {
         logger.warn('Failed to get push token for push notification');
         return;
       }
-      try {
-        token = (await Notifications.getExpoPushTokenAsync()).data;
-      } catch (e) {
-        logger.error('Error getting push token', e);
+      // Reaching Expo's token service is a network call, so it fails routinely
+      // on a cold start over a flaky mobile connection ("Network request
+      // failed"). That is NOT fatal — push simply stays unregistered until the
+      // next launch or the self-heal pass — so retry once, then warn. Logging
+      // it as an error red-boxed the app in dev for a condition it recovers
+      // from on its own.
+      for (let attempt = 1; attempt <= 2; attempt++) {
+        try {
+          token = (await Notifications.getExpoPushTokenAsync(
+            EXPO_PROJECT_ID ? { projectId: EXPO_PROJECT_ID } : undefined,
+          )).data;
+          break;
+        } catch (e) {
+          if (attempt === 1) {
+            await new Promise((r) => setTimeout(r, 1500));
+            continue;
+          }
+          logger.warn('Push token unavailable (will retry on next launch)', e);
+        }
       }
     } else {
       logger.info('Must use physical device for Push Notifications');
