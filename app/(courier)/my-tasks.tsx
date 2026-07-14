@@ -8,6 +8,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { getColors, SPACING } from '../../constants/theme';
 import { getMyDeliveryTasks, subscribeToMyDeliveryTasks, type DeliveryTask } from '../../services/courierService';
 import DeliveryTaskCard from '../../components/courier/DeliveryTaskCard';
+import NotificationBell from '../../components/NotificationBell';
 import { COURIER_NAV_HEIGHT } from '../../components/BottomNavCourier';
 import { SkeletonOrderCard } from '../../components/SkeletonLoader';
 import { getFriendlyError } from '../../utils/errorMessages';
@@ -88,13 +89,16 @@ export default function CourierMyTasksScreen() {
             {isRTL ? 'المهمات النشطة والمكتملة' : 'Active and completed deliveries'}
           </Text>
         </View>
-        {activeMine.length > 0 && (
-          <View style={[styles.countPill, { backgroundColor: COLORS.primary + '18' }]}>
-            <Text style={{ color: COLORS.primary, fontWeight: '800', fontSize: 14 }}>
-              {activeMine.length}
-            </Text>
-          </View>
-        )}
+        <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: SPACING.md }}>
+          {activeMine.length > 0 && (
+            <View style={[styles.countPill, { backgroundColor: COLORS.primary + '18' }]}>
+              <Text style={{ color: COLORS.primary, fontWeight: '800', fontSize: 14 }}>
+                {activeMine.length}
+              </Text>
+            </View>
+          )}
+          <NotificationBell color={COLORS.text} size={24} />
+        </View>
       </View>
 
       {loading ? (

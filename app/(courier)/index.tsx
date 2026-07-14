@@ -13,6 +13,7 @@ import {
   type DeliveryTask,
 } from '../../services/courierService';
 import DeliveryTaskCard from '../../components/courier/DeliveryTaskCard';
+import NotificationBell from '../../components/NotificationBell';
 import { COURIER_NAV_HEIGHT } from '../../components/BottomNavCourier';
 import { SkeletonOrderCard } from '../../components/SkeletonLoader';
 import { getFriendlyError } from '../../utils/errorMessages';
@@ -96,13 +97,16 @@ export default function CourierAvailableScreen() {
               : 'New tasks appear here instantly'}
           </Text>
         </View>
-        {available.length > 0 && (
-          <View style={[styles.countPill, { backgroundColor: COLORS.primary + '18' }]}>
-            <Text style={{ color: COLORS.primary, fontWeight: '800', fontSize: 14 }}>
-              {available.length}
-            </Text>
-          </View>
-        )}
+        <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: SPACING.md }}>
+          {available.length > 0 && (
+            <View style={[styles.countPill, { backgroundColor: COLORS.primary + '18' }]}>
+              <Text style={{ color: COLORS.primary, fontWeight: '800', fontSize: 14 }}>
+                {available.length}
+              </Text>
+            </View>
+          )}
+          <NotificationBell color={COLORS.text} size={24} />
+        </View>
       </View>
 
       {loading ? (

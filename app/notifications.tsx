@@ -160,6 +160,10 @@ export default function NotificationsScreen() {
       markAsRead(n.id).catch(() => undefined);
     }
     if (!n.related_id) return;
+    // Couriers share this screen (they have no separate one) but the deep-link
+    // targets below are customer routes they can't open — for them, tapping
+    // just marks the notification read.
+    if (role === 'courier') return;
     if (n.type === 'order' || n.type === 'message') {
       router.push({ pathname: '/order-details', params: { id: n.related_id } });
     } else if (n.type === 'listing' || n.type === 'comment') {
