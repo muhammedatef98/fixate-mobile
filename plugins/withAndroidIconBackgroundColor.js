@@ -17,7 +17,9 @@
 const { withAndroidColors, AndroidConfig } = require('expo/config-plugins');
 
 // Keep in sync with android.adaptiveIcon.backgroundColor in app.json.
-const ICON_BACKGROUND_COLOR = '#ffffff';
+// The adaptive icon ships a gradient backgroundImage, which takes precedence;
+// this solid green is the flat stand-in for launchers that fall back to the color.
+const ICON_BACKGROUND_COLOR = '#14AE74';
 
 /**
  * @param {import('expo/config').ExpoConfig} config

@@ -71,7 +71,9 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundImage": "./assets/adaptive-icon-background.png",
+        "monochromeImage": "./assets/adaptive-icon-monochrome.png",
+        "backgroundColor": "#14AE74"
       },
       "package": "com.fixatee.app",
       "permissions": [
@@ -98,6 +100,7 @@
       "bundler": "metro"
     },
     "plugins": [
+      "./plugins/withFirebaseNotificationColorFix.js",
       "expo-router",
       [
         "expo-location",
@@ -112,7 +115,13 @@
           "cameraPermission": "يحتاج Fixate إلى الكاميرا لتصوير الجهاز المعطل ووثائق التحقق."
         }
       ],
-      "expo-notifications",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#14AE74"
+        }
+      ],
       "expo-font",
       "expo-web-browser",
       "expo-secure-store",
@@ -140,7 +149,6 @@
       "@react-native-firebase/app",
       "@react-native-firebase/messaging",
       "./plugins/withIosAllowNonModularIncludes.js",
-      "./plugins/withFirebaseNotificationColorFix.js",
       "./plugins/withAndroidIconBackgroundColor.js",
       "./plugins/withGradleMemory.js",
       "./plugins/withSentryUploadSkipWhenNoToken.js"
