@@ -31,8 +31,6 @@ interface Service {
   descAr: string;
   descEn: string;
   available: boolean;
-  /** Lowest end of typical Saudi-market price (SAR). */
-  fromPrice?: number;
 }
 
 const SERVICES: Service[] = [
@@ -45,7 +43,6 @@ const SERVICES: Service[] = [
     descAr: 'الشاشات، البطاريات، الكاميرا، الشحن',
     descEn: 'Screens, batteries, camera, charging',
     available: true,
-    fromPrice: 80,
   },
   {
     id: 'laptop',
@@ -56,7 +53,6 @@ const SERVICES: Service[] = [
     descAr: 'الشاشات، اللوحة، البطاريات، الترقيات',
     descEn: 'Screens, keyboards, batteries, upgrades',
     available: true,
-    fromPrice: 100,
   },
   {
     id: 'tablet',
@@ -67,7 +63,6 @@ const SERVICES: Service[] = [
     descAr: 'إصلاح شامل لجميع أنواع الأجهزة اللوحية',
     descEn: 'Full repair for all tablet brands',
     available: true,
-    fromPrice: 100,
   },
   {
     id: 'watch',
@@ -78,7 +73,6 @@ const SERVICES: Service[] = [
     descAr: 'إصلاح الشاشة، البطارية، الأزرار',
     descEn: 'Screen, battery, crown & buttons',
     available: true,
-    fromPrice: 150,
   },
   {
     id: 'gaming',
@@ -89,7 +83,6 @@ const SERVICES: Service[] = [
     descAr: 'بلايستيشن، إكس بوكس، نينتندو وملحقاتها',
     descEn: 'PlayStation, Xbox, Nintendo & accessories',
     available: true,
-    fromPrice: 120,
   },
   {
     id: 'printer',
@@ -174,9 +167,6 @@ export default function ServicesScreen() {
 
   const fade = useRef(new Animated.Value(0)).current;
   const slide = useRef(new Animated.Value(12)).current;
-
-  const priceLabel = (p?: number) =>
-    p == null ? '' : isRTL ? `${p} ر.س` : `SAR ${p}`;
 
   useEffect(() => {
     // Light, quick entrance — the screen paints almost immediately.
@@ -305,7 +295,12 @@ export default function ServicesScreen() {
                 </Text>
                 <View style={styles.tileFoot}>
                   {s.available ? (
-                    <Text style={[styles.tilePrice, { color: s.color }]}>{priceLabel(s.fromPrice)}</Text>
+                    <View style={[styles.tileCta, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+                      <Text style={[styles.tileCtaText, { color: s.color }]}>
+                        {isRTL ? 'اطلب الآن' : 'Request now'}
+                      </Text>
+                      <RTLIonicon name="arrow-forward" size={13} color={s.color} />
+                    </View>
                   ) : (
                     <View style={[styles.soonPill, { backgroundColor: COLORS.textSecondary + '18' }]}>
                       <Text style={[styles.soonText, { color: COLORS.textSecondary }]}>
@@ -603,7 +598,8 @@ const makeStyles = (C: any, isRTL: boolean, SHADOWS: any) =>
     tileName: { fontSize: 14, fontWeight: '700', textAlign: isRTL ? 'right' : 'left' },
     tileDesc: { fontSize: 11, marginTop: 4, lineHeight: 16, textAlign: isRTL ? 'right' : 'left' },
     tileFoot: { marginTop: 'auto', paddingTop: 10 },
-    tilePrice: { fontSize: 13, fontWeight: '800', textAlign: isRTL ? 'right' : 'left' },
+    tileCta: { alignItems: 'center', gap: 4 },
+    tileCtaText: { fontSize: 12.5, fontWeight: '800' },
     soonPill: {
       alignSelf: isRTL ? 'flex-end' : 'flex-start',
       paddingHorizontal: 8,
