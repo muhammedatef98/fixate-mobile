@@ -43,6 +43,7 @@ interface Stats {
   totalListings: number;
   revenue: number;
   pendingVerifications: number;
+  pendingCouriers: number;
   pendingListings: number;
   unreadThreads: number;
   // New: week-over-week deltas used as trend hints on stat tiles.
@@ -78,7 +79,7 @@ export default function AdminDashboardScreen() {
   const { can } = usePermissions();
   const [stats, setStats] = useState<Stats>({
     totalUsers: 0, totalTechnicians: 0, totalOrders: 0, totalListings: 0,
-    revenue: 0, pendingVerifications: 0, pendingListings: 0, unreadThreads: 0,
+    revenue: 0, pendingVerifications: 0, pendingCouriers: 0, pendingListings: 0, unreadThreads: 0,
     newUsersThisWeek: 0, newOrdersThisWeek: 0, newListingsThisWeek: 0,
     newTechniciansThisWeek: 0, ordersToday: 0, revenueToday: 0,
   });
@@ -102,6 +103,7 @@ export default function AdminDashboardScreen() {
         { count: totalOrders },
         { count: totalListings },
         { count: pendingVerifications },
+        { count: pendingCouriers },
         { count: pendingListings },
         { count: unreadThreads },
         { data: completed },
@@ -123,6 +125,7 @@ export default function AdminDashboardScreen() {
         supabase.from('orders').select('*', { count: 'exact', head: true }),
         supabase.from('market_listings').select('*', { count: 'exact', head: true }),
         supabase.from('technicians').select('*', { count: 'exact', head: true }).eq('verification_status', 'submitted'),
+        supabase.from('couriers').select('*', { count: 'exact', head: true }).in('verification_status', ['submitted', 'pending']),
         supabase.from('market_listings').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
         supabase.from('support_threads').select('*', { count: 'exact', head: true }).eq('unread_for_admin', true),
         supabase.from('orders').select('accepted_offer_amount, final_price, estimated_price').eq('status', 'completed'),
@@ -165,6 +168,7 @@ export default function AdminDashboardScreen() {
         totalListings: totalListings ?? 0,
         revenue,
         pendingVerifications: pendingVerifications ?? 0,
+        pendingCouriers: pendingCouriers ?? 0,
         pendingListings: pendingListings ?? 0,
         unreadThreads: unreadThreads ?? 0,
         newUsersThisWeek: newUsersThisWeek ?? 0,
@@ -267,6 +271,7 @@ export default function AdminDashboardScreen() {
   // attention bar visibility above the stats.
   const needsAttention =
     (stats.pendingVerifications ?? 0) +
+    (stats.pendingCouriers ?? 0) +
     (stats.pendingListings ?? 0) +
     (stats.unreadThreads ?? 0);
 
@@ -274,6 +279,7 @@ export default function AdminDashboardScreen() {
   const attentionTarget =
     stats.unreadThreads > 0 ? '/admin-support'
       : stats.pendingVerifications > 0 ? '/admin-verifications'
+      : stats.pendingCouriers > 0 ? '/admin-couriers'
       : '/admin-market';
 
   const greetingName =
@@ -388,6 +394,9 @@ export default function AdminDashboardScreen() {
             [
               stats.pendingVerifications > 0
                 ? (isRTL ? `${stats.pendingVerifications} طلبات فنيين` : `${stats.pendingVerifications} technician applications`)
+                : null,
+              stats.pendingCouriers > 0
+                ? (isRTL ? `${stats.pendingCouriers} طلبات مناديب` : `${stats.pendingCouriers} courier applications`)
                 : null,
               stats.pendingListings > 0
                 ? (isRTL ? `${stats.pendingListings} إعلانات معلّقة` : `${stats.pendingListings} pending listings`)
