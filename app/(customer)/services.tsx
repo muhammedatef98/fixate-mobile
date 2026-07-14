@@ -211,7 +211,8 @@ export default function ServicesScreen() {
         contentContainerStyle={{ padding: SPACING.m, paddingBottom: 110 }}
       >
         <Animated.View style={{ opacity: fade, transform: [{ translateY: slide }] }}>
-          {/* Hero — one clear promise, one clear action */}
+          {/* Hero — one clear promise, one clear action. Static by design: a
+              decisive focal point + CTA, not a rotating banner. */}
           <View style={[styles.hero, { backgroundColor: COLORS.primary }]}>
             <LinearGradient
               colors={[COLORS.gradientStart, COLORS.gradientEnd]}
@@ -219,9 +220,21 @@ export default function ServicesScreen() {
               end={{ x: 1, y: 1 }}
               style={StyleSheet.absoluteFill}
             />
+            {/* Layered depth: a large soft blob + a faint oversized watermark
+                gear that fills the previously-empty trailing side. */}
             <View pointerEvents="none" style={styles.heroBlob} />
+            <View pointerEvents="none" style={styles.heroBlob2} />
+            <MaterialCommunityIcons
+              name="cog"
+              size={190}
+              color="#ffffff12"
+              style={styles.heroWatermark}
+            />
             <View style={styles.heroLeft}>
-              <Text style={styles.heroEyebrow}>{isRTL ? 'خدمة Fixate' : 'Fixate service'}</Text>
+              <View style={styles.heroEyebrowRow}>
+                <MaterialCommunityIcons name="shield-check" size={13} color="#fff" />
+                <Text style={styles.heroEyebrow}>{isRTL ? 'خدمة Fixate' : 'Fixate service'}</Text>
+              </View>
               <Text style={styles.heroTitle}>
                 {isRTL ? 'صيانة موثوقة\nبفنيين معتمدين' : 'Trusted repairs\nfrom verified pros'}
               </Text>
@@ -235,13 +248,12 @@ export default function ServicesScreen() {
                 onPress={() => router.push('/request')}
                 style={styles.heroCta}
                 accessibilityRole="button"
+                activeOpacity={0.9}
               >
+                <MaterialCommunityIcons name="wrench" size={16} color={COLORS.primary} />
                 <Text style={styles.heroCtaText}>{isRTL ? 'اطلب الآن' : 'Request now'}</Text>
                 <RTLIonicon name="arrow-forward" size={16} color={COLORS.primary} />
               </TouchableOpacity>
-            </View>
-            <View style={styles.heroIconWrap}>
-              <MaterialCommunityIcons name="tools" size={68} color="#ffffff22" />
             </View>
           </View>
 
@@ -460,12 +472,12 @@ const makeStyles = (C: any, isRTL: boolean, SHADOWS: any) =>
 
     // Hero
     hero: {
-      flexDirection: isRTL ? 'row-reverse' : 'row',
       borderRadius: 24,
-      padding: 20,
+      padding: 22,
       marginBottom: 18,
       overflow: 'hidden',
-      minHeight: 168,
+      minHeight: 180,
+      justifyContent: 'center',
       shadowColor: C.primary,
       shadowOpacity: 0.3,
       shadowOffset: { width: 0, height: 10 },
@@ -474,29 +486,43 @@ const makeStyles = (C: any, isRTL: boolean, SHADOWS: any) =>
     },
     heroBlob: {
       position: 'absolute',
-      width: 170, height: 170, borderRadius: 85,
+      width: 190, height: 190, borderRadius: 95,
       backgroundColor: '#ffffff14',
-      top: -60, [isRTL ? 'left' : 'right']: -40,
+      top: -70, [isRTL ? 'left' : 'right']: -50,
+    },
+    heroBlob2: {
+      position: 'absolute',
+      width: 120, height: 120, borderRadius: 60,
+      backgroundColor: '#ffffff0F',
+      bottom: -50, [isRTL ? 'right' : 'left']: -30,
+    },
+    heroWatermark: {
+      position: 'absolute',
+      bottom: -46,
+      [isRTL ? 'left' : 'right']: -34,
     },
     heroLeft: {
-      flex: 1,
-      justifyContent: 'space-between',
       alignItems: isRTL ? 'flex-end' : 'flex-start',
     },
+    heroEyebrowRow: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
+      gap: 5,
+      marginBottom: 8,
+    },
     heroEyebrow: {
-      color: '#ffffffcc',
+      color: '#ffffffdd',
       fontSize: 11,
-      fontWeight: '700',
+      fontWeight: '800',
       letterSpacing: 1.2,
-      marginBottom: 4,
       textAlign: isRTL ? 'right' : 'left',
       writingDirection: isRTL ? 'rtl' : 'ltr',
     },
     heroTitle: {
       color: '#fff',
-      fontSize: 22,
-      fontWeight: '800',
-      lineHeight: 30,
+      fontSize: 24,
+      fontWeight: '900',
+      lineHeight: 32,
       textAlign: isRTL ? 'right' : 'left',
       writingDirection: isRTL ? 'rtl' : 'ltr',
     },
@@ -523,20 +549,24 @@ const makeStyles = (C: any, isRTL: boolean, SHADOWS: any) =>
       flexDirection: isRTL ? 'row-reverse' : 'row',
       alignItems: 'center',
       backgroundColor: '#fff',
-      paddingHorizontal: 14,
-      paddingVertical: 8,
+      paddingHorizontal: 18,
+      paddingVertical: 11,
       borderRadius: 999,
       alignSelf: isRTL ? 'flex-end' : 'flex-start',
-      marginTop: 14,
-      gap: 6,
+      marginTop: 16,
+      gap: 7,
+      shadowColor: '#000',
+      shadowOpacity: 0.18,
+      shadowOffset: { width: 0, height: 4 },
+      shadowRadius: 8,
+      elevation: 4,
     },
     heroCtaText: {
       color: C.primary,
-      fontWeight: '800',
-      fontSize: 13,
+      fontWeight: '900',
+      fontSize: 14,
       writingDirection: isRTL ? 'rtl' : 'ltr',
     },
-    heroIconWrap: { justifyContent: 'center', alignItems: 'center' },
 
     // Feature strip
     featureStrip: {
