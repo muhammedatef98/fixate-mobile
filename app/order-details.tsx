@@ -18,6 +18,7 @@ import {
   Platform,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import * as Clipboard from 'expo-clipboard';
 import { MaterialIcons, MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import { RTLIonicon } from '../components/RTLIcon';
 import { safeBack } from '../utils/navigation';
@@ -104,8 +105,22 @@ export default function OrderDetailsScreen() {
   const [cancellingOrder, setCancellingOrder] = useState(false);
   const [deliveryTasks, setDeliveryTasks] = useState<DeliveryTask[]>([]);
   const [pendingOfferCount, setPendingOfferCount] = useState(0);
+  const [copiedRef, setCopiedRef] = useState(false);
 
   const styles = makeStyles(isRTL);
+
+  // Copy the order reference for support chats; show a brief inline confirmation.
+  const copyOrderRef = async () => {
+    if (!order) return;
+    const ref = (order as any).order_number ?? `#${order.id?.slice(0, 8)}`;
+    try {
+      await Clipboard.setStringAsync(String(ref));
+      setCopiedRef(true);
+      setTimeout(() => setCopiedRef(false), 1500);
+    } catch (e) {
+      logger.warn('order-details: copy order ref failed', e);
+    }
+  };
 
   // FEAT-04/05 — refs + animation state for the status hero and stepper.
   const timelineRef = useRef<ScrollView>(null);
@@ -406,9 +421,25 @@ export default function OrderDetailsScreen() {
               : ORDER_TIMELINE.find(t => t.status === order.status)?.enLabel ??
                 (order.status === 'rejected' ? 'Rejected' : '')}
           </Text>
-          <Text style={styles.heroStatusOrderId}>
-            {(order as any).order_number ?? `#${order.id?.slice(0, 8)}`}
-          </Text>
+          <TouchableOpacity
+            onPress={copyOrderRef}
+            activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel={isRTL ? 'نسخ رقم الطلب' : 'Copy order number'}
+            style={styles.heroOrderIdRow}
+          >
+            <Text style={styles.heroStatusOrderId}>
+              {(order as any).order_number ?? `#${order.id?.slice(0, 8)}`}
+            </Text>
+            <MaterialCommunityIcons
+              name={copiedRef ? 'check' : 'content-copy'}
+              size={13}
+              color="rgba(255,255,255,0.85)"
+            />
+            {copiedRef && (
+              <Text style={styles.heroCopiedText}>{isRTL ? 'تم النسخ' : 'Copied'}</Text>
+            )}
+          </TouchableOpacity>
         </Animated.View>
 
         {/* Estimated repair time — the technician's repair-duration promise,
@@ -1388,6 +1419,14 @@ const makeStyles = (isRTL: boolean) => StyleSheet.create({
   },
   heroStatusLabel: { color: '#fff', fontSize: 24, fontWeight: 'bold', textAlign: 'center' },
   heroStatusOrderId: { color: 'rgba(255,255,255,0.85)', fontSize: 13, fontWeight: '600' },
+  heroOrderIdRow: {
+    flexDirection: isRTL ? 'row-reverse' : 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 4,
+    paddingVertical: 2,
+  },
+  heroCopiedText: { color: '#fff', fontSize: 11, fontWeight: '700' },
 
   headerSection: {
     paddingHorizontal: 16,
