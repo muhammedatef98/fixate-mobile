@@ -176,7 +176,7 @@ export default function ServicesScreen() {
   const slide = useRef(new Animated.Value(12)).current;
 
   const priceLabel = (p?: number) =>
-    p == null ? '' : isRTL ? `من ${p} ر.س` : `from SAR ${p}`;
+    p == null ? '' : isRTL ? `${p} ر.س` : `SAR ${p}`;
 
   useEffect(() => {
     // Light, quick entrance — the screen paints almost immediately.
