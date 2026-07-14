@@ -632,7 +632,7 @@ export default function CustomerHomeScreen() {
               <PressableScale
                 key={cat.id}
                 style={[styles.deviceCard, { backgroundColor: COLORS.card }]}
-                onPress={() => router.push('/request')}
+                onPress={() => router.push({ pathname: '/request', params: { device: cat.id } } as any)}
                 accessibilityRole="button"
               >
                 <View style={[styles.deviceIcon, { backgroundColor: cat.accent + '15' }]}>

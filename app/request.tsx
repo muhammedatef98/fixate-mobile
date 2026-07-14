@@ -160,7 +160,14 @@ export default function RequestScreen() {
     selectedCityRegion.enabled !== false &&
     selectedCity.enabled !== false;
 
-  const [selectedDeviceType, setSelectedDeviceType] = useState<string | null>(null);
+  // Pre-select the device when arriving from the Services screen tiles
+  // (?device=phone|laptop|…); only honour an id that maps to an available type.
+  const { device: deviceParam } = useLocalSearchParams<{ device?: string }>();
+  const initialDeviceType =
+    deviceParam && DEVICE_TYPES.some((d) => d.id === deviceParam && d.available)
+      ? deviceParam
+      : null;
+  const [selectedDeviceType, setSelectedDeviceType] = useState<string | null>(initialDeviceType);
   const [selectedBrand, setSelectedBrand] = useState<Brand | null>(null);
   const [selectedModel, setSelectedModel] = useState<string | null>(null);
   const [selectedIssue, setSelectedIssue] = useState<Issue | null>(null);

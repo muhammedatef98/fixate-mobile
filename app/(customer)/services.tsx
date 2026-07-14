@@ -282,7 +282,10 @@ export default function ServicesScreen() {
                   !s.available && { opacity: 0.62 },
                 ]}
                 onPress={() => {
-                  if (s.available) router.push('/request');
+                  // Carry the chosen device into the request flow so it opens
+                  // with step 1 already answered (the tiles were decorative
+                  // before — every one just opened a blank request).
+                  if (s.available) router.push({ pathname: '/request', params: { device: s.id } } as any);
                 }}
                 disabled={!s.available}
                 accessibilityRole="button"
