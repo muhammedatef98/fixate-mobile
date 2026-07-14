@@ -300,13 +300,13 @@ const createStyles = (COLORS: any, SHADOWS: any, isRTL: boolean) => StyleSheet.c
     // Sits below the absolutely-positioned language pill, so it needs its own
     // top offset to clear it rather than crowding the top edge.
     marginTop: SPACING.l,
-    marginBottom: SPACING.xs,
+    // The 510x380 asset letterboxes inside the square 120x120 box, leaving ~15px
+    // of transparent space under the mark. Pull the wordmark back up over it.
+    marginBottom: -14,
   },
   logoImage: {
-    // The asset is 510x380, so a square box letterboxes it and adds ~15px of
-    // dead space above and below the mark. Match its real aspect ratio instead.
-    width: 140,
-    aspectRatio: 510 / 380,
+    width: 120,
+    height: 120,
   },
   title: {
     fontSize: 40,
