@@ -76,7 +76,11 @@ export default function MarketSellerScreen() {
         sellerListings(sellerId),
       ]);
       setSeller(card);
-      setListings(rows);
+      // Buyable listings lead; sold ones sink to the end (order within each
+      // group stays newest-first from the query).
+      setListings(
+        [...rows].sort((a, b) => Number(a.status === 'sold') - Number(b.status === 'sold'))
+      );
     } catch {
       setError(true);
     } finally {
@@ -98,6 +102,11 @@ export default function MarketSellerScreen() {
     seller?.name?.trim() ||
     (typeof params.name === 'string' && params.name.trim()) ||
     (isRTL ? 'بائع' : 'Seller');
+
+  // The seller's feed includes sold rows (shown with a Sold badge), so the
+  // count must distinguish what's actually still buyable.
+  const soldCount = listings.filter((l) => l.status === 'sold').length;
+  const availableCount = listings.length - soldCount;
 
   const openListing = (id: string) =>
     router.push({ pathname: '/market-detail', params: { id } } as any);
@@ -172,8 +181,9 @@ export default function MarketSellerScreen() {
         <MaterialCommunityIcons name="tag-multiple-outline" size={13} color={COLORS.primary} />
         <Text style={styles.countPillText}>
           {isRTL
-            ? `${listings.length.toLocaleString('en-US')} إعلان`
-            : `${listings.length} ${listings.length === 1 ? 'listing' : 'listings'}`}
+            ? `${availableCount.toLocaleString('en-US')} إعلان متاح`
+            : `${availableCount} available ${availableCount === 1 ? 'listing' : 'listings'}`}
+          {soldCount > 0 ? (isRTL ? ` · ${soldCount} مباع` : ` · ${soldCount} sold`) : ''}
         </Text>
       </View>
     </View>
