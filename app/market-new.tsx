@@ -122,6 +122,16 @@ export default function MarketNewScreen() {
       );
       return;
     }
+    // Guard the price: a non-numeric or non-positive value would otherwise be
+    // submitted as NaN / 0 and land a broken listing.
+    const priceValue = Number(price.replace(/,/g, '').trim());
+    if (!Number.isFinite(priceValue) || priceValue <= 0) {
+      Alert.alert(
+        isRTL ? 'سعر غير صالح' : 'Invalid price',
+        isRTL ? 'أدخل سعراً صحيحاً أكبر من صفر.' : 'Enter a valid price greater than zero.'
+      );
+      return;
+    }
     // Validate before any upload so the seller never waits on a doomed submit.
     if ((contactPreference === 'phone' || contactPreference === 'both') && !contactPhone.trim()) {
       Alert.alert(
@@ -152,7 +162,7 @@ export default function MarketNewScreen() {
         description: fullDescription || undefined,
         category,
         device_type: deviceType,
-        price: Number(price),
+        price: priceValue,
         city: city.trim() || undefined,
         contact_phone: contactPhone.trim() || undefined,
         contact_preference: contactPreference,
@@ -436,7 +446,7 @@ const createStyles = (C: any, isRTL: boolean) => StyleSheet.create({
     justifyContent: 'center',
   },
   imgThumb: { width: 72, height: 72, borderRadius: BORDER_RADIUS.md },
-  imgRemove: { position: 'absolute', top: -8, right: -8, backgroundColor: C.card, borderRadius: 10 },
+  imgRemove: { position: 'absolute', top: -8, [isRTL ? 'left' : 'right']: -8, backgroundColor: C.card, borderRadius: 10 },
   chip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999, borderWidth: 1, borderColor: C.border, backgroundColor: C.card },
   chipText: { color: C.text, fontWeight: '600', fontSize: 13 },
   submit: { paddingVertical: 14, borderRadius: BORDER_RADIUS.md, alignItems: 'center', marginTop: 16 },

@@ -566,6 +566,18 @@ export default function MarketDetailScreen() {
           <Text style={styles.emptyText}>
             {isRTL ? 'الإعلان غير متاح' : 'Listing not available'}
           </Text>
+          <Text style={{ color: COLORS.textSecondary, fontSize: 13, textAlign: 'center', marginTop: 2 }}>
+            {isRTL ? 'ربما تم بيعه أو إزالته.' : 'It may have been sold or removed.'}
+          </Text>
+          <TouchableOpacity
+            onPress={() => (router.canGoBack() ? router.back() : router.replace('/market'))}
+            style={{ marginTop: 16, backgroundColor: COLORS.primary, paddingHorizontal: 20, paddingVertical: 11, borderRadius: BORDER_RADIUS.md }}
+            accessibilityRole="button"
+          >
+            <Text style={{ color: '#fff', fontWeight: '800', fontSize: 14 }}>
+              {isRTL ? 'العودة للسوق' : 'Back to market'}
+            </Text>
+          </TouchableOpacity>
         </View>
       ) : (
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
