@@ -7,11 +7,15 @@ export type TechnicianStatus =
   | 'under_review'
   | 'suspended'
   | 'excluded';
+/** The couriers table constrains this to three values (no 'under_review'). */
+export type CourierStatus = 'active' | 'suspended' | 'excluded';
+
+export type ModerationTarget = 'user' | 'technician' | 'courier';
 
 export interface ModerationLog {
   id: string;
   actor_id: string | null;
-  target_type: 'user' | 'technician';
+  target_type: ModerationTarget;
   target_id: string;
   action: string;
   reason: string | null;
@@ -28,7 +32,7 @@ const currentActor = async (): Promise<string | null> => {
 };
 
 const log = async (
-  targetType: 'user' | 'technician',
+  targetType: ModerationTarget,
   targetId: string,
   action: string,
   reason?: string | null
@@ -100,8 +104,35 @@ export const setTechnicianNotes = async (
   await log('technician', technicianId, 'notes_updated');
 };
 
+/** Update a courier's lifecycle status. Suspended/excluded couriers are no
+ *  longer offered delivery tasks (enforced in the claim RPCs). */
+export const setCourierStatus = async (
+  courierId: string,
+  status: CourierStatus,
+  reason?: string
+): Promise<void> => {
+  const { error } = await supabase
+    .from('couriers')
+    .update({ courier_status: status, status_updated_at: new Date().toISOString() })
+    .eq('id', courierId);
+  if (error) throw error;
+  await log('courier', courierId, `status:${status}`, reason);
+};
+
+export const setCourierNotes = async (
+  courierId: string,
+  notes: string
+): Promise<void> => {
+  const { error } = await supabase
+    .from('couriers')
+    .update({ admin_notes: notes })
+    .eq('id', courierId);
+  if (error) throw error;
+  await log('courier', courierId, 'notes_updated');
+};
+
 export const listModerationLogs = async (
-  targetType: 'user' | 'technician',
+  targetType: ModerationTarget,
   targetId: string
 ): Promise<ModerationLog[]> => {
   try {
