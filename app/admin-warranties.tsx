@@ -195,7 +195,7 @@ export default function AdminWarrantiesScreen() {
                   style={styles.card}
                 >
                   <View style={[styles.leftBar, { backgroundColor: w.isActive ? COLORS.primary : COLORS.border }]} />
-                  <View style={{ flex: 1, gap: 6 }}>
+                  <View style={{ gap: 6 }}>
                     <View style={styles.rowTop}>
                       <Text style={styles.device} numberOfLines={1}>
                         {deviceLabel(r, isRTL)}
@@ -252,21 +252,24 @@ const makeStyles = (C: any, isRTL: boolean) =>
     loader: { flex: 1, alignItems: 'center', justifyContent: 'center' },
     controls: { paddingHorizontal: SPACING.lg, paddingTop: SPACING.sm, gap: SPACING.sm },
     card: {
-      flexDirection: isRTL ? 'row-reverse' : 'row',
-      gap: 12,
       backgroundColor: C.card,
       borderRadius: BORDER_RADIUS.md,
       borderWidth: StyleSheet.hairlineWidth,
       borderColor: C.border,
       padding: 14,
+      // Clear the status bar that hugs the leading edge.
+      [isRTL ? 'paddingRight' : 'paddingLeft']: 20,
       overflow: 'hidden',
     },
+    // Pinned to the card's leading edge. Margin-based offsets can't do this:
+    // the app never flips I18nManager, so `marginStart` stays left-aligned even
+    // when the row renders reversed, and the bar drifted into the content.
     leftBar: {
+      position: 'absolute',
+      top: 0,
+      bottom: 0,
+      [isRTL ? 'right' : 'left']: 0,
       width: 4,
-      alignSelf: 'stretch',
-      borderRadius: 2,
-      marginVertical: -14,
-      marginStart: -14,
     },
     rowTop: {
       flexDirection: isRTL ? 'row-reverse' : 'row',

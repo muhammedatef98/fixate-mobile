@@ -8,6 +8,8 @@ import {
   TouchableOpacity,
   StatusBar,
   RefreshControl,
+  ActivityIndicator,
+  Alert,
   } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -28,6 +30,8 @@ import {
   type WarrantyInfo,
   type WarrantyOrderLike,
 } from '../utils/warranty';
+import { generateAndShareWarrantyPdf, certificateNumber } from '../services/warrantyPdf';
+import { getFriendlyError } from '../utils/errorMessages';
 
 interface WarrantyRow extends WarrantyOrderLike {
   order_number?: string | null;
@@ -40,7 +44,7 @@ const orderRef = (o: { order_number?: string | null; id: string }) =>
 export default function WarrantyScreen() {
   const router = useRouter();
   const { language, isDark } = useApp();
-  const { user } = useAuth();
+  const { user, userProfile } = useAuth();
   const COLORS = getColors(isDark);
   const isRTL = language === 'ar';
   const styles = makeStyles(COLORS, isRTL);
@@ -48,6 +52,24 @@ export default function WarrantyScreen() {
   const [rows, setRows] = useState<WarrantyRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [pdfFor, setPdfFor] = useState<string | null>(null);
+
+  const holderName =
+    userProfile?.name?.trim() || user?.email || (isRTL ? 'عميل فيكسات' : 'Fixate customer');
+
+  // Renders the certificate to PDF and hands it to the OS share sheet, where the
+  // customer can preview it, save it to Files, or print it — same as invoices.
+  const exportCertificate = async (row: WarrantyRow) => {
+    setPdfFor(row.id);
+    try {
+      await generateAndShareWarrantyPdf(row, holderName, isRTL);
+    } catch (e) {
+      logger.warn('warranty pdf failed', e);
+      Alert.alert(isRTL ? 'تعذّر إصدار الشهادة' : 'Could not create certificate', getFriendlyError(e, language));
+    } finally {
+      setPdfFor(null);
+    }
+  };
 
   const load = useCallback(async () => {
     if (!user?.id) {
@@ -167,6 +189,8 @@ export default function WarrantyScreen() {
                       row={r}
                       COLORS={COLORS}
                       isRTL={isRTL}
+                      exporting={pdfFor === r.id}
+                      onExport={() => void exportCertificate(r)}
                       onPress={() => router.push(`/order-details?id=${r.id}`)}
                     />
                   ))}
@@ -184,6 +208,8 @@ export default function WarrantyScreen() {
                       row={r}
                       COLORS={COLORS}
                       isRTL={isRTL}
+                      exporting={pdfFor === r.id}
+                      onExport={() => void exportCertificate(r)}
                       onPress={() => router.push(`/order-details?id=${r.id}`)}
                     />
                   ))}
@@ -202,11 +228,15 @@ function WarrantyCertificate({
   row,
   COLORS,
   isRTL,
+  exporting,
+  onExport,
   onPress,
 }: {
   row: WarrantyRow;
   COLORS: any;
   isRTL: boolean;
+  exporting: boolean;
+  onExport: () => void;
   onPress: () => void;
 }) {
   const styles = makeStyles(COLORS, isRTL);
@@ -233,7 +263,7 @@ function WarrantyCertificate({
           {deviceLabel(row, isRTL)}
         </Text>
         <Text style={styles.certRef} numberOfLines={1}>
-          {(isRTL ? 'طلب ' : 'Order ') + orderRef(row)}
+          {(isRTL ? 'طلب ' : 'Order ') + orderRef(row) + '  ·  ' + certificateNumber(row)}
         </Text>
 
         <View style={styles.datesRow}>
@@ -259,6 +289,24 @@ function WarrantyCertificate({
             ? `متبقٍّ ${w.daysRemaining} يوماً على انتهاء الضمان`
             : `${w.daysRemaining} days of coverage remaining`}
         </Text>
+
+        <TouchableOpacity
+          accessibilityRole="button"
+          onPress={onExport}
+          disabled={exporting}
+          style={[styles.certAction, exporting && { opacity: 0.6 }]}
+        >
+          {exporting ? (
+            <ActivityIndicator size="small" color="#fff" />
+          ) : (
+            <>
+              <MaterialCommunityIcons name="file-pdf-box" size={18} color="#fff" />
+              <Text style={styles.certActionText}>
+                {isRTL ? 'إصدار شهادة الضمان (PDF)' : 'Export warranty certificate (PDF)'}
+              </Text>
+            </>
+          )}
+        </TouchableOpacity>
       </View>
     </PressableScale>
   );
@@ -269,11 +317,15 @@ function ExpiredWarrantyRow({
   row,
   COLORS,
   isRTL,
+  exporting,
+  onExport,
   onPress,
 }: {
   row: WarrantyRow;
   COLORS: any;
   isRTL: boolean;
+  exporting: boolean;
+  onExport: () => void;
   onPress: () => void;
 }) {
   const styles = makeStyles(COLORS, isRTL);
@@ -292,6 +344,21 @@ function ExpiredWarrantyRow({
           {'  ·  ' + orderRef(row)}
         </Text>
       </View>
+      {/* An expired certificate is still a record worth keeping — let them export it. */}
+      <TouchableOpacity
+        accessibilityRole="button"
+        accessibilityLabel={isRTL ? 'إصدار الشهادة PDF' : 'Export certificate PDF'}
+        onPress={onExport}
+        disabled={exporting}
+        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        style={styles.expiredPdfBtn}
+      >
+        {exporting ? (
+          <ActivityIndicator size="small" color={COLORS.textSecondary} />
+        ) : (
+          <MaterialCommunityIcons name="file-pdf-box" size={20} color={COLORS.textSecondary} />
+        )}
+      </TouchableOpacity>
       <RTLIonicon name="chevron-forward" size={18} color={COLORS.textLight} />
     </PressableScale>
   );
@@ -433,7 +500,25 @@ const makeStyles = (C: any, isRTL: boolean) =>
       textAlign: isRTL ? 'right' : 'left',
     },
 
+    certAction: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      minHeight: 44,
+      marginTop: 14,
+      borderRadius: BORDER_RADIUS.md,
+      backgroundColor: C.primary,
+    },
+    certActionText: { color: '#fff', fontWeight: '800', fontSize: 13.5 },
+
     // Expired
+    expiredPdfBtn: {
+      width: 34,
+      height: 34,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
     expiredRow: {
       flexDirection: isRTL ? 'row-reverse' : 'row',
       alignItems: 'center',
