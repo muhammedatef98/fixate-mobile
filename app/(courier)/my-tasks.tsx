@@ -129,7 +129,7 @@ export default function CourierMyTasksScreen() {
           )}
 
           {mine.length > 0 && (
-            <View style={[styles.statsRow]}>
+            <View style={[styles.statsRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
               <View style={[styles.statCard, { backgroundColor: COLORS.card, borderColor: COLORS.border }]}>
                 <Text style={{ color: COLORS.primary, fontSize: 20, fontWeight: '900' }}>{activeMine.length}</Text>
                 <Text style={{ color: COLORS.textSecondary, fontSize: 11.5, fontWeight: '700' }}>

@@ -1,15 +1,17 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Alert, Switch } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useApp } from '../../contexts/AppContext';
 import { useAuth } from '../../contexts/AuthContext';
-import { getColors, SPACING } from '../../constants/theme';
+import { getColors, SPACING, BORDER_RADIUS } from '../../constants/theme';
 import {
   getAvailableDeliveryTasks,
   acceptDeliveryTask,
   subscribeToAvailableDeliveryTasks,
+  getCourierAvailability,
+  setCourierAvailability,
   type DeliveryTask,
 } from '../../services/courierService';
 import DeliveryTaskCard from '../../components/courier/DeliveryTaskCard';
@@ -36,6 +38,37 @@ export default function CourierAvailableScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [acceptingId, setAcceptingId] = useState<string | null>(null);
+  // Online/offline. An offline courier can't claim tasks (server-enforced in
+  // accept_delivery_task); this is the courier's own working-status switch.
+  const [isOnline, setIsOnline] = useState(true);
+  const [togglingOnline, setTogglingOnline] = useState(false);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    getCourierAvailability(user.id).then(setIsOnline).catch(() => {});
+  }, [user?.id]);
+
+  const toggleOnline = async (next: boolean) => {
+    if (!user?.id) return;
+    const prev = isOnline;
+    setIsOnline(next); // optimistic
+    setTogglingOnline(true);
+    try {
+      await setCourierAvailability(user.id, next);
+    } catch (e) {
+      // Revert and tell them — a wrong online/offline belief misroutes work.
+      logger.warn('toggle courier availability failed', e);
+      setIsOnline(prev);
+      Alert.alert(
+        isRTL ? 'تعذّر تحديث الحالة' : "Couldn't update status",
+        isRTL
+          ? 'لم نتمكن من حفظ حالة الإتاحة. تحقق من اتصالك وحاول مرة أخرى.'
+          : "We couldn't save your availability. Check your connection and try again."
+      );
+    } finally {
+      setTogglingOnline(false);
+    }
+  };
 
   const load = useCallback(async () => {
     if (!user) return;
@@ -63,21 +96,39 @@ export default function CourierAvailableScreen() {
   };
 
   const handleAccept = async (task: DeliveryTask) => {
+    // Fast local guard so an offline courier gets a clear prompt without a
+    // round-trip; the RPC enforces the same rule server-side regardless.
+    if (!isOnline) {
+      Alert.alert(
+        isRTL ? 'أنت غير متاح' : "You're offline",
+        isRTL
+          ? 'فعّل الإتاحة من الأعلى لتتمكن من قبول المهام.'
+          : 'Turn on availability at the top to accept tasks.'
+      );
+      return;
+    }
     setAcceptingId(task.id);
     try {
       await acceptDeliveryTask(task.id);
       await load();
       router.push({ pathname: '/(courier)/task/[id]', params: { id: task.id } } as any);
     } catch (e: any) {
-      const raced = String(e?.message ?? '').includes('task_no_longer_available');
+      const msg = String(e?.message ?? '');
+      const raced = msg.includes('task_no_longer_available');
+      const offline = msg.includes('courier_unavailable');
       if (raced) setAvailable((prev) => prev.filter((t) => t.id !== task.id));
+      if (offline) setIsOnline(false);
       Alert.alert(
         isRTL ? 'تنبيه' : 'Notice',
         raced
           ? isRTL
             ? 'هذه المهمة لم تعد متاحة — قبلها مندوب آخر.'
             : 'This task is no longer available — another courier took it.'
-          : getFriendlyError(e, language)
+          : offline
+            ? isRTL
+              ? 'أنت غير متاح حالياً. فعّل الإتاحة لقبول المهام.'
+              : "You're currently offline. Turn on availability to accept tasks."
+            : getFriendlyError(e, language)
       );
     } finally {
       setAcceptingId(null);
@@ -107,6 +158,36 @@ export default function CourierAvailableScreen() {
           )}
           <NotificationBell color={COLORS.text} size={24} />
         </View>
+      </View>
+
+      {/* Online / offline — the courier's working-status switch. Offline stops
+          them from claiming new tasks (also enforced server-side). */}
+      <View
+        style={[
+          styles.availabilityCard,
+          { backgroundColor: COLORS.card, borderColor: isOnline ? COLORS.primary + '40' : COLORS.border, flexDirection: isRTL ? 'row-reverse' : 'row' },
+        ]}
+      >
+        <View style={[styles.availabilityDot, { backgroundColor: isOnline ? '#10B981' : '#9CA3AF' }]} />
+        <View style={{ flex: 1, alignItems: isRTL ? 'flex-end' : 'flex-start' }}>
+          <Text style={{ color: COLORS.text, fontWeight: '800', fontSize: 15 }}>
+            {isOnline
+              ? (isRTL ? 'متاح لاستقبال المهام' : 'Available for tasks')
+              : (isRTL ? 'غير متاح' : 'Offline')}
+          </Text>
+          <Text style={{ color: COLORS.textSecondary, fontSize: 12.5, marginTop: 2, textAlign: isRTL ? 'right' : 'left' }}>
+            {isOnline
+              ? (isRTL ? 'يمكنك قبول المهمات المتاحة' : 'You can accept available tasks')
+              : (isRTL ? 'لن تتمكن من قبول المهمات حتى تفعّل الإتاحة' : "You can't accept tasks until you go online")}
+          </Text>
+        </View>
+        <Switch
+          value={isOnline}
+          onValueChange={toggleOnline}
+          disabled={togglingOnline}
+          trackColor={{ false: COLORS.border, true: COLORS.primary }}
+          thumbColor="#fff"
+        />
       </View>
 
       {loading ? (
@@ -203,6 +284,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 10,
   },
+  availabilityCard: {
+    alignItems: 'center',
+    gap: 12,
+    marginHorizontal: SPACING.lg,
+    marginBottom: SPACING.sm,
+    padding: SPACING.md,
+    borderRadius: BORDER_RADIUS.lg,
+    borderWidth: 1,
+  },
+  availabilityDot: { width: 12, height: 12, borderRadius: 6 },
   empty: { alignItems: 'center', paddingVertical: 40, paddingHorizontal: 8 },
   hintCard: {
     alignSelf: 'stretch',

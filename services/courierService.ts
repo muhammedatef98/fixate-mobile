@@ -203,6 +203,36 @@ export const submitCourierApplication = async (
   }
 };
 
+// ── Availability (online/offline) ────────────────────────────────────────────
+
+/** The courier's current online/offline flag. Defaults to true (online) when
+ *  the row can't be read, matching the column default. */
+export const getCourierAvailability = async (userId: string): Promise<boolean> => {
+  const { data, error } = await supabase
+    .from('couriers')
+    .select('available')
+    .eq('user_id', userId)
+    .maybeSingle();
+  if (error) {
+    logger.warn('getCourierAvailability failed', error);
+    return true;
+  }
+  return data?.available ?? true;
+};
+
+/** Flip the courier online/offline. An offline courier can't claim tasks
+ *  (enforced server-side in accept_delivery_task). */
+export const setCourierAvailability = async (
+  userId: string,
+  available: boolean
+): Promise<void> => {
+  const { error } = await supabase
+    .from('couriers')
+    .update({ available })
+    .eq('user_id', userId);
+  if (error) throw error;
+};
+
 // ── Tasks ────────────────────────────────────────────────────────────────────
 
 export const getAvailableDeliveryTasks = async (): Promise<DeliveryTask[]> => {
