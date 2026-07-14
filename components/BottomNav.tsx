@@ -31,7 +31,24 @@ const NAV_ITEMS = [
   { path: '/profile', icon: 'person-outline', activeIcon: 'person', labelAr: 'حسابي', labelEn: 'Profile' },
 ];
 
-export default function BottomNav(_props: { currentRoute?: string } = {}) {
+interface BottomNavProps {
+  currentRoute?: string;
+  /**
+   * Floating element parked directly above the bar, on its trailing edge (the
+   * home screen's smart-assistant puck). It renders INSIDE this component's
+   * container — the same box the bar itself lives in — so the two are laid out
+   * against one shared origin. A caller positioning it from the outside has to
+   * re-derive the bar's offset against its own parent, and any padding that
+   * parent applies (a SafeAreaView inset, a screen frame) silently pushes the
+   * two apart. Passing it in makes that impossible.
+   */
+  above?: React.ReactNode;
+}
+
+/** Air between the `above` accessory and the bar's top edge. */
+export const BOTTOM_NAV_ACCESSORY_GAP = 6;
+
+export default function BottomNav({ above }: BottomNavProps = {}) {
   const router = useRouter();
   const pathname = usePathname();
   const { language, isDark } = useApp();
@@ -46,6 +63,16 @@ export default function BottomNav(_props: { currentRoute?: string } = {}) {
   // system nav bar by that frame. iOS keeps its existing 30px offset.
   return (
     <View style={styles.container} pointerEvents="box-none">
+      {above ? (
+        <View
+          style={[
+            styles.accessory,
+            { alignSelf: isRTL ? 'flex-start' : 'flex-end' },
+          ]}
+        >
+          {above}
+        </View>
+      ) : null}
       <View style={styles.floatingBar}>
         {navItems.map((item) => {
           const isActive = pathname === item.path || (item.path === '/(customer)' && pathname === '/');
@@ -89,6 +116,9 @@ const makeStyles = (C: any, isDark: boolean) => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: BOTTOM_NAV_SIDE_INSET,
+  },
+  accessory: {
+    marginBottom: BOTTOM_NAV_ACCESSORY_GAP,
   },
   floatingBar: {
     flexDirection: 'row',

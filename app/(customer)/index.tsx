@@ -19,7 +19,7 @@ import { useApp } from '../../contexts/AppContext';
 import { useAuth } from '../../contexts/AuthContext';
 import BottomNav, {
   BOTTOM_NAV_TOP,
-  BOTTOM_NAV_SIDE_INSET,
+  BOTTOM_NAV_ACCESSORY_GAP,
 } from '../../components/BottomNav';
 import Sidebar from '../../components/Sidebar';
 import { supabase } from '../../services/supabaseClient';
@@ -45,20 +45,15 @@ const DEVICE_CATEGORIES = [
   { id: 'watch', titleEn: 'Watches', titleAr: 'ساعات', icon: 'watch-variant', accent: '#F59E0B', fromPrice: 150 },
 ];
 
-// Smart-assistant floating icon.
+// Smart-assistant floating icon. It is passed to <BottomNav above={...} />, which
+// lays it out inside the bar's own container — directly above the bar's top edge,
+// on its trailing side, separated by BOTTOM_NAV_ACCESSORY_GAP. Nothing here
+// positions it, which is the point: the two can no longer be measured against
+// different parents and drift apart on one platform but not the other.
 //
-// It sits directly ABOVE the bottom nav bar, separated by one small, even gap —
-// close enough to read as part of the bottom-navigation cluster, far enough that
-// it never covers a nav item or its label. The offset is measured from the bar's
-// real top edge (BOTTOM_NAV_TOP), never hardcoded, so it holds on every screen
-// size and on both platforms: whatever safe-area padding lifts the bar (iOS 30pt,
-// Android's system-nav inset applied by the root frame) lifts the FAB with it and
-// preserves the gap exactly.
-//
-// The gap is 10pt — the same optical spacing the bar keeps from the screen edge —
-// so the two float as a pair rather than as two unrelated objects.
+// Only the SIZE lives here, because the scroll padding below has to reserve room
+// for the puck as well as the bar.
 const ASSISTANT_FAB_SIZE = 54;
-const ASSISTANT_FAB_GAP = 10;
 
 // Warranty length applied to every completed repair (months). Used to derive
 // the warranty-expiry date shown on the home "Repair warranty" card.
@@ -303,7 +298,7 @@ export default function CustomerHomeScreen() {
           // Clear the taller of the two floating layers — the FAB's top edge,
           // which now sits a gap above the bar, is the real content ceiling.
           paddingBottom:
-            BOTTOM_NAV_TOP + ASSISTANT_FAB_GAP + ASSISTANT_FAB_SIZE + 16,
+            BOTTOM_NAV_TOP + BOTTOM_NAV_ACCESSORY_GAP + ASSISTANT_FAB_SIZE + 16,
         }}
       >
         <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }], paddingHorizontal: SPACING.m, paddingTop: SPACING.s, paddingBottom: SPACING.m }}>
@@ -616,25 +611,25 @@ export default function CustomerHomeScreen() {
         </Animated.View>
       </ScrollView>
 
-      <BottomNav />
-
       {/* Smart assistant — a floating icon that stays reachable from anywhere on
           the home screen (it replaced the in-flow assistant card, which scrolled
-          out of sight). It sits just above the nav bar, on the bar's trailing
-          edge, so the two read as one bottom-navigation cluster.
-
-          MUST render after <BottomNav />: RN paints siblings in source order, so
-          declaring it first would tuck the puck UNDER the bar's shadow on iOS,
-          where elevation is ignored. */}
-      <AnimatedTouchable
-        onPress={() => router.push('/chatbot')}
-        style={[styles.assistantFab, { backgroundColor: COLORS.primary }]}
-        activeOpacity={0.88}
-        accessibilityRole="button"
-        accessibilityLabel={isRTL ? 'مساعد Fixate الذكي' : 'Fixate AI assistant'}
-      >
-        <MaterialCommunityIcons name="robot-happy-outline" size={26} color="#fff" />
-      </AnimatedTouchable>
+          out of sight). It is handed to <BottomNav /> rather than positioned
+          here, so it is laid out in the bar's own box: it sits one small gap
+          above the bar's top edge, on its trailing side, and cannot drift away
+          from it no matter what padding this screen's SafeAreaView applies. */}
+      <BottomNav
+        above={
+          <AnimatedTouchable
+            onPress={() => router.push('/chatbot')}
+            style={[styles.assistantFab, { backgroundColor: COLORS.primary }]}
+            activeOpacity={0.88}
+            accessibilityRole="button"
+            accessibilityLabel={isRTL ? 'مساعد Fixate الذكي' : 'Fixate AI assistant'}
+          >
+            <MaterialCommunityIcons name="robot-happy-outline" size={26} color="#fff" />
+          </AnimatedTouchable>
+        }
+      />
 
       <Sidebar visible={sidebarVisible} onClose={() => setSidebarVisible(false)} />
     </SafeAreaView>
@@ -908,24 +903,13 @@ const makeStyles = (C: any, isRTL: boolean, SHADOWS: any) =>
     trustTitle: { fontSize: 12, fontWeight: '800', textAlign: 'center' },
     trustSub: { fontSize: 11, fontWeight: '500', textAlign: 'center' },
 
-    // Floating smart-assistant icon — anchored to the nav bar's real top edge
-    // (BOTTOM_NAV_TOP) plus one small gap, so it rests just above the bar. Both
-    // the FAB and the bar live in the same absolutely-positioned box, so this
-    // single offset holds on every screen size and under any safe-area inset:
-    // whatever padding lifts the bar lifts the FAB with it, preserving the gap
-    // exactly. Side inset matches the bar's own, so the two line up on the same
-    // edge — and it flips with isRTL, keeping the icon on the trailing side in
-    // both directions.
+    // Smart-assistant puck. It is NOT positioned here — <BottomNav above={...}>
+    // lays it out inside the bar's own container, directly above the bar's top
+    // edge on the trailing side (which flips with the language automatically,
+    // because the bar's container drives the alignment). This style only
+    // describes how the puck LOOKS.
     assistantFab: {
-      position: 'absolute',
-      // Clear the bar's top edge by one small, even gap.
-      bottom: BOTTOM_NAV_TOP + ASSISTANT_FAB_GAP,
-      ...(isRTL
-        ? { left: BOTTOM_NAV_SIDE_INSET }
-        : { right: BOTTOM_NAV_SIDE_INSET }),
-      // Paints above page content and above the bar's shadow. The bar runs at
-      // elevation 10, so on Android the FAB needs a higher one; zIndex covers
-      // iOS/web.
+      // Above the page content; the bar runs at elevation 10 on Android.
       zIndex: 10,
       width: ASSISTANT_FAB_SIZE,
       height: ASSISTANT_FAB_SIZE,
