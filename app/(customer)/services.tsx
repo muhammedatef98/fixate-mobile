@@ -223,27 +223,14 @@ export default function ServicesScreen() {
             {/* Layered depth: a large soft blob + a faint oversized watermark
                 gear that fills the previously-empty trailing side. */}
             <View pointerEvents="none" style={styles.heroBlob} />
-            <View pointerEvents="none" style={styles.heroBlob2} />
-            <MaterialCommunityIcons
-              name="cog"
-              size={190}
-              color="#ffffff12"
-              style={styles.heroWatermark}
-            />
             <View style={styles.heroLeft}>
               <View style={styles.heroEyebrowRow}>
                 <MaterialCommunityIcons name="shield-check" size={13} color="#fff" />
                 <Text style={styles.heroEyebrow}>{isRTL ? 'خدمة Fixate' : 'Fixate service'}</Text>
               </View>
               <Text style={styles.heroTitle}>
-                {isRTL ? 'صيانة موثوقة\nبفنيين معتمدين' : 'Trusted repairs\nfrom verified pros'}
+                {isRTL ? 'صيانة موثوقة بفنيين معتمدين' : 'Trusted repairs from verified pros'}
               </Text>
-              <View style={styles.heroBadge}>
-                <MaterialCommunityIcons name="clock-fast" size={13} color="#fff" />
-                <Text style={styles.heroBadgeText}>
-                  {isRTL ? 'يصلك الفني في وقت قياسي' : 'A technician reaches you fast'}
-                </Text>
-              </View>
               <TouchableOpacity
                 onPress={() => router.push('/request')}
                 style={styles.heroCta}
@@ -254,6 +241,10 @@ export default function ServicesScreen() {
                 <Text style={styles.heroCtaText}>{isRTL ? 'اطلب الآن' : 'Request now'}</Text>
                 <RTLIonicon name="arrow-forward" size={16} color={COLORS.primary} />
               </TouchableOpacity>
+            </View>
+            {/* Fills the side that the right-aligned text leaves empty. */}
+            <View style={styles.heroMedallion}>
+              <MaterialCommunityIcons name="tools" size={40} color="#fff" />
             </View>
           </View>
 
@@ -472,12 +463,13 @@ const makeStyles = (C: any, isRTL: boolean, SHADOWS: any) =>
 
     // Hero
     hero: {
-      borderRadius: 24,
-      padding: 22,
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
+      gap: 14,
+      borderRadius: 22,
+      padding: 18,
       marginBottom: 18,
       overflow: 'hidden',
-      minHeight: 180,
-      justifyContent: 'center',
       shadowColor: C.primary,
       shadowOpacity: 0.3,
       shadowOffset: { width: 0, height: 10 },
@@ -486,29 +478,19 @@ const makeStyles = (C: any, isRTL: boolean, SHADOWS: any) =>
     },
     heroBlob: {
       position: 'absolute',
-      width: 190, height: 190, borderRadius: 95,
-      backgroundColor: '#ffffff14',
-      top: -70, [isRTL ? 'left' : 'right']: -50,
-    },
-    heroBlob2: {
-      position: 'absolute',
-      width: 120, height: 120, borderRadius: 60,
-      backgroundColor: '#ffffff0F',
-      bottom: -50, [isRTL ? 'right' : 'left']: -30,
-    },
-    heroWatermark: {
-      position: 'absolute',
-      bottom: -46,
-      [isRTL ? 'left' : 'right']: -34,
+      width: 160, height: 160, borderRadius: 80,
+      backgroundColor: '#ffffff12',
+      top: -60, [isRTL ? 'left' : 'right']: -40,
     },
     heroLeft: {
+      flex: 1,
       alignItems: isRTL ? 'flex-end' : 'flex-start',
     },
     heroEyebrowRow: {
       flexDirection: isRTL ? 'row-reverse' : 'row',
       alignItems: 'center',
       gap: 5,
-      marginBottom: 8,
+      marginBottom: 7,
     },
     heroEyebrow: {
       color: '#ffffffdd',
@@ -520,30 +502,21 @@ const makeStyles = (C: any, isRTL: boolean, SHADOWS: any) =>
     },
     heroTitle: {
       color: '#fff',
-      fontSize: 24,
+      fontSize: 20,
       fontWeight: '900',
-      lineHeight: 32,
+      lineHeight: 28,
       textAlign: isRTL ? 'right' : 'left',
       writingDirection: isRTL ? 'rtl' : 'ltr',
     },
-    heroBadge: {
-      alignSelf: isRTL ? 'flex-end' : 'flex-start',
-      flexDirection: isRTL ? 'row-reverse' : 'row',
-      alignItems: 'center',
-      gap: 6,
-      marginTop: 10,
-      paddingHorizontal: 10,
-      paddingVertical: 6,
-      borderRadius: 999,
-      backgroundColor: 'rgba(255,255,255,0.18)',
+    heroMedallion: {
+      width: 76,
+      height: 76,
+      borderRadius: 24,
+      backgroundColor: 'rgba(255,255,255,0.16)',
       borderWidth: 1,
       borderColor: 'rgba(255,255,255,0.28)',
-    },
-    heroBadgeText: {
-      color: '#fff',
-      fontWeight: '700',
-      fontSize: 12,
-      writingDirection: isRTL ? 'rtl' : 'ltr',
+      alignItems: 'center',
+      justifyContent: 'center',
     },
     heroCta: {
       flexDirection: isRTL ? 'row-reverse' : 'row',
@@ -553,7 +526,7 @@ const makeStyles = (C: any, isRTL: boolean, SHADOWS: any) =>
       paddingVertical: 11,
       borderRadius: 999,
       alignSelf: isRTL ? 'flex-end' : 'flex-start',
-      marginTop: 16,
+      marginTop: 14,
       gap: 7,
       shadowColor: '#000',
       shadowOpacity: 0.18,
