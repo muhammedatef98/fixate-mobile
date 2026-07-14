@@ -238,7 +238,7 @@ export default function AdminScheduledScreen() {
                 >
                   <Text style={{ color: selectedDate ? COLORS.text : COLORS.textSecondary, fontSize: 14 }}>
                     {selectedDate
-                      ? selectedDate.toLocaleDateString(isRTL ? 'ar-SA-u-ca-gregory' : 'en-US', { calendar: 'gregory', year: 'numeric', month: 'long', day: 'numeric' })
+                      ? selectedDate.toLocaleDateString(isRTL ? 'ar-SA-u-ca-gregory-nu-latn' : 'en-US', { calendar: 'gregory', year: 'numeric', month: 'long', day: 'numeric' })
                       : (isRTL ? 'اختر التاريخ' : 'Pick a date')}
                   </Text>
                 </TouchableOpacity>
@@ -317,7 +317,7 @@ export default function AdminScheduledScreen() {
                 <MaterialCommunityIcons name={isRTL ? 'chevron-right' : 'chevron-left'} size={22} color={COLORS.primary} />
               </TouchableOpacity>
               <Text style={{ color: COLORS.text, fontWeight: '800', fontSize: 15 }}>
-                {pickerMonth.toLocaleDateString(isRTL ? 'ar-SA-u-ca-gregory' : 'en-US', { calendar: 'gregory', month: 'long', year: 'numeric' })}
+                {pickerMonth.toLocaleDateString(isRTL ? 'ar-SA-u-ca-gregory-nu-latn' : 'en-US', { calendar: 'gregory', month: 'long', year: 'numeric' })}
               </Text>
               <TouchableOpacity onPress={() => setPickerMonth((m) => new Date(m.getFullYear(), m.getMonth() + 1, 1))} style={{ padding: 6 }}>
                 <MaterialCommunityIcons name={isRTL ? 'chevron-left' : 'chevron-right'} size={22} color={COLORS.primary} />

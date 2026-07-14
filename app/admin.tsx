@@ -34,6 +34,7 @@ import {
 } from '../components/admin/AdminUI';
 import { formatAppTimeOnly } from '../lib/formatDate';
 import { logger } from '../utils/logger';
+import { Riyal } from '../components/Riyal';
 
 interface Stats {
   totalUsers: number;
@@ -364,7 +365,7 @@ export default function AdminDashboardScreen() {
               <View style={[s.heroDivider, { backgroundColor: COLORS.border }]} />
               <View style={s.heroMetric}>
                 <Text style={s.heroMetricValue}>
-                  {stats.revenueToday.toLocaleString(isRTL ? 'ar-SA' : 'en-US')}
+                  {stats.revenueToday.toLocaleString('en-US')}
                 </Text>
                 <Text style={s.heroMetricLabel}>{isRTL ? 'إيرادات اليوم (ر.س)' : "Today's revenue (SAR)"}</Text>
               </View>
@@ -444,7 +445,7 @@ export default function AdminDashboardScreen() {
         <View style={s.statsGrid}>
           <AdminStatTile
             icon="account-multiple" label={isRTL ? 'المستخدمون' : 'Users'}
-            value={stats.totalUsers.toLocaleString(isRTL ? 'ar-SA' : 'en-US')}
+            value={stats.totalUsers.toLocaleString('en-US')}
             color="#10b981" loading={loading}
             hint={stats.newUsersThisWeek > 0
               ? (isRTL ? `+${stats.newUsersThisWeek} هذا الأسبوع` : `+${stats.newUsersThisWeek} this week`)
@@ -453,7 +454,7 @@ export default function AdminDashboardScreen() {
           />
           <AdminStatTile
             icon="account-wrench" label={isRTL ? 'الفنيون' : 'Technicians'}
-            value={stats.totalTechnicians.toLocaleString(isRTL ? 'ar-SA' : 'en-US')}
+            value={stats.totalTechnicians.toLocaleString('en-US')}
             color="#8b5cf6" loading={loading}
             hint={stats.newTechniciansThisWeek > 0
               ? (isRTL ? `+${stats.newTechniciansThisWeek} هذا الأسبوع` : `+${stats.newTechniciansThisWeek} this week`)
@@ -462,7 +463,7 @@ export default function AdminDashboardScreen() {
           />
           <AdminStatTile
             icon="clipboard-text" label={isRTL ? 'الطلبات' : 'Orders'}
-            value={stats.totalOrders.toLocaleString(isRTL ? 'ar-SA' : 'en-US')}
+            value={stats.totalOrders.toLocaleString('en-US')}
             color="#3b82f6" loading={loading}
             hint={stats.newOrdersThisWeek > 0
               ? (isRTL ? `+${stats.newOrdersThisWeek} هذا الأسبوع` : `+${stats.newOrdersThisWeek} this week`)
@@ -471,7 +472,7 @@ export default function AdminDashboardScreen() {
           />
           <AdminStatTile
             icon="storefront" label={isRTL ? 'الإعلانات' : 'Listings'}
-            value={stats.totalListings.toLocaleString(isRTL ? 'ar-SA' : 'en-US')}
+            value={stats.totalListings.toLocaleString('en-US')}
             color="#f59e0b" loading={loading}
             hint={stats.newListingsThisWeek > 0
               ? (isRTL ? `+${stats.newListingsThisWeek} هذا الأسبوع` : `+${stats.newListingsThisWeek} this week`)
@@ -504,16 +505,16 @@ export default function AdminDashboardScreen() {
               />
             ) : (
               <Text style={s.revenueValue}>
-                {stats.revenue.toLocaleString(isRTL ? 'ar-SA' : 'en-US')}{' '}
+                {stats.revenue.toLocaleString('en-US')}{' '}
                 <Text style={{ fontSize: 14, fontWeight: '700' }}>
-                  {isRTL ? 'ر.س' : 'SAR'}
+                  <Riyal />
                 </Text>
               </Text>
             )}
             {stats.revenueToday > 0 && !loading ? (
               <Text style={s.revenueSub}>
                 {isRTL
-                  ? `+${stats.revenueToday.toLocaleString('ar-SA')} ر.س اليوم`
+                  ? `+${stats.revenueToday.toLocaleString('en-US')} ر.س اليوم`
                   : `+${stats.revenueToday.toLocaleString('en-US')} SAR today`}
               </Text>
             ) : null}

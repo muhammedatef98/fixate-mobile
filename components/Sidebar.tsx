@@ -259,10 +259,20 @@ export default function Sidebar({ visible, onClose }: SidebarProps) {
                 </AnimatedTouchable>
               </View>
 
-              <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 6 }}>
+              {/* The badge must sit on the name's optical centre line. The row —
+                  not the <Text> — carries the top margin: a margin on the text
+                  alone pushed it down inside a taller row, leaving the icon
+                  floating above the letters. flexShrink lets a long name
+                  ellipsize instead of shoving the badge off the card. */}
+              <View style={s.heroNameRow}>
                 <Text style={s.heroName} numberOfLines={1}>{displayName}</Text>
                 {isVerified ? (
-                  <MaterialCommunityIcons name="check-decagram" size={16} color="#fff" />
+                  <MaterialCommunityIcons
+                    name="check-decagram"
+                    size={16}
+                    color="#fff"
+                    style={s.heroVerified}
+                  />
                 ) : null}
               </View>
 
@@ -564,15 +574,26 @@ const styles = (COLORS: ReturnType<typeof getColors>, isRTL: boolean) =>
       alignItems: 'center',
       justifyContent: 'center',
     },
+    heroNameRow: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
+      gap: 6,
+      marginTop: 14,
+      alignSelf: isRTL ? 'flex-end' : 'flex-start',
+      maxWidth: '100%',
+    },
     heroName: {
       color: '#fff',
       fontSize: 19,
       fontWeight: '900',
-      marginTop: 14,
+      flexShrink: 1,
       // No negative tracking on Arabic — it pulls joined glyphs into each other.
       letterSpacing: isRTL ? 0 : -0.3,
       textAlign: isRTL ? 'right' : 'left',
     },
+    // Nudge the check onto the cap-height centre of a 19pt name — vertical
+    // centring alone leaves it looking a hair high next to a bold line.
+    heroVerified: { marginTop: 1 },
     heroEmail: {
       color: 'rgba(255,255,255,0.82)',
       fontSize: 12.5,

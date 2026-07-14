@@ -141,7 +141,7 @@ export default function CourierMyTasksScreen() {
               {earnedFees > 0 && (
                 <View style={[styles.statCard, { backgroundColor: COLORS.card, borderColor: COLORS.border }]}>
                   <Text style={{ color: '#10B981', fontSize: 20, fontWeight: '900' }}>
-                    {earnedFees.toLocaleString(isRTL ? 'ar-SA' : 'en-US')}
+                    {earnedFees.toLocaleString('en-US')}
                   </Text>
                   <Text style={{ color: COLORS.textSecondary, fontSize: 11.5, fontWeight: '700' }}>
                     {isRTL ? 'أجور (ر.س)' : 'Fees (SAR)'}

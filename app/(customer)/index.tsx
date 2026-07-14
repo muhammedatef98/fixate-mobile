@@ -32,6 +32,7 @@ import { RTLIonicon } from '../../components/RTLIcon';
 import { PressableScale, AnimatedTouchable } from '../../components/ui/PressableScale';
 import { Skeleton } from '../../components/ui/Skeleton';
 import HomeHighlightsCarousel from '../../components/HomeHighlightsCarousel';
+import { Riyal } from '../../components/Riyal';
 
 const { width } = Dimensions.get('window');
 
@@ -44,19 +45,20 @@ const DEVICE_CATEGORIES = [
   { id: 'watch', titleEn: 'Watches', titleAr: 'ساعات', icon: 'watch-variant', accent: '#F59E0B', fromPrice: 150 },
 ];
 
-// Smart-assistant floating icon. Size is unchanged; only its anchoring moved.
+// Smart-assistant floating icon.
 //
-// It sits ON THE SHOULDER of the bottom nav bar: the puck's bottom edge dips
-// ASSISTANT_FAB_OVERLAP below the bar's top edge, so the two read as one
-// attached cluster instead of the icon floating off into the content (same
-// language as the market FAB). Measured from BOTTOM_NAV_TOP, never hardcoded.
+// It sits directly ABOVE the bottom nav bar, separated by one small, even gap —
+// close enough to read as part of the bottom-navigation cluster, far enough that
+// it never covers a nav item or its label. The offset is measured from the bar's
+// real top edge (BOTTOM_NAV_TOP), never hardcoded, so it holds on every screen
+// size and on both platforms: whatever safe-area padding lifts the bar (iOS 30pt,
+// Android's system-nav inset applied by the root frame) lifts the FAB with it and
+// preserves the gap exactly.
 //
-// The overlap is deliberately small. The bar is 70pt tall, so a 12pt dip still
-// leaves the nav item beneath it 58pt of tappable height — comfortably above the
-// 44pt minimum touch target — and the item's leading half is untouched. Pushing
-// the overlap much past this would start eating the nav's icon row.
+// The gap is 10pt — the same optical spacing the bar keeps from the screen edge —
+// so the two float as a pair rather than as two unrelated objects.
 const ASSISTANT_FAB_SIZE = 54;
-const ASSISTANT_FAB_OVERLAP = 12;
+const ASSISTANT_FAB_GAP = 10;
 
 // Warranty length applied to every completed repair (months). Used to derive
 // the warranty-expiry date shown on the home "Repair warranty" card.
@@ -65,39 +67,53 @@ const WARRANTY_MONTHS = 12;
 
 // Rotating daily maintenance tips. The active tip is picked by the day-of-year
 // so it changes once a day at midnight and is stable for the whole day.
-// Covers all device categories Fixate services: phones, tablets, laptops,
-// TVs, washing machines and other home electronics.
+//
+// SCOPE — Fixate repairs personal electronics ONLY: phones (iPhone/Android),
+// laptops, desktop computers, tablets/iPads and smartwatches. Tips must stay
+// inside that domain. No home appliances (washing machines, fridges, TVs,
+// ovens, routers) — we don't service them, so a tip about them sends the wrong
+// signal about what the app does.
 const DAILY_TIPS: { ar: string; en: string }[] = [
+  // Battery & charging
   { ar: 'لا تترك جوالك يشحن طوال الليل باستمرار للحفاظ على عمر البطارية.', en: 'Avoid charging your phone overnight constantly to protect battery life.' },
   { ar: 'أبقِ نسبة شحن بطارية جهازك بين 20% و80% لإطالة عمرها.', en: 'Keep your device battery between 20% and 80% to extend its lifespan.' },
-  { ar: 'نظّف منفذ الشحن في جوالك من الغبار بفرشاة ناعمة لتجنب مشاكل الشحن.', en: "Clean your phone's charging port with a soft brush to avoid charging issues." },
-  { ar: 'حدّث نظام جوالك أو لابتوبك بانتظام لإصلاح الثغرات وتحسين الأداء.', en: 'Update your phone or laptop regularly to fix bugs and improve performance.' },
-  { ar: 'استخدم واقي شاشة وجراب جيد لجوالك أو تابلتك لتقليل أعطال السقوط.', en: 'Use a screen protector and a good case for your phone or tablet to reduce drop damage.' },
-  { ar: 'لا تشغّل اللابتوب على سطح ناعم كالسرير حتى لا تُسد فتحات التهوية.', en: "Don't use your laptop on soft surfaces like a bed — it blocks the air vents." },
-  { ar: 'أبعد جوالك ولابتوبك عن الحرارة العالية وأشعة الشمس المباشرة.', en: 'Keep your phone and laptop away from high heat and direct sunlight.' },
-  { ar: 'اعمل نسخة احتياطية لبيانات جوالك أسبوعياً تحسّباً لأي عطل مفاجئ.', en: "Back up your phone's data weekly in case of a sudden failure." },
-  { ar: 'نظّف مروحة اللابتوب وفتحات التبريد كل بضعة أشهر لمنع ارتفاع الحرارة.', en: "Clean your laptop's fan and vents every few months to prevent overheating." },
   { ar: 'لا تستخدم شواحن مقلّدة رخيصة؛ فقد تتلف البطارية أو لوحة الشحن.', en: 'Avoid cheap counterfeit chargers — they can damage the battery or charging board.' },
-  { ar: 'أغلق التطبيقات التي تعمل في الخلفية لتقليل استهلاك البطارية والحرارة.', en: 'Close background apps to reduce battery drain and heat.' },
-  { ar: 'امسح شاشة التلفزيون بقطعة قماش ميكروفايبر جافة فقط، دون رش الماء مباشرة.', en: 'Wipe your TV screen with a dry microfiber cloth only — never spray water directly on it.' },
-  { ar: 'لا تضع التلفزيون قريباً جداً من الجدار حتى يبقى هناك تهوية كافية خلفه.', en: 'Keep your TV a little away from the wall so there is enough airflow behind it.' },
-  { ar: 'استخدم منظّم تيار (UPS) لحماية التلفزيون والأجهزة من تذبذب الكهرباء.', en: 'Use a voltage regulator/UPS to protect your TV and appliances from power spikes.' },
-  { ar: 'نظّف فلتر الغسالة كل شهر لمنع انسداده وضعف التصريف.', en: "Clean your washing machine's filter monthly to prevent clogs and weak drainage." },
-  { ar: 'لا تملأ الغسالة فوق طاقتها؛ الحمولة الزائدة تُتلف المحرك والمحامل.', en: 'Never overload your washing machine — excess load wears out the motor and bearings.' },
-  { ar: 'اترك باب الغسالة مفتوحاً بعد كل غسلة ليجف الحوض ويمنع الروائح والعفن.', en: 'Leave the washer door open after each wash so the drum dries and avoids odor and mold.' },
-  { ar: 'استخدم كمية المنظّف الموصى بها فقط؛ الزيادة تترك رواسب داخل الغسالة.', en: 'Use only the recommended amount of detergent — too much leaves residue inside the machine.' },
-  { ar: 'افصل الأجهزة الكهربائية أثناء العواصف الرعدية لحمايتها من الصواعق.', en: 'Unplug electronics during thunderstorms to protect them from surges.' },
-  { ar: 'أعد تشغيل الراوتر مرة كل أسبوع للحفاظ على ثبات الإنترنت.', en: 'Restart your router once a week to keep your internet stable.' },
-  { ar: 'لا تترك التابلت في السيارة تحت الشمس؛ الحرارة تنتفخ البطارية.', en: 'Never leave a tablet in a hot car — heat can swell the battery.' },
-  { ar: 'استخدم خاصية الحماية من الماء بحذر؛ مقاومة الماء تضعف مع تقادم الجهاز.', en: 'Treat water resistance with care — it weakens as the device ages.' },
   { ar: 'افحص كابلات الشحن دورياً واستبدل أي كابل مكشوف أو متآكل فوراً.', en: 'Inspect charging cables regularly and replace any frayed or exposed cable immediately.' },
-  { ar: 'خفّض سطوع الشاشة قليلاً لإطالة عمر البطارية وراحة عينيك.', en: 'Lower your screen brightness a bit to extend battery life and ease eye strain.' },
+  { ar: 'انتفاخ بطارية الجوال أو اللابتوب خطر — أوقف استخدام الجهاز واطلب فنياً فوراً.', en: 'A swollen phone or laptop battery is dangerous — stop using the device and request a technician right away.' },
+  { ar: 'إذا نفدت بطارية جوالك بسرعة غير معتادة، فغالباً حان وقت استبدالها.', en: 'If your phone battery drains unusually fast, it is probably time to replace it.' },
+  { ar: 'لا تشحن جوالك أو تابلتك وهو داخل غطاء سميك؛ الحرارة تُتعب البطارية.', en: "Don't charge your phone or tablet inside a thick case — the trapped heat wears the battery." },
+
+  // Phones & tablets (iPhone / iPad / Android)
+  { ar: 'نظّف منفذ الشحن في جوالك من الغبار بفرشاة ناعمة لتجنب مشاكل الشحن.', en: "Clean your phone's charging port with a soft brush to avoid charging issues." },
+  { ar: 'استخدم واقي شاشة وجراب جيد لجوالك أو تابلتك لتقليل أعطال السقوط.', en: 'Use a screen protector and a good case for your phone or tablet to reduce drop damage.' },
+  { ar: 'لا تترك التابلت أو الآيباد في السيارة تحت الشمس؛ الحرارة تنتفخ البطارية.', en: 'Never leave a tablet or iPad in a hot car — heat can swell the battery.' },
+  { ar: 'مقاومة الماء في الجوالات تضعف مع تقادم الجهاز وبعد أي فتح أو إصلاح.', en: 'Water resistance weakens as a phone ages — and after any opening or repair.' },
   { ar: 'نظّف السماعات وفتحات المايك بفرشاة ناعمة جافة لتحسين جودة الصوت.', en: 'Clean speaker and mic grilles with a soft dry brush to keep sound clear.' },
+  { ar: 'إذا ظهرت خطوط أو بقع على شاشة جوالك، لا تضغط عليها — الشاشة تحتاج فحصاً.', en: 'Lines or blotches on your phone screen mean the display needs inspection — avoid pressing on it.' },
+  { ar: 'شاشة الجوال المكسورة تسمح للغبار والرطوبة بالدخول — أصلحها مبكراً قبل أن يتلف الداخل.', en: 'A cracked phone screen lets in dust and moisture — repair it early, before the internals are damaged.' },
+  { ar: 'أعد تشغيل جوالك مرة كل أسبوع؛ يحل كثيراً من مشاكل البطء والتعليق.', en: 'Restart your phone once a week — it clears up a lot of slowdown and freezing issues.' },
+  { ar: 'اترك 10% من مساحة تخزين جوالك فارغة على الأقل حتى لا يتباطأ النظام.', en: 'Keep at least 10% of your phone storage free, or the system starts to crawl.' },
+
+  // Laptops & computers
+  { ar: 'لا تشغّل اللابتوب على سطح ناعم كالسرير حتى لا تُسد فتحات التهوية.', en: "Don't use your laptop on soft surfaces like a bed — it blocks the air vents." },
+  { ar: 'نظّف مروحة اللابتوب وفتحات التبريد كل بضعة أشهر لمنع ارتفاع الحرارة.', en: "Clean your laptop's fan and vents every few months to prevent overheating." },
+  { ar: 'صوت مروحة عالٍ باستمرار مع بطء في اللابتوب = غبار أو معجون حراري يحتاج تغييراً.', en: 'A constantly loud fan plus a slow laptop usually means dust buildup or thermal paste due for a change.' },
+  { ar: 'لا تحمل اللابتوب من الشاشة؛ ذلك يكسر المفصلات وكيبل الشاشة.', en: "Don't carry a laptop by its screen — it breaks the hinges and the display cable." },
+  { ar: 'لا تضع أي سائل قرب لوحة مفاتيح اللابتوب؛ الانسكاب يتلف اللوحة الأم.', en: 'Keep liquids away from your laptop keyboard — a spill can destroy the motherboard.' },
+  { ar: 'ترقية الرام أو تركيب قرص SSD يعيد الحياة لجهاز كمبيوتر بطيء بتكلفة أقل من شراء جديد.', en: 'A RAM upgrade or an SSD brings a slow computer back to life for far less than a new one.' },
+  { ar: 'أغلق التطبيقات التي تعمل في الخلفية لتقليل استهلاك البطارية والحرارة.', en: 'Close background apps to reduce battery drain and heat.' },
+  { ar: 'نظّف غبار صندوق الكمبيوتر المكتبي دورياً؛ الغبار يخنق التبريد ويرفع الحرارة.', en: 'Dust out your desktop PC regularly — dust chokes the cooling and drives temperatures up.' },
   { ar: 'لا تفصل الفلاش ميموري أو الهارد الخارجي أثناء نقل الملفات لتجنّب التلف.', en: 'Never unplug a USB drive or external disk mid-transfer to avoid corruption.' },
-  { ar: 'احفظ فاتورة وضمان أجهزتك في مكان واحد يسهل الرجوع إليه عند الصيانة.', en: 'Keep your devices’ invoices and warranties in one place for easy reference during service.' },
-  { ar: 'نظّف خلف الثلاجة وملف التبريد من الغبار لتعمل بكفاءة وتوفّر الكهرباء.', en: 'Dust the coils behind your fridge so it runs efficiently and saves power.' },
-  { ar: 'لا تضع أجهزة ثقيلة فوق التلفزيون أو اللابتوب لتفادي كسر الشاشة.', en: 'Never place heavy objects on a TV or laptop to avoid cracking the screen.' },
+
+  // Cross-device good practice
+  { ar: 'حدّث نظام جوالك أو لابتوبك بانتظام لإصلاح الثغرات وتحسين الأداء.', en: 'Update your phone or laptop regularly to fix bugs and improve performance.' },
+  { ar: 'اعمل نسخة احتياطية لبيانات جوالك أسبوعياً تحسّباً لأي عطل مفاجئ.', en: "Back up your phone's data weekly in case of a sudden failure." },
+  { ar: 'خذ نسخة احتياطية من بياناتك قبل تسليم أي جهاز للصيانة.', en: 'Back up your data before handing any device in for repair.' },
+  { ar: 'أبعد جوالك ولابتوبك عن الحرارة العالية وأشعة الشمس المباشرة.', en: 'Keep your phone and laptop away from high heat and direct sunlight.' },
+  { ar: 'خفّض سطوع الشاشة قليلاً لإطالة عمر البطارية وراحة عينيك.', en: 'Lower your screen brightness a bit to extend battery life and ease eye strain.' },
   { ar: 'عند سقوط الجهاز في الماء، أطفئه فوراً ولا تشحنه وتواصل مع فني مختص.', en: 'If a device gets wet, power it off immediately, don’t charge it, and contact a technician.' },
+  { ar: 'الأرز لا ينقذ جهازاً مبلولاً — الحل الوحيد هو تنظيف داخلي على يد فني.', en: 'Rice does not save a wet device — only an internal cleaning by a technician does.' },
+  { ar: 'احفظ فاتورة وضمان أجهزتك في مكان واحد يسهل الرجوع إليه عند الصيانة.', en: 'Keep your devices’ invoices and warranties in one place for easy reference during service.' },
 ];
 
 const getDailyTip = () => {
@@ -284,10 +300,10 @@ export default function CustomerHomeScreen() {
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
-          // Clear the taller of the two floating layers. The FAB now overlaps the
-          // bar, so its top edge — not the bar's — is the real content ceiling.
+          // Clear the taller of the two floating layers — the FAB's top edge,
+          // which now sits a gap above the bar, is the real content ceiling.
           paddingBottom:
-            BOTTOM_NAV_TOP - ASSISTANT_FAB_OVERLAP + ASSISTANT_FAB_SIZE + 16,
+            BOTTOM_NAV_TOP + ASSISTANT_FAB_GAP + ASSISTANT_FAB_SIZE + 16,
         }}
       >
         <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }], paddingHorizontal: SPACING.m, paddingTop: SPACING.s, paddingBottom: SPACING.m }}>
@@ -322,7 +338,7 @@ export default function CustomerHomeScreen() {
             >
               <MaterialCommunityIcons name="wallet-outline" size={16} color={COLORS.primary} />
               <Text style={{ color: COLORS.primary, fontWeight: '800', fontSize: 13.5 }}>
-                {walletBalance.toFixed(2)} {isRTL ? 'ر.س' : 'SAR'}
+                {walletBalance.toFixed(2)} <Riyal />
               </Text>
             </TouchableOpacity>
           </View>
@@ -604,12 +620,12 @@ export default function CustomerHomeScreen() {
 
       {/* Smart assistant — a floating icon that stays reachable from anywhere on
           the home screen (it replaced the in-flow assistant card, which scrolled
-          out of sight). It rests on the nav bar's shoulder, overlapping its top
-          edge slightly so the two read as one attached cluster.
+          out of sight). It sits just above the nav bar, on the bar's trailing
+          edge, so the two read as one bottom-navigation cluster.
 
           MUST render after <BottomNav />: RN paints siblings in source order, so
-          declaring it first would tuck the puck UNDER the bar on iOS, where
-          elevation is ignored. */}
+          declaring it first would tuck the puck UNDER the bar's shadow on iOS,
+          where elevation is ignored. */}
       <AnimatedTouchable
         onPress={() => router.push('/chatbot')}
         style={[styles.assistantFab, { backgroundColor: COLORS.primary }]}
@@ -893,24 +909,23 @@ const makeStyles = (C: any, isRTL: boolean, SHADOWS: any) =>
     trustSub: { fontSize: 11, fontWeight: '500', textAlign: 'center' },
 
     // Floating smart-assistant icon — anchored to the nav bar's real top edge
-    // (BOTTOM_NAV_TOP), which it deliberately overlaps so it rests on the bar's
-    // shoulder. Both the FAB and the bar live in the same absolutely-positioned
-    // box, so this single offset holds on every screen size and under any
-    // safe-area inset: whatever padding lifts the bar lifts the FAB with it,
-    // preserving the overlap exactly. Side inset matches the bar's own, so the
-    // two share an edge — and it flips with isRTL, keeping the icon on the
-    // trailing side in both directions.
+    // (BOTTOM_NAV_TOP) plus one small gap, so it rests just above the bar. Both
+    // the FAB and the bar live in the same absolutely-positioned box, so this
+    // single offset holds on every screen size and under any safe-area inset:
+    // whatever padding lifts the bar lifts the FAB with it, preserving the gap
+    // exactly. Side inset matches the bar's own, so the two line up on the same
+    // edge — and it flips with isRTL, keeping the icon on the trailing side in
+    // both directions.
     assistantFab: {
       position: 'absolute',
-      // Dip below the bar's top edge so the puck rests on its shoulder.
-      bottom: BOTTOM_NAV_TOP - ASSISTANT_FAB_OVERLAP,
+      // Clear the bar's top edge by one small, even gap.
+      bottom: BOTTOM_NAV_TOP + ASSISTANT_FAB_GAP,
       ...(isRTL
         ? { left: BOTTOM_NAV_SIDE_INSET }
         : { right: BOTTOM_NAV_SIDE_INSET }),
-      // Must paint OVER the bar, not under it. The bar runs at elevation 10, so
-      // on Android the FAB needs a higher elevation; zIndex covers iOS/web.
-      // (Render order — FAB after <BottomNav /> — is what makes this work on
-      // iOS, where elevation is ignored.)
+      // Paints above page content and above the bar's shadow. The bar runs at
+      // elevation 10, so on Android the FAB needs a higher one; zIndex covers
+      // iOS/web.
       zIndex: 10,
       width: ASSISTANT_FAB_SIZE,
       height: ASSISTANT_FAB_SIZE,

@@ -31,6 +31,7 @@ import {
   type AdminFilterChip,
 } from '../components/admin/AdminUI';
 import { fmtAdminDate } from '../utils/dateFormat';
+import { Riyal } from '../components/Riyal';
 
 interface AdminOrder {
   id: string;
@@ -394,8 +395,8 @@ export default function AdminOrdersScreen() {
                     )}
                   </View>
                   <Text style={styles.price}>
-                    {Number(price).toLocaleString(isRTL ? 'ar-SA' : 'en-US')}{' '}
-                    {isRTL ? 'ر.س' : 'SAR'}
+                    {Number(price).toLocaleString('en-US')}{' '}
+                    <Riyal />
                   </Text>
                 </View>
               </TouchableOpacity>

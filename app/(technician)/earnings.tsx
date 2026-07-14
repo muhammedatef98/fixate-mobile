@@ -10,6 +10,7 @@ import { logger } from '../../utils/logger';
 import * as walletService from '../../services/walletService';
 import { useAuth } from '../../contexts/AuthContext';
 import { formatAppDate } from '../../lib/formatDate';
+import { Riyal } from '../../components/Riyal';
 
 const { width } = Dimensions.get('window');
 
@@ -173,7 +174,7 @@ export default function EarningsScreen() {
         </View>
         <View style={[styles.earningAmount, { backgroundColor: '#10B98115' }]}>
           <Text style={[styles.earningAmountText, { color: '#10B981' }]}>
-            +{Math.max(0, Number(order.accepted_offer_amount ?? order.final_price ?? order.estimated_price ?? 0) - Number(order.spare_parts_cost ?? 0))} {language === 'ar' ? 'ر.س' : 'SAR'}
+            +{Math.max(0, Number(order.accepted_offer_amount ?? order.final_price ?? order.estimated_price ?? 0) - Number(order.spare_parts_cost ?? 0))} <Riyal />
           </Text>
         </View>
       </View>
@@ -202,7 +203,7 @@ export default function EarningsScreen() {
                 {isRTL ? 'رصيد المحفظة' : 'Wallet balance'}
               </Text>
               <Text style={[localStyles.walletAmount, { color: COLORS.primary }]}>
-                {wallet.balance.toFixed(2)} {isRTL ? 'ر.س' : 'SAR'}
+                {wallet.balance.toFixed(2)} <Riyal />
               </Text>
             </View>
             <MaterialCommunityIcons name="wallet-outline" size={36} color={COLORS.primary} />
@@ -219,7 +220,7 @@ export default function EarningsScreen() {
             {language === 'ar' ? 'إجمالي الأرباح' : 'Total Earnings'}
           </Text>
           <Text style={styles.totalAmount}>
-            {earnings.total.toFixed(2)} {language === 'ar' ? 'ر.س' : 'SAR'}
+            {earnings.total.toFixed(2)} <Riyal />
           </Text>
           <View style={styles.totalStats}>
             <View style={styles.totalStatItem}>

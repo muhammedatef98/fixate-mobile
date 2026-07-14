@@ -13,7 +13,7 @@ const esc = (s: unknown): string =>
     .replace(/"/g, '&quot;');
 
 const money = (n: number, isRTL: boolean, currency = 'SAR'): string => {
-  const v = (Number(n) || 0).toLocaleString(isRTL ? 'ar-SA' : 'en-US', {
+  const v = (Number(n) || 0).toLocaleString('en-US', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });

@@ -47,6 +47,7 @@ import {
   type ServiceNeighborhood,
 } from '../services/serviceAreasService';
 import { getFriendlyError } from '../utils/errorMessages';
+import { Riyal } from '../components/Riyal';
 
 interface CoverageDraft {
   regionId: string;
@@ -550,7 +551,7 @@ export default function AdminServiceAreasScreen() {
                                 style={[styles.feeInput, { color: COLORS.text, borderColor: COLORS.border }]}
                               />
                               <Text style={{ color: COLORS.textSecondary, fontSize: 11, fontWeight: '700' }}>
-                                {isRTL ? 'ر.س' : 'SAR'}
+                                <Riyal />
                               </Text>
                             </View>
 

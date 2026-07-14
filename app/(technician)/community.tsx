@@ -649,7 +649,7 @@ export default function CommunityScreen() {
           {!loading && (
             <Text style={styles.headerSubtitle}>
               {isRTL
-                ? `${posts.length.toLocaleString('ar-SA')} منشور`
+                ? `${posts.length.toLocaleString('en-US')} منشور`
                 : `${posts.length} ${posts.length === 1 ? 'post' : 'posts'}`}
             </Text>
           )}

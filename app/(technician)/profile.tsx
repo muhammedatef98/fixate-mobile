@@ -16,6 +16,7 @@ import { getWalletBalance } from '../../services/walletService';
 import Avatar from '../../components/Avatar';
 import { logger } from '../../utils/logger';
 import { TECH_NAV_HEIGHT } from '../../components/BottomNavTech';
+import { Riyal } from '../../components/Riyal';
 
 /**
  * Technician profile — the "me" hub.
@@ -169,7 +170,7 @@ export default function TechnicianProfile() {
     { id: 'help',          icon: 'help-circle-outline',   labelAr: 'الدعم الفني',        labelEn: 'Tech Support' },
   ];
 
-  const fmt = (n: number) => n.toLocaleString(isRTL ? 'ar-EG' : 'en-US', { maximumFractionDigits: 0 });
+  const fmt = (n: number) => n.toLocaleString('en-US', { maximumFractionDigits: 0 });
 
   return (
     <SafeAreaView style={styles.container}>
@@ -319,7 +320,7 @@ export default function TechnicianProfile() {
                 <ActivityIndicator color="#fff" style={{ alignSelf: isRTL ? 'flex-end' : 'flex-start', marginTop: 6 }} />
               ) : (
                 <Text style={styles.earningsValue}>
-                  {fmt(wallet.balance)} {isRTL ? 'ر.س' : 'SAR'}
+                  {fmt(wallet.balance)} <Riyal />
                 </Text>
               )}
               <Text style={styles.earningsHint}>

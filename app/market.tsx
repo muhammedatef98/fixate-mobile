@@ -43,6 +43,7 @@ import SkeletonLoader from '../components/SkeletonLoader';
 import MarketBottomTabs, { MARKET_TABS_HEIGHT } from '../components/MarketBottomTabs';
 import { AnimatedTouchable } from '../components/ui/PressableScale';
 import { AdminFilterChips, type AdminFilterChip } from '../components/admin/AdminUI';
+import { Riyal } from '../components/Riyal';
 
 // Tiny SVG blurhash-equivalent placeholder used while the network image
 // streams in. expo-image fades the real image in over this, so cards never
@@ -414,9 +415,9 @@ export default function MarketScreen() {
 
           <View style={styles.priceRow}>
             <Text style={styles.cardPrice}>
-              {item.price.toLocaleString(isRTL ? 'ar-SA' : 'en-US')}
+              {item.price.toLocaleString('en-US')}
             </Text>
-            <Text style={styles.cardCurrency}>{isRTL ? 'ر.س' : 'SAR'}</Text>
+            <Text style={styles.cardCurrency}><Riyal /></Text>
             {condLabel ? (
               <View style={styles.condInline}>
                 <Text style={styles.condInlineText} numberOfLines={1}>{condLabel}</Text>
@@ -525,7 +526,7 @@ export default function MarketScreen() {
           {!loading && listings.length > 0 ? (
             <Text style={styles.subtitle}>
               {isRTL
-                ? `${listings.length.toLocaleString('ar-SA')} إعلان مباشر`
+                ? `${listings.length.toLocaleString('en-US')} إعلان مباشر`
                 : `${listings.length.toLocaleString('en-US')} listings live`}
             </Text>
           ) : null}
@@ -643,10 +644,10 @@ export default function MarketScreen() {
             <Text style={styles.resultCount} numberOfLines={1}>
               {savedOnly
                 ? (isRTL
-                    ? `${displayedListings.length.toLocaleString('ar-SA')} محفوظ`
+                    ? `${displayedListings.length.toLocaleString('en-US')} محفوظ`
                     : `${displayedListings.length} saved`)
                 : (isRTL
-                    ? `${displayedListings.length.toLocaleString('ar-SA')} نتيجة`
+                    ? `${displayedListings.length.toLocaleString('en-US')} نتيجة`
                     : `${displayedListings.length} ${displayedListings.length === 1 ? 'result' : 'results'}`)}
             </Text>
             <AnimatedTouchable

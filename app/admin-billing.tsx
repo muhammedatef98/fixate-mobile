@@ -65,7 +65,7 @@ const statusTone = (s: InvoiceStatus): { tone: StatusTone; icon: string } => {
 };
 
 const money = (n: number, isRTL: boolean) =>
-  `${(Number(n) || 0).toLocaleString(isRTL ? 'ar-SA' : 'en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${isRTL ? 'ر.س' : 'SAR'}`;
+  `${(Number(n) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${isRTL ? 'ر.س' : 'SAR'}`;
 
 export default function AdminBillingScreen() {
   const { language, isDark } = useApp();

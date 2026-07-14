@@ -23,6 +23,7 @@ import { getFriendlyError } from '../utils/errorMessages';
 import ErrorState from '../components/ErrorState';
 import { safeBack } from '../utils/navigation';
 import { formatAppDateOnly } from '../lib/formatDate';
+import { Riyal } from '../components/Riyal';
 
 export default function WalletScreen() {
   const router = useRouter();
@@ -91,7 +92,6 @@ export default function WalletScreen() {
     );
   };
 
-  const sar = isRTL ? 'ر.س' : 'SAR';
   const styles = createStyles(COLORS, isRTL);
 
   return (
@@ -121,7 +121,7 @@ export default function WalletScreen() {
             {isRTL ? 'رصيد المحفظة' : 'Wallet balance'}
           </Text>
           <Text style={styles.balanceValue}>
-            {balance.toFixed(2)} {sar}
+            {balance.toFixed(2)} <Riyal />
           </Text>
           <TouchableOpacity style={styles.addFundsBtn} onPress={onAddFunds} accessibilityRole="button">
             <MaterialCommunityIcons name="plus-circle-outline" size={18} color={COLORS.primary} />
@@ -155,7 +155,7 @@ export default function WalletScreen() {
                     </Text>
                   </View>
                   <Text style={[styles.txnAmount, { color: credit ? COLORS.success : COLORS.error }]}>
-                    {credit ? '+' : '-'}{Number(t.amount).toFixed(2)} {sar}
+                    {credit ? '+' : '-'}{Number(t.amount).toFixed(2)} <Riyal />
                   </Text>
                 </View>
               );
@@ -166,7 +166,7 @@ export default function WalletScreen() {
         {/* Payment history (kept) */}
         <Text style={styles.sectionTitle}>
           {isRTL ? 'سجل المدفوعات' : 'Payment history'}
-          {payments.length > 0 ? `  ·  ${totalSpent.toFixed(0)} ${sar}` : ''}
+          {payments.length > 0 ? <>{`  ·  ${totalSpent.toFixed(0)} `}<Riyal /></> : null}
         </Text>
 
         {loading ? (

@@ -34,6 +34,7 @@ import { AdminFilterChips, type AdminFilterChip } from '../../components/admin/A
 import ErrorState from '../../components/ErrorState';
 import { getFriendlyError } from '../../utils/errorMessages';
 import { SkeletonOrderCard } from '../../components/SkeletonLoader';
+import { Riyal } from '../../components/Riyal';
 
 const { width } = Dimensions.get('window');
 
@@ -515,7 +516,7 @@ export default function TechnicianHomeScreen() {
           </View>
           <View style={styles.statInfo}>
             <Text style={[styles.statValue, { color: COLORS.text }]} numberOfLines={1} adjustsFontSizeToFit>
-              {todaysEarnings.toLocaleString(isRTL ? 'ar-EG' : 'en-US')} {isRTL ? 'ر.س' : 'SAR'}
+              {todaysEarnings.toLocaleString('en-US')} <Riyal />
             </Text>
             <Text style={[styles.statLabel, { color: COLORS.textSecondary }]}>
               {isRTL ? 'أرباح اليوم' : "Today's Earnings"}

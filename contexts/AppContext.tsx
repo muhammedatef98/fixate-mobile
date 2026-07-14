@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { setTextDirection } from '../utils/applyFont';
 
 type Language = 'en' | 'ar';
 type Theme = 'light' | 'dark';
@@ -51,6 +52,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const toggleTheme = () => setTheme(theme === 'light' ? 'dark' : 'light');
 
   const isDark = theme === 'dark';
+
+  // Keep the global text-direction flag in step with the language. The <Text> /
+  // <TextInput> wrappers in utils/applyFont read it to decide default alignment
+  // and caret side, and they render as part of this same pass — so it is set
+  // during render, not in an effect, which would leave the first frame (and
+  // every frame right after a language switch) aligned the old way.
+  setTextDirection(language === 'ar');
 
   // Push-token registration now lives in AuthContext (fires reliably once the
   // user is authenticated, on every launch) — see registerPushForUser there.

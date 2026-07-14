@@ -46,6 +46,7 @@ import ErrorState from '../../components/ErrorState';
 import { SkeletonOrderCard } from '../../components/SkeletonLoader';
 import { getFriendlyError } from '../../utils/errorMessages';
 import { logger } from '../../utils/logger';
+import { Riyal } from '../../components/Riyal';
 
 // Human-readable label for how the customer wants the device serviced.
 function fulfillmentLabel(type: string | null | undefined, language: string): string {
@@ -701,7 +702,7 @@ export default function AvailableOrdersScreen() {
                 textAlign={isRTL ? 'right' : 'left'}
               />
               <Text style={{ color: COLORS.textSecondary, fontWeight: '700' }}>
-                {language === 'ar' ? 'ر.س' : 'SAR'}
+                <Riyal />
               </Text>
             </View>
 

@@ -2,10 +2,10 @@
  * formatDate.ts — the single source of truth for date formatting across the app.
  *
  * THE RULE — one consistent format, Gregorian (Miladi) ONLY, never Hijri:
- *   Arabic : ١٨ يونيو، ٢٠٢٦ - ١١:٢٠ ص
+ *   Arabic : 18 يونيو، 2026 - 11:20 ص
  *   English: 18 June, 2026 - 11:20 AM
  *
- * - Arabic-Indic numerals on the Arabic locale, Latin on English.
+ * - Latin (English) digits in BOTH languages — never Arabic-Indic.
  * - Full month name, Gregorian year, AM/PM suffix (ص / م on Arabic).
  * - Separator between date and time is " - ".
  * - No weekday, no seconds, no Hijri/Islamic calendar anywhere.
@@ -22,16 +22,31 @@ const toDate = (input: DateInput): Date | null => {
   return Number.isFinite(date.getTime()) ? date : null;
 };
 
-// Arabic locale yields Arabic-Indic numerals + Arabic month names + ص/م.
+// Arabic locale yields Arabic month names + ص/م.
 // 'en-GB' keeps day-before-month ordering with Latin numerals.
 //
-// IMPORTANT: the Gregorian calendar is pinned via the Unicode locale extension
-// '-u-ca-gregory', NOT only the { calendar } option. On React Native (Hermes)
-// the { calendar } option is silently ignored, so 'ar-SA' falls back to its
-// default Islamic (Hijri) calendar. The locale-extension form is honoured on
-// device and is what keeps dates Gregorian (Miladi) everywhere.
+// TWO Unicode locale extensions are pinned on the Arabic locale, and both
+// matter:
+//   -ca-gregory : the calendar. NOT the { calendar } option — on React Native
+//                 (Hermes) that option is silently ignored, so plain 'ar-SA'
+//                 falls back to the Islamic (Hijri) calendar.
+//   -nu-latn    : the numbering system. Without it 'ar-SA' renders Arabic-Indic
+//                 digits (١٨) — the app shows Latin digits (18) in BOTH
+//                 languages.
 const localeFor = (isRTL: boolean): string =>
-  isRTL ? 'ar-SA-u-ca-gregory' : 'en-GB';
+  isRTL ? 'ar-SA-u-ca-gregory-nu-latn' : 'en-GB';
+
+/**
+ * Belt-and-braces for the Latin-digits rule. '-nu-latn' is the correct way to
+ * ask for them, but Intl on Hermes leans on whatever ICU the device ships and a
+ * locale extension it doesn't understand is dropped silently — which would put
+ * Arabic-Indic digits back on screen with nothing to warn us. Rewriting the
+ * formatted output costs nothing and makes the rule unconditional.
+ */
+// Both digit blocks (Arabic-Indic U+0660.., Extended U+06F0..) are contiguous
+// and start on a multiple of 16, so the low nibble IS the digit's value.
+const toLatinDigits = (s: string): string =>
+  s.replace(/[٠-٩۰-۹]/g, (d) => String(d.charCodeAt(0) & 0xf));
 
 const partsFor = (
   date: Date,
@@ -43,7 +58,9 @@ const partsFor = (
     ...options,
   });
   const map = new Map<Intl.DateTimeFormatPartTypes, string>();
-  for (const part of dtf.formatToParts(date)) map.set(part.type, part.value);
+  for (const part of dtf.formatToParts(date)) {
+    map.set(part.type, toLatinDigits(part.value));
+  }
   return map;
 };
 
@@ -59,7 +76,7 @@ const TIME_OPTIONS: Intl.DateTimeFormatOptions = {
   hour12: true,
 };
 
-/** "١٨ يونيو، ٢٠٢٦" / "18 June, 2026" */
+/** "18 يونيو، 2026" / "18 June, 2026" */
 const datePiece = (
   parts: Map<Intl.DateTimeFormatPartTypes, string>,
   isRTL: boolean,
@@ -71,7 +88,7 @@ const datePiece = (
   return `${day} ${month}${comma} ${year}`;
 };
 
-/** "١١:٢٠ ص" / "11:20 AM" */
+/** "11:20 ص" / "11:20 AM" */
 const timePiece = (
   parts: Map<Intl.DateTimeFormatPartTypes, string>,
   isRTL: boolean,
@@ -86,7 +103,7 @@ const timePiece = (
 
 /**
  * Full date + time — the canonical app format.
- *   "١٨ يونيو، ٢٠٢٦ - ١١:٢٠ ص"
+ *   "18 يونيو، 2026 - 11:20 ص"
  */
 export const formatAppDate = (input: DateInput, isRTL = true): string => {
   const date = toDate(input);
@@ -95,14 +112,14 @@ export const formatAppDate = (input: DateInput, isRTL = true): string => {
   return `${datePiece(parts, isRTL)} - ${timePiece(parts, isRTL)}`;
 };
 
-/** Date only — "١٨ يونيو، ٢٠٢٦" */
+/** Date only — "18 يونيو، 2026" */
 export const formatAppDateOnly = (input: DateInput, isRTL = true): string => {
   const date = toDate(input);
   if (!date) return '';
   return datePiece(partsFor(date, isRTL, DATE_OPTIONS), isRTL);
 };
 
-/** Time only — "١١:٢٠ ص" */
+/** Time only — "11:20 ص" */
 export const formatAppTimeOnly = (input: DateInput, isRTL = true): string => {
   const date = toDate(input);
   if (!date) return '';

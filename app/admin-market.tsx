@@ -484,7 +484,7 @@ export default function AdminMarketScreen() {
                     )}
                     <View style={styles.metaRow}>
                       <Text style={styles.price}>
-                        {Number(l.price).toLocaleString(isRTL ? 'ar-SA' : 'en-US')} {l.currency}
+                        {Number(l.price).toLocaleString('en-US')} {l.currency}
                       </Text>
                       {!!l.city && <Text style={styles.metaDim}>· {l.city}</Text>}
                       {!!l.created_at && <Text style={styles.metaDim}>· {fmtDate(l.created_at)}</Text>}

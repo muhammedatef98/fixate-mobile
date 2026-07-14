@@ -79,4 +79,4 @@ export const getOrderTotals = (order: MoneyFields): OrderTotals => {
 
 /** Format a SAR amount for the active locale. */
 export const fmtSAR = (amount: number, isRTL: boolean): string =>
-  `${amount.toLocaleString(isRTL ? 'ar-SA' : 'en-US')} ${isRTL ? 'ر.س' : 'SAR'}`;
+  `${amount.toLocaleString('en-US')} ${isRTL ? 'ر.س' : 'SAR'}`;

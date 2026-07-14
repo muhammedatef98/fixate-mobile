@@ -4,6 +4,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { SPACING, BORDER_RADIUS } from '../constants/theme';
 import type { PricingBreakdown, InvoiceLine } from '../services/pricingService';
 import { useLoyalty } from '../contexts/LoyaltyContext';
+import { Riyal } from './Riyal';
 
 interface Props {
   breakdown: PricingBreakdown;
@@ -15,8 +16,13 @@ interface Props {
   title?: string;
 }
 
-const fmt = (n: number, isRTL: boolean) =>
-  `${n.toLocaleString(isRTL ? 'ar-SA' : 'en-US')} ${isRTL ? 'ر.س' : 'SAR'}`;
+// Amount + the riyal symbol. Returns JSX (not a string) because the symbol
+// is a glyph from a bundled font — it can only be rendered by <Riyal />.
+const fmt = (n: number, _isRTL: boolean) => (
+  <>
+    {n.toLocaleString('en-US')} <Riyal />
+  </>
+);
 
 export default function InvoiceBreakdown({
   breakdown,

@@ -24,6 +24,7 @@ import { supabase } from '../../services/supabaseClient';
 import { subscribeUnique } from '../../utils/realtimeChannel';
 import InvoiceDownloadButton from '../../components/InvoiceDownloadButton';
 import { AdminFilterChips, type AdminFilterChip } from '../../components/admin/AdminUI';
+import { Riyal } from '../../components/Riyal';
 
 // Status filter for the requests list — same pill-chip style as the admin
 // orders-management screen (reuses AdminFilterChips). Each key maps to a set
@@ -219,27 +220,40 @@ export default function OrdersScreen() {
 
   // Payment architecture v2 — the accepted marketplace offer is the agreed
   // customer-facing price (legacy rows fall back to the old final_price).
-  const getQuoteInfo = (order: any): { label: string; amount: string; color: string } => {
-    const sar = isRTL ? 'ر.س' : 'SAR';
+  const getQuoteInfo = (
+    order: any,
+  ): { label: string; amount: React.ReactNode; color: string } => {
     const agreed = order.accepted_offer_amount ?? order.final_price;
     if (agreed != null && order.status === 'awaiting_payment') {
       return {
         label: isRTL ? 'السعر المتفق عليه — أكّد الدفع' : 'Agreed price — confirm payment',
-        amount: `${agreed} ${sar}`,
+        amount: (
+          <>
+            {agreed} <Riyal />
+          </>
+        ),
         color: COLORS.warning,
       };
     }
     if (agreed != null && !['pending', 'cancelled', 'rejected'].includes(order.status)) {
       return {
         label: isRTL ? 'السعر المتفق عليه' : 'Agreed price',
-        amount: `${agreed} ${sar}`,
+        amount: (
+          <>
+            {agreed} <Riyal />
+          </>
+        ),
         color: COLORS.success,
       };
     }
     if (agreed != null && order.status === 'cancelled') {
       return {
         label: isRTL ? 'السعر عند الإلغاء' : 'Price at cancellation',
-        amount: `${agreed} ${sar}`,
+        amount: (
+          <>
+            {agreed} <Riyal />
+          </>
+        ),
         color: COLORS.error,
       };
     }
@@ -307,7 +321,7 @@ export default function OrdersScreen() {
           <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
             {visibleOrders.map((order) => {
               const status = getStatusInfo(order.status);
-              // Exact format "١٨ يونيو، ٢٠٢٦ - ١١:٢٠ ص" (Arabic-Indic,
+              // Exact format "18 يونيو، 2026 - 11:20 ص" (Latin digits,
               // Gregorian, no weekday) so the client sees when they placed it.
               const dateTimeStr = fmtMyRequestDate(order.created_at, isRTL);
               return (

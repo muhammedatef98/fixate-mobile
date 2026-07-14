@@ -19,6 +19,7 @@ import { RTLIonicon } from '../components/RTLIcon';
 import Avatar from '../components/Avatar';
 import VerifiedBadge from '../components/VerifiedBadge';
 import { safeBack } from '../utils/navigation';
+import { Riyal } from '../components/Riyal';
 import {
   getUserCard,
   sellerListings,
@@ -136,8 +137,8 @@ export default function MarketSellerScreen() {
         <View style={styles.cardBody}>
           <Text style={styles.cardTitle} numberOfLines={2}>{item.title}</Text>
           <View style={styles.priceRow}>
-            <Text style={styles.cardPrice}>{item.price.toLocaleString(isRTL ? 'ar-SA' : 'en-US')}</Text>
-            <Text style={styles.cardCurrency}>{isRTL ? 'ر.س' : 'SAR'}</Text>
+            <Text style={styles.cardPrice}>{item.price.toLocaleString('en-US')}</Text>
+            <Text style={styles.cardCurrency}><Riyal /></Text>
           </View>
           <View style={styles.cardMetaRow}>
             {item.city ? (
@@ -171,7 +172,7 @@ export default function MarketSellerScreen() {
         <MaterialCommunityIcons name="tag-multiple-outline" size={13} color={COLORS.primary} />
         <Text style={styles.countPillText}>
           {isRTL
-            ? `${listings.length.toLocaleString('ar-SA')} إعلان`
+            ? `${listings.length.toLocaleString('en-US')} إعلان`
             : `${listings.length} ${listings.length === 1 ? 'listing' : 'listings'}`}
         </Text>
       </View>

@@ -89,7 +89,7 @@ export default function AdminAccountingScreen() {
   const profileLoaded = !adminChecking;
 
   const fmt = useCallback(
-    (n: number) => Number(n).toLocaleString(isRTL ? 'ar-SA' : 'en-US', { maximumFractionDigits: 0 }),
+    (n: number) => Number(n).toLocaleString('en-US', { maximumFractionDigits: 0 }),
     [isRTL]
   );
   const sar = isRTL ? 'ر.س' : 'SAR';

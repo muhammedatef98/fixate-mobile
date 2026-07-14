@@ -57,6 +57,7 @@ import {
 import { getPlatformSettings, type PlatformSettings } from '../services/platformSettingsService';
 import { getAccessories, getProtection } from '../services/pricingRegistryService';
 import ServiceCenterCard from '../components/ServiceCenterCard';
+import { Riyal } from '../components/Riyal';
 import {
   getRequestStepMethods,
   type PaymentMethod as AdminPaymentMethod,
@@ -1602,7 +1603,7 @@ export default function RequestScreen() {
                     <Text style={[styles.summaryValue, { color: COLORS.primary, fontWeight: '800', fontSize: 16 }]}>
                       {isFreeDelivery
                         ? (isRTL ? 'مجاناً' : 'Free')
-                        : `${deliveryFee} ${isRTL ? 'ر.س' : 'SAR'}`}
+                        : <>{deliveryFee} <Riyal /></>}
                     </Text>
                   </View>
                 )}
@@ -1677,7 +1678,7 @@ export default function RequestScreen() {
                   <Text style={styles.summaryValue}>
                     {isFreeDelivery
                       ? (isRTL ? 'مجاناً' : 'Free')
-                      : `${deliveryFee} ${isRTL ? 'ر.س' : 'SAR'}`}
+                      : <>{deliveryFee} <Riyal /></>}
                   </Text>
                 </View>
               )}
@@ -1691,7 +1692,7 @@ export default function RequestScreen() {
                   ]}
                 >
                   {inspectionFeeDue > 0
-                    ? `${inspectionFeeDue} ${isRTL ? 'ر.س' : 'SAR'}`
+                    ? <>{inspectionFeeDue} <Riyal /></>
                     : isRTL ? 'مجاني' : 'Free'}
                 </Text>
               </View>
@@ -1709,7 +1710,7 @@ export default function RequestScreen() {
                     </Text>
                   </View>
                   <Text style={styles.summaryValue}>
-                    {commitmentDue} {isRTL ? 'ر.س' : 'SAR'}
+                    {commitmentDue} <Riyal />
                   </Text>
                 </View>
               )}

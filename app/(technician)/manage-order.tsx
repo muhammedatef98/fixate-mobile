@@ -61,6 +61,7 @@ import {
 } from '../../services/courierService';
 import { isCourierChatOpen } from '../../services/courierChatService';
 import { getOrderTotals, fmtSAR } from '../../utils/orderMoney';
+import { Riyal } from '../../components/Riyal';
 import {
   technicianOfferStateMeta,
   customerEstimateDisplay,
@@ -774,7 +775,7 @@ export default function ManageOrderScreen() {
                 onChangeText={setOfferAmount}
                 textAlign={isRTL ? 'right' : 'left'}
               />
-              <Text style={{ color: COLORS.textSecondary, fontWeight: '700' }}>{isRTL ? 'ر.س' : 'SAR'}</Text>
+              <Text style={{ color: COLORS.textSecondary, fontWeight: '700' }}><Riyal /></Text>
             </View>
             <View style={{ borderWidth: 1, borderColor: COLORS.border, borderRadius: BORDER_RADIUS.md, paddingHorizontal: 12, paddingVertical: 8, minHeight: 64, marginTop: 10 }}>
               <TextInput

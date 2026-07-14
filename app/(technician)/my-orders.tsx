@@ -10,6 +10,7 @@ import { logger } from '../../utils/logger';
 import { safeBack } from '../../utils/navigation';
 import { formatAppDateOnly } from '../../lib/formatDate';
 import { AdminFilterChips, type AdminFilterChip } from '../../components/admin/AdminUI';
+import { Riyal } from '../../components/Riyal';
 
 // Status filter chips — same pill-chip style as the customer orders screen
 // (reuses AdminFilterChips). RTL order: الكل · مكتملة · قيد التنفيذ · مقبولة ·
@@ -143,7 +144,7 @@ export default function MyOrdersScreen() {
           <View style={styles.orderDetailItem}>
             <MaterialCommunityIcons name="cash" size={16} color="#10B981" />
             <Text style={[styles.priceText, { color: '#10B981' }]}>
-              {(order as any).accepted_offer_amount ?? (order as any).final_price ?? order.estimated_price} {language === 'ar' ? 'ر.س' : 'SAR'}
+              {(order as any).accepted_offer_amount ?? (order as any).final_price ?? order.estimated_price} <Riyal />
             </Text>
           </View>
         </View>

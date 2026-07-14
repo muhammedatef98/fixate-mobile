@@ -437,7 +437,7 @@ export default function AdminReportsScreen() {
     );
   }
 
-  const fmt = (n: number) => Number(n).toLocaleString(isRTL ? 'ar-SA' : 'en-US');
+  const fmt = (n: number) => Number(n).toLocaleString('en-US');
   const sar = isRTL ? 'ر.س' : 'SAR';
 
   return (

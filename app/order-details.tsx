@@ -62,6 +62,11 @@ const ORDER_TIMELINE: { status: string; arLabel: string; enLabel: string; icon: 
   { status: 'quoted', arLabel: 'بانتظار تأكيد السعر', enLabel: 'Price confirmation', icon: 'cash-check' },
 ];
 
+// How many status-log rows a FINISHED order shows before "View more". Three is
+// enough to carry the ending (e.g. delivering → delivered → completed) without
+// burying the invoice and rating actions under the whole archive.
+const HISTORY_COLLAPSED_COUNT = 3;
+
 // §13 + courier steps — friendly labels for delivery-leg timeline events
 // written by the delivery_tasks trigger (courier_<leg>_<status>).
 const COURIER_TIMELINE_LABELS: Record<string, { ar: string; en: string; icon: string }> = {
@@ -94,6 +99,8 @@ export default function OrderDetailsScreen() {
   const [viewerIndex, setViewerIndex] = useState(0);
   const [resolvedUrls, setResolvedUrls] = useState<string[]>([]);
   const [timeline, setTimeline] = useState<OrderTimelineEvent[]>([]);
+  // Status log is collapsed on finished orders (see HISTORY_COLLAPSED_COUNT).
+  const [historyExpanded, setHistoryExpanded] = useState(false);
   const [cancellingOrder, setCancellingOrder] = useState(false);
   const [deliveryTasks, setDeliveryTasks] = useState<DeliveryTask[]>([]);
   const [pendingOfferCount, setPendingOfferCount] = useState(0);
@@ -315,6 +322,23 @@ export default function OrderDetailsScreen() {
   // Treat rejected like cancelled for the happy-path timeline (hidden); the
   // dedicated rejection notice card renders the reason instead (FEAT-03).
   const isCancelled = order.status === 'cancelled' || order.status === 'rejected' || order.status === 'expired';
+
+  // Status log — full while the order is live, summarised once it's finished.
+  // "Finished" covers every terminal state, not just 'completed': a cancelled or
+  // rejected order is equally settled history. Collapsing to the LAST few events
+  // keeps the ones that closed the order (delivered → completed) on screen; the
+  // earlier ones are one tap away.
+  const isOrderFinished =
+    order.status === 'completed'
+    || order.status === 'cancelled'
+    || order.status === 'rejected'
+    || order.status === 'expired';
+  const historyCollapsible =
+    isOrderFinished && timeline.length > HISTORY_COLLAPSED_COUNT;
+  const visibleTimeline =
+    historyCollapsible && !historyExpanded
+      ? timeline.slice(-HISTORY_COLLAPSED_COUNT)
+      : timeline;
   const statusColor = getStatusColor(order.status);
   const orderFulfillment = (order as any).fulfillment_type ?? order.service_type;
   const usesServiceCenter = orderFulfillment === 'personal_handoff';
@@ -1012,7 +1036,14 @@ export default function OrderDetailsScreen() {
           </View>
         </View>
 
-        {/* §13 — detailed status-change history (who + when) */}
+        {/* §13 — detailed status-change history (who + when).
+
+            While the order is live the whole log is the point: the customer is
+            watching it move. Once it's finished the log is just archive — a
+            dozen rows of settled history pushing the invoice and rating actions
+            far down the screen. So on a finished order we show only the last few
+            events (the ones that actually ended the story) and let the customer
+            open the rest with "View more". */}
         {timeline.length > 0 && (
           <View style={[styles.historyCard, { backgroundColor: COLORS.card, borderColor: COLORS.border }]}>
             <View style={[styles.historyHeader, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
@@ -1020,14 +1051,21 @@ export default function OrderDetailsScreen() {
               <Text style={[styles.historyTitle, { color: COLORS.text }]}>
                 {isRTL ? 'سجل حالة الطلب' : 'Order status history'}
               </Text>
+              {historyCollapsible && !historyExpanded && (
+                <View style={[styles.historyCountPill, { backgroundColor: COLORS.primary + '15' }]}>
+                  <Text style={[styles.historyCountText, { color: COLORS.primary }]}>
+                    {timeline.length}
+                  </Text>
+                </View>
+              )}
             </View>
-            {timeline.map((ev, i) => {
+            {visibleTimeline.map((ev, i) => {
               const courierMeta = COURIER_TIMELINE_LABELS[ev.status];
               const meta = courierMeta
                 ? { icon: courierMeta.icon, arLabel: courierMeta.ar, enLabel: courierMeta.en }
                 : ORDER_TIMELINE.find((s) => s.status === ev.status);
               const label = meta ? (isRTL ? meta.arLabel : meta.enLabel) : ev.status;
-              const isLast = i === timeline.length - 1;
+              const isLast = i === visibleTimeline.length - 1;
               return (
                 <View key={ev.id} style={[styles.historyRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
                   <View style={styles.historyRail}>
@@ -1053,6 +1091,34 @@ export default function OrderDetailsScreen() {
                 </View>
               );
             })}
+
+            {historyCollapsible && (
+              <TouchableOpacity
+                onPress={() => setHistoryExpanded((v) => !v)}
+                style={[styles.historyToggle, { borderTopColor: COLORS.border }]}
+                activeOpacity={0.8}
+                accessibilityRole="button"
+                accessibilityState={{ expanded: historyExpanded }}
+                accessibilityLabel={
+                  historyExpanded
+                    ? (isRTL ? 'عرض أقل' : 'View less')
+                    : (isRTL ? 'عرض السجل كاملاً' : 'View the full log')
+                }
+              >
+                <Text style={[styles.historyToggleText, { color: COLORS.primary }]}>
+                  {historyExpanded
+                    ? (isRTL ? 'عرض أقل' : 'View less')
+                    : (isRTL
+                        ? `عرض المزيد (${timeline.length - visibleTimeline.length})`
+                        : `View more (${timeline.length - visibleTimeline.length})`)}
+                </Text>
+                <Ionicons
+                  name={historyExpanded ? 'chevron-up' : 'chevron-down'}
+                  size={16}
+                  color={COLORS.primary}
+                />
+              </TouchableOpacity>
+            )}
           </View>
         )}
 
@@ -1438,6 +1504,25 @@ const makeStyles = (isRTL: boolean) => StyleSheet.create({
   historyStatus: { fontSize: 14, fontWeight: '800' },
   historyMeta: { fontSize: 11.5, fontWeight: '600', marginTop: 3 },
   historyNote: { fontSize: 12, marginTop: 3, lineHeight: 18 },
+  historyCountPill: {
+    minWidth: 22,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 999,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  historyCountText: { fontSize: 11, fontWeight: '800' },
+  historyToggle: {
+    flexDirection: isRTL ? 'row-reverse' : 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginTop: 14,
+    paddingTop: 12,
+    borderTopWidth: StyleSheet.hairlineWidth,
+  },
+  historyToggleText: { fontSize: 13, fontWeight: '800' },
 
   actionContainer: {
     paddingHorizontal: 16,

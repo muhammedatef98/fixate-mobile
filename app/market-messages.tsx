@@ -29,6 +29,7 @@ import { logger } from '../utils/logger';
 import MarketBottomTabs, { MARKET_TABS_HEIGHT } from '../components/MarketBottomTabs';
 import { AnimatedTouchable } from '../components/ui/PressableScale';
 import { formatAppDateOnly, formatAppTimeOnly } from '../lib/formatDate';
+import { Riyal } from '../components/Riyal';
 
 /**
  * Marketplace inbox — every conversation the current user participates in
@@ -229,9 +230,9 @@ export default function MarketMessagesScreen() {
               {item.listing_price != null && (
                 <Text style={styles.listingPrice}>
                   {Number(item.listing_price).toLocaleString(
-                    isRTL ? 'ar-SA' : 'en-US'
+                    'en-US'
                   )}{' '}
-                  {item.listing_currency ?? 'SAR'}
+                  <Riyal />
                 </Text>
               )}
             </View>

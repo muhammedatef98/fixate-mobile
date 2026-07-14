@@ -36,6 +36,7 @@ import {
   formatInvoiceDate,
 } from '../services/invoicePdf';
 import { getFriendlyError } from '../utils/errorMessages';
+import { Riyal, SAR_TEXT } from './Riyal';
 
 interface Props {
   orderId: string;
@@ -45,12 +46,16 @@ interface Props {
   onClose: () => void;
 }
 
-const money = (n: number, isRTL: boolean, currency = 'SAR'): string => {
-  const v = (Number(n) || 0).toLocaleString(isRTL ? 'ar-SA' : 'en-US', {
+const money = (n: number, _isRTL: boolean, _currency = SAR_TEXT): React.ReactNode => {
+  const v = (Number(n) || 0).toLocaleString('en-US', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
-  return isRTL ? `${v} ر.س` : `${v} ${currency}`;
+  return (
+    <>
+      {v} <Riyal />
+    </>
+  );
 };
 
 /**
@@ -273,7 +278,7 @@ function SummaryRow({
   ltr,
 }: {
   label: string;
-  value: string;
+  value: React.ReactNode;
   styles: any;
   emphasize?: boolean;
   ltr?: boolean;

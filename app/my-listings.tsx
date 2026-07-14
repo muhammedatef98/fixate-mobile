@@ -21,6 +21,7 @@ import { getColors, SPACING, BORDER_RADIUS } from '../constants/theme';
 import { RTLIonicon } from '../components/RTLIcon';
 import SkeletonLoader from '../components/SkeletonLoader';
 import MarketBottomTabs, { MARKET_TABS_HEIGHT } from '../components/MarketBottomTabs';
+import { Riyal } from '../components/Riyal';
 import {
   myListings,
   hideListing,
@@ -239,7 +240,7 @@ export default function MyListingsScreen() {
             </View>
             <View style={styles.metaRow}>
               <Text style={styles.price}>
-                {Number(l.price).toLocaleString(isRTL ? 'ar-SA' : 'en-US')} {isRTL ? 'ر.س' : (l.currency || 'SAR')}
+                {Number(l.price).toLocaleString('en-US')} <Riyal />
               </Text>
               {!!l.city && (
                 <>

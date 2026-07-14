@@ -49,6 +49,7 @@ import {
 import { formatAppDateOnly } from '../lib/formatDate';
 import { toWhatsAppPhone } from '../utils/validation';
 import { submitMarketReport } from '../services/marketReportsService';
+import { Riyal } from '../components/Riyal';
 
 // Fixed set of report reasons (Arabic strings stored verbatim in the DB).
 const REPORT_REASONS = [
@@ -654,10 +655,10 @@ export default function MarketDetailScreen() {
                 </Text>
                 <View style={styles.priceValueWrap}>
                   <Text style={styles.priceCurrency}>
-                    {isRTL ? 'ر.س' : (listing.currency || 'SAR')}
+                    <Riyal />
                   </Text>
                   <Text style={styles.priceAmount}>
-                    {listing.price.toLocaleString(isRTL ? 'ar-SA' : 'en-US')}
+                    {listing.price.toLocaleString('en-US')}
                   </Text>
                 </View>
               </View>

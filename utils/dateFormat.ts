@@ -48,8 +48,8 @@ export function fmtDateOnly(iso: DateInput, isRTL = false): string {
 }
 
 /**
- * Format a number for admin screens (counts, money). NOT a date — Arabic locale
- * uses Arabic-Indic digits via 'ar-EG'.
+ * Format a number for admin screens (counts, money). NOT a date — digits are
+ * always Latin (en-US), in both languages.
  */
 export function fmtAdminNumber(
   n: number | string | null | undefined,
@@ -58,6 +58,5 @@ export function fmtAdminNumber(
 ): string {
   const num = Number(n ?? 0);
   if (!Number.isFinite(num)) return '0';
-  const locale = isRTL ? 'ar-EG' : 'en-US';
-  return num.toLocaleString(locale, opts);
+  return num.toLocaleString('en-US', opts);
 }

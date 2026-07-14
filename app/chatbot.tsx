@@ -32,7 +32,15 @@ interface Message {
  * text, and also surfaced as a tappable quick question. Answers are kept
  * short, plain and accurate to how the app actually works.
  */
-type FaqCategory = 'general' | 'orders' | 'marketplace' | 'technician' | 'account';
+type FaqCategory =
+  | 'general'
+  | 'orders'
+  | 'payments'
+  | 'marketplace'
+  | 'technician'
+  | 'courier'
+  | 'account'
+  | 'support';
 
 interface Faq {
   id: string;
@@ -46,11 +54,14 @@ interface Faq {
 
 /** Question sections shown as collapsible groups in the quick-questions list. */
 const CATEGORIES: { id: FaqCategory; ar: string; en: string; icon: string }[] = [
-  { id: 'general',     ar: 'عام',                 en: 'General',      icon: 'information-outline' },
+  { id: 'general',     ar: 'عام',                 en: 'General',          icon: 'information-outline' },
   { id: 'orders',      ar: 'الطلبات والصيانة',     en: 'Orders & Repairs', icon: 'tools' },
-  { id: 'marketplace', ar: 'السوق',               en: 'Marketplace',  icon: 'storefront-outline' },
-  { id: 'technician',  ar: 'للفنيين',             en: 'For Technicians', icon: 'account-wrench-outline' },
+  { id: 'payments',    ar: 'الدفع والفواتير',      en: 'Payments & Invoices', icon: 'credit-card-outline' },
+  { id: 'marketplace', ar: 'السوق',               en: 'Marketplace',      icon: 'storefront-outline' },
+  { id: 'technician',  ar: 'للفنيين',             en: 'For Technicians',  icon: 'account-wrench-outline' },
+  { id: 'courier',     ar: 'لمناديب التوصيل',      en: 'For Couriers',     icon: 'moped' },
   { id: 'account',     ar: 'الحساب والمحفظة',      en: 'Account & Wallet', icon: 'wallet-outline' },
+  { id: 'support',     ar: 'الدعم والمساعدة',      en: 'Support & Help',   icon: 'lifebuoy' },
 ];
 
 const FAQS: Faq[] = [
@@ -170,7 +181,7 @@ const FAQS: Faq[] = [
     cat: 'orders',
     q_ar: 'كم يستغرق الإصلاح؟',
     q_en: 'How long does a repair take?',
-    a_ar: 'يعتمد على نوع العطل، لكن معظم الإصلاحات تكتمل خلال ساعة إلى ٣ ساعات بعد تأكيد الدفع.',
+    a_ar: 'يعتمد على نوع العطل، لكن معظم الإصلاحات تكتمل خلال ساعة إلى 3 ساعات بعد تأكيد الدفع.',
     a_en: 'It depends on the issue, but most repairs are completed within 1 to 3 hours after you confirm payment.',
     keywords: ['time', 'long', 'duration', 'وقت', 'مدة', 'يستغرق', 'كم ساعة'],
   },
@@ -257,7 +268,7 @@ const FAQS: Faq[] = [
   },
   {
     id: 'payment',
-    cat: 'orders',
+    cat: 'payments',
     q_ar: 'ما طرق الدفع المتاحة؟',
     q_en: 'What payment methods are available?',
     a_ar: 'يمكنك الدفع نقداً عند الإتمام أو بالبطاقة. يتم الدفع فقط بعد موافقتك على عرض السعر — لا تدفع شيئاً مقابل الفحص.',
@@ -266,7 +277,7 @@ const FAQS: Faq[] = [
   },
   {
     id: 'invoice',
-    cat: 'orders',
+    cat: 'payments',
     q_ar: 'هل أحصل على فاتورة؟',
     q_en: 'Do I get an invoice?',
     a_ar: 'نعم، بعد إتمام الدفع تُتاح لك فاتورة بتفاصيل الخدمة والقطع داخل تفاصيل الطلب، ويمكنك تنزيلها.',
@@ -287,13 +298,13 @@ const FAQS: Faq[] = [
     cat: 'orders',
     q_ar: 'كيف يعمل نظام تقييم الفنيين؟',
     q_en: 'How does the technician rating system work?',
-    a_ar: 'بعد كل طلب مكتمل تقيّم الفني من ١ إلى ٥ نجوم. يُحسب للفني متوسط تقييماته ويظهر على ملفه، ويؤثر على ترتيبه وأولويته في استلام الطلبات. التقييمات المنخفضة المتكررة تُراجَع من الإدارة.',
+    a_ar: 'بعد كل طلب مكتمل تقيّم الفني من 1 إلى 5 نجوم. يُحسب للفني متوسط تقييماته ويظهر على ملفه، ويؤثر على ترتيبه وأولويته في استلام الطلبات. التقييمات المنخفضة المتكررة تُراجَع من الإدارة.',
     a_en: 'After each completed order you rate the technician from 1 to 5 stars. Their average rating shows on their profile and affects their ranking and priority for receiving orders. Repeated low ratings are reviewed by the admin team.',
     keywords: ['rating system', 'how rating', 'average', 'stars work', 'نظام التقييم', 'كيف التقييم', 'متوسط', 'تأثير التقييم'],
   },
   {
     id: 'refund',
-    cat: 'orders',
+    cat: 'payments',
     q_ar: 'ما هي سياسة الاسترداد؟',
     q_en: 'What is the refund policy?',
     a_ar: 'إذا دفعت مقابل إصلاح ولم يتم تنفيذه، أو ظهر خلل في الإصلاح ضمن فترة الضمان (سنة كاملة)، تواصل مع الدعم لمراجعة حالتك واسترداد المبلغ أو إعادة الإصلاح مجاناً حسب الحالة. الفحص دائماً مجاني فلا استرداد عليه.',
@@ -513,6 +524,462 @@ const FAQS: Faq[] = [
     a_en: 'From notification settings you can control which in-app alerts you receive.',
     keywords: ['notification settings', 'mute', 'manage notifications', 'إعدادات الإشعارات', 'تحكم', 'كتم'],
   },
+  // ── General (added) ───────────────────────────────────────────────────
+  {
+    id: 'not_appliances',
+    cat: 'general',
+    q_ar: 'هل تصلحون الغسالات والثلاجات؟',
+    q_en: 'Do you repair washing machines or fridges?',
+    a_ar: 'لا. Fixate متخصصة في الأجهزة الإلكترونية الشخصية فقط: الجوّالات (آيفون وأندرويد)، اللابتوبات، أجهزة الكمبيوتر، التابلت والآيباد، والساعات الذكية. لا نقدم صيانة للأجهزة المنزلية.',
+    a_en: 'No. Fixate covers personal electronics only: phones (iPhone and Android), laptops, computers, tablets and iPads, and smartwatches. We do not service home appliances.',
+    keywords: ['washing', 'washer', 'fridge', 'refrigerator', 'appliance', 'oven', 'tv', 'غسالة', 'ثلاجة', 'مكيف', 'تلفزيون', 'فرن', 'أجهزة منزلية', 'منزلية'],
+  },
+  {
+    id: 'roles',
+    cat: 'general',
+    q_ar: 'ما أنواع الحسابات في التطبيق؟',
+    q_en: 'What account types exist in the app?',
+    a_ar: 'أربعة أدوار: عميل يطلب الصيانة، فني ينفّذها، مندوب توصيل ينقل الأجهزة، وفريق الإدارة. تختار دورك عند التسجيل من شاشة اختيار الدور.',
+    a_en: 'Four roles: a customer who requests repairs, a technician who performs them, a courier who transports devices, and the admin team. You pick your role on the role-selection screen when you sign up.',
+    keywords: ['role', 'roles', 'account type', 'user types', 'دور', 'أدوار', 'نوع الحساب', 'مندوب', 'عميل', 'فني'],
+  },
+  {
+    id: 'switch_role',
+    cat: 'general',
+    q_ar: 'هل يمكنني التسجيل كعميل وفني في نفس الوقت؟',
+    q_en: 'Can I be both a customer and a technician?',
+    a_ar: 'كل دور له حسابه الخاص. إن رغبت في العمل كفني أو مندوب، سجّل حساباً بذلك الدور من شاشة اختيار الدور.',
+    a_en: 'Each role has its own account. If you want to work as a technician or courier, register an account with that role from the role-selection screen.',
+    keywords: ['switch role', 'both', 'two accounts', 'تبديل الدور', 'حسابين', 'نفس الوقت', 'أغير دوري'],
+  },
+  {
+    id: 'theme',
+    cat: 'general',
+    q_ar: 'هل يوجد وضع ليلي؟',
+    q_en: 'Is there a dark mode?',
+    a_ar: 'نعم. بدّل بين الوضع الفاتح والداكن من الإعدادات أو من القائمة الجانبية.',
+    a_en: 'Yes. Switch between light and dark mode from Settings or the side menu.',
+    keywords: ['dark', 'dark mode', 'night', 'theme', 'وضع ليلي', 'الوضع الداكن', 'ثيم', 'داكن'],
+  },
+  {
+    id: 'offline',
+    cat: 'general',
+    q_ar: 'التطبيق لا يعمل أو يظهر أنه غير متصل، ماذا أفعل؟',
+    q_en: 'The app says offline or is not working — what do I do?',
+    a_ar: 'تأكد من اتصالك بالإنترنت؛ يظهر شريط تنبيه في أعلى الشاشة عند انقطاع الاتصال. جرّب إغلاق التطبيق وفتحه من جديد. إن استمرت المشكلة تواصل مع فريق الدعم.',
+    a_en: 'Check your internet connection — a banner appears at the top of the screen when you go offline. Try closing and reopening the app. If it persists, contact the support team.',
+    keywords: ['offline', 'not working', 'crash', 'bug', 'error', 'لا يعمل', 'غير متصل', 'مشكلة', 'خلل', 'يتوقف'],
+  },
+
+  // ── Orders & Repairs (added) ──────────────────────────────────────────
+  {
+    id: 'estimate_vs_final',
+    cat: 'orders',
+    q_ar: 'ما الفرق بين السعر التقديري وسعر العرض؟',
+    q_en: 'Estimated price vs. offer price — what is the difference?',
+    a_ar: 'السعر التقديري رقم إرشادي يظهر لك عند إنشاء الطلب بناءً على نوع الجهاز والعطل. العرض هو السعر الفعلي الذي يقدّمه فني معيّن، وهو الذي يصبح السعر النهائي بمجرد قبولك له.',
+    a_en: 'The estimate is a guide figure shown when you create the request, based on the device and the fault. An offer is an actual price from a specific technician — and it becomes the final price the moment you accept it.',
+    keywords: ['estimate', 'estimated', 'difference', 'تقديري', 'الفرق', 'السعر التقديري', 'تقدير'],
+  },
+  {
+    id: 'request_expired',
+    cat: 'orders',
+    q_ar: 'لماذا انتهت مهلة طلبي؟',
+    q_en: 'Why did my request expire?',
+    a_ar: 'الطلب المفتوح الذي لا يتلقى عرضاً مقبولاً خلال المهلة المحددة تنتهي صلاحيته تلقائياً ويظهر بحالة «انتهت المهلة»، حتى لا يبقى معلّقاً بلا نهاية. يمكنك ببساطة إنشاء طلب جديد.',
+    a_en: 'An open request that never gets an accepted offer within its window expires automatically and shows as "Expired", so it does not hang around forever. You can simply create a new request.',
+    keywords: ['expire', 'expired', 'timeout', 'انتهت', 'المهلة', 'منتهي', 'انتهاء الطلب'],
+  },
+  {
+    id: 'no_offers',
+    cat: 'orders',
+    q_ar: 'لم يصلني أي عرض على طلبي، لماذا؟',
+    q_en: 'I got no offers on my request — why?',
+    a_ar: 'قد لا يتوفر فني مناسب في منطقتك في تلك اللحظة، أو أن وصف العطل غير واضح. جرّب إضافة صور وتفاصيل أدق للعطل وأعد إرسال الطلب. إن تكرر الأمر تواصل مع فريق الدعم لمساعدتك.',
+    a_en: 'There may be no matching technician free in your area right now, or the fault description was unclear. Add photos and a sharper description and submit again. If it keeps happening, contact support and we will help.',
+    keywords: ['no offer', 'no offers', 'nobody', 'ما وصلني', 'لا يوجد عروض', 'مافي عروض', 'ما جاني عرض'],
+  },
+  {
+    id: 'add_photos',
+    cat: 'orders',
+    q_ar: 'هل أرفق صوراً للعطل؟',
+    q_en: 'Should I attach photos of the fault?',
+    a_ar: 'نعم، ننصح بذلك بشدة. الصور تساعد الفني على تقدير العطل بدقة وتقديم عرض سعر أقرب للواقع. أضفها عند إنشاء الطلب.',
+    a_en: 'Yes — strongly recommended. Photos help the technician judge the fault accurately and quote a realistic price. Add them when creating the request.',
+    keywords: ['photo', 'photos', 'picture', 'image', 'attach', 'صور', 'صورة', 'أرفق', 'إرفاق'],
+  },
+  {
+    id: 'service_center',
+    cat: 'orders',
+    q_ar: 'أين مركز الخدمة؟ وكيف أسلّم جهازي بنفسي؟',
+    q_en: 'Where is the service center and how do I drop my device off?',
+    a_ar: 'إذا اخترت «تسليم في مركز الخدمة» عند إنشاء الطلب، تظهر لك بطاقة المركز داخل تفاصيل الطلب بعنوانه وبيانات التواصل، وتسلّم جهازك هناك مباشرة.',
+    a_en: 'If you choose "Drop off at the service center" when creating the request, a center card appears inside your order details with its address and contact details — you hand the device in there.',
+    keywords: ['center', 'centre', 'branch', 'drop off', 'مركز', 'الفرع', 'المركز', 'أسلم بنفسي', 'تسليم'],
+  },
+  {
+    id: 'spare_parts_wait',
+    cat: 'orders',
+    q_ar: 'لماذا حالة طلبي «بانتظار قطع الغيار»؟',
+    q_en: 'Why is my order "waiting for parts"?',
+    a_ar: 'يعني أن الفني طلب قطعة غيار مطلوبة لإصلاح جهازك وينتظر توفّرها. يستأنف العمل فور وصول القطعة، ويصلك إشعار بكل تغيّر في الحالة.',
+    a_en: 'It means the technician has ordered a spare part your repair needs and is waiting for it to arrive. Work resumes as soon as it does, and you get a notification on every status change.',
+    keywords: ['waiting parts', 'spare', 'part', 'قطع الغيار', 'بانتظار', 'قطعة', 'ننتظر'],
+  },
+  {
+    id: 'status_log',
+    cat: 'orders',
+    q_ar: 'ما هو سجل حالة الطلب؟',
+    q_en: 'What is the order status log?',
+    a_ar: 'سجل زمني داخل تفاصيل الطلب يعرض كل تغيّر في الحالة، ومن قام به، ومتى. أثناء تنفيذ الطلب يظهر السجل كاملاً؛ وبعد اكتماله يُعرض مختصراً مع زر «عرض المزيد» لفتحه بالكامل.',
+    a_en: 'A time-ordered log inside your order details showing every status change, who made it and when. While the order is active the full log is shown; once it is completed it is summarised, with a "View more" button to expand it.',
+    keywords: ['log', 'history', 'timeline', 'سجل', 'الحالة', 'تاريخ الطلب', 'عرض المزيد'],
+  },
+  {
+    id: 'live_tracking',
+    cat: 'orders',
+    q_ar: 'هل أستطيع تتبّع المندوب على الخريطة؟',
+    q_en: 'Can I track the courier on a map?',
+    a_ar: 'نعم. عند وجود مهمة استلام أو تسليم جارية، تفتح شاشة التتبّع من الطلب وتشاهد موقع المندوب على الخريطة لحظياً.',
+    a_en: 'Yes. When a pickup or delivery leg is in progress, open the tracking screen from your order to see the courier live on the map.',
+    keywords: ['map', 'live', 'gps', 'tracking', 'خريطة', 'تتبع المندوب', 'موقع المندوب', 'مباشر'],
+  },
+  {
+    id: 'device_safe',
+    cat: 'orders',
+    q_ar: 'هل جهازي مؤمَّن أثناء النقل؟',
+    q_en: 'Is my device protected during transport?',
+    a_ar: 'المناديب معتمدون وموثّقة هوياتهم، وكل مرحلة نقل مسجّلة في سجل الطلب مع الوقت. إذا حدث أي ضرر أثناء النقل تواصل مع فريق الدعم فوراً لفتح بلاغ.',
+    a_en: 'Couriers are vetted and identity-verified, and every transport leg is recorded in the order log with its timestamp. If any damage happens in transit, contact support immediately to open a case.',
+    keywords: ['damage', 'insurance', 'lost', 'broken transit', 'تلف', 'ضرر', 'ضاع', 'أثناء النقل', 'تأمين'],
+  },
+  {
+    id: 'complaint',
+    cat: 'orders',
+    q_ar: 'كيف أقدّم شكوى على الخدمة؟',
+    q_en: 'How do I file a complaint?',
+    a_ar: 'افتح محادثة الدعم من التطبيق واشرح المشكلة مع رقم الطلب. يراجع الفريق حالتك ويردّ عليك، ويمكنه إعادة توجيه الطلب أو معالجة الاسترداد حسب الحالة.',
+    a_en: 'Open the support chat in the app and describe the problem with your order number. The team reviews your case and replies — they can reassign the order or handle a refund as appropriate.',
+    keywords: ['complaint', 'complain', 'unhappy', 'bad service', 'شكوى', 'أشتكي', 'خدمة سيئة', 'زعلان'],
+  },
+
+  // ── Payments & Invoices (added) ───────────────────────────────────────
+  {
+    id: 'when_pay',
+    cat: 'payments',
+    q_ar: 'متى أدفع بالضبط؟',
+    q_en: 'When exactly do I pay?',
+    a_ar: 'بعد قبولك لعرض الفني ينتقل الطلب إلى «بانتظار الدفع» وتؤكد الدفع لتبدأ الصيانة. لا تدفع شيئاً قبل ذلك، والفحص مجاني.',
+    a_en: 'After you accept a technician\'s offer the order moves to "Awaiting payment" and you confirm payment so the repair can start. You pay nothing before that, and inspection is free.',
+    keywords: ['when pay', 'awaiting payment', 'متى أدفع', 'بانتظار الدفع', 'الدفع متى', 'أدفع'],
+  },
+  {
+    id: 'pay_wallet',
+    cat: 'payments',
+    q_ar: 'هل أستطيع الدفع من رصيد المحفظة؟',
+    q_en: 'Can I pay from my wallet balance?',
+    a_ar: 'نعم، إذا كان في محفظتك رصيد كافٍ يمكنك استخدامه عند تأكيد الدفع، أو الدفع بالبطاقة أو نقداً حسب الخيارات المتاحة لطلبك.',
+    a_en: 'Yes — if your wallet has enough balance you can use it at payment confirmation, or pay by card or cash depending on the options offered for your order.',
+    keywords: ['wallet pay', 'balance pay', 'أدفع من المحفظة', 'رصيدي', 'الدفع بالرصيد'],
+  },
+  {
+    id: 'discount_code',
+    cat: 'payments',
+    q_ar: 'كيف أستخدم كود الخصم؟',
+    q_en: 'How do I use a discount code?',
+    a_ar: 'أدخل الكود في خانة كود الخصم عند شاشة الدفع، ويُطبّق الخصم مباشرة على الإجمالي قبل التأكيد.',
+    a_en: 'Enter it in the discount-code field on the payment screen — the discount applies to the total straight away, before you confirm.',
+    keywords: ['coupon', 'promo code', 'discount code', 'كود خصم', 'كوبون', 'أدخل الكود', 'كود'],
+  },
+  {
+    id: 'commitment_amount',
+    cat: 'payments',
+    q_ar: 'ما هو مبلغ التأكيد (العربون)؟',
+    q_en: 'What is the confirmation amount (deposit)?',
+    a_ar: 'مبلغ صغير يُدفع عند تأكيد الطلب لضمان جدّيته، ويُخصم بالكامل من الفاتورة النهائية — أي أنه ليس رسماً إضافياً.',
+    a_en: 'A small amount paid when you confirm the order to show it is serious. It is deducted in full from the final bill — it is not an extra charge.',
+    keywords: ['deposit', 'commitment', 'confirmation amount', 'عربون', 'مبلغ التأكيد', 'التأكيد'],
+  },
+  {
+    id: 'inspection_fee',
+    cat: 'payments',
+    q_ar: 'هل هناك رسوم فحص؟',
+    q_en: 'Is there an inspection fee?',
+    a_ar: 'الفحص مجاني في الحالة الاعتيادية. إن وُجدت رسوم فحص لحالتك فستظهر بوضوح في ملخص التكلفة قبل التأكيد — لا رسوم مخفية.',
+    a_en: 'Inspection is normally free. If an inspection fee applies to your case it is shown clearly in the cost summary before you confirm — there are no hidden fees.',
+    keywords: ['inspection', 'diagnostic fee', 'رسوم الفحص', 'الفحص', 'مجاني'],
+  },
+  {
+    id: 'delivery_fee',
+    cat: 'payments',
+    q_ar: 'كم رسوم التوصيل؟',
+    q_en: 'How much is the delivery fee?',
+    a_ar: 'تُحسب رسوم التوصيل حسب طريقة الخدمة ومنطقتك، وتظهر في ملخص التكلفة قبل تأكيد الطلب، وقد تكون مجانية ضمن بعض العروض.',
+    a_en: 'The delivery fee depends on the service method and your area. It is shown in the cost summary before you confirm the order, and may be free under some offers.',
+    keywords: ['delivery fee', 'shipping', 'رسوم التوصيل', 'التوصيل كم', 'أجرة التوصيل'],
+  },
+  {
+    id: 'currency',
+    cat: 'payments',
+    q_ar: 'ما العملة المستخدمة؟',
+    q_en: 'What currency do you use?',
+    a_ar: 'جميع الأسعار بالريال السعودي، وتظهر برمز الريال الجديد في كل شاشات التطبيق.',
+    a_en: 'All prices are in Saudi Riyal, shown with the new riyal symbol across the app.',
+    keywords: ['currency', 'riyal', 'sar', 'عملة', 'ريال', 'العملة', 'الريال'],
+  },
+
+  // ── Marketplace (added) ───────────────────────────────────────────────
+  {
+    id: 'market_edit',
+    cat: 'marketplace',
+    q_ar: 'كيف أعدّل أو أحذف إعلاني؟',
+    q_en: 'How do I edit or delete my listing?',
+    a_ar: 'من «إعلاناتي» افتح الإعلان وعدّل تفاصيله أو احذفه. أي تعديل جوهري قد يُعيد الإعلان لمرحلة المراجعة قبل ظهوره.',
+    a_en: 'From "My listings" open the listing to edit its details or delete it. A substantial edit may send it back for review before it goes live again.',
+    keywords: ['edit listing', 'delete listing', 'تعديل إعلان', 'حذف إعلان', 'إعلاناتي', 'أعدل'],
+  },
+  {
+    id: 'market_rejected',
+    cat: 'marketplace',
+    q_ar: 'لماذا رُفض إعلاني؟',
+    q_en: 'Why was my listing rejected?',
+    a_ar: 'الأسباب الشائعة: صور غير واضحة، وصف ناقص أو مضلل، سعر غير منطقي، أو مخالفة لشروط السوق. عدّل الإعلان وأعد إرساله، أو تواصل مع الدعم لمعرفة السبب الدقيق.',
+    a_en: 'Common reasons: unclear photos, an incomplete or misleading description, an unrealistic price, or a breach of the marketplace rules. Fix the listing and resubmit, or contact support for the exact reason.',
+    keywords: ['rejected listing', 'declined', 'refused', 'رُفض', 'رفض إعلاني', 'مرفوض'],
+  },
+  {
+    id: 'market_chat',
+    cat: 'marketplace',
+    q_ar: 'كيف أتواصل مع البائع أو المشتري؟',
+    q_en: 'How do I contact the seller or buyer?',
+    a_ar: 'من صفحة الإعلان اضغط زر المحادثة لفتح دردشة داخل التطبيق مع الطرف الآخر، وتجد كل محادثاتك في «رسائل السوق».',
+    a_en: 'From the listing page tap the chat button to open an in-app conversation with the other party — all your threads live under "Marketplace messages".',
+    keywords: ['seller', 'buyer', 'contact seller', 'بائع', 'مشتري', 'أكلم البائع', 'رسائل السوق'],
+  },
+  {
+    id: 'market_safety',
+    cat: 'marketplace',
+    q_ar: 'كيف أشتري بأمان من السوق؟',
+    q_en: 'How do I buy safely on the marketplace?',
+    a_ar: 'تعامل مع الحسابات الموثّقة، افحص الجهاز قبل الدفع، قابل البائع في مكان عام، ولا ترسل أي مبلغ قبل استلام الجهاز. أبلغ عن أي إعلان مشبوه من أيقونة العَلَم.',
+    a_en: 'Prefer verified accounts, inspect the device before paying, meet in a public place, and never send money before you receive the device. Report anything suspicious with the flag icon.',
+    keywords: ['safe', 'safety', 'scam', 'fraud', 'أمان', 'احتيال', 'نصب', 'آمن', 'أشتري بأمان'],
+  },
+
+  // ── For Technicians (added) ───────────────────────────────────────────
+  {
+    id: 'tech_changes_requested',
+    cat: 'technician',
+    q_ar: 'حسابي كفني بحالة «مطلوب تعديل»، ماذا يعني؟',
+    q_en: 'My technician account says "changes requested" — what now?',
+    a_ar: 'يعني أن الإدارة راجعت طلبك وتحتاج تعديلاً أو وثيقة أوضح قبل الاعتماد. يظهر لك سبب الطلب في ملاحظات التوثيق — عدّل ما هو مطلوب وأعد الإرسال، ولا حاجة لإنشاء حساب جديد.',
+    a_en: 'It means the admin team reviewed your application and needs a correction or a clearer document before approving. The reason appears in your verification notes — fix what is asked and resubmit; you do not need a new account.',
+    keywords: ['changes requested', 'resubmit', 'مطلوب تعديل', 'تعديل الطلب', 'مراجعة حسابي', 'ملاحظات التوثيق'],
+  },
+  {
+    id: 'tech_rejected',
+    cat: 'technician',
+    q_ar: 'لماذا رُفض طلب انضمامي كفني؟',
+    q_en: 'Why was my technician application rejected?',
+    a_ar: 'يُرفض الطلب عادة لوثائق غير صالحة أو غير مكتملة أو لعدم استيفاء شروط التخصص. يظهر سبب الرفض في حسابك، ويمكنك التواصل مع الدعم لمراجعة الحالة.',
+    a_en: 'Applications are usually rejected for invalid or incomplete documents, or for not meeting the specialty requirements. The reason shows on your account, and you can contact support to have the case reviewed.',
+    keywords: ['rejected technician', 'refused application', 'رفض طلبي', 'رُفض انضمامي', 'مرفوض فني'],
+  },
+  {
+    id: 'tech_edit_offer',
+    cat: 'technician',
+    q_ar: 'هل أستطيع تعديل أو سحب عرضي؟',
+    q_en: 'Can I edit or withdraw my offer?',
+    a_ar: 'نعم، ما دام الطلب مفتوحاً ولم يقبل العميل عرضاً بعد. بعد قبول عرضك يُسند الطلب إليك ولا يمكن تعديل السعر من طرف واحد.',
+    a_en: 'Yes, as long as the request is still open and the customer has not accepted an offer. Once your offer is accepted the job is assigned to you and the price cannot be changed unilaterally.',
+    keywords: ['edit offer', 'withdraw', 'cancel offer', 'تعديل عرضي', 'سحب العرض', 'أعدل السعر'],
+  },
+  {
+    id: 'tech_offer_rejected',
+    cat: 'technician',
+    q_ar: 'العميل رفض عرضي، هل أقدّم عرضاً آخر؟',
+    q_en: 'The customer declined my offer — can I send another?',
+    a_ar: 'نعم. ما دام الطلب مفتوحاً يمكنك تقديم عرض جديد بسعر مختلف، ويظهر لك أن عرضك السابق قد رُفض.',
+    a_en: 'Yes. While the request is still open you can submit a new offer at a different price — you will see that your previous offer was declined.',
+    keywords: ['offer rejected', 'declined offer', 'رفض عرضي', 'عرض جديد', 'رفض العميل'],
+  },
+  {
+    id: 'tech_spare_parts',
+    cat: 'technician',
+    q_ar: 'كيف أطلب قطعة غيار لطلب قيد التنفيذ؟',
+    q_en: 'How do I request a spare part for an active job?',
+    a_ar: 'من شاشة إدارة الطلب اطلب قطعة الغيار المطلوبة وحدّد بياناتها وتكلفتها. تتحوّل حالة الطلب إلى «بانتظار قطع الغيار» ويُخطر العميل، وتُحتسب تكلفة القطعة ضمن حسابك.',
+    a_en: 'From the manage-order screen request the part you need with its details and cost. The order moves to "Waiting for parts", the customer is notified, and the part cost is accounted for in your earnings.',
+    keywords: ['spare part', 'order part', 'supplier', 'قطعة غيار', 'أطلب قطعة', 'موردين', 'القطع'],
+  },
+  {
+    id: 'tech_withdraw',
+    cat: 'technician',
+    q_ar: 'كيف أسحب أرباحي من المحفظة؟',
+    q_en: 'How do I withdraw my earnings?',
+    a_ar: 'من شاشة الأرباح اطلب سحب رصيد محفظتك. يُرسل الطلب للإدارة ويتم التحويل عادة خلال 1-3 أيام عمل.',
+    a_en: 'From the Earnings screen request a withdrawal of your wallet balance. The request goes to the admin team and the transfer usually completes within 1–3 business days.',
+    keywords: ['withdraw', 'payout', 'cash out', 'سحب', 'أسحب أرباحي', 'تحويل', 'سحب الرصيد'],
+  },
+  {
+    id: 'tech_commission',
+    cat: 'technician',
+    q_ar: 'كم عمولة المنصة على كل طلب؟',
+    q_en: 'What commission does the platform take?',
+    a_ar: 'تُحسم عمولة المنصة من قيمة الطلب المكتمل، ويظهر لك صافي أرباحك عن كل طلب في شاشة الأرباح. تُحدَّد نسبة العمولة من الإدارة وتُطبّق على جميع الفنيين.',
+    a_en: 'A platform commission is deducted from each completed order, and your net earnings per order are shown in the Earnings screen. The rate is set by the admin team and applies to all technicians.',
+    keywords: ['commission', 'cut', 'percentage', 'عمولة', 'نسبة المنصة', 'خصم المنصة'],
+  },
+  {
+    id: 'tech_complete',
+    cat: 'technician',
+    q_ar: 'كيف أغلق الطلب بعد انتهاء الإصلاح؟',
+    q_en: 'How do I close a job after finishing the repair?',
+    a_ar: 'من شاشة إدارة الطلب انقل الحالة خطوة بخطوة حتى «مكتمل». يظهر كل تغيير في سجل الطلب لدى العميل، ويُطلب منه تقييمك بعد الإغلاق.',
+    a_en: 'From the manage-order screen move the status forward step by step until "Completed". Every change appears in the customer\'s order log, and they are asked to rate you once it closes.',
+    keywords: ['complete', 'finish', 'close job', 'إغلاق الطلب', 'إنهاء', 'مكتمل', 'أنهي'],
+  },
+
+  // ── For Couriers ──────────────────────────────────────────────────────
+  {
+    id: 'courier_tasks',
+    cat: 'courier',
+    q_ar: 'كيف أستلم مهام التوصيل؟',
+    q_en: 'How do I receive delivery tasks?',
+    a_ar: 'بعد اعتماد حسابك، تظهر المهام المتاحة في منطقتك في شاشة «مهامي». تقبل المهمة وتنفّذ خطواتها: استلام الجهاز من العميل وتسليمه للفني، ثم إعادته بعد الإصلاح.',
+    a_en: 'Once your account is approved, tasks available in your area show up under "My tasks". Accept one and work through its steps: collect the device from the customer, hand it to the technician, then return it after the repair.',
+    keywords: ['task', 'tasks', 'delivery job', 'مهام', 'مهمة', 'مهامي', 'أستلم مهمة'],
+  },
+  {
+    id: 'courier_fee',
+    cat: 'courier',
+    q_ar: 'كيف تُحسب أجرة المندوب؟',
+    q_en: 'How is the courier fee calculated?',
+    a_ar: 'تُحسب أجرة كل مهمة حسب المسافة والمنطقة، وتظهر لك قبل قبول المهمة. تتجمّع أجورك في محفظتك وتراها في ملفك الشخصي.',
+    a_en: 'Each task\'s fee is based on distance and area, and it is shown to you before you accept. Your fees accumulate in your wallet and appear in your profile.',
+    keywords: ['courier fee', 'earn', 'pay per task', 'أجرة', 'أجور', 'كم أستلم', 'أرباح المندوب'],
+  },
+  {
+    id: 'courier_docs',
+    cat: 'courier',
+    q_ar: 'ما الوثائق المطلوبة لاعتماد المندوب؟',
+    q_en: 'What documents does a courier need?',
+    a_ar: 'الهوية أو الإقامة سارية المفعول، وبيانات وسيلة التوصيل. ترفعها من شاشة التوثيق وتراجعها الإدارة قبل تفعيل حسابك.',
+    a_en: 'A valid national ID or Iqama, plus your vehicle details. Upload them on the verification screen; the admin team reviews them before your account is activated.',
+    keywords: ['courier documents', 'verify courier', 'وثائق المندوب', 'توثيق المندوب', 'هوية المندوب'],
+  },
+  {
+    id: 'courier_chat',
+    cat: 'courier',
+    q_ar: 'كيف أتواصل مع العميل أو الفني أثناء المهمة؟',
+    q_en: 'How do I contact the customer or technician during a task?',
+    a_ar: 'من داخل المهمة تفتح محادثة مباشرة مع الطرف الآخر، ويظهر لك رقم التواصل عند الحاجة لتنسيق التسليم.',
+    a_en: 'From inside the task you can open a direct chat with the other party, and the contact number is shown when you need it to coordinate the handover.',
+    keywords: ['courier chat', 'call customer', 'محادثة المندوب', 'أتواصل مع العميل', 'رقم العميل'],
+  },
+
+  // ── Account & Wallet (added) ──────────────────────────────────────────
+  {
+    id: 'otp_not_received',
+    cat: 'account',
+    q_ar: 'لم يصلني رمز التحقق (OTP)، ماذا أفعل؟',
+    q_en: "I didn't receive the OTP code — what do I do?",
+    a_ar: 'تأكد من رقم الجوال ومن تغطية الشبكة، وانتظر قليلاً ثم اطلب إعادة الإرسال. إن لم يصل بعد عدة محاولات، جرّب تسجيل الدخول بالبريد الإلكتروني أو تواصل مع الدعم.',
+    a_en: 'Check the number and your signal, wait a moment, then request a resend. If it still does not arrive after a few tries, sign in with email instead or contact support.',
+    keywords: ['otp', 'code', 'sms', 'verification code', 'رمز', 'الرمز', 'لم يصل', 'ما وصلني رمز', 'كود التحقق'],
+  },
+  {
+    id: 'forgot_password',
+    cat: 'account',
+    q_ar: 'نسيت كلمة المرور',
+    q_en: 'I forgot my password',
+    a_ar: 'من شاشة الدخول بالبريد الإلكتروني اضغط «نسيت كلمة المرور» ويصلك رابط إعادة التعيين على بريدك.',
+    a_en: 'On the email sign-in screen tap "Forgot password" and a reset link is sent to your email.',
+    keywords: ['password', 'forgot', 'reset', 'كلمة المرور', 'نسيت', 'استعادة', 'الباسورد'],
+  },
+  {
+    id: 'blocked_account',
+    cat: 'account',
+    q_ar: 'حسابي محظور، ماذا أفعل؟',
+    q_en: 'My account is blocked — what should I do?',
+    a_ar: 'يُحظر الحساب عند مخالفة شروط الاستخدام. تواصل مع فريق الدعم لمراجعة حالتك ومعرفة سبب الحظر وإمكانية رفعه.',
+    a_en: 'Accounts are blocked for breaching the terms of use. Contact the support team to have your case reviewed, learn the reason and whether it can be lifted.',
+    keywords: ['blocked', 'banned', 'suspended', 'محظور', 'حظر', 'موقوف', 'معلق'],
+  },
+  {
+    id: 'wallet_topup',
+    cat: 'account',
+    q_ar: 'كيف أشحن رصيد محفظتي؟',
+    q_en: 'How do I top up my wallet?',
+    a_ar: 'شحن الرصيد يدوياً قيد التفعيل حالياً. يتغذّى رصيد محفظتك من المبالغ المستردة والمكافآت، وتتابع كل حركة في شاشة المحفظة.',
+    a_en: 'Manual top-up is not enabled yet. Your wallet balance is fed by refunds and rewards, and you can follow every transaction on the Wallet screen.',
+    keywords: ['top up', 'add funds', 'recharge', 'شحن الرصيد', 'إضافة رصيد', 'أشحن'],
+  },
+  {
+    id: 'loyalty_redeem',
+    cat: 'account',
+    q_ar: 'كيف أستبدل نقاط الولاء؟',
+    q_en: 'How do I redeem loyalty points?',
+    a_ar: 'من قسم الولاء تشاهد رصيد نقاطك وقيمتها، وتستبدلها بخصم على طلباتك حسب المتاح. تُضاف النقاط تلقائياً بعد كل طلب مكتمل.',
+    a_en: 'In the Loyalty section you see your points balance and its value, and can redeem it as a discount on your orders where available. Points are added automatically after each completed order.',
+    keywords: ['redeem', 'points', 'loyalty', 'استبدال', 'نقاطي', 'أستبدل', 'مكافأة'],
+  },
+  {
+    id: 'notif_prefs',
+    cat: 'account',
+    q_ar: 'كيف أوقف نوعاً معيناً من الإشعارات؟',
+    q_en: 'How do I turn off a specific type of notification?',
+    a_ar: 'من إعدادات الإشعارات فعّل أو أوقف كل نوع على حدة (تحديثات الطلبات، السوق، العروض...). الإشعارات المهمة عن طلباتك الجارية تبقى مفعّلة لحمايتك من تفويت تحديث.',
+    a_en: 'In notification settings you can switch each type on or off individually (order updates, marketplace, offers…). Critical alerts about your active orders stay on so you never miss an update.',
+    keywords: ['turn off notifications', 'mute', 'إيقاف الإشعارات', 'أوقف الإشعارات', 'كتم'],
+  },
+  {
+    id: 'change_phone',
+    cat: 'account',
+    q_ar: 'كيف أغيّر رقم جوالي أو بريدي؟',
+    q_en: 'How do I change my phone number or email?',
+    a_ar: 'حدّث بياناتك من «تعديل الملف الشخصي». إن لم تستطع الوصول لرقمك القديم، تواصل مع فريق الدعم لمساعدتك في تحديثه.',
+    a_en: 'Update your details from "Edit profile". If you no longer have access to your old number, contact the support team and they will help you update it.',
+    keywords: ['change phone', 'change email', 'تغيير الرقم', 'تغيير البريد', 'رقمي الجديد'],
+  },
+  {
+    id: 'data_deleted',
+    cat: 'account',
+    q_ar: 'ماذا يحدث لبياناتي بعد حذف الحساب؟',
+    q_en: 'What happens to my data after I delete my account?',
+    a_ar: 'تُحذف بياناتك الشخصية وفق سياسة الخصوصية، مع الاحتفاظ بالسجلات التي يفرض النظام حفظها (كسجلات الفواتير). الحذف نهائي ولا يمكن التراجع عنه.',
+    a_en: 'Your personal data is removed per the privacy policy, except records we are legally required to keep (such as invoice records). Deletion is permanent and cannot be undone.',
+    keywords: ['data after delete', 'privacy delete', 'بياناتي بعد الحذف', 'حذف بياناتي', 'نهائي'],
+  },
+
+  // ── Support & Help ────────────────────────────────────────────────────
+  {
+    id: 'contact_support',
+    cat: 'support',
+    q_ar: 'كيف أتواصل مع فريق الدعم؟',
+    q_en: 'How do I contact the support team?',
+    a_ar: 'اضغط «التحدث مع فريق الدعم» في هذه الشاشة، أو افتح «الدعم» من القائمة، وتبدأ محادثة مباشرة مع الفريق داخل التطبيق.',
+    a_en: 'Tap "Talk to the support team" on this screen, or open "Support" from the menu, and you start a direct in-app conversation with the team.',
+    keywords: ['contact', 'support', 'help', 'agent', 'human', 'تواصل', 'الدعم', 'مساعدة', 'موظف', 'خدمة العملاء'],
+  },
+  {
+    id: 'support_hours',
+    cat: 'support',
+    q_ar: 'متى يرد فريق الدعم؟',
+    q_en: 'How fast does support reply?',
+    a_ar: 'يرد الفريق خلال ساعات العمل بأسرع وقت ممكن. اترك رسالتك في محادثة الدعم ويصلك الرد داخل التطبيق مع إشعار.',
+    a_en: 'The team replies during working hours as quickly as they can. Leave your message in the support chat and you get the reply in-app with a notification.',
+    keywords: ['reply', 'response time', 'how long support', 'متى يرد', 'وقت الرد', 'كم يستغرق الرد'],
+  },
+  {
+    id: 'support_closed',
+    cat: 'support',
+    q_ar: 'لماذا أُغلقت محادثة الدعم؟',
+    q_en: 'Why was my support chat closed?',
+    a_ar: 'تُغلق المحادثة تلقائياً بعد فترة من عدم النشاط بعد حل المشكلة. يمكنك دائماً فتح محادثة جديدة إن احتجت لمزيد من المساعدة.',
+    a_en: 'A conversation closes automatically after a period of inactivity once the issue is resolved. You can always open a new one if you need more help.',
+    keywords: ['closed chat', 'support closed', 'أُغلقت', 'أغلقت المحادثة', 'سكرت'],
+  },
 ];
 
 const HANDOFF_KEYWORDS = [
@@ -532,8 +999,8 @@ export default function ChatbotScreen() {
     {
       id: 'welcome',
       text: isRTL
-        ? 'مرحباً! أنا مساعد Fixate الذكي. اسألني عن الأسعار، الضمان، التوصيل أو أي شيء آخر — أو اطلب التحدث مع فريق الدعم.'
-        : "Hi! I'm the Fixate assistant. Ask me about pricing, warranty, delivery or anything else — or ask to talk to our support team.",
+        ? 'مرحباً! أنا مساعد Fixate الذكي. اسألني عن الطلبات، الأسعار والدفع، الضمان، التوصيل، السوق، أو حسابك — سواء كنت عميلاً أو فنياً أو مندوب توصيل. وإن لم تكن لدي الإجابة سأحوّلك لفريق الدعم.'
+        : "Hi! I'm the Fixate assistant. Ask me about orders, pricing and payment, warranty, delivery, the marketplace or your account — whether you're a customer, a technician or a courier. If I don't have the answer, I'll hand you to our support team.",
       isBot: true,
       timestamp: new Date(),
     },
@@ -594,14 +1061,18 @@ export default function ChatbotScreen() {
         offerHandoff: true,
       };
     }
+    // Answer from the app's own knowledge base first.
     const hit = matchFaq(msg);
     if (hit) {
       return { text: isRTL ? hit.a_ar : hit.a_en, offerHandoff: false };
     }
+    // Nothing matched → say so plainly and hand off. NEVER improvise an answer:
+    // a confident guess about a price, a policy or a warranty is worse than no
+    // answer at all, because the customer will act on it.
     return {
       text: isRTL
-        ? 'لم أتمكن من فهم سؤالك تماماً. يمكنك إعادة صياغته، أو التحدث مباشرة مع فريق الدعم.'
-        : "I couldn't quite answer that. Try rephrasing, or talk directly with our support team.",
+        ? 'لا تتوفر لدي إجابة عن هذا السؤال، ولا أريد أن أخمّن. تواصل مع فريق الدعم وسيجيبك مباشرة — أو أعد صياغة سؤالك واختر من الأقسام أعلاه.'
+        : "I don't have an answer for that, and I won't guess. Please contact our support team — they'll answer you directly. You can also rephrase your question or pick one from the sections above.",
       offerHandoff: true,
     };
   };

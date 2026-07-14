@@ -29,6 +29,7 @@ import {
   IBMPlexSansArabic_700Bold,
 } from '@expo-google-fonts/ibm-plex-sans-arabic';
 import { applyAppFontToText } from '../utils/applyFont';
+import { RIYAL_FONT_REGULAR, RIYAL_FONT_BOLD } from '../components/Riyal';
 import { initSentry } from '../services/sentryService';
 import { useOtaUpdates } from '../hooks/useOtaUpdates';
 // NOTE: @react-native-firebase/messaging is required lazily inside an
@@ -459,6 +460,10 @@ export default function RootLayout() {
     IBMPlexSansArabic_500Medium,
     IBMPlexSansArabic_600SemiBold,
     IBMPlexSansArabic_700Bold,
+    // Official Saudi Riyal symbol (SIL OFL). It carries a single glyph, so it
+    // can only be used through <Riyal /> — never as a text family.
+    [RIYAL_FONT_REGULAR]: require('../assets/fonts/SaudiRiyal-Regular.ttf'),
+    [RIYAL_FONT_BOLD]: require('../assets/fonts/SaudiRiyal-Bold.ttf'),
   });
 
   if (!fontsLoaded) {

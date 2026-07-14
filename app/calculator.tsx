@@ -7,6 +7,7 @@ import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useApp } from '../contexts/AppContext';
 import { RTLMaterialIcon } from '../components/RTLIcon';
 import { safeBack } from '../utils/navigation';
+import { Riyal } from '../components/Riyal';
 
 const { width } = Dimensions.get('window');
 
@@ -168,7 +169,7 @@ export default function PriceCalculatorScreen() {
             {isRTL ? 'عرض السعر:' : 'Quotation:'}
           </Text>
           <Text style={styles.priceValue}>
-            {totalPrice.min > 0 ? (isRTL ? `${totalPrice.min}-${totalPrice.max} ر.س` : `SAR ${totalPrice.min}-${totalPrice.max}`) : '--'}
+            {totalPrice.min > 0 ? <>{totalPrice.min}-{totalPrice.max} <Riyal /></> : '--'}
           </Text>
         </View>
         <View style={styles.disclaimerContainer}>

@@ -13,6 +13,10 @@
  * No 800/900 ships — those fall back to 700 Bold (the heaviest one).
  */
 
+import { getInputDirection } from './rtl';
+
+// Mirrors the app language (AppContext calls setTextDirection on every change).
+// Arabic is the default language, hence the initial `true`.
 let _isRTL = true;
 
 export function setTextDirection(isRTL: boolean) {
@@ -92,7 +96,25 @@ export function applyAppFontToText(): void {
         const flat = (StyleSheet.flatten(props?.style) || {}) as any;
         const family = flat.fontFamily ?? getAppFontFamily(flat.fontWeight);
         // Prepend the resolved family so the caller's style still wins.
-        const nextStyle = [{ fontFamily: family }, props?.style];
+        const defaults: Record<string, unknown> = { fontFamily: family };
+
+        // TEXT INPUTS: default the caret and the text to the app language's
+        // direction. RN gives an input no textAlign of its own, and the app
+        // never flips I18nManager (that would reverse English on an Arabic
+        // device) — so without this an Arabic field starts its caret on the
+        // LEFT and pushes typed Arabic away from the edge it should hug.
+        //
+        // Skipped for inherently-LTR content (numbers, phone, email, url): those
+        // must stay left-aligned in both languages. Anything the caller sets
+        // explicitly still wins — props.style comes after these defaults.
+        if (key === 'TextInput' && flat.textAlign == null) {
+          Object.assign(
+            defaults,
+            getInputDirection(_isRTL, props?.keyboardType),
+          );
+        }
+
+        const nextStyle = [defaults, props?.style];
         return React.createElement(Original, { ...props, style: nextStyle });
       };
       Wrapped.displayName = `App${key}`;

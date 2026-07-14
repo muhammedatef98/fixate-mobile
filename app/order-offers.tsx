@@ -29,6 +29,7 @@ import { getOrderById, type Order } from '../services/orderService';
 import { getFriendlyError } from '../utils/errorMessages';
 import { markOffersSeen } from '../utils/offersSeen';
 import { logger } from '../utils/logger';
+import { Riyal } from '../components/Riyal';
 
 /**
  * Customer offers screen: compare quotes from nearby technicians on an open
@@ -180,7 +181,7 @@ export default function OrderOffersScreen() {
           </View>
           <View style={{ alignItems: isRTL ? 'flex-start' : 'flex-end' }}>
             <Text style={{ color: COLORS.primary, fontWeight: '800', fontSize: 19 }}>
-              {Math.round(offer.amount)} {isRTL ? 'ر.س' : 'SAR'}
+              {Math.round(offer.amount)} <Riyal />
             </Text>
             {decided && (
               <Text style={{ color: COLORS.textSecondary, fontSize: 11, fontWeight: '700', marginTop: 2 }}>

@@ -138,7 +138,7 @@ const STEPS = [
     icon: 'cash-multiple',
     ar: 'قارن العروض واختر',
     en: 'Compare offers & choose',
-    subAr: 'يصلك عدة عروض أسعار من الفنيين، تختار الأنسب لك (يبقى الطلب مفتوحاً حتى ٣٠ دقيقة)',
+    subAr: 'يصلك عدة عروض أسعار من الفنيين، تختار الأنسب لك (يبقى الطلب مفتوحاً حتى 30 دقيقة)',
     subEn: 'Technicians send you price offers; pick the one that suits you (the request stays open up to 30 minutes)',
   },
   {

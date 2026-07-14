@@ -5,6 +5,7 @@ import { useApp } from '../../contexts/AppContext';
 import { getColors, getShadows, SPACING, BORDER_RADIUS } from '../../constants/theme';
 import { deliveryLegLabel, type DeliveryTask } from '../../services/courierService';
 import { fmtRequestDateTime } from '../../utils/dateFormat';
+import { Riyal } from '../Riyal';
 
 interface DeliveryTaskCardProps {
   task: DeliveryTask;
@@ -76,7 +77,7 @@ export default function DeliveryTaskCard({
           <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 4 }}>
             <MaterialCommunityIcons name="cash" size={14} color="#10B981" />
             <Text style={{ color: '#10B981', fontSize: 12.5, fontWeight: '800' }}>
-              {Number(task.courier_fee)} {isRTL ? 'ر.س' : 'SAR'}
+              {Number(task.courier_fee)} <Riyal />
             </Text>
           </View>
         )}

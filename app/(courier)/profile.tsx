@@ -189,7 +189,7 @@ export default function CourierProfileScreen() {
             </View>
             <View style={[styles.statTile, { backgroundColor: '#10b9810F' }]}>
               <Text style={{ color: '#10b981', fontSize: 22, fontWeight: '900' }}>
-                {(stats?.feesEarned ?? 0).toLocaleString(isRTL ? 'ar-SA' : 'en-US')}
+                {(stats?.feesEarned ?? 0).toLocaleString('en-US')}
               </Text>
               <Text style={[styles.statLabel, { color: COLORS.textSecondary }]}>
                 {isRTL ? 'أجور (ر.س)' : 'Fees (SAR)'}

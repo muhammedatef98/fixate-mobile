@@ -38,6 +38,7 @@ import {
 } from '../constants/pricingOptions';
 import { getFriendlyError } from '../utils/errorMessages';
 import { logger } from '../utils/logger';
+import { Riyal } from '../components/Riyal';
 
 const CUSTOM = '__custom__';
 const toSelect = (opts: Opt[], isRTL: boolean) =>
@@ -264,7 +265,7 @@ export default function AdminPricingAddonsScreen() {
                       {!r.active ? (isRTL ? ' · موقوف' : ' · inactive') : ''}
                     </Text>
                   </View>
-                  <Text style={styles.price}>{Math.round(r.price)} {isRTL ? 'ر.س' : 'SAR'}</Text>
+                  <Text style={styles.price}>{Math.round(r.price)} <Riyal /></Text>
                   <TouchableOpacity onPress={() => remove(r)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
                     <MaterialCommunityIcons name="trash-can-outline" size={20} color="#EF4444" />
                   </TouchableOpacity>

@@ -163,7 +163,7 @@ export default function ProfileScreen() {
   const memberSince = createdIso ? formatAppDateOnly(createdIso, isRTL) : null;
   const spentLabel =
     stats.spent > 0
-      ? stats.spent.toLocaleString(isRTL ? 'ar-SA' : 'en-US', { maximumFractionDigits: 0 })
+      ? stats.spent.toLocaleString('en-US', { maximumFractionDigits: 0 })
       : '0';
 
   return (

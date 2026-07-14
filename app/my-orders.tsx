@@ -21,6 +21,7 @@ import { RTLMaterialIcon } from '../components/RTLIcon';
 import { safeBack } from '../utils/navigation';
 import InvoiceDownloadButton from '../components/InvoiceDownloadButton';
 import { formatAppDateOnly } from '../lib/formatDate';
+import { Riyal } from '../components/Riyal';
 
 const ORDER_STATUS_CONFIG = {
   pending: {
@@ -231,7 +232,7 @@ export default function MyOrdersScreen() {
           </View>
           <View style={styles.priceTag}>
             <Text style={[styles.priceValue, { color: COLORS.primary }]}>
-              {(() => { const v = (order as any).accepted_offer_amount ?? (order as any).final_price ?? order.estimated_price; return v ? `${v} ${isRTL ? 'ر.س' : 'SAR'}` : (isRTL ? 'غير محدد' : 'TBD'); })()}
+              {(() => { const v = (order as any).accepted_offer_amount ?? (order as any).final_price ?? order.estimated_price; return v ? <>{v} <Riyal /></> : (isRTL ? 'غير محدد' : 'TBD'); })()}
             </Text>
           </View>
         </View>

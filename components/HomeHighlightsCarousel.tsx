@@ -30,7 +30,7 @@ interface Slide {
 const SLIDES: Slide[] = [
   { icon: 'flash', color: '#10B981', titleAr: 'إصلاح سريع', titleEn: 'Fast repair', subAr: 'فنيون معتمدون يصلحون جهازك بسرعة', subEn: 'Verified technicians fix your device fast' },
   { icon: 'moped', color: '#3B82F6', titleAr: 'استلام حتى بابك', titleEn: 'Doorstep pickup', subAr: 'مندوبنا يستلم الجهاز ويعيده إليك', subEn: 'A courier collects and returns your device' },
-  { icon: 'shield-check', color: '#8B5CF6', titleAr: 'ضمان سنة كاملة', titleEn: '1-year warranty', subAr: 'كل إصلاح مضمون لمدة ٣٦٥ يوماً', subEn: 'Every repair guaranteed for 365 days' },
+  { icon: 'shield-check', color: '#8B5CF6', titleAr: 'ضمان سنة كاملة', titleEn: '1-year warranty', subAr: 'كل إصلاح مضمون لمدة 365 يوماً', subEn: 'Every repair guaranteed for 365 days' },
   { icon: 'account-check', color: '#F59E0B', titleAr: 'فنيون موثّقون', titleEn: 'Vetted technicians', subAr: 'كل فني يُعتمد ويُقيَّم بعد كل طلب', subEn: 'Every technician is vetted and rated' },
   { icon: 'map-marker-path', color: '#EC4899', titleAr: 'تتبّع لحظي', titleEn: 'Live tracking', subAr: 'تابع حالة جهازك في كل مرحلة', subEn: 'Follow your device at every stage' },
 ];
@@ -80,6 +80,12 @@ export default function HomeHighlightsCarousel() {
         ref={listRef}
         data={SLIDES}
         horizontal
+        // RTL: run the strip right-to-left. The app never flips I18nManager (it
+        // would reverse English on an Arabic device), so a horizontal list stays
+        // physically LTR — slide 1 on the left, advancing leftwards — which reads
+        // backwards in Arabic. `inverted` flips the scroll axis only; RN
+        // counter-transforms each cell, so the cards themselves are not mirrored.
+        inverted={isRTL}
         pagingEnabled
         showsHorizontalScrollIndicator={false}
         keyExtractor={(_, i) => String(i)}
@@ -104,7 +110,9 @@ export default function HomeHighlightsCarousel() {
           </View>
         )}
       />
-      <View style={styles.dots}>
+      {/* Dots follow the strip's direction — with an inverted (RTL) list the
+          first slide lives on the right, so the first dot must too. */}
+      <View style={[styles.dots, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
         {SLIDES.map((_, i) => (
           <View
             key={i}
