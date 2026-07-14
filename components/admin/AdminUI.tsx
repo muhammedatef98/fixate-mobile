@@ -249,6 +249,10 @@ export function AdminFilterChips<T extends string>({
           >
             <Text
               numberOfLines={1}
+              // Android measures a chip's text BEFORE the active bold weight is
+              // swapped in, so a shrinkable label ends up ellipsized ("لابتو…").
+              // flexShrink: 0 + no ellipsis lets the chip grow to the real word.
+              ellipsizeMode="clip"
               style={[
                 styles.chipText,
                 { color: active ? COLORS.primary : (COLORS.textSecondary ?? COLORS.text) },
@@ -365,7 +369,10 @@ const styles = StyleSheet.create({
   // filter row reads as part of the same design language and stays
   // dimensionally stable across count changes.
   chipsScroll: {
-    maxHeight: 64,
+    // Headroom for the taller Arabic line box on Android (chips are minHeight
+    // 40 + 6px vertical padding, inside a row with 10px padding). The old 64px
+    // cap cropped the bottom of Arabic chips.
+    maxHeight: 76,
   },
   chipsRow: {
     // flexGrow lets the row fill the scroll width so RTL (row-reverse) chips
@@ -381,7 +388,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 14,
-    height: 40,
+    // minHeight, not a hard height: Arabic labels have a taller line box than
+    // Latin ones once includeFontPadding is on (see chipText), and a fixed 40px
+    // box clipped their ascenders/descenders on Android.
+    minHeight: 40,
+    paddingVertical: 6,
     borderRadius: 14,
     borderWidth: 1,
     flexShrink: 0,
@@ -395,7 +406,21 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 3,
   },
-  chipText: { fontWeight: '700', fontSize: 13.5, letterSpacing: -0.1, includeFontPadding: false },
+  chipText: {
+    fontWeight: '700',
+    fontSize: 13.5,
+    flexShrink: 0,
+    // Android-only text hygiene. `includeFontPadding: false` (the old value)
+    // strips the font's ascent/descent padding, which cuts the tops and tails
+    // off Arabic glyphs; negative letterSpacing makes Android under-measure the
+    // line and drop the final character. Both are the "the filter word isn't
+    // fully showing" bug. iOS ignores includeFontPadding and measures the
+    // tighter tracking correctly, so it keeps the original look.
+    ...Platform.select({
+      android: { includeFontPadding: true, letterSpacing: 0, textAlignVertical: 'center' as const },
+      default: { letterSpacing: -0.1 },
+    }),
+  },
 
   // Status pill
   pill: {

@@ -10,6 +10,7 @@ import {
   Animated,
   StatusBar,
   Alert,
+  Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -25,7 +26,7 @@ import { formatAppDateOnly } from '../../lib/formatDate';
 import { logger } from '../../utils/logger';
 import { resolveGreetingName } from '../../utils/greeting';
 import { getWalletBalance } from '../../services/customerWalletService';
-import { RTLIonicon, RTLMaterialIcon } from '../../components/RTLIcon';
+import { RTLIonicon } from '../../components/RTLIcon';
 import { PressableScale, AnimatedTouchable } from '../../components/ui/PressableScale';
 import { Skeleton } from '../../components/ui/Skeleton';
 import HomeHighlightsCarousel from '../../components/HomeHighlightsCarousel';
@@ -39,29 +40,6 @@ const DEVICE_CATEGORIES = [
   { id: 'laptop', titleEn: 'Laptops', titleAr: 'لابتوب', icon: 'laptop', accent: '#3B82F6', fromPrice: 100 },
   { id: 'tablet', titleEn: 'Tablets', titleAr: 'تابلت', icon: 'tablet', accent: '#8B5CF6', fromPrice: 100 },
   { id: 'watch', titleEn: 'Watches', titleAr: 'ساعات', icon: 'watch-variant', accent: '#F59E0B', fromPrice: 150 },
-];
-
-const QUICK_ACTIONS = [
-  {
-    id: 'market', titleAr: 'السوق', titleEn: 'Marketplace',
-    subAr: 'بيع واشترِ الأجهزة', subEn: 'Buy & sell devices',
-    icon: 'storefront-outline', accent: '#F59E0B', route: '/market',
-  },
-  {
-    id: 'services', titleAr: 'الخدمات', titleEn: 'Services',
-    subAr: 'تصفّح كل خدمات الإصلاح', subEn: 'Browse all repairs',
-    icon: 'tools', accent: '#3B82F6', route: '/(customer)/services',
-  },
-  {
-    id: 'orders', titleAr: 'طلباتي', titleEn: 'My Requests',
-    subAr: 'تابع حالة طلباتك', subEn: 'Track your repairs',
-    icon: 'receipt-outline', accent: '#10B981', route: '/(customer)/orders',
-  },
-  {
-    id: 'addresses', titleAr: 'عناويني', titleEn: 'Addresses',
-    subAr: 'إدارة مواقع الخدمة', subEn: 'Manage saved places',
-    icon: 'map-marker-outline', accent: '#8B5CF6', route: '/addresses',
-  },
 ];
 
 // Warranty length applied to every completed repair (months). Used to derive
@@ -284,7 +262,10 @@ export default function CustomerHomeScreen() {
         </View>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 110 }}>
+      {/* paddingBottom clears BOTH floating layers: the bottom nav (~90px) and
+          the smart-assistant icon parked above it — so the last section never
+          scrolls to a stop underneath either. */}
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 176 }}>
         <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }], paddingHorizontal: SPACING.m, paddingTop: SPACING.s, paddingBottom: SPACING.m }}>
           {/* Greeting + wallet on one row — compact, balanced header */}
           <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
@@ -569,32 +550,6 @@ export default function CustomerHomeScreen() {
             ))}
           </View>
 
-          {/* Section: Explore — Marketplace / Services / My Requests / Addresses */}
-          <Text style={[styles.sectionTitle, { color: COLORS.text, marginBottom: 14 }]}>
-            {isRTL ? 'استكشف' : 'Explore'}
-          </Text>
-          <View style={styles.exploreGrid}>
-            {QUICK_ACTIONS.map((q) => (
-              <PressableScale
-                key={q.id}
-                onPress={() => router.push(q.route as any)}
-                style={[styles.exploreCard, { backgroundColor: COLORS.card, borderColor: COLORS.border }]}
-                accessibilityRole="button"
-                accessibilityLabel={isRTL ? q.titleAr : q.titleEn}
-              >
-                <View style={[styles.exploreIcon, { backgroundColor: q.accent + '18' }]}>
-                  <MaterialCommunityIcons name={q.icon as any} size={24} color={q.accent} />
-                </View>
-                <Text style={[styles.exploreTitle, { color: COLORS.text }]} numberOfLines={1}>
-                  {isRTL ? q.titleAr : q.titleEn}
-                </Text>
-                <Text style={[styles.exploreSub, { color: COLORS.textSecondary }]} numberOfLines={1}>
-                  {isRTL ? q.subAr : q.subEn}
-                </Text>
-              </PressableScale>
-            ))}
-          </View>
-
           {/* Section: Why Fixate — warranty / pickup / verified technicians */}
           <Text style={[styles.sectionTitle, { color: COLORS.text, marginBottom: 14 }]}>
             {isRTL ? 'لماذا Fixate؟' : 'Why Fixate'}
@@ -618,31 +573,22 @@ export default function CustomerHomeScreen() {
             ))}
           </View>
 
-          {/* AI assistant card — instant answers, can hand off to support.
-              (The separate "Need help?" support card was removed; the
-              assistant itself routes to support when needed.) */}
-          <AnimatedTouchable
-            onPress={() => router.push('/chatbot')}
-            style={[styles.supportCard, { backgroundColor: COLORS.card, borderColor: COLORS.border, marginBottom: 12 }]}
-            activeOpacity={0.85}
-            accessibilityRole="button"
-            accessibilityLabel={isRTL ? 'مساعد Fixate الذكي' : 'Fixate AI assistant'}
-          >
-            <View style={[styles.supportIcon, { backgroundColor: COLORS.primary + '18' }]}>
-              <MaterialCommunityIcons name="robot-happy-outline" size={22} color={COLORS.primary} />
-            </View>
-            <View style={{ flex: 1, marginHorizontal: 12 }}>
-              <Text style={[styles.supportTitle, { color: COLORS.text }]}>
-                {isRTL ? 'مساعد Fixate الذكي' : 'Fixate AI Assistant'}
-              </Text>
-              <Text style={[styles.supportSub, { color: COLORS.textSecondary }]}>
-                {isRTL ? 'إجابات فورية لأسئلتك الشائعة' : 'Instant answers to common questions'}
-              </Text>
-            </View>
-            <RTLMaterialIcon name="chevron-right" size={20} color={COLORS.primary} />
-          </AnimatedTouchable>
         </Animated.View>
       </ScrollView>
+
+      {/* Smart assistant — a floating icon that rides above the content and
+          stays reachable from anywhere on the home screen (it replaced the
+          in-flow assistant card, which scrolled out of sight). Sits on the
+          trailing edge, clear of the floating bottom nav. */}
+      <AnimatedTouchable
+        onPress={() => router.push('/chatbot')}
+        style={[styles.assistantFab, { backgroundColor: COLORS.primary }]}
+        activeOpacity={0.88}
+        accessibilityRole="button"
+        accessibilityLabel={isRTL ? 'مساعد Fixate الذكي' : 'Fixate AI assistant'}
+      >
+        <MaterialCommunityIcons name="robot-happy-outline" size={26} color="#fff" />
+      </AnimatedTouchable>
 
       <BottomNav />
       <Sidebar visible={sidebarVisible} onClose={() => setSidebarVisible(false)} />
@@ -893,33 +839,12 @@ const makeStyles = (C: any, isRTL: boolean, SHADOWS: any) =>
       marginTop: 12,
     },
 
-    // Explore grid — 2-column action cards
-    exploreGrid: {
-      flexDirection: isRTL ? 'row-reverse' : 'row',
-      flexWrap: 'wrap',
-      gap: 12,
-      marginBottom: 24,
-    },
-    exploreCard: {
-      width: (width - SPACING.m * 2 - 12) / 2,
-      borderRadius: BORDER_RADIUS.md,
-      borderWidth: 1,
-      padding: 16,
-      gap: 8,
-      ...SHADOWS.small,
-    },
-    exploreIcon: {
-      width: 46, height: 46, borderRadius: 13,
-      alignItems: 'center', justifyContent: 'center',
-    },
-    exploreTitle: { fontSize: 15, fontWeight: '800', textAlign: isRTL ? 'right' : 'left' },
-    exploreSub: { fontSize: 11, fontWeight: '500', textAlign: isRTL ? 'right' : 'left' },
-
-    // Why Fixate — 3-column trust tiles
+    // Why Fixate — 3-column trust tiles. Last section on the page, so it
+    // carries the bottom breathing room the Explore grid used to provide.
     trustGrid: {
       flexDirection: isRTL ? 'row-reverse' : 'row',
       gap: 10,
-      marginBottom: 20,
+      marginBottom: 8,
     },
     trustTile: {
       flex: 1,
@@ -938,17 +863,24 @@ const makeStyles = (C: any, isRTL: boolean, SHADOWS: any) =>
     trustTitle: { fontSize: 12, fontWeight: '800', textAlign: 'center' },
     trustSub: { fontSize: 11, fontWeight: '500', textAlign: 'center' },
 
-    supportCard: {
-      flexDirection: isRTL ? 'row-reverse' : 'row',
+    // Floating smart-assistant icon. Parked just above the floating bottom
+    // nav (its bar is 70px tall and offset 20/30px from the bottom) on the
+    // trailing edge, so it never overlaps the nav or the RTL/LTR content.
+    assistantFab: {
+      position: 'absolute',
+      bottom: (Platform.OS === 'ios' ? 30 : 20) + 70 + 14,
+      ...(isRTL ? { left: 16 } : { right: 16 }),
+      width: 54,
+      height: 54,
+      borderRadius: 27,
       alignItems: 'center',
-      borderRadius: BORDER_RADIUS.md,
-      borderWidth: 1,
-      padding: 16,
+      justifyContent: 'center',
+      borderWidth: 2,
+      borderColor: 'rgba(255,255,255,0.35)',
+      shadowColor: C.primary,
+      shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: 0.45,
+      shadowRadius: 16,
+      elevation: 10,
     },
-    supportIcon: {
-      width: 42, height: 42, borderRadius: 12,
-      alignItems: 'center', justifyContent: 'center',
-    },
-    supportTitle: { fontSize: 14, fontWeight: '700' },
-    supportSub: { fontSize: 12, marginTop: 2 },
   });

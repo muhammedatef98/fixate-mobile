@@ -1,8 +1,13 @@
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect } from 'react';
+import { useEffect, type ReactNode } from 'react';
 import { View, ActivityIndicator, Platform } from 'react-native';
-import { SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
+import {
+  SafeAreaProvider,
+  SafeAreaView,
+  initialWindowMetrics,
+} from 'react-native-safe-area-context';
+import { getColors } from '../constants/theme';
 import { RequestProvider } from '../contexts/RequestContext';
 import { ThemeProvider } from '../contexts/ThemeContext';
 import { AppProvider, useApp } from '../contexts/AppContext';
@@ -37,8 +42,38 @@ import '../i18n';
 
 initSentry();
 
+/**
+ * Root safe-area frame.
+ *
+ * Android (Expo SDK 54) always draws edge-to-edge: the system status bar and
+ * navigation bar float ON TOP of the app, and `androidStatusBar.translucent`
+ * / `<StatusBar translucent={false}>` are no-ops there. React Native's own
+ * `SafeAreaView` is iOS-only, so without this frame every screen's header
+ * (notifications bell, language switch, titles) sits underneath the wifi /
+ * signal / clock strip.
+ *
+ * Insetting once at the root fixes all screens at once. It's Android-only:
+ * on iOS each screen already uses its own SafeAreaView and a second inset
+ * here would double the top padding.
+ */
+function ScreenFrame({ children }: { children: ReactNode }) {
+  const { isDark } = useApp();
+  if (Platform.OS !== 'android') {
+    return <View style={{ flex: 1 }}>{children}</View>;
+  }
+  const COLORS = getColors(isDark);
+  return (
+    <SafeAreaView
+      style={{ flex: 1, backgroundColor: COLORS.background }}
+      edges={['top', 'bottom', 'left', 'right']}
+    >
+      {children}
+    </SafeAreaView>
+  );
+}
+
 function RootLayoutContent() {
-  const { language } = useApp();
+  const { language, isDark } = useApp();
   const { user, userProfile, loading, adminPermissions, adminPermissionsLoaded } = useAuth();
   const segments = useSegments();
   const router = useRouter();
@@ -205,13 +240,12 @@ function RootLayoutContent() {
   };
 
   return (
-    <View style={{ flex: 1 }}>
-      {/* Visible, opaque status bar. translucent={false} makes Android reserve
-          the status-bar space so app content never draws underneath it — the
-          universal fix for the "header hidden behind the status bar" overlap.
-          Per-screen <StatusBar> components can still override style/color
-          (e.g. the green-header screens switch to light icons). */}
-      <StatusBar style="dark" backgroundColor="#ffffff" translucent={false} />
+    <ScreenFrame>
+      {/* Status-bar icon colour only. `backgroundColor` / `translucent` are
+          deliberately NOT set: they are ignored under Android edge-to-edge
+          (SDK 54+) and only produce a runtime warning. The strip behind the
+          icons is painted by ScreenFrame's themed background instead. */}
+      <StatusBar style={isDark ? 'light' : 'dark'} />
       <OfflineBanner />
       <Stack
         screenOptions={{
@@ -414,7 +448,7 @@ function RootLayoutContent() {
         <Stack.Screen name="admin-broadcast-history" options={{ headerShown: false }} />
         <Stack.Screen name="admin-scheduled-notifications" options={{ headerShown: false }} />
       </Stack>
-    </View>
+    </ScreenFrame>
   );
 }
 

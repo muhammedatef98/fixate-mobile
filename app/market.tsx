@@ -693,9 +693,9 @@ export default function MarketScreen() {
       )}
       </Animated.View>
 
-      {/* Floating "post a listing" action. Always visible while browsing —
-          conversion-critical, so it sits above the grid on the trailing
-          side without competing with the scroll content. */}
+      {/* Floating "post a listing" action — a bare "+" icon. Always visible
+          while browsing (conversion-critical), sits above the grid on the
+          trailing side without competing with the scroll content. */}
       <AnimatedTouchable
         style={[styles.fab, { backgroundColor: COLORS.primary }]}
         onPress={() => router.push('/market-new')}
@@ -703,10 +703,7 @@ export default function MarketScreen() {
         accessibilityLabel={isRTL ? 'إضافة إعلان' : 'Post a listing'}
         activeOpacity={0.88}
       >
-        <View style={styles.fabIconWrap}>
-          <Ionicons name="add" size={16} color="#fff" />
-        </View>
-        <Text style={styles.fabText}>{isRTL ? 'إعلان جديد' : 'Sell'}</Text>
+        <Ionicons name="add" size={28} color="#fff" />
       </AnimatedTouchable>
 
       {/* Module-level bottom tab bar — anchors the screen, replaces the
@@ -815,7 +812,20 @@ export default function MarketScreen() {
               </Text>
             </TouchableOpacity>
 
+            {/* Apply first in source order. The row is `row` in English and
+                `row-reverse` in Arabic, so the primary action always lands on
+                the reading-start edge — left in English, right in Arabic —
+                with the smaller Cancel opposite it. */}
             <View style={styles.sheetActions}>
+              <TouchableOpacity
+                style={[styles.sheetPrimary, { backgroundColor: COLORS.primary }]}
+                onPress={() => setFiltersOpen(false)}
+                activeOpacity={0.85}
+                accessibilityRole="button"
+                accessibilityLabel={isRTL ? 'تطبيق' : 'Apply'}
+              >
+                <Text style={styles.sheetPrimaryText}>{isRTL ? 'تطبيق' : 'Apply'}</Text>
+              </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.sheetSecondary, { borderColor: COLORS.border, backgroundColor: COLORS.background }]}
                 onPress={cancelFilters}
@@ -826,15 +836,6 @@ export default function MarketScreen() {
                 <Text style={[styles.sheetSecondaryText, { color: COLORS.text }]}>
                   {isRTL ? 'إلغاء' : 'Cancel'}
                 </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.sheetPrimary, { backgroundColor: COLORS.primary }]}
-                onPress={() => setFiltersOpen(false)}
-                activeOpacity={0.85}
-                accessibilityRole="button"
-                accessibilityLabel={isRTL ? 'تطبيق' : 'Apply'}
-              >
-                <Text style={styles.sheetPrimaryText}>{isRTL ? 'تطبيق' : 'Apply'}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -1220,21 +1221,18 @@ const createStyles = (C: any, isRTL: boolean) =>
     },
     emptyCtaText: { color: '#fff', fontWeight: '800', fontSize: 13 },
 
-    // Floating action button — soft elevation, sits above the grid.
-    // The vertical offset clears tall-device home indicators and lands
-    // squarely in the natural thumb-reach zone for one-handed use.
+    // Floating action button — a circular "+" only. Soft elevation, sits
+    // above the grid, dropped into the tab bar's vertical zone so it reads
+    // as attached to the bar and lands in the one-handed thumb-reach zone.
     fab: {
       position: 'absolute',
-      // Dropped deep into the tab bar's vertical zone so it visually
-      // sits ON the bar instead of floating above it.
       bottom: (Platform.OS === 'ios' ? 30 : 20) + 28,
       ...(isRTL ? { left: 16 } : { right: 16 }),
-      flexDirection: isRTL ? 'row-reverse' : 'row',
+      width: 54,
+      height: 54,
+      borderRadius: 27,
       alignItems: 'center',
-      gap: 7,
-      paddingHorizontal: 16,
-      paddingVertical: 11,
-      borderRadius: 999,
+      justifyContent: 'center',
       borderWidth: 2,
       borderColor: 'rgba(255,255,255,0.35)',
       shadowColor: C.primary,
@@ -1243,15 +1241,6 @@ const createStyles = (C: any, isRTL: boolean) =>
       shadowRadius: 16,
       elevation: 10,
     },
-    fabIconWrap: {
-      width: 22,
-      height: 22,
-      borderRadius: 11,
-      backgroundColor: 'rgba(255,255,255,0.22)',
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    fabText: { color: '#fff', fontWeight: '900', fontSize: 13.5, letterSpacing: 0.3 },
 
     modalBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.4)' },
     sheet: {
@@ -1285,16 +1274,24 @@ const createStyles = (C: any, isRTL: boolean) =>
     sheetResetText: { fontWeight: '700', fontSize: 13 },
     sheetActions: {
       flexDirection: isRTL ? 'row-reverse' : 'row',
-      gap: 12,
+      // `stretch` makes both buttons share one height regardless of the Arabic
+      // vs Latin line box, so they always read as a matched pair.
+      alignItems: 'stretch',
+      gap: 10,
       marginTop: 2,
     },
+    // Cancel is the quiet, secondary escape hatch: it hugs its label instead of
+    // claiming half the row, while still matching Apply's height and radius.
     sheetSecondary: {
-      flex: 1, paddingVertical: 15, alignItems: 'center', justifyContent: 'center',
+      minWidth: 104,
+      paddingHorizontal: 20,
+      alignItems: 'center', justifyContent: 'center',
       borderRadius: BORDER_RADIUS.md, borderWidth: 1.5,
     },
-    sheetSecondaryText: { fontWeight: '800', fontSize: 15 },
+    sheetSecondaryText: { fontWeight: '700', fontSize: 14 },
     sheetPrimary: {
-      flex: 1.6, paddingVertical: 15, alignItems: 'center', justifyContent: 'center',
+      flex: 1, minHeight: 52, paddingVertical: 15,
+      alignItems: 'center', justifyContent: 'center',
       borderRadius: BORDER_RADIUS.md,
     },
     sheetPrimaryText: { color: '#fff', fontWeight: '800', fontSize: 15 },

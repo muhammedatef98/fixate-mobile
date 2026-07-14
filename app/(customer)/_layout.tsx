@@ -1,7 +1,6 @@
 import { Stack, useRouter } from 'expo-router';
 import { useEffect } from 'react';
 import { View } from 'react-native';
-import FloatingOrderStatus from '../../components/FloatingOrderStatus';
 import { useAuth } from '../../contexts/AuthContext';
 import { saveLastRole } from '../../utils/rolePreference';
 
@@ -38,7 +37,6 @@ export default function CustomerLayout() {
           gestureDirection: 'horizontal',
         }}
       />
-      <FloatingOrderStatus />
     </View>
   );
 }
