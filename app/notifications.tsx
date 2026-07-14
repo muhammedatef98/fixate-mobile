@@ -45,6 +45,7 @@ const TYPE_META: Record<string, { icon: any; pack: IconPack; color: string }> = 
   rating:   { icon: 'star',                 pack: 'ion', color: '#EAB308' },
   promo:    { icon: 'sale',                 pack: 'mci', color: '#DB2777' },
   support:  { icon: 'lifebuoy',             pack: 'mci', color: '#0EA5E9' },
+  delivery: { icon: 'moped',                pack: 'mci', color: '#F97316' },
   warning:  { icon: 'alert',                pack: 'ion', color: '#EF4444' },
   general:  { icon: 'bell',                 pack: 'mci', color: '#64748B' },
 };
