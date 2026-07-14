@@ -30,6 +30,8 @@ import { getColors, SPACING, BORDER_RADIUS } from '../constants/theme';
 import { RTLIonicon } from '../components/RTLIcon';
 import {
   browseListings,
+  countListings,
+  BROWSE_PAGE_SIZE,
   type MarketListing,
   type ListingCondition,
   type DeviceType,
@@ -187,6 +189,12 @@ export default function MarketScreen() {
   const [marketplaceEnabled, setMarketplaceEnabled] = useState(true);
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
   const [savedOnly, setSavedOnly] = useState(false);
+  // Paging state. `total` is the real DB count for the current filters — the
+  // header used to show the page size (always "20 listings live").
+  const [page, setPage] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [total, setTotal] = useState(0);
   // The result grid fades in on every filter change (the active category is
   // now indicated by the AdminFilterChips pill style rather than a sliding
   // underline — see CHANGE 6).
@@ -276,42 +284,79 @@ export default function MarketScreen() {
     [listings, savedOnly, favorites]
   );
 
+  const activeFilters = useMemo(
+    () => ({
+      deviceType: device === 'all' ? undefined : device,
+      condition: condition ?? undefined,
+      city: city.trim() || undefined,
+      minPrice: minPrice ? Number(minPrice) : undefined,
+      maxPrice: maxPrice ? Number(maxPrice) : undefined,
+      search: appliedSearch.trim() || undefined,
+      sort,
+    }),
+    [device, condition, city, minPrice, maxPrice, appliedSearch, sort]
+  );
+
+  /** Verified-seller badges for a batch of listings — one round-trip, merged
+   *  into the existing map so paged-in cards keep the badges already fetched. */
+  const mergeVerifiedSellers = useCallback(async (batch: MarketListing[]) => {
+    const sellerIds = Array.from(new Set(batch.map((l) => l.seller_id).filter(Boolean)));
+    if (sellerIds.length === 0) return;
+    const { data: cards } = await supabase
+      .from('public_user_cards')
+      .select('id, is_verified')
+      .in('id', sellerIds);
+    setVerifiedSellers((prev) => {
+      const next = { ...prev };
+      (cards ?? []).forEach((c: any) => { next[c.id] = !!c.is_verified; });
+      return next;
+    });
+  }, []);
+
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const next = await browseListings({
-        deviceType: device === 'all' ? undefined : device,
-        condition: condition ?? undefined,
-        city: city.trim() || undefined,
-        minPrice: minPrice ? Number(minPrice) : undefined,
-        maxPrice: maxPrice ? Number(maxPrice) : undefined,
-        search: appliedSearch.trim() || undefined,
-        sort,
-      });
+      const [next, count] = await Promise.all([
+        browseListings({ ...activeFilters, page: 0 }),
+        countListings(activeFilters),
+      ]);
       // Plain state swap — no LayoutAnimation. The earlier ease-in-out
       // wrap caused the device-chip strip and result-bar text to briefly
       // shrink and re-expand on every filter change. The default React
       // re-render is the correct, stable behaviour.
       setListings(next);
-      // Batch-fetch verified status for the distinct sellers visible in
-      // this feed. One round-trip, no per-card lookups.
-      const sellerIds = Array.from(new Set(next.map((l) => l.seller_id).filter(Boolean)));
-      if (sellerIds.length > 0) {
-        const { data: cards } = await supabase
-          .from('public_user_cards')
-          .select('id, is_verified')
-          .in('id', sellerIds);
-        const map: Record<string, boolean> = {};
-        (cards ?? []).forEach((c: any) => { map[c.id] = !!c.is_verified; });
-        setVerifiedSellers(map);
-      } else {
-        setVerifiedSellers({});
-      }
+      setTotal(count);
+      setPage(0);
+      setHasMore(next.length === BROWSE_PAGE_SIZE);
+      setVerifiedSellers({});
+      await mergeVerifiedSellers(next);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [device, condition, city, minPrice, maxPrice, appliedSearch, sort]);
+  }, [activeFilters, mergeVerifiedSellers]);
+
+  /** Pages the next batch in as the buyer nears the end of the grid. Without
+   *  this the feed silently stopped at the first 20 listings. */
+  const loadMore = useCallback(async () => {
+    if (loadingMore || loading || !hasMore || savedOnly) return;
+    setLoadingMore(true);
+    try {
+      const nextPage = page + 1;
+      const batch = await browseListings({ ...activeFilters, page: nextPage });
+      setListings((prev) => {
+        // De-dupe defensively: a listing created mid-scroll shifts the window
+        // and can push a row into two pages.
+        const seen = new Set(prev.map((l) => l.id));
+        return [...prev, ...batch.filter((l) => !seen.has(l.id))];
+      });
+      setPage(nextPage);
+      setHasMore(batch.length === BROWSE_PAGE_SIZE);
+      await mergeVerifiedSellers(batch);
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [loadingMore, loading, hasMore, savedOnly, page, activeFilters, mergeVerifiedSellers]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -523,11 +568,11 @@ export default function MarketScreen() {
         </AnimatedTouchable>
         <View style={{ flex: 1, alignItems: 'center', paddingHorizontal: 8 }}>
           <Text style={styles.title}>{isRTL ? 'سوق Fixate' : 'Fixate Market'}</Text>
-          {!loading && listings.length > 0 ? (
+          {!loading && total > 0 ? (
             <Text style={styles.subtitle}>
               {isRTL
-                ? `${listings.length.toLocaleString('en-US')} إعلان مباشر`
-                : `${listings.length.toLocaleString('en-US')} listings live`}
+                ? `${total.toLocaleString('en-US')} إعلان مباشر`
+                : `${total.toLocaleString('en-US')} listings live`}
             </Text>
           ) : null}
         </View>
@@ -647,8 +692,8 @@ export default function MarketScreen() {
                     ? `${displayedListings.length.toLocaleString('en-US')} محفوظ`
                     : `${displayedListings.length} saved`)
                 : (isRTL
-                    ? `${displayedListings.length.toLocaleString('en-US')} نتيجة`
-                    : `${displayedListings.length} ${displayedListings.length === 1 ? 'result' : 'results'}`)}
+                    ? `${total.toLocaleString('en-US')} نتيجة`
+                    : `${total.toLocaleString('en-US')} ${total === 1 ? 'result' : 'results'}`)}
             </Text>
             <AnimatedTouchable
               onPress={() => openFilters()}
@@ -684,6 +729,21 @@ export default function MarketScreen() {
                 onRefresh={() => { setRefreshing(true); load(); }}
                 tintColor={COLORS.primary}
               />
+            }
+            onEndReached={loadMore}
+            onEndReachedThreshold={0.6}
+            ListFooterComponent={
+              loadingMore ? (
+                <View style={styles.gridFooter}>
+                  <ActivityIndicator color={COLORS.primary} />
+                </View>
+              ) : !hasMore && !savedOnly && displayedListings.length > BROWSE_PAGE_SIZE ? (
+                <View style={styles.gridFooter}>
+                  <Text style={styles.gridFooterText}>
+                    {isRTL ? 'وصلت لآخر إعلان' : "You've reached the end"}
+                  </Text>
+                </View>
+              ) : null
             }
             showsVerticalScrollIndicator={false}
             initialNumToRender={8}
@@ -1013,6 +1073,8 @@ const createStyles = (C: any, isRTL: boolean) =>
       paddingBottom: 6,
     },
     resultCount: { color: C.textSecondary, fontSize: 12, fontWeight: '700' },
+    gridFooter: { paddingVertical: 20, alignItems: 'center' },
+    gridFooterText: { color: C.textLight, fontSize: 12, fontWeight: '600' },
     sortChip: {
       flexDirection: isRTL ? 'row-reverse' : 'row',
       alignItems: 'center',

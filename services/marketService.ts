@@ -373,14 +373,34 @@ export interface BrowseFilters {
 const BROWSE_LIST_COLUMNS =
   'id,seller_id,title,category,device_type,condition,price,currency,city,contact_phone,contact_preference,contact_methods,images,status,created_at,updated_at,removed_at,removed_reason,moderation_reason,hidden_at,delete_requested_at,archived_at,is_official';
 
+/** The default grid page. Exported so callers can detect "last page reached". */
+export const BROWSE_PAGE_SIZE = 20;
+
+/** Shared WHERE clause for the browse feed and its count — one source of truth,
+ *  so a filter can never apply to the results but not to the total. */
+const applyBrowseFilters = <T>(q: T, filters: BrowseFilters): T => {
+  let b = q as any;
+  if (filters.category)    b = b.eq('category', filters.category);
+  if (filters.deviceType)  b = b.eq('device_type', filters.deviceType);
+  if (filters.condition)   b = b.eq('condition', filters.condition);
+  if (filters.city)        b = b.eq('city', filters.city);
+  if (typeof filters.minPrice === 'number') b = b.gte('price', filters.minPrice);
+  if (typeof filters.maxPrice === 'number') b = b.lte('price', filters.maxPrice);
+  if (filters.search?.trim()) {
+    const s = filters.search.trim().replace(/[%_]/g, '');
+    b = b.or(`title.ilike.%${s}%,description.ilike.%${s}%`);
+  }
+  return b as T;
+};
+
 export const browseListings = async (
   filters: BrowseFilters = {}
 ): Promise<MarketListing[]> => {
   const page = filters.page ?? 0;
   // Smaller first paint: 20 cards fill the grid 5+ rows on a tall phone,
-  // which is plenty for the visible viewport. Callers needing more can
-  // ask for additional pages explicitly.
-  const pageSize = filters.pageSize ?? 20;
+  // which is plenty for the visible viewport. The grid then pages in more as
+  // the buyer scrolls.
+  const pageSize = filters.pageSize ?? BROWSE_PAGE_SIZE;
   // Browse the public feed: only admin-approved (`live`) listings show up.
   // We accept the legacy `active` value too so the feed stays populated on
   // databases where the v3 migration hasn't run yet.
@@ -404,23 +424,27 @@ export const browseListings = async (
       break;
   }
 
-  if (filters.category)    q = q.eq('category', filters.category);
-  if (filters.deviceType)  q = q.eq('device_type', filters.deviceType);
-  if (filters.condition)   q = q.eq('condition', filters.condition);
-  if (filters.city)        q = q.eq('city', filters.city);
-  if (typeof filters.minPrice === 'number') q = q.gte('price', filters.minPrice);
-  if (typeof filters.maxPrice === 'number') q = q.lte('price', filters.maxPrice);
-  if (filters.search?.trim()) {
-    const s = filters.search.trim().replace(/[%_]/g, '');
-    q = q.or(`title.ilike.%${s}%,description.ilike.%${s}%`);
-  }
-
-  const { data, error } = await q;
+  const { data, error } = await applyBrowseFilters(q, filters);
   if (error) {
     logger.warn('browseListings failed', error);
     return [];
   }
   return normalizeRows((data ?? []) as MarketListing[]);
+};
+
+/** Total listings matching the filters — the header count must be the real
+ *  total, not the size of the first page. */
+export const countListings = async (filters: BrowseFilters = {}): Promise<number> => {
+  const q = supabase
+    .from('market_listings')
+    .select('id', { count: 'exact', head: true })
+    .in('status', ['live', 'active']);
+  const { count, error } = await applyBrowseFilters(q, filters);
+  if (error) {
+    logger.warn('countListings failed', error);
+    return 0;
+  }
+  return count ?? 0;
 };
 
 export const myListings = async (sellerId: string): Promise<MarketListing[]> => {
