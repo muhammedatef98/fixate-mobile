@@ -128,7 +128,16 @@ export const getAccessories = async (
   );
   const use = match.length > 0 ? match : rows.filter((r) => r.device_type == null);
   if (use.length === 0) return getAccessorySuggestions(deviceType);
-  return use.map(toAddonItem);
+  // A device-specific row and a device-agnostic row can share an item_key
+  // (e.g. 'charger'); keep one per key, the device-specific one wins.
+  const byKey = new Map<string, PricingAddonRow>();
+  for (const r of use) {
+    const existing = byKey.get(r.item_key);
+    if (!existing || (existing.device_type == null && r.device_type != null)) {
+      byKey.set(r.item_key, r);
+    }
+  }
+  return [...byKey.values()].map(toAddonItem);
 };
 
 /** Protection add-ons. Admin rows replace PROTECTION_ADDONS when any exist. */
