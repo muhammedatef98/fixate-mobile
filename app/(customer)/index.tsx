@@ -822,8 +822,9 @@ const makeStyles = (C: any, isRTL: boolean, SHADOWS: any) =>
     cta: {
       flexDirection: isRTL ? 'row-reverse' : 'row',
       alignItems: 'center',
-      borderRadius: 24,
-      padding: 22,
+      gap: 14,
+      borderRadius: 22,
+      padding: 18,
       marginBottom: 14,
       overflow: 'hidden',
       shadowColor: C.primary,
@@ -831,7 +832,7 @@ const makeStyles = (C: any, isRTL: boolean, SHADOWS: any) =>
       shadowOffset: { width: 0, height: 10 },
       shadowRadius: 20,
       elevation: 8,
-      minHeight: 158,
+      minHeight: 150,
     },
     ctaEyebrowRow: {
       flexDirection: isRTL ? 'row-reverse' : 'row',
@@ -856,7 +857,11 @@ const makeStyles = (C: any, isRTL: boolean, SHADOWS: any) =>
       width: 52, height: 52, borderRadius: 26,
       backgroundColor: '#fff',
       alignItems: 'center', justifyContent: 'center',
-      marginStart: 12,
+      shadowColor: '#000',
+      shadowOpacity: 0.18,
+      shadowOffset: { width: 0, height: 4 },
+      shadowRadius: 8,
+      elevation: 4,
     },
     ctaBlob1: {
       position: 'absolute',
