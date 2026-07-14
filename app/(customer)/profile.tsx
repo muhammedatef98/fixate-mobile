@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
   Animated,
   StatusBar,
   Alert,
+  RefreshControl,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -47,6 +48,7 @@ export default function ProfileScreen() {
 
   const [stats, setStats] = useState({ total: 0, completed: 0, addresses: 0, spent: 0 });
   const [walletBalance, setWalletBalance] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(20)).current;
 
@@ -56,6 +58,12 @@ export default function ProfileScreen() {
       Animated.spring(slideAnim, { toValue: 0, friction: 8, useNativeDriver: true }),
     ]).start();
     loadStats();
+  }, [user?.id]);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await loadStats();
+    setRefreshing(false);
   }, [user?.id]);
 
   const loadStats = async () => {
@@ -177,11 +185,17 @@ export default function ProfileScreen() {
         </TouchableOpacity>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 100 }}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} colors={[COLORS.primary]} />
+        }
+      >
         <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }], paddingHorizontal: SPACING.m, paddingTop: SPACING.m, paddingBottom: SPACING.l }}>
-          {/* Profile hero — primary-tinted card with decorative orbs, an
-              online status dot, and contact details (email + phone) shown
-              as icon-prefixed rows so they read as data, not labels. */}
+          {/* Profile hero — primary-tinted card with decorative orbs and
+              contact details (email + phone) shown as icon-prefixed rows so
+              they read as data, not labels. */}
           <View style={[styles.hero, { backgroundColor: COLORS.primary }]}>
             <View pointerEvents="none" style={[styles.heroOrb, styles.heroOrb1]} />
             <View pointerEvents="none" style={[styles.heroOrb, styles.heroOrb2]} />
@@ -478,16 +492,6 @@ const makeStyles = (C: any, isRTL: boolean, SHADOWS: any) =>
       borderWidth: 2,
       alignItems: 'center',
       justifyContent: 'center',
-    },
-    heroAvatarDot: {
-      position: 'absolute',
-      [isRTL ? 'left' : 'right']: 2,
-      bottom: 2,
-      width: 16,
-      height: 16,
-      borderRadius: 8,
-      backgroundColor: '#22c55e',
-      borderWidth: 3,
     },
     heroNameWrap: { flex: 1 },
     avatar: {
