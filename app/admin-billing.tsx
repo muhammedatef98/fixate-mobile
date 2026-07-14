@@ -50,6 +50,7 @@ import {
 } from '../services/invoiceService';
 import { generateAndShareInvoicePdf, buildInvoiceHtml, formatInvoiceDate } from '../services/invoicePdf';
 import { getFriendlyError } from '../utils/errorMessages';
+import GearLoader from '../components/GearLoader';
 
 type Tab = 'invoices' | 'settings';
 type Filter = InvoiceStatus | 'all';
@@ -131,7 +132,7 @@ export default function AdminBillingScreen() {
   if (permLoading || loading) {
     return (
       <SafeAreaView style={[styles.safe, { justifyContent: 'center' }]}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
+        <GearLoader size={48} />
       </SafeAreaView>
     );
   }

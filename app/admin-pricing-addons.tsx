@@ -39,6 +39,7 @@ import {
 import { getFriendlyError } from '../utils/errorMessages';
 import { logger } from '../utils/logger';
 import { Riyal } from '../components/Riyal';
+import GearLoader from '../components/GearLoader';
 
 const CUSTOM = '__custom__';
 const toSelect = (opts: Opt[], isRTL: boolean) =>
@@ -195,7 +196,7 @@ export default function AdminPricingAddonsScreen() {
   if (checking || (loading && rows.length === 0)) {
     return (
       <SafeAreaView style={[styles.container, { justifyContent: 'center' }]}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
+        <GearLoader size={48} />
       </SafeAreaView>
     );
   }

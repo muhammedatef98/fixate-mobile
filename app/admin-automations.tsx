@@ -24,6 +24,7 @@ import {
   type NotificationAutomation,
 } from '../services/automationsService';
 import { getFriendlyError } from '../utils/errorMessages';
+import GearLoader from '../components/GearLoader';
 
 const EVENT_LABEL: Record<string, { ar: string; en: string; descAr: string; descEn: string }> = {
   welcome_discount: {
@@ -101,7 +102,7 @@ export default function AdminAutomationsScreen() {
       <AdminScreenHeader title={isRTL ? 'قواعد الأتمتة' : 'Automation rules'} subtitle={isRTL ? 'إشعارات تلقائية' : 'Trigger-based notifications'} />
 
       {loading ? (
-        <ActivityIndicator size="large" color={COLORS.primary} style={{ marginTop: 40 }} />
+        <GearLoader size={48} style={{ marginTop: 40 }} />
       ) : (
         <ScrollView contentContainerStyle={{ padding: SPACING.lg, gap: 14 }}>
           {items.map((a) => {

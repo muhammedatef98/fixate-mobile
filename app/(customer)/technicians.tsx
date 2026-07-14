@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   SafeAreaView,
   StatusBar,
-  ActivityIndicator,
   RefreshControl,
 } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -21,6 +20,7 @@ import BottomNav from '../../components/BottomNav';
 import { logger } from '../../utils/logger';
 import { RTLMaterialIcon } from '../../components/RTLIcon';
 import Avatar from '../../components/Avatar';
+import GearLoader from '../../components/GearLoader';
 
 export default function TechniciansScreen() {
   const router = useRouter();
@@ -80,7 +80,7 @@ export default function TechniciansScreen() {
 
       {loading ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
+          <GearLoader size={48} />
         </View>
       ) : (
         <ScrollView

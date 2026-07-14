@@ -8,7 +8,6 @@ import {
   TouchableOpacity,
   StatusBar,
   RefreshControl,
-  ActivityIndicator,
   LayoutAnimation,
   Platform,
   UIManager,
@@ -29,6 +28,7 @@ import {
   type AppNotification,
 } from '../../utils/notifications';
 import { formatAppDateOnly } from '../../lib/formatDate';
+import GearLoader from '../../components/GearLoader';
 
 type IconPack = 'ion' | 'mci';
 // Filled glyphs — same palette as the customer notifications screen so
@@ -230,7 +230,7 @@ export default function TechnicianNotificationsScreen() {
 
       {loading ? (
         <View style={styles.loader}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
+          <GearLoader size={48} />
         </View>
       ) : (
         <SectionList

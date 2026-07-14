@@ -33,6 +33,7 @@ import {
 } from '../services/accountingService';
 import { getCommissionSettings, saveCommissionSettings } from '../services/commissionSettingsService';
 import { logger } from '../utils/logger';
+import GearLoader from '../components/GearLoader';
 
 const CATEGORY_COLORS = ['#10B981', '#3B82F6', '#F59E0B', '#8B5CF6', '#EC4899', '#06B6D4', '#EF4444'];
 
@@ -139,7 +140,7 @@ export default function AdminAccountingScreen() {
   if (!profileLoaded) {
     return (
       <SafeAreaView style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
+        <GearLoader size={48} />
       </SafeAreaView>
     );
   }
@@ -195,7 +196,7 @@ export default function AdminAccountingScreen() {
         }
       >
         {loading ? (
-          <ActivityIndicator size="large" color={COLORS.primary} style={{ marginTop: 48 }} />
+          <GearLoader size={48} style={{ marginTop: 48 }} />
         ) : !data || data.completedCount === 0 ? (
           <AdminEmptyState
             icon="calculator-variant-outline"

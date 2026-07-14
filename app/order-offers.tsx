@@ -30,6 +30,7 @@ import { getFriendlyError } from '../utils/errorMessages';
 import { markOffersSeen } from '../utils/offersSeen';
 import { logger } from '../utils/logger';
 import { Riyal } from '../components/Riyal';
+import GearLoader from '../components/GearLoader';
 
 /**
  * Customer offers screen: compare quotes from nearby technicians on an open
@@ -247,7 +248,7 @@ export default function OrderOffersScreen() {
 
       {loading ? (
         <View style={styles.center}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
+          <GearLoader size={48} />
         </View>
       ) : (
         <ScrollView

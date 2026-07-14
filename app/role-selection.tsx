@@ -297,6 +297,9 @@ const createStyles = (COLORS: any, SHADOWS: any, isRTL: boolean) => StyleSheet.c
     alignItems: 'center',
   },
   logoContainer: {
+    // Sits below the absolutely-positioned language pill, so it needs its own
+    // top offset to clear it rather than crowding the top edge.
+    marginTop: SPACING.l,
     marginBottom: SPACING.lg,
   },
   logoImage: {

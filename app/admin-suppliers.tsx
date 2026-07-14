@@ -30,6 +30,7 @@ import {
 } from '../services/spareSuppliersService';
 import { getFriendlyError } from '../utils/errorMessages';
 import { logger } from '../utils/logger';
+import GearLoader from '../components/GearLoader';
 
 export default function AdminSuppliersScreen() {
   const { language, isDark } = useApp();
@@ -140,7 +141,7 @@ export default function AdminSuppliersScreen() {
   if (!profileLoaded) {
     return (
       <SafeAreaView style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
+        <GearLoader size={48} />
       </SafeAreaView>
     );
   }
@@ -171,7 +172,7 @@ export default function AdminSuppliersScreen() {
       />
 
       {loading ? (
-        <ActivityIndicator size="large" color={COLORS.primary} style={{ marginTop: 40 }} />
+        <GearLoader size={48} style={{ marginTop: 40 }} />
       ) : suppliers.length === 0 ? (
         <AdminEmptyState
           icon="truck-outline"

@@ -7,7 +7,6 @@ import {
   SafeAreaView,
   StatusBar,
   FlatList,
-  ActivityIndicator,
   RefreshControl,
 } from 'react-native';
 import { Image } from 'expo-image';
@@ -20,6 +19,7 @@ import Avatar from '../components/Avatar';
 import VerifiedBadge from '../components/VerifiedBadge';
 import { safeBack } from '../utils/navigation';
 import { Riyal } from '../components/Riyal';
+import GearLoader from '../components/GearLoader';
 import {
   getUserCard,
   sellerListings,
@@ -197,7 +197,7 @@ export default function MarketSellerScreen() {
 
       {loading ? (
         <View style={styles.centerFill}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
+          <GearLoader size={48} />
         </View>
       ) : error ? (
         <View style={styles.centerFill}>

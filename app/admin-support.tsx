@@ -33,6 +33,7 @@ import { supabase } from '../services/supabaseClient';
 import { useScrollToEndOnKeyboard } from '../hooks/useScrollToEndOnKeyboard';
 import { formatAppTimeOnly } from '../lib/formatDate';
 import { logger } from '../utils/logger';
+import GearLoader from '../components/GearLoader';
 
 type ThreadView = support.AdminThread;
 
@@ -260,7 +261,7 @@ export default function AdminSupportScreen() {
 
         {loading ? (
           <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-            <ActivityIndicator size="large" color={COLORS.primary} />
+            <GearLoader size={48} />
           </View>
         ) : threads.length === 0 ? (
           <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 }}>

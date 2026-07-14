@@ -8,7 +8,6 @@ import {
   StatusBar,
   ScrollView,
   Switch,
-  ActivityIndicator,
   Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -19,6 +18,7 @@ import { RTLIonicon } from '../components/RTLIcon';
 import * as preferencesService from '../services/preferencesService';
 import { getFriendlyError } from '../utils/errorMessages';
 import { safeBack } from '../utils/navigation';
+import GearLoader from '../components/GearLoader';
 
 type Prefs = preferencesService.NotificationPreferences;
 
@@ -91,7 +91,7 @@ export default function NotificationSettingsScreen() {
       </View>
 
       {loading || !prefs ? (
-        <ActivityIndicator size="large" color={COLORS.primary} style={{ marginTop: 40 }} />
+        <GearLoader size={48} style={{ marginTop: 40 }} />
       ) : (
         <ScrollView contentContainerStyle={{ padding: SPACING.lg }}>
           {ROWS.map((r) => (

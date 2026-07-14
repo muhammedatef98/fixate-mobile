@@ -21,6 +21,7 @@ import { EmptyState } from '../components/ui/EmptyState';
 import { AdminActivityRow, AdminEmptyState } from '../components/admin/AdminUI';
 import { useIsAdmin } from '../hooks/useAdminGuard';
 import { logger } from '../utils/logger';
+import GearLoader from '../components/GearLoader';
 
 type ActivityKind = 'order' | 'listing' | 'user';
 type Filter = 'all' | ActivityKind;
@@ -284,7 +285,7 @@ export default function AdminActivityScreen() {
 
       {loading ? (
         <View style={styles.loader}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
+          <GearLoader size={48} />
         </View>
       ) : (
         <FlatList

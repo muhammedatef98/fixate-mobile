@@ -37,6 +37,7 @@ import {
 } from '../services/invoicePdf';
 import { getFriendlyError } from '../utils/errorMessages';
 import { Riyal, SAR_TEXT } from './Riyal';
+import GearLoader from './GearLoader';
 
 interface Props {
   orderId: string;
@@ -166,7 +167,7 @@ export default function InvoiceViewerModal({ orderId, isRTL, COLORS, visible, on
         {/* Body */}
         {loading ? (
           <View style={styles.center}>
-            <ActivityIndicator size="large" color={COLORS.primary} />
+            <GearLoader size={48} />
           </View>
         ) : error ? (
           <View style={styles.center}>

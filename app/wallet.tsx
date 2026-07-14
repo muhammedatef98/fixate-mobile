@@ -7,7 +7,6 @@ import {
   SafeAreaView,
   StatusBar,
   ScrollView,
-  ActivityIndicator,
   RefreshControl,
 } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -24,6 +23,7 @@ import ErrorState from '../components/ErrorState';
 import { safeBack } from '../utils/navigation';
 import { formatAppDateOnly } from '../lib/formatDate';
 import { Riyal } from '../components/Riyal';
+import GearLoader from '../components/GearLoader';
 
 export default function WalletScreen() {
   const router = useRouter();
@@ -170,7 +170,7 @@ export default function WalletScreen() {
         </Text>
 
         {loading ? (
-          <ActivityIndicator size="large" color={COLORS.primary} style={{ marginTop: 40 }} />
+          <GearLoader size={48} style={{ marginTop: 40 }} />
         ) : errorMsg ? (
           <ErrorState message={errorMsg} onRetry={load} />
         ) : payments.length === 0 ? (

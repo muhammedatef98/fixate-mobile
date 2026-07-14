@@ -20,6 +20,7 @@ import { fmtAdminDate } from '../utils/dateFormat';
 import { listBroadcasts, clearBroadcastHistory, type Broadcast } from '../services/broadcastService';
 import { getFriendlyError } from '../utils/errorMessages';
 import { logger } from '../utils/logger';
+import GearLoader from '../components/GearLoader';
 
 const audienceLabel = (a: string, isRTL: boolean) =>
   a === 'all' ? (isRTL ? 'الجميع' : 'All') : a === 'customers' ? (isRTL ? 'العملاء' : 'Customers') : (isRTL ? 'الفنيون' : 'Technicians');
@@ -97,7 +98,7 @@ export default function AdminBroadcastHistoryScreen() {
       />
 
       {loading ? (
-        <ActivityIndicator size="large" color={COLORS.primary} style={{ marginTop: 40 }} />
+        <GearLoader size={48} style={{ marginTop: 40 }} />
       ) : items.length === 0 ? (
         <AdminEmptyState
           icon="bullhorn-outline"

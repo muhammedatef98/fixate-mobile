@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -12,6 +12,7 @@ import { getDeliveryTaskById, deliveryLegLabel, type DeliveryTask } from '../../
 import { subscribeToCourierLocation, type CourierLocation } from '../../services/locationTrackingService';
 import { formatAppTimeOnly } from '../../lib/formatDate';
 import { logger } from '../../utils/logger';
+import GearLoader from '../../components/GearLoader';
 
 // Straight-line distance (km). ponytail: good enough for an ETA proxy; swap for
 // a routing API if road-accurate ETA is ever needed.
@@ -94,7 +95,7 @@ export default function TrackCourierScreen() {
       </View>
 
       {loading ? (
-        <View style={styles.center}><ActivityIndicator size="large" color={COLORS.primary} /></View>
+        <View style={styles.center}><GearLoader size={48} /></View>
       ) : !task ? (
         <View style={styles.center}>
           <MaterialCommunityIcons name="alert-circle-outline" size={48} color={COLORS.textSecondary} />

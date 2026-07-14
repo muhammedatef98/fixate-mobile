@@ -44,6 +44,7 @@ import {
   threadCounterpartLabel,
 } from '../../utils/courierChatThreads';
 import { supabase } from '../../services/supabaseClient';
+import GearLoader from '../../components/GearLoader';
 
 /**
  * Courier chat, scoped to one delivery task. Two isolated threads live on a
@@ -225,7 +226,7 @@ export default function CourierChatScreen() {
   if (loading) {
     return (
       <SafeAreaView style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
+        <GearLoader size={48} />
       </SafeAreaView>
     );
   }

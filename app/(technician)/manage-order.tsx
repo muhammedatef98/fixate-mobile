@@ -62,6 +62,7 @@ import {
 import { isCourierChatOpen } from '../../services/courierChatService';
 import { getOrderTotals, fmtSAR } from '../../utils/orderMoney';
 import { Riyal } from '../../components/Riyal';
+import GearLoader from '../../components/GearLoader';
 import {
   technicianOfferStateMeta,
   customerEstimateDisplay,
@@ -591,7 +592,7 @@ export default function ManageOrderScreen() {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: COLORS.background }]}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
+          <GearLoader size={48} />
         </View>
       </SafeAreaView>
     );

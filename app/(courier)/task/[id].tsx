@@ -36,6 +36,7 @@ import {
 import { useAuth } from '../../../contexts/AuthContext';
 import { getFriendlyError } from '../../../utils/errorMessages';
 import { logger } from '../../../utils/logger';
+import GearLoader from '../../../components/GearLoader';
 
 const STEPS: DeliveryTaskStatus[] = ['accepted', 'picked_up', 'delivered', 'completed'];
 
@@ -148,7 +149,7 @@ export default function CourierTaskDetailScreen() {
   if (loading) {
     return (
       <View style={[styles.center, { backgroundColor: COLORS.background }]}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
+        <GearLoader size={48} />
       </View>
     );
   }

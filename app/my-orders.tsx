@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   SafeAreaView,
   RefreshControl,
-  ActivityIndicator,
   I18nManager,
 } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -22,6 +21,7 @@ import { safeBack } from '../utils/navigation';
 import InvoiceDownloadButton from '../components/InvoiceDownloadButton';
 import { formatAppDateOnly } from '../lib/formatDate';
 import { Riyal } from '../components/Riyal';
+import GearLoader from '../components/GearLoader';
 
 const ORDER_STATUS_CONFIG = {
   pending: {
@@ -265,7 +265,7 @@ export default function MyOrdersScreen() {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: COLORS.background }]}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
+          <GearLoader size={48} />
         </View>
       </SafeAreaView>
     );

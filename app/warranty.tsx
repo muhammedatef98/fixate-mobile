@@ -8,8 +8,7 @@ import {
   TouchableOpacity,
   StatusBar,
   RefreshControl,
-  ActivityIndicator,
-} from 'react-native';
+  } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { getColors, SPACING, BORDER_RADIUS } from '../constants/theme';
@@ -21,6 +20,7 @@ import { EmptyState } from '../components/ui/EmptyState';
 import { supabase } from '../services/supabaseClient';
 import { logger } from '../utils/logger';
 import { formatAppDateOnly } from '../lib/formatDate';
+import GearLoader from '../components/GearLoader';
 import {
   deriveWarranty,
   deviceLabel,
@@ -120,7 +120,7 @@ export default function WarrantyScreen() {
 
       {loading ? (
         <View style={styles.loader}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
+          <GearLoader size={48} />
         </View>
       ) : (
         <ScrollView

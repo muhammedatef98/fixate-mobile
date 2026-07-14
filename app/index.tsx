@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { View, ActivityIndicator } from 'react-native';
+import { View } from 'react-native';
 import { Redirect } from 'expo-router';
 import { useAuth } from '../contexts/AuthContext';
 import { useApp } from '../contexts/AppContext';
 import { getColors } from '../constants/theme';
+import GearLoader from '../components/GearLoader';
 import { getLastRole, type AppRole } from '../utils/rolePreference';
 import { hasSeenOnboarding } from '../utils/onboardingPreference';
 import { ONBOARDING_ENABLED } from '../constants/featureFlags';
@@ -55,7 +56,7 @@ export default function EntryPoint() {
   if (loading || !roleResolved || !onboardingResolved) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: COLORS.background }}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
+        <GearLoader size={56} />
       </View>
     );
   }

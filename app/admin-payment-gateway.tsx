@@ -23,6 +23,7 @@ import { RTLIonicon } from '../components/RTLIcon';
 import { safeBack } from '../utils/navigation';
 import { AnimatedBackButton } from '../components/AnimatedBackButton';
 import { supabase } from '../services/supabaseClient';
+import GearLoader from '../components/GearLoader';
 
 interface Gateway {
   id: string;
@@ -131,7 +132,7 @@ export default function AdminPaymentGatewayScreen() {
   if (!profileLoaded) {
     return (
       <SafeAreaView style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
+        <GearLoader size={48} />
       </SafeAreaView>
     );
   }
@@ -154,7 +155,7 @@ export default function AdminPaymentGatewayScreen() {
       <Header isRTL={isRTL} COLORS={COLORS} title={isRTL ? 'بوابة الدفع' : 'Payment gateway'} />
 
       {loading ? (
-        <ActivityIndicator size="large" color={COLORS.primary} style={{ marginTop: 50 }} />
+        <GearLoader size={48} style={{ marginTop: 50 }} />
       ) : (
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           <ScrollView contentContainerStyle={{ padding: SPACING.lg, paddingBottom: 48 }}>

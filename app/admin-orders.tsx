@@ -32,6 +32,7 @@ import {
 } from '../components/admin/AdminUI';
 import { fmtAdminDate } from '../utils/dateFormat';
 import { Riyal } from '../components/Riyal';
+import GearLoader from '../components/GearLoader';
 
 interface AdminOrder {
   id: string;
@@ -211,7 +212,7 @@ export default function AdminOrdersScreen() {
   if (!profileLoaded) {
     return (
       <SafeAreaView style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
+        <GearLoader size={48} />
       </SafeAreaView>
     );
   }
@@ -316,7 +317,7 @@ export default function AdminOrdersScreen() {
         }
       >
         {loading ? (
-          <ActivityIndicator size="large" color={COLORS.primary} style={{ marginTop: 40 }} />
+          <GearLoader size={48} style={{ marginTop: 40 }} />
         ) : visible.length === 0 ? (
           <AdminEmptyState
             icon="clipboard-text-outline"

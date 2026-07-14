@@ -33,6 +33,7 @@ import {
 } from '../services/moderationService';
 import { notifyUsers } from '../services/notifyService';
 import { buildVerificationUpdate } from '../utils/technicianVerification';
+import GearLoader from '../components/GearLoader';
 
 interface Technician {
   id: string;
@@ -257,7 +258,7 @@ export default function AdminTechniciansScreen() {
   if (!profileLoaded) {
     return (
       <SafeAreaView style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
+        <GearLoader size={48} />
       </SafeAreaView>
     );
   }
@@ -344,7 +345,7 @@ export default function AdminTechniciansScreen() {
         }
       >
         {loading ? (
-          <ActivityIndicator size="large" color={COLORS.primary} style={{ marginTop: 40 }} />
+          <GearLoader size={48} style={{ marginTop: 40 }} />
         ) : visible.length === 0 ? (
           <View style={styles.empty}>
             <MaterialCommunityIcons name="account-wrench-outline" size={64} color={COLORS.textSecondary} />

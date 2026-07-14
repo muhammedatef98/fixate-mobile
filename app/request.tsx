@@ -58,6 +58,7 @@ import { getPlatformSettings, type PlatformSettings } from '../services/platform
 import { getAccessories, getProtection } from '../services/pricingRegistryService';
 import ServiceCenterCard from '../components/ServiceCenterCard';
 import { Riyal } from '../components/Riyal';
+import GearLoader from '../components/GearLoader';
 import {
   getRequestStepMethods,
   type PaymentMethod as AdminPaymentMethod,
@@ -1529,7 +1530,7 @@ export default function RequestScreen() {
 
               {!mapReady && location && (
                 <View style={[styles.mapPlaceholder, { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }]}>
-                  <ActivityIndicator size="large" color={COLORS.primary} />
+                  <GearLoader size={48} />
                 </View>
               )}
 

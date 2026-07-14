@@ -7,7 +7,6 @@ import {
   SafeAreaView,
   StatusBar,
   ScrollView,
-  ActivityIndicator,
   RefreshControl,
 } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -20,6 +19,7 @@ import { RTLIonicon } from '../components/RTLIcon';
 import { AnimatedBackButton } from '../components/AnimatedBackButton';
 import { adminListRatings } from '../services/reviewService';
 import { formatAppDateOnly } from '../lib/formatDate';
+import GearLoader from '../components/GearLoader';
 
 interface AdminRatingRow {
   id: string;
@@ -137,7 +137,7 @@ export default function AdminRatingsScreen() {
 
       {loading ? (
         <View style={styles.center}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
+          <GearLoader size={48} />
         </View>
       ) : (
         <ScrollView

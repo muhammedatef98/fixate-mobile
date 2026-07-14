@@ -30,6 +30,7 @@ import { resolveStorageUrls } from '../../utils/resolveStorageUrls';
 import ImageViewer from '../../components/ImageViewer';
 import { formatAppTimeOnly } from '../../lib/formatDate';
 import { getInputDirection } from '../../utils/rtl';
+import GearLoader from '../../components/GearLoader';
 
 async function resolveMessageImages(msgs: any[]): Promise<any[]> {
   const imageUrls = msgs
@@ -391,7 +392,7 @@ export default function ChatScreen() {
   if (loading) {
     return (
       <SafeAreaView style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
+        <GearLoader size={48} />
       </SafeAreaView>
     );
   }

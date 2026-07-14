@@ -45,6 +45,7 @@ import {
 } from '../services/adminTeamService';
 import { PERMISSION_GROUPS, type PermissionKey } from '../constants/permissions';
 import { getFriendlyError } from '../utils/errorMessages';
+import GearLoader from '../components/GearLoader';
 
 type Tab = 'staff' | 'audit';
 
@@ -97,7 +98,7 @@ export default function AdminTeamScreen() {
   if (permLoading || loading) {
     return (
       <SafeAreaView style={[styles.safe, { justifyContent: 'center' }]}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
+        <GearLoader size={48} />
       </SafeAreaView>
     );
   }

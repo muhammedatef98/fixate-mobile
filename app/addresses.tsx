@@ -30,6 +30,7 @@ import { getRegionTree } from '../services/serviceAreasService';
 import OsmMap, { type OsmMapHandle } from '../components/OsmMap';
 import { searchPlaces, isGooglePlacesEnabled, type PlaceResult } from '../services/placesService';
 import { getCityCentroid, haversineKm } from '../utils/deliveryPricing';
+import GearLoader from '../components/GearLoader';
 
 // Default map centre when an address has no saved pin yet (Riyadh).
 const DEFAULT_CENTER = { lat: 24.7136, lng: 46.6753 };
@@ -372,7 +373,7 @@ export default function AddressesScreen() {
       </View>
 
       {loading ? (
-        <ActivityIndicator size="large" color={COLORS.primary} style={{ marginTop: 40 }} />
+        <GearLoader size={48} style={{ marginTop: 40 }} />
       ) : errorMsg ? (
         <ErrorState message={errorMsg} onRetry={load} />
       ) : addresses.length === 0 ? (

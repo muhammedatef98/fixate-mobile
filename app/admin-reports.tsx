@@ -47,6 +47,7 @@ import { safeBack } from '../utils/navigation';
 import { AnimatedBackButton } from '../components/AnimatedBackButton';
 import { AdminFilterChips, type AdminFilterChip } from '../components/admin/AdminUI';
 import { supabase } from '../services/supabaseClient';
+import GearLoader from '../components/GearLoader';
 
 // Selectable reporting windows. Time-bound metrics (orders, revenue,
 // discounts) respect this; cumulative snapshots (users, technicians) do not.
@@ -408,7 +409,7 @@ export default function AdminReportsScreen() {
   if (!profileLoaded) {
     return (
       <SafeAreaView style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
+        <GearLoader size={48} />
       </SafeAreaView>
     );
   }
@@ -481,7 +482,7 @@ export default function AdminReportsScreen() {
       />
 
       {loading ? (
-        <ActivityIndicator size="large" color={COLORS.primary} style={{ marginTop: 50 }} />
+        <GearLoader size={48} style={{ marginTop: 50 }} />
       ) : !data ? (
         <View style={styles.empty}>
           <MaterialCommunityIcons name="chart-box-outline" size={56} color={COLORS.textSecondary} />

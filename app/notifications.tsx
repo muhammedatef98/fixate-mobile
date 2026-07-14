@@ -8,7 +8,6 @@ import {
   TouchableOpacity,
   StatusBar,
   RefreshControl,
-  ActivityIndicator,
   LayoutAnimation,
   Platform,
   UIManager,
@@ -29,6 +28,7 @@ import {
   type AppNotification,
 } from '../utils/notifications';
 import { formatAppDateOnly } from '../lib/formatDate';
+import GearLoader from '../components/GearLoader';
 
 type IconPack = 'ion' | 'mci';
 // Filled glyphs read more strongly inside the small colored badge than
@@ -241,7 +241,7 @@ export default function NotificationsScreen() {
 
       {loading ? (
         <View style={styles.loader}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
+          <GearLoader size={48} />
         </View>
       ) : (
         <SectionList

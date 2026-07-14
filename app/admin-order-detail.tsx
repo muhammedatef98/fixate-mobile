@@ -7,7 +7,6 @@ import {
   SafeAreaView,
   StatusBar,
   ScrollView,
-  ActivityIndicator,
   Image,
   Linking,
 } from 'react-native';
@@ -27,6 +26,7 @@ import { fmtAdminDate, fmtAdminDateTime, fmtAdminNumber } from '../utils/dateFor
 import { logger } from '../utils/logger';
 import { resolveStorageUrls } from '../utils/resolveStorageUrls';
 import { getOrderTimeline, actorTypeLabel, type OrderTimelineEvent } from '../services/orderTimelineService';
+import GearLoader from '../components/GearLoader';
 
 const STATUS_META = (s: string, isRTL: boolean): { label: string; color: string } => {
   const map: Record<string, { ar: string; en: string; color: string }> = {
@@ -181,7 +181,7 @@ export default function AdminOrderDetailScreen() {
   if (!profileLoaded) {
     return (
       <SafeAreaView style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
+        <GearLoader size={48} />
       </SafeAreaView>
     );
   }
@@ -211,7 +211,7 @@ export default function AdminOrderDetailScreen() {
       <Header isRTL={isRTL} COLORS={COLORS} title={isRTL ? 'تفاصيل الطلب' : 'Order detail'} />
 
       {loading ? (
-        <ActivityIndicator size="large" color={COLORS.primary} style={{ marginTop: 50 }} />
+        <GearLoader size={48} style={{ marginTop: 50 }} />
       ) : !order ? (
         <View style={styles.empty}>
           <MaterialCommunityIcons name="file-search-outline" size={56} color={COLORS.textSecondary} />

@@ -1,7 +1,7 @@
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, type ReactNode } from 'react';
-import { View, ActivityIndicator, Platform } from 'react-native';
+import { View, Platform } from 'react-native';
 import {
   SafeAreaProvider,
   SafeAreaView,
@@ -39,6 +39,7 @@ import { useOtaUpdates } from '../hooks/useOtaUpdates';
 // entire root layout (and AppProvider, → "useApp must be used within
 // AppProvider"). iOS uses APNs via expo-notifications and never needs it.
 import { ensureAndroidNotificationChannel } from '../lib/notifications';
+import GearLoader from '../components/GearLoader';
 import '../i18n';
 
 initSentry();
@@ -469,7 +470,7 @@ export default function RootLayout() {
   if (!fontsLoaded) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' }}>
-        <ActivityIndicator size="large" color="#10B981" />
+        <GearLoader size={48} />
       </View>
     );
   }

@@ -6,7 +6,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  ActivityIndicator,
   Linking,
   Platform,
 } from 'react-native';
@@ -14,6 +13,7 @@ import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import { SPACING, BORDER_RADIUS } from '../constants/theme';
 import { listActiveSuppliers, type SpareSupplier } from '../services/spareSuppliersService';
 import { toWhatsAppPhone } from '../utils/validation';
+import GearLoader from './GearLoader';
 
 interface Props {
   visible: boolean;
@@ -99,7 +99,7 @@ export default function SparePartRequestSheet({
           </Text>
 
           {loading ? (
-            <ActivityIndicator size="large" color={COLORS.primary} style={{ marginVertical: 30 }} />
+            <GearLoader size={48} style={{ marginVertical: 30 }} />
           ) : suppliers.length === 0 ? (
             <View style={styles.empty}>
               <MaterialCommunityIcons name="truck-remove-outline" size={40} color={COLORS.textSecondary} />

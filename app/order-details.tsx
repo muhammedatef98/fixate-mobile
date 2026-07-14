@@ -6,7 +6,6 @@ import {
   ScrollView,
   TouchableOpacity,
   SafeAreaView,
-  ActivityIndicator,
   Image,
   Linking,
   StatusBar,
@@ -44,6 +43,7 @@ import { getDeliveryTasksForOrder, deliveryLegLabel, type DeliveryTask } from '.
 import { isCourierChatOpen } from '../services/courierChatService';
 import { getPendingOfferCount, subscribeToOrderOffers } from '../services/offerMarketplaceService';
 import { formatAppDate } from '../lib/formatDate';
+import GearLoader from '../components/GearLoader';
 
 const ORDER_TIMELINE: { status: string; arLabel: string; enLabel: string; icon: string }[] = [
   { status: 'pending', arLabel: 'بانتظار العروض', enLabel: 'Awaiting offers', icon: 'clock-outline' },
@@ -299,7 +299,7 @@ export default function OrderDetailsScreen() {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: COLORS.background }]}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
+          <GearLoader size={48} />
         </View>
       </SafeAreaView>
     );

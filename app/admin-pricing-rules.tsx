@@ -40,6 +40,7 @@ import {
 import { getFriendlyError } from '../utils/errorMessages';
 import { logger } from '../utils/logger';
 import { Riyal } from '../components/Riyal';
+import GearLoader from '../components/GearLoader';
 
 const toSelect = (opts: Opt[], isRTL: boolean) =>
   opts.map((o) => ({ id: o.value, label: isRTL ? o.ar : o.en }));
@@ -181,7 +182,7 @@ export default function AdminPricingRulesScreen() {
   if (checking || (loading && rows.length === 0)) {
     return (
       <SafeAreaView style={[styles.container, { justifyContent: 'center' }]}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
+        <GearLoader size={48} />
       </SafeAreaView>
     );
   }

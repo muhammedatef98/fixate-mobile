@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
-import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as Linking from 'expo-linking';
 import { supabase } from '../../lib/supabase';
 import { useApp } from '../../contexts/AppContext';
 import { isAdminUser } from '../../constants/admin';
 import { logger } from '../../utils/logger';
+import GearLoader from '../../components/GearLoader';
 
 /**
  * Deep-link auth callback landing screen.
@@ -114,7 +115,7 @@ export default function AuthCallbackScreen() {
 
   return (
     <View style={styles.container}>
-      {!done && <ActivityIndicator size="large" color="#10b981" />}
+      {!done && <GearLoader size={48} />}
       <Text style={styles.title}>
         {isRTL ? '✅ تم تأكيد الإيميل' : '✅ Email confirmed'}
       </Text>

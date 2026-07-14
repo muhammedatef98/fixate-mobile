@@ -6,7 +6,6 @@ import {
   SafeAreaView,
   StatusBar,
   ScrollView,
-  ActivityIndicator,
   RefreshControl,
   TouchableOpacity,
 } from 'react-native';
@@ -27,6 +26,7 @@ import {
   type AdminFilterChip,
 } from '../components/admin/AdminUI';
 import { deriveWarranty, deviceLabel, WARRANTY_MONTHS, type WarrantyInfo } from '../utils/warranty';
+import GearLoader from '../components/GearLoader';
 
 interface WarrantyOrder {
   id: string;
@@ -164,7 +164,7 @@ export default function AdminWarrantiesScreen() {
 
       {loading || adminChecking ? (
         <View style={styles.loader}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
+          <GearLoader size={48} />
         </View>
       ) : (
         <ScrollView

@@ -7,7 +7,6 @@ import {
   SafeAreaView,
   StatusBar,
   ScrollView,
-  ActivityIndicator,
   RefreshControl,
   TextInput,
   Modal,
@@ -33,6 +32,7 @@ import {
 } from '../services/moderationService';
 import { getFriendlyError } from '../utils/errorMessages';
 import { fmtAdminDate } from '../utils/dateFormat';
+import GearLoader from '../components/GearLoader';
 
 interface AdminUser {
   id: string;
@@ -130,7 +130,7 @@ export default function AdminUsersScreen() {
   if (!profileLoaded) {
     return (
       <SafeAreaView style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
+        <GearLoader size={48} />
       </SafeAreaView>
     );
   }
@@ -229,7 +229,7 @@ export default function AdminUsersScreen() {
         }
       >
         {loading ? (
-          <ActivityIndicator size="large" color={COLORS.primary} style={{ marginTop: 40 }} />
+          <GearLoader size={48} style={{ marginTop: 40 }} />
         ) : visible.length === 0 ? (
           <View style={styles.empty}>
             <MaterialCommunityIcons name="account-search-outline" size={56} color={COLORS.textSecondary} />
