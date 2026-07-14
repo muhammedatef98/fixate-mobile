@@ -303,8 +303,10 @@ const createStyles = (COLORS: any, SHADOWS: any, isRTL: boolean) => StyleSheet.c
     marginBottom: SPACING.xs,
   },
   logoImage: {
-    width: 120,
-    height: 120,
+    // The asset is 510x380, so a square box letterboxes it and adds ~15px of
+    // dead space above and below the mark. Match its real aspect ratio instead.
+    width: 140,
+    aspectRatio: 510 / 380,
   },
   title: {
     fontSize: 40,
