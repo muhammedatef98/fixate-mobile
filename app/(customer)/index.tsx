@@ -9,7 +9,7 @@ import {
   Dimensions,
   Animated,
   StatusBar,
-  Alert,
+  Modal,
 } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -139,6 +139,7 @@ export default function CustomerHomeScreen() {
   const [pendingQuotes, setPendingQuotes] = useState(0);
   const [walletBalance, setWalletBalance] = useState(0);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
+  const [tipSheetOpen, setTipSheetOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(20)).current;
@@ -521,11 +522,9 @@ export default function CustomerHomeScreen() {
               )}
             </PressableScale>
 
-            {/* 2 — Tip of the day (inline, taps to expand) */}
+            {/* 2 — Tip of the day (inline, taps to expand in a themed sheet) */}
             <PressableScale
-              onPress={() =>
-                Alert.alert(isRTL ? 'نصيحة اليوم' : 'Tip of the day', isRTL ? dailyTip.ar : dailyTip.en)
-              }
+              onPress={() => setTipSheetOpen(true)}
               style={[styles.actionCard, { backgroundColor: COLORS.card, borderColor: COLORS.border }]}
               accessibilityRole="button"
               accessibilityLabel={isRTL ? 'نصيحة اليوم' : 'Tip of the day'}
@@ -665,6 +664,49 @@ export default function CustomerHomeScreen() {
         }
       />
 
+      {/* Tip-of-the-day sheet — a themed bottom sheet replaces the stock OS
+          Alert, which looked out of place against the rest of the home UI. */}
+      <Modal
+        visible={tipSheetOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setTipSheetOpen(false)}
+      >
+        <TouchableOpacity
+          style={styles.tipBackdrop}
+          activeOpacity={1}
+          onPress={() => setTipSheetOpen(false)}
+        >
+          <TouchableOpacity activeOpacity={1} style={styles.tipSheet}>
+            <View style={styles.tipHandle} />
+            <View style={styles.tipIconWrap}>
+              <MaterialCommunityIcons name="lightbulb-on" size={30} color="#F59E0B" />
+            </View>
+            <Text style={styles.tipSheetTitle}>
+              {isRTL ? 'نصيحة اليوم' : 'Tip of the day'}
+            </Text>
+            <Text style={styles.tipSheetBody}>
+              {isRTL ? dailyTip.ar : dailyTip.en}
+            </Text>
+            <TouchableOpacity
+              onPress={() => { setTipSheetOpen(false); router.push('/request'); }}
+              style={[styles.tipCta, { backgroundColor: COLORS.primary }]}
+              accessibilityRole="button"
+            >
+              <MaterialCommunityIcons name="tools" size={16} color="#fff" />
+              <Text style={styles.tipCtaText}>
+                {isRTL ? 'احجز صيانة الآن' : 'Book a repair now'}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => setTipSheetOpen(false)} style={styles.tipDismiss}>
+              <Text style={[styles.tipDismissText, { color: COLORS.textSecondary }]}>
+                {isRTL ? 'إغلاق' : 'Dismiss'}
+              </Text>
+            </TouchableOpacity>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
+
       <Sidebar visible={sidebarVisible} onClose={() => setSidebarVisible(false)} />
     </SafeAreaView>
   );
@@ -701,6 +743,49 @@ const makeStyles = (C: any, isRTL: boolean, SHADOWS: any) =>
       borderColor: C.background,
     },
     bellBadgeText: { color: '#fff', fontSize: 10, fontWeight: '800' },
+
+    tipBackdrop: {
+      flex: 1,
+      backgroundColor: '#00000077',
+      justifyContent: 'flex-end',
+    },
+    tipSheet: {
+      backgroundColor: C.background,
+      borderTopLeftRadius: 24,
+      borderTopRightRadius: 24,
+      paddingHorizontal: 24,
+      paddingTop: 12,
+      paddingBottom: 32,
+      alignItems: 'center',
+    },
+    tipHandle: {
+      width: 40, height: 4, borderRadius: 2,
+      backgroundColor: C.border,
+      marginBottom: 20,
+    },
+    tipIconWrap: {
+      width: 64, height: 64, borderRadius: 20,
+      backgroundColor: '#F59E0B18',
+      alignItems: 'center', justifyContent: 'center',
+      marginBottom: 14,
+    },
+    tipSheetTitle: {
+      fontSize: 19, fontWeight: '800', color: C.text,
+      marginBottom: 8, textAlign: 'center',
+    },
+    tipSheetBody: {
+      fontSize: 15, lineHeight: 24, color: C.textSecondary,
+      textAlign: 'center', marginBottom: 24,
+    },
+    tipCta: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center', justifyContent: 'center',
+      gap: 8, alignSelf: 'stretch',
+      minHeight: 50, borderRadius: 14,
+    },
+    tipCtaText: { color: '#fff', fontWeight: '800', fontSize: 15 },
+    tipDismiss: { marginTop: 12, paddingVertical: 6 },
+    tipDismissText: { fontSize: 14, fontWeight: '600' },
     logo: { fontSize: 22, fontWeight: '900', letterSpacing: 0.5 },
 
     greetingSmall: { fontSize: 14, fontWeight: '600', textAlign: isRTL ? 'right' : 'left' },
