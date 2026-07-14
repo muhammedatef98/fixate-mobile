@@ -1,24 +1,31 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Animated, Easing, Image, StyleSheet, View, AccessibilityInfo } from 'react-native';
+import { Animated, Easing, StyleSheet, View, Text, AccessibilityInfo } from 'react-native';
 
 /**
- * Animated splash overlay (FEATURE-2).
+ * Animated splash overlay.
  *
- * Implemented with React Native's Animated API rather than Lottie on purpose:
- * lottie-react-native is a native module that isn't in the binary, and adding it
- * would force a native rebuild (the same "module not found" class of crash that
- * has already bitten this project). The requested effect — the Fixate logo
- * fading + scaling in with a subtle pulse over ~2s — is fully expressible with
- * Animated, works on the current binary, and needs no rebuild.
+ * Built on React Native's Animated API rather than Lottie on purpose:
+ * lottie-react-native is a native module that isn't in the binary, and adding
+ * it would force a native rebuild. Everything here animates only `transform`
+ * and `opacity`, so it runs entirely on the native driver — no rebuild, no
+ * JS-thread jank.
  *
- * The native static splash (assets/splash.png, #ffffff) is the first frame, and
- * this overlay uses the same background, so there is no flash on hand-off.
+ * Choreography (~2.2s):
+ *   1. Two brand-green rings pulse outward behind the mark (depth + energy).
+ *   2. The logo springs in from small with a slight counter-rotation, so the
+ *      gear reads as "clicking" into place — thematic for a repair app.
+ *   3. The "Fixate" wordmark fades and rises beneath the mark.
+ *   4. Brief hold, then the whole overlay fades out into the app.
  *
- * Respects reduce-motion: when enabled, the logo is shown statically for 800ms
- * then we continue (no fade/scale/pulse).
+ * The native static splash (assets/splash.png, #ffffff) is the first frame and
+ * shares this background, so there is no flash on hand-off.
+ *
+ * Respects reduce-motion: the logo + wordmark are shown statically for 900ms,
+ * then we continue (no rings, spin, or pulse).
  */
 
 const BG = '#ffffff';
+const BRAND = '#10B981';
 const LOGO = require('../assets/fixate-logo-main.png');
 
 interface AnimatedSplashProps {
@@ -26,9 +33,17 @@ interface AnimatedSplashProps {
 }
 
 export default function AnimatedSplash({ onFinish }: AnimatedSplashProps) {
-  const opacity = useRef(new Animated.Value(0)).current;
-  const scale = useRef(new Animated.Value(0.86)).current;
+  const logoOpacity = useRef(new Animated.Value(0)).current;
+  const logoScale = useRef(new Animated.Value(0.68)).current;
+  const logoSpin = useRef(new Animated.Value(0)).current; // 0 → 1 maps to -14deg → 0
+  const wordOpacity = useRef(new Animated.Value(0)).current;
+  const wordShift = useRef(new Animated.Value(14)).current;
   const containerOpacity = useRef(new Animated.Value(1)).current;
+
+  // Each ring animates a shared 0→1 progress into scale + fade.
+  const ring1 = useRef(new Animated.Value(0)).current;
+  const ring2 = useRef(new Animated.Value(0)).current;
+
   const [reduceMotion, setReduceMotion] = useState<boolean | null>(null);
 
   useEffect(() => {
@@ -45,69 +60,116 @@ export default function AnimatedSplash({ onFinish }: AnimatedSplashProps) {
     const fadeOutAndFinish = () => {
       Animated.timing(containerOpacity, {
         toValue: 0,
-        duration: 220,
+        duration: 260,
         easing: Easing.out(Easing.quad),
         useNativeDriver: true,
       }).start(() => onFinish());
     };
 
     if (reduceMotion) {
-      // Static logo, brief hold, then continue.
-      opacity.setValue(1);
-      scale.setValue(1);
-      const t = setTimeout(fadeOutAndFinish, 800);
+      logoOpacity.setValue(1);
+      logoScale.setValue(1);
+      logoSpin.setValue(1);
+      wordOpacity.setValue(1);
+      wordShift.setValue(0);
+      const t = setTimeout(fadeOutAndFinish, 900);
       return () => clearTimeout(t);
     }
 
-    // Fade + scale in (~700ms), a subtle pulse, then settle and hand off.
-    const intro = Animated.parallel([
-      Animated.timing(opacity, {
+    // One expanding-ring pulse: scale out while fading away.
+    const ringPulse = (v: Animated.Value, delay: number) =>
+      Animated.sequence([
+        Animated.delay(delay),
+        Animated.timing(v, {
+          toValue: 1,
+          duration: 1100,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+      ]);
+
+    // Mark springs + spins into place.
+    const markIn = Animated.parallel([
+      Animated.timing(logoOpacity, {
         toValue: 1,
-        duration: 700,
+        duration: 500,
         easing: Easing.out(Easing.cubic),
         useNativeDriver: true,
       }),
-      Animated.timing(scale, {
+      Animated.spring(logoScale, {
+        toValue: 1,
+        friction: 6,
+        tension: 70,
+        useNativeDriver: true,
+      }),
+      Animated.timing(logoSpin, {
         toValue: 1,
         duration: 700,
+        easing: Easing.out(Easing.back(1.6)),
+        useNativeDriver: true,
+      }),
+    ]);
+
+    // Wordmark rises in just after the mark lands.
+    const wordIn = Animated.parallel([
+      Animated.timing(wordOpacity, {
+        toValue: 1,
+        duration: 480,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+      Animated.timing(wordShift, {
+        toValue: 0,
+        duration: 560,
         easing: Easing.out(Easing.cubic),
         useNativeDriver: true,
       }),
     ]);
 
-    const pulse = Animated.sequence([
-      Animated.timing(scale, {
-        toValue: 1.06,
-        duration: 420,
-        easing: Easing.inOut(Easing.quad),
-        useNativeDriver: true,
-      }),
-      Animated.timing(scale, {
-        toValue: 1.0,
-        duration: 420,
-        easing: Easing.inOut(Easing.quad),
-        useNativeDriver: true,
-      }),
-    ]);
-
-    // Total ≈ 700 + 840 + 260 hold ≈ 1.8–2.0s, within the 1.8–2.2s budget.
-    const seq = Animated.sequence([intro, pulse, Animated.delay(260)]);
-    seq.start(({ finished }) => {
+    // Rings run in parallel with the intro; the mark/word are sequenced.
+    Animated.parallel([
+      ringPulse(ring1, 120),
+      ringPulse(ring2, 520),
+      Animated.sequence([
+        markIn,
+        Animated.delay(120),
+        wordIn,
+        Animated.delay(420),
+      ]),
+    ]).start(({ finished }) => {
       if (finished) fadeOutAndFinish();
     });
-    return () => seq.stop();
   }, [reduceMotion]);
+
+  const spin = logoSpin.interpolate({ inputRange: [0, 1], outputRange: ['-14deg', '0deg'] });
+
+  const ringStyle = (v: Animated.Value) => ({
+    opacity: v.interpolate({ inputRange: [0, 0.15, 1], outputRange: [0, 0.28, 0] }),
+    transform: [{ scale: v.interpolate({ inputRange: [0, 1], outputRange: [0.5, 2.6] }) }],
+  });
 
   return (
     <Animated.View style={[styles.container, { opacity: containerOpacity }]}>
-      <Animated.Image
-        source={LOGO}
-        resizeMode="contain"
-        style={[styles.logo, { opacity, transform: [{ scale }] }]}
-      />
+      <View style={styles.stage}>
+        {/* Depth rings behind the mark */}
+        <Animated.View style={[styles.ring, ringStyle(ring1)]} pointerEvents="none" />
+        <Animated.View style={[styles.ring, ringStyle(ring2)]} pointerEvents="none" />
+
+        <Animated.Image
+          source={LOGO}
+          resizeMode="contain"
+          style={[styles.logo, { opacity: logoOpacity, transform: [{ scale: logoScale }, { rotate: spin }] }]}
+        />
+      </View>
+
+      <Animated.View style={{ opacity: wordOpacity, transform: [{ translateY: wordShift }] }}>
+        <Text style={styles.wordmark}>Fixate</Text>
+      </Animated.View>
     </Animated.View>
   );
 }
+
+const RING_SIZE = 180;
 
 const styles = StyleSheet.create({
   container: {
@@ -117,5 +179,21 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     zIndex: 9999,
   },
-  logo: { width: 200, height: 200 },
+  stage: { alignItems: 'center', justifyContent: 'center' },
+  ring: {
+    position: 'absolute',
+    width: RING_SIZE,
+    height: RING_SIZE,
+    borderRadius: RING_SIZE / 2,
+    borderWidth: 2,
+    borderColor: BRAND,
+  },
+  logo: { width: 168, height: 168 },
+  wordmark: {
+    marginTop: 18,
+    fontSize: 34,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+    color: '#0f172a',
+  },
 });

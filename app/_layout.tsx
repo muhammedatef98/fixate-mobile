@@ -1,6 +1,6 @@
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { View, Platform } from 'react-native';
 import {
   SafeAreaProvider,
@@ -40,6 +40,7 @@ import { useOtaUpdates } from '../hooks/useOtaUpdates';
 // AppProvider"). iOS uses APNs via expo-notifications and never needs it.
 import { ensureAndroidNotificationChannel } from '../lib/notifications';
 import GearLoader from '../components/GearLoader';
+import AnimatedSplash from '../components/AnimatedSplash';
 import '../i18n';
 
 initSentry();
@@ -456,6 +457,8 @@ function RootLayoutContent() {
 
 export default function RootLayout() {
   useOtaUpdates();
+  // Branded intro overlay, shown once per cold start on top of the app tree.
+  const [splashDone, setSplashDone] = useState(false);
   const [fontsLoaded] = useFonts({
     IBMPlexSansArabic_400Regular,
     IBMPlexSansArabic_500Medium,
@@ -501,6 +504,7 @@ export default function RootLayout() {
                 <ThemeProvider>
                   <RequestProvider>
                     <RootLayoutContent />
+                    {!splashDone && <AnimatedSplash onFinish={() => setSplashDone(true)} />}
                   </RequestProvider>
                 </ThemeProvider>
               </LoyaltyProvider>
