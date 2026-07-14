@@ -169,6 +169,33 @@ export default function CourierProfileScreen() {
                     : isRTL ? 'قيد المراجعة' : 'Under review'}
                 </Text>
               </View>
+              {/* Working status — reflects the online/offline switch on the
+                  Available tab. Only meaningful once approved. */}
+              {isApproved && (
+                <View
+                  style={[
+                    styles.statusPill,
+                    {
+                      backgroundColor: courier?.available ? '#10b98118' : COLORS.border + '55',
+                      alignSelf: isRTL ? 'flex-end' : 'flex-start',
+                    },
+                  ]}
+                >
+                  <View
+                    style={{
+                      width: 8,
+                      height: 8,
+                      borderRadius: 4,
+                      backgroundColor: courier?.available ? '#10b981' : '#9CA3AF',
+                    }}
+                  />
+                  <Text style={{ color: courier?.available ? '#10b981' : COLORS.textSecondary, fontSize: 12, fontWeight: '700' }}>
+                    {courier?.available
+                      ? isRTL ? 'متاح الآن' : 'Online'
+                      : isRTL ? 'غير متاح' : 'Offline'}
+                  </Text>
+                </View>
+              )}
             </View>
           </View>
         </View>
