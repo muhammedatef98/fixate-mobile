@@ -10,7 +10,6 @@ import {
   Animated,
   StatusBar,
   Alert,
-  Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -18,7 +17,10 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { getColors, getShadows, SPACING, BORDER_RADIUS } from '../../constants/theme';
 import { useApp } from '../../contexts/AppContext';
 import { useAuth } from '../../contexts/AuthContext';
-import BottomNav from '../../components/BottomNav';
+import BottomNav, {
+  BOTTOM_NAV_TOP,
+  BOTTOM_NAV_SIDE_INSET,
+} from '../../components/BottomNav';
 import Sidebar from '../../components/Sidebar';
 import { supabase } from '../../services/supabaseClient';
 import { ORDER_STATUS_LABELS_AR, ORDER_STATUS_LABELS_EN } from '../../types/order';
@@ -41,6 +43,14 @@ const DEVICE_CATEGORIES = [
   { id: 'tablet', titleEn: 'Tablets', titleAr: 'تابلت', icon: 'tablet', accent: '#8B5CF6', fromPrice: 100 },
   { id: 'watch', titleEn: 'Watches', titleAr: 'ساعات', icon: 'watch-variant', accent: '#F59E0B', fromPrice: 150 },
 ];
+
+// Smart-assistant floating icon. Size is unchanged; only its anchoring moved.
+// The gap is measured from the TOP of the bottom nav bar — small enough that the
+// icon visibly belongs to the nav's interaction zone, large enough that the two
+// never touch or overlap (the bar carries a 20px shadow, so 10px of clear air
+// reads as deliberate breathing room rather than a collision).
+const ASSISTANT_FAB_SIZE = 54;
+const ASSISTANT_FAB_GAP = 10;
 
 // Warranty length applied to every completed repair (months). Used to derive
 // the warranty-expiry date shown on the home "Repair warranty" card.
@@ -262,10 +272,15 @@ export default function CustomerHomeScreen() {
         </View>
       </View>
 
-      {/* paddingBottom clears BOTH floating layers: the bottom nav (~90px) and
-          the smart-assistant icon parked above it — so the last section never
-          scrolls to a stop underneath either. */}
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 176 }}>
+      {/* Clears BOTH floating layers — the nav bar and the assistant icon parked
+          above it — derived from their real geometry so content never stops
+          underneath either, on any screen size. */}
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{
+          paddingBottom: BOTTOM_NAV_TOP + ASSISTANT_FAB_GAP + ASSISTANT_FAB_SIZE + 16,
+        }}
+      >
         <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }], paddingHorizontal: SPACING.m, paddingTop: SPACING.s, paddingBottom: SPACING.m }}>
           {/* Greeting + wallet on one row — compact, balanced header */}
           <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
@@ -863,16 +878,24 @@ const makeStyles = (C: any, isRTL: boolean, SHADOWS: any) =>
     trustTitle: { fontSize: 12, fontWeight: '800', textAlign: 'center' },
     trustSub: { fontSize: 11, fontWeight: '500', textAlign: 'center' },
 
-    // Floating smart-assistant icon. Parked just above the floating bottom
-    // nav (its bar is 70px tall and offset 20/30px from the bottom) on the
-    // trailing edge, so it never overlaps the nav or the RTL/LTR content.
+    // Floating smart-assistant icon — anchored to the nav bar's real top edge
+    // (BOTTOM_NAV_TOP) plus one tight gap, so it reads as part of the lower
+    // interaction zone rather than drifting up into the content. Both the FAB
+    // and the bar live in the same absolutely-positioned box, so this single
+    // offset stays correct on every screen size and under any safe-area inset:
+    // whatever padding lifts the bar lifts the FAB with it, preserving the gap.
+    // Side inset matches the bar's own, so the two line up on the same edge —
+    // and it flips with isRTL, keeping the icon on the trailing side in both
+    // directions.
     assistantFab: {
       position: 'absolute',
-      bottom: (Platform.OS === 'ios' ? 30 : 20) + 70 + 14,
-      ...(isRTL ? { left: 16 } : { right: 16 }),
-      width: 54,
-      height: 54,
-      borderRadius: 27,
+      bottom: BOTTOM_NAV_TOP + ASSISTANT_FAB_GAP,
+      ...(isRTL
+        ? { left: BOTTOM_NAV_SIDE_INSET }
+        : { right: BOTTOM_NAV_SIDE_INSET }),
+      width: ASSISTANT_FAB_SIZE,
+      height: ASSISTANT_FAB_SIZE,
+      borderRadius: ASSISTANT_FAB_SIZE / 2,
       alignItems: 'center',
       justifyContent: 'center',
       borderWidth: 2,

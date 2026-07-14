@@ -7,6 +7,23 @@ import { getColors } from '../constants/theme';
 import { selection } from '../utils/haptics';
 import { AnimatedTouchable } from './ui/PressableScale';
 
+/**
+ * Geometry of the floating nav bar, exported so anything that has to sit
+ * relative to it (e.g. the home smart-assistant FAB) anchors off the real
+ * numbers instead of re-deriving them by hand and silently drifting.
+ *
+ *   BOTTOM_NAV_TOP = distance from the parent's bottom padding edge to the
+ *   TOP of the bar. Park a floating element at BOTTOM_NAV_TOP + gap to sit
+ *   just above the bar without overlapping it.
+ *
+ * BOTTOM_NAV_SIDE_INSET matches the bar's own horizontal inset, so a FAB
+ * pinned to it lines up flush with the bar's edge.
+ */
+export const BOTTOM_NAV_BAR_HEIGHT = 70;
+export const BOTTOM_NAV_BOTTOM_OFFSET = Platform.OS === 'ios' ? 30 : 20;
+export const BOTTOM_NAV_TOP = BOTTOM_NAV_BOTTOM_OFFSET + BOTTOM_NAV_BAR_HEIGHT;
+export const BOTTOM_NAV_SIDE_INSET = 20;
+
 const NAV_ITEMS = [
   { path: '/(customer)', icon: 'home-outline', activeIcon: 'home', labelAr: 'الرئيسية', labelEn: 'Home' },
   { path: '/services', icon: 'construct-outline', activeIcon: 'construct', labelAr: 'الخدمات', labelEn: 'Services' },
@@ -66,18 +83,18 @@ export default function BottomNav(_props: { currentRoute?: string } = {}) {
 const makeStyles = (C: any, isDark: boolean) => StyleSheet.create({
   container: {
     position: 'absolute',
-    bottom: Platform.OS === 'ios' ? 30 : 20,
+    bottom: BOTTOM_NAV_BOTTOM_OFFSET,
     left: 0,
     right: 0,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 20,
+    paddingHorizontal: BOTTOM_NAV_SIDE_INSET,
   },
   floatingBar: {
     flexDirection: 'row',
     backgroundColor: C.card,
     width: '100%',
-    height: 70,
+    height: BOTTOM_NAV_BAR_HEIGHT,
     borderRadius: 35,
     alignItems: 'center',
     justifyContent: 'space-around',
