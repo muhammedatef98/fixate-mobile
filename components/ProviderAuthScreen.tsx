@@ -448,6 +448,9 @@ const createStyles = (COLORS: any, isRTL: boolean) => StyleSheet.create({
   logoImage: {
     width: 84,
     height: 84,
+    // The mark's ink sits up-and-left of its canvas centre (centroid 232,139 of
+    // 510x380), so box-centring reads as off inside the circle. Nudge it back.
+    transform: [{ translateX: 2 }, { translateY: 4 }],
   },
   brandName: {
     fontSize: 28,
