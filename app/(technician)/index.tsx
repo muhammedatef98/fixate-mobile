@@ -43,7 +43,7 @@ const { width } = Dimensions.get('window');
 // مقبولة · مرفوضة · ملغاة. "in_progress" maps to the whole active lifecycle.
 type OrderFilterKey = 'all' | 'completed' | 'in_progress' | 'accepted' | 'rejected' | 'cancelled';
 
-const ORDER_FILTERS: AdminFilterChip<OrderFilterKey>[] = [
+const ORDER_FILTER_KEYS: { key: OrderFilterKey; ar: string; en: string }[] = [
   { key: 'all', ar: 'الكل', en: 'All' },
   { key: 'completed', ar: 'مكتملة', en: 'Completed' },
   { key: 'in_progress', ar: 'قيد التنفيذ', en: 'In progress' },
@@ -450,6 +450,17 @@ export default function TechnicianHomeScreen() {
   // "My Orders" tab, filtered by the selected status chip (client-side).
   const visibleMyOrders = myOrders.filter((o) => matchesOrderFilter(o.status, myOrdersFilter));
 
+  // Per-status counts on the My Orders filter chips (parity with the customer
+  // orders screen) so the technician sees the spread without tapping each chip.
+  const myOrdersFilterChips: AdminFilterChip<OrderFilterKey>[] = useMemo(
+    () =>
+      ORDER_FILTER_KEYS.map((f) => ({
+        ...f,
+        count: myOrders.filter((o) => matchesOrderFilter(o.status, f.key)).length,
+      })),
+    [myOrders]
+  );
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={COLORS.background} />
@@ -633,7 +644,7 @@ export default function TechnicianHomeScreen() {
 
       {/* Status filter chips — only for the "My Orders" tab */}
       {activeTab === 'my-orders' && (
-        <AdminFilterChips filters={ORDER_FILTERS} value={myOrdersFilter} onChange={setMyOrdersFilter} />
+        <AdminFilterChips filters={myOrdersFilterChips} value={myOrdersFilter} onChange={setMyOrdersFilter} />
       )}
 
       {/* Orders List */}
