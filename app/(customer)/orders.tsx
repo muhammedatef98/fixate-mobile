@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar, Animated, ActivityIndicator, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -31,7 +31,7 @@ import { Riyal } from '../../components/Riyal';
 // of order statuses so the six chips cover every status the app uses.
 type OrderFilterKey = 'all' | 'accepted' | 'in_progress' | 'completed' | 'rejected' | 'cancelled';
 
-const ORDER_FILTERS: AdminFilterChip<OrderFilterKey>[] = [
+const ORDER_FILTER_KEYS: { key: OrderFilterKey; ar: string; en: string }[] = [
   { key: 'all', ar: 'الكل', en: 'All' },
   { key: 'accepted', ar: 'مقبولة', en: 'Accepted' },
   { key: 'in_progress', ar: 'قيد التنفيذ', en: 'In progress' },
@@ -271,6 +271,17 @@ export default function OrdersScreen() {
   // Client-side status filtering for the requests list (CHANGE 2).
   const visibleOrders = orders.filter((o) => matchesOrderFilter(o.status, filter));
 
+  // Per-status counts shown on the filter chips, so the customer sees how many
+  // orders sit under each status without tapping through.
+  const filterChips: AdminFilterChip<OrderFilterKey>[] = useMemo(
+    () =>
+      ORDER_FILTER_KEYS.map((f) => ({
+        ...f,
+        count: orders.filter((o) => matchesOrderFilter(o.status, f.key)).length,
+      })),
+    [orders]
+  );
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={COLORS.background} />
@@ -279,8 +290,8 @@ export default function OrdersScreen() {
         <Text style={styles.headerTitle}>{isRTL ? 'طلباتي' : 'My Orders'}</Text>
       </View>
 
-      {/* Status filter bar — admin-style pill chips (CHANGE 2) */}
-      <AdminFilterChips filters={ORDER_FILTERS} value={filter} onChange={setFilter} />
+      {/* Status filter bar — admin-style pill chips with per-status counts */}
+      <AdminFilterChips filters={filterChips} value={filter} onChange={setFilter} />
 
       <ScrollView 
         showsVerticalScrollIndicator={false} 
