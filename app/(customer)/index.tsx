@@ -45,12 +45,18 @@ const DEVICE_CATEGORIES = [
 ];
 
 // Smart-assistant floating icon. Size is unchanged; only its anchoring moved.
-// The gap is measured from the TOP of the bottom nav bar — small enough that the
-// icon visibly belongs to the nav's interaction zone, large enough that the two
-// never touch or overlap (the bar carries a 20px shadow, so 10px of clear air
-// reads as deliberate breathing room rather than a collision).
+//
+// It sits ON THE SHOULDER of the bottom nav bar: the puck's bottom edge dips
+// ASSISTANT_FAB_OVERLAP below the bar's top edge, so the two read as one
+// attached cluster instead of the icon floating off into the content (same
+// language as the market FAB). Measured from BOTTOM_NAV_TOP, never hardcoded.
+//
+// The overlap is deliberately small. The bar is 70pt tall, so a 12pt dip still
+// leaves the nav item beneath it 58pt of tappable height — comfortably above the
+// 44pt minimum touch target — and the item's leading half is untouched. Pushing
+// the overlap much past this would start eating the nav's icon row.
 const ASSISTANT_FAB_SIZE = 54;
-const ASSISTANT_FAB_GAP = 10;
+const ASSISTANT_FAB_OVERLAP = 12;
 
 // Warranty length applied to every completed repair (months). Used to derive
 // the warranty-expiry date shown on the home "Repair warranty" card.
@@ -278,7 +284,10 @@ export default function CustomerHomeScreen() {
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
-          paddingBottom: BOTTOM_NAV_TOP + ASSISTANT_FAB_GAP + ASSISTANT_FAB_SIZE + 16,
+          // Clear the taller of the two floating layers. The FAB now overlaps the
+          // bar, so its top edge — not the bar's — is the real content ceiling.
+          paddingBottom:
+            BOTTOM_NAV_TOP - ASSISTANT_FAB_OVERLAP + ASSISTANT_FAB_SIZE + 16,
         }}
       >
         <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }], paddingHorizontal: SPACING.m, paddingTop: SPACING.s, paddingBottom: SPACING.m }}>
@@ -591,10 +600,16 @@ export default function CustomerHomeScreen() {
         </Animated.View>
       </ScrollView>
 
-      {/* Smart assistant — a floating icon that rides above the content and
-          stays reachable from anywhere on the home screen (it replaced the
-          in-flow assistant card, which scrolled out of sight). Sits on the
-          trailing edge, clear of the floating bottom nav. */}
+      <BottomNav />
+
+      {/* Smart assistant — a floating icon that stays reachable from anywhere on
+          the home screen (it replaced the in-flow assistant card, which scrolled
+          out of sight). It rests on the nav bar's shoulder, overlapping its top
+          edge slightly so the two read as one attached cluster.
+
+          MUST render after <BottomNav />: RN paints siblings in source order, so
+          declaring it first would tuck the puck UNDER the bar on iOS, where
+          elevation is ignored. */}
       <AnimatedTouchable
         onPress={() => router.push('/chatbot')}
         style={[styles.assistantFab, { backgroundColor: COLORS.primary }]}
@@ -605,7 +620,6 @@ export default function CustomerHomeScreen() {
         <MaterialCommunityIcons name="robot-happy-outline" size={26} color="#fff" />
       </AnimatedTouchable>
 
-      <BottomNav />
       <Sidebar visible={sidebarVisible} onClose={() => setSidebarVisible(false)} />
     </SafeAreaView>
   );
@@ -879,20 +893,25 @@ const makeStyles = (C: any, isRTL: boolean, SHADOWS: any) =>
     trustSub: { fontSize: 11, fontWeight: '500', textAlign: 'center' },
 
     // Floating smart-assistant icon — anchored to the nav bar's real top edge
-    // (BOTTOM_NAV_TOP) plus one tight gap, so it reads as part of the lower
-    // interaction zone rather than drifting up into the content. Both the FAB
-    // and the bar live in the same absolutely-positioned box, so this single
-    // offset stays correct on every screen size and under any safe-area inset:
-    // whatever padding lifts the bar lifts the FAB with it, preserving the gap.
-    // Side inset matches the bar's own, so the two line up on the same edge —
-    // and it flips with isRTL, keeping the icon on the trailing side in both
-    // directions.
+    // (BOTTOM_NAV_TOP), which it deliberately overlaps so it rests on the bar's
+    // shoulder. Both the FAB and the bar live in the same absolutely-positioned
+    // box, so this single offset holds on every screen size and under any
+    // safe-area inset: whatever padding lifts the bar lifts the FAB with it,
+    // preserving the overlap exactly. Side inset matches the bar's own, so the
+    // two share an edge — and it flips with isRTL, keeping the icon on the
+    // trailing side in both directions.
     assistantFab: {
       position: 'absolute',
-      bottom: BOTTOM_NAV_TOP + ASSISTANT_FAB_GAP,
+      // Dip below the bar's top edge so the puck rests on its shoulder.
+      bottom: BOTTOM_NAV_TOP - ASSISTANT_FAB_OVERLAP,
       ...(isRTL
         ? { left: BOTTOM_NAV_SIDE_INSET }
         : { right: BOTTOM_NAV_SIDE_INSET }),
+      // Must paint OVER the bar, not under it. The bar runs at elevation 10, so
+      // on Android the FAB needs a higher elevation; zIndex covers iOS/web.
+      // (Render order — FAB after <BottomNav /> — is what makes this work on
+      // iOS, where elevation is ignored.)
+      zIndex: 10,
       width: ASSISTANT_FAB_SIZE,
       height: ASSISTANT_FAB_SIZE,
       borderRadius: ASSISTANT_FAB_SIZE / 2,
@@ -904,6 +923,6 @@ const makeStyles = (C: any, isRTL: boolean, SHADOWS: any) =>
       shadowOffset: { width: 0, height: 8 },
       shadowOpacity: 0.45,
       shadowRadius: 16,
-      elevation: 10,
+      elevation: 12,
     },
   });
