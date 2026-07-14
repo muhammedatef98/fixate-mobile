@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -11,7 +11,7 @@ import {
   StatusBar,
   Alert,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { getColors, getShadows, SPACING, BORDER_RADIUS } from '../../constants/theme';
@@ -28,6 +28,7 @@ import { formatAppDateOnly } from '../../lib/formatDate';
 import { logger } from '../../utils/logger';
 import { resolveGreetingName } from '../../utils/greeting';
 import { getWalletBalance } from '../../services/customerWalletService';
+import { getUnreadCount } from '../../utils/notifications';
 import { RTLIonicon } from '../../components/RTLIcon';
 import { PressableScale, AnimatedTouchable } from '../../components/ui/PressableScale';
 import { Skeleton } from '../../components/ui/Skeleton';
@@ -137,6 +138,7 @@ export default function CustomerHomeScreen() {
   const [recentOrder, setRecentOrder] = useState<any>(null);
   const [pendingQuotes, setPendingQuotes] = useState(0);
   const [walletBalance, setWalletBalance] = useState(0);
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
   const [loading, setLoading] = useState(true);
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(20)).current;
@@ -166,6 +168,23 @@ export default function CustomerHomeScreen() {
       }
     })();
   }, [user?.id]);
+
+  // Refresh the unread-notifications badge every time the home tab regains
+  // focus (e.g. returning from the notifications screen after reading some),
+  // not just on mount — otherwise the badge would go stale.
+  useFocusEffect(
+    useCallback(() => {
+      if (!user?.id) {
+        setUnreadNotifications(0);
+        return;
+      }
+      let cancelled = false;
+      getUnreadCount(user.id)
+        .then((n) => { if (!cancelled) setUnreadNotifications(n); })
+        .catch(() => {});
+      return () => { cancelled = true; };
+    }, [user?.id])
+  );
 
   const loadActiveOrder = async () => {
     if (!user?.id) return;
@@ -282,9 +301,24 @@ export default function CustomerHomeScreen() {
             onPress={() => router.push('/notifications')}
             style={[styles.iconBtn, { backgroundColor: COLORS.card, borderColor: COLORS.border }]}
             accessibilityRole="button"
-            accessibilityLabel={isRTL ? 'الإشعارات' : 'Notifications'}
+            accessibilityLabel={
+              unreadNotifications > 0
+                ? (isRTL ? `الإشعارات، ${unreadNotifications} غير مقروءة` : `Notifications, ${unreadNotifications} unread`)
+                : (isRTL ? 'الإشعارات' : 'Notifications')
+            }
           >
-            <Ionicons name="notifications-outline" size={18} color={COLORS.text} />
+            <Ionicons
+              name={unreadNotifications > 0 ? 'notifications' : 'notifications-outline'}
+              size={18}
+              color={unreadNotifications > 0 ? COLORS.primary : COLORS.text}
+            />
+            {unreadNotifications > 0 && (
+              <View style={styles.bellBadge}>
+                <Text style={styles.bellBadgeText}>
+                  {unreadNotifications > 9 ? '9+' : unreadNotifications}
+                </Text>
+              </View>
+            )}
           </AnimatedTouchable>
         </View>
       </View>
@@ -652,6 +686,21 @@ const makeStyles = (C: any, isRTL: boolean, SHADOWS: any) =>
       alignItems: 'center', justifyContent: 'center',
       borderWidth: 1,
     },
+    bellBadge: {
+      position: 'absolute',
+      top: -3,
+      [isRTL ? 'left' : 'right']: -3,
+      minWidth: 18,
+      height: 18,
+      borderRadius: 9,
+      paddingHorizontal: 4,
+      backgroundColor: '#EF4444',
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 2,
+      borderColor: C.background,
+    },
+    bellBadgeText: { color: '#fff', fontSize: 10, fontWeight: '800' },
     logo: { fontSize: 22, fontWeight: '900', letterSpacing: 0.5 },
 
     greetingSmall: { fontSize: 14, fontWeight: '600', textAlign: isRTL ? 'right' : 'left' },
