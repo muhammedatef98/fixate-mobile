@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, Alert } from 'react-native';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { getColors, getShadows, SPACING, BORDER_RADIUS } from '../../constants/theme';
@@ -28,135 +28,73 @@ export default function EarningsScreen() {
   const SHADOWS = getShadows(isDark);
   
   const [selectedPeriod, setSelectedPeriod] = useState('today');
-  const [earnings, setEarnings] = useState({
-    total: 0,
-    orders: 0,
-    average: 0,
-  });
-  const [orders, setOrders] = useState<any[]>([]);
+  // All completed jobs, fetched once; the period tabs filter this client-side
+  // (they're the same dataset sliced by date, so re-fetching per tab was waste).
+  const [completed, setCompleted] = useState<any[]>([]);
+  const [refreshing, setRefreshing] = useState(false);
   const { user } = useAuth();
   const isRTL = language === 'ar';
   const styles = makeStyles(isRTL);
   const localStyles = makeLocalStyles(isRTL);
-  // Wallet state — balance from DB view, recent ledger entries, and
-  // whether the backend layer is still pending (UI degrades gracefully).
   const [wallet, setWallet] = useState<{ balance: number; pendingBackend: boolean }>({ balance: 0, pendingBackend: true });
-  const [walletEntries, setWalletEntries] = useState<walletService.WalletEntry[]>([]);
-  const [withdrawing, setWithdrawing] = useState(false);
 
-  useEffect(() => {
-    if (!user?.id) return;
-    (async () => {
-      const bal = await walletService.getWalletBalance(user.id);
-      setWallet(bal);
-      setWalletEntries(await walletService.listWalletEntries(user.id));
-    })();
-  }, [user?.id]);
-
-  const handleWithdraw = async () => {
-    if (!user?.id) return;
-    if (wallet.balance <= 0) {
-      Alert.alert(
-        isRTL ? 'لا يوجد رصيد للسحب' : 'No balance to withdraw',
-        isRTL ? 'الرصيد الحالي صفر. أكمل المزيد من الطلبات لجمع الأرباح.' : 'Your balance is zero. Complete more jobs to earn.'
-      );
-      return;
-    }
-    Alert.alert(
-      isRTL ? 'طلب سحب الأرباح' : 'Request payout',
-      isRTL
-        ? `سيتم إرسال طلب سحب ${wallet.balance.toFixed(0)} ر.س للإدارة. التحويل يتم عادة خلال 1-3 أيام عمل.`
-        : `A withdrawal request for ${wallet.balance.toFixed(0)} SAR will be sent to the admin team. Transfers usually arrive in 1-3 business days.`,
-      [
-        { text: isRTL ? 'إلغاء' : 'Cancel', style: 'cancel' },
-        {
-          text: isRTL ? 'تأكيد' : 'Confirm',
-          onPress: async () => {
-            setWithdrawing(true);
-            try {
-              const res = await walletService.requestWithdrawal(
-                user.id,
-                wallet.balance,
-                'bank_transfer'
-              );
-              if ((res as any).pendingBackend) {
-                Alert.alert(
-                  isRTL ? 'تم تسجيل الطلب' : 'Request recorded',
-                  isRTL
-                    ? 'تم تسجيل طلبك. ميزة سحب الأرباح قيد التهيئة من قبل فريق المنصة وسيتم تفعيلها قريباً.'
-                    : 'Your request was recorded locally. Full payout pipeline is being set up by the platform team.'
-                );
-              } else {
-                Alert.alert(
-                  isRTL ? 'تم إرسال الطلب ✓' : 'Request sent ✓',
-                  isRTL ? 'ستصلك رسالة عند الموافقة على التحويل.' : 'You will be notified once the transfer is approved.'
-                );
-              }
-            } finally {
-              setWithdrawing(false);
-            }
-          },
-        },
-      ]
-    );
-  };
-
-  useEffect(() => {
-    loadEarnings();
-  }, [selectedPeriod]);
-
-  const loadEarnings = async () => {
+  const load = useCallback(async () => {
     try {
-      const user = await auth.getCurrentUser();
-      if (!user) return;
-
-      const allOrders = await requests.getMyOrders();
-      const completedOrders = allOrders.filter((o: any) => 
-        o.technician_id === user.id && o.status === 'completed'
+      const currentUser = await auth.getCurrentUser();
+      if (!currentUser) return;
+      const [allOrders, bal] = await Promise.all([
+        requests.getMyOrders(),
+        walletService.getWalletBalance(currentUser.id),
+      ]);
+      setCompleted(
+        (allOrders as any[]).filter(
+          (o) => o.technician_id === currentUser.id && o.status === 'completed'
+        )
       );
-
-      // Filter by period
-      const now = new Date();
-      let filteredOrders = completedOrders;
-
-      if (selectedPeriod === 'today') {
-        const today = now.toDateString();
-        filteredOrders = completedOrders.filter((o: any) => 
-          new Date(o.updated_at).toDateString() === today
-        );
-      } else if (selectedPeriod === 'week') {
-        const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-        filteredOrders = completedOrders.filter((o: any) => 
-          new Date(o.updated_at) >= weekAgo
-        );
-      } else if (selectedPeriod === 'month') {
-        const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-        filteredOrders = completedOrders.filter((o: any) => 
-          new Date(o.updated_at) >= monthAgo
-        );
-      }
-
-      // Earnings basis = the accepted offer (payment v2), minus the
-      // technician's internal spare-part cost; legacy rows fall back to the
-      // old quote/estimate.
-      const grossOf = (o: any): number =>
-        Number(o.accepted_offer_amount ?? o.final_price ?? o.estimated_price ?? 0);
-      const total = filteredOrders.reduce(
-        (sum: number, o: any) => sum + Math.max(0, grossOf(o) - Number(o.spare_parts_cost ?? 0)),
-        0
-      );
-      const average = filteredOrders.length > 0 ? total / filteredOrders.length : 0;
-
-      setEarnings({
-        total,
-        orders: filteredOrders.length,
-        average,
-      });
-      setOrders(filteredOrders);
+      setWallet(bal);
     } catch (error) {
       logger.error('Error loading earnings:', error);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await load();
+    setRefreshing(false);
+  }, [load]);
+
+  // Earnings basis = the accepted offer (payment v2), minus the technician's
+  // internal spare-part cost; legacy rows fall back to the old quote/estimate.
+  const netOf = (o: any): number =>
+    Math.max(
+      0,
+      Number(o.accepted_offer_amount ?? o.final_price ?? o.estimated_price ?? 0) -
+        Number(o.spare_parts_cost ?? 0)
+    );
+
+  // Period filtering + totals, recomputed from the single fetched dataset.
+  const { orders, earnings } = useMemo(() => {
+    const now = Date.now();
+    const cutoff =
+      selectedPeriod === 'week' ? now - 7 * 24 * 60 * 60 * 1000
+      : selectedPeriod === 'month' ? now - 30 * 24 * 60 * 60 * 1000
+      : null;
+    const today = new Date().toDateString();
+    const filtered = completed.filter((o) => {
+      if (selectedPeriod === 'today') return new Date(o.updated_at).toDateString() === today;
+      if (cutoff !== null) return new Date(o.updated_at).getTime() >= cutoff;
+      return true; // 'all'
+    });
+    const total = filtered.reduce((sum, o) => sum + netOf(o), 0);
+    return {
+      orders: filtered,
+      earnings: { total, orders: filtered.length, average: filtered.length > 0 ? total / filtered.length : 0 },
+    };
+  }, [completed, selectedPeriod]);
 
   const renderEarningCard = (order: any) => (
     <View
@@ -174,7 +112,7 @@ export default function EarningsScreen() {
         </View>
         <View style={[styles.earningAmount, { backgroundColor: '#10B98115' }]}>
           <Text style={[styles.earningAmountText, { color: '#10B981' }]}>
-            +{Math.max(0, Number(order.accepted_offer_amount ?? order.final_price ?? order.estimated_price ?? 0) - Number(order.spare_parts_cost ?? 0))} <Riyal />
+            +{netOf(order)} <Riyal />
           </Text>
         </View>
       </View>
@@ -194,7 +132,13 @@ export default function EarningsScreen() {
         <View style={{ width: 24 }} />
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 120 }}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 120 }}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} colors={[COLORS.primary]} />
+        }
+      >
         {/* Wallet card — balance + withdraw CTA */}
         <View style={[localStyles.walletCard, { backgroundColor: COLORS.card, borderColor: COLORS.border }]}>
           <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -321,16 +265,6 @@ const makeLocalStyles = (isRTL: boolean) => StyleSheet.create({
   },
   walletLabel: { fontSize: 13, fontWeight: '600' },
   walletAmount: { fontSize: 28, fontWeight: '800', marginTop: 4 },
-  walletBtn: {
-    flexDirection: isRTL ? 'row-reverse' : 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 12,
-    borderRadius: BORDER_RADIUS.md,
-  },
-  walletBtnText: { color: '#fff', fontWeight: '700' },
-  walletNote: { fontSize: 11, lineHeight: 16, marginTop: 2, textAlign: 'center' },
 });
 
 const makeStyles = (isRTL: boolean) => StyleSheet.create({
