@@ -120,9 +120,16 @@ export default function WalletScreen() {
           <Text style={styles.balanceLabel}>
             {isRTL ? 'رصيد المحفظة' : 'Wallet balance'}
           </Text>
-          <Text style={styles.balanceValue}>
-            {balance.toFixed(2)} <Riyal />
-          </Text>
+          {/* On the first load, show a placeholder rather than a literal 0.00 —
+              a momentary "you have no money" on a financial screen is alarming
+              and, until the fetch resolves, simply untrue. */}
+          {loading && !refreshing ? (
+            <Text style={[styles.balanceValue, { opacity: 0.6 }]}>· · ·</Text>
+          ) : (
+            <Text style={styles.balanceValue}>
+              {balance.toFixed(2)} <Riyal />
+            </Text>
+          )}
           <TouchableOpacity style={styles.addFundsBtn} onPress={onAddFunds} accessibilityRole="button">
             <MaterialCommunityIcons name="plus-circle-outline" size={18} color={COLORS.primary} />
             <Text style={styles.addFundsText}>{isRTL ? 'إضافة رصيد' : 'Add funds'}</Text>
