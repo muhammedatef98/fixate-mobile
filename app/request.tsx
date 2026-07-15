@@ -480,11 +480,20 @@ export default function RequestScreen() {
     !!freeDeliveryPromo &&
     discountInput.trim().toUpperCase() === freeDeliveryPromo.toUpperCase();
 
+  // Free delivery wins over every priced path. Personal hand-off has no
+  // delivery leg; the admin master switch and the promo code deliberately
+  // zero the fee everywhere. This MUST be applied after the zone/distance
+  // resolution below — otherwise a city/neighborhood flat fee (every city
+  // currently has one) silently re-charges an order the UI shows as "Free".
+  const freeDeliveryOverride =
+    selectedServiceType === 'personal_handoff' ||
+    adminFreeDelivery ||
+    promoFreeDelivery;
+
   // Distance-based delivery fee with a hard 40-SAR cap. We pass the
   // service-area city (centroid lookup) AND the customer's GPS pin —
   // the helper picks tier-by-distance when both are present, falls back
-  // to the admin-managed flat fee, or zero on personal hand-off / free
-  // delivery overrides.
+  // to the admin-managed flat fee, or zero on the free override.
   const deliveryQuote: ComputedDeliveryFee = computeDeliveryFee({
     customer: location && location.latitude && location.longitude
       ? { lat: location.latitude, lng: location.longitude }
@@ -492,10 +501,7 @@ export default function RequestScreen() {
     cityNameEn: selectedCity?.name_en ?? null,
     cityNameAr: selectedCity?.name_ar ?? null,
     flatFee: selectedCity?.delivery_fee ?? null,
-    freeOverride:
-      selectedServiceType === 'personal_handoff' ||
-      adminFreeDelivery ||
-      promoFreeDelivery,
+    freeOverride: freeDeliveryOverride,
   });
   const baseDeliveryFee = deliveryQuote.fee;
   // Region → City → Neighborhood resolution. The nested tree already
@@ -503,8 +509,12 @@ export default function RequestScreen() {
   // synchronous: neighborhood fee (when matched + enabled) overrides the
   // city default; otherwise the city's `delivery_fee` is used.
   const zoneDeliveryFee = resolveDeliveryFee(selectedCity, selectedNeighborhood);
-  const deliveryFee = zoneDeliveryFee > 0 ? zoneDeliveryFee : baseDeliveryFee;
-  const isFreeDelivery = deliveryQuote.source === 'free' || deliveryFee === 0;
+  const deliveryFee = freeDeliveryOverride
+    ? 0
+    : zoneDeliveryFee > 0
+      ? zoneDeliveryFee
+      : baseDeliveryFee;
+  const isFreeDelivery = deliveryFee === 0;
   
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
@@ -1599,6 +1609,18 @@ export default function RequestScreen() {
                             ? 'نكتشف مدينتك تلقائياً من موقع الدبوس على الخريطة.'
                             : 'We auto-detect your city from the pin on the map.')}
                     </Text>
+                    {/* Admin-managed coverage message (platform settings). Kept
+                        in sync with the "Service-area messaging" admin section. */}
+                    {(() => {
+                      const msg = (isRTL
+                        ? platformSettings?.serviceAreaMessageAr
+                        : platformSettings?.serviceAreaMessageEn)?.trim();
+                      return msg ? (
+                        <Text style={[styles.coverageBody, { marginTop: 6, fontStyle: 'italic' }]}>
+                          {msg}
+                        </Text>
+                      ) : null;
+                    })()}
                   </View>
                 </View>
                 {selectedServiceType !== 'personal_handoff' && selectedCityAvailable && (
