@@ -488,7 +488,7 @@ const makeStyles = (C: any, isRTL: boolean) =>
     },
     sendBtnText: { color: '#fff', fontWeight: '800', fontSize: 15 },
     itemTitle: { color: C.text, fontWeight: '800', fontSize: 14, flex: 1 },
-    itemDate: { color: C.textSecondary, fontSize: 11, marginLeft: 8 },
+    itemDate: { color: C.textSecondary, fontSize: 11, [isRTL ? 'marginRight' : 'marginLeft']: 8 },
     itemBody: { color: C.text, fontSize: 13, marginTop: 6, textAlign: isRTL ? 'right' : 'left' },
     debugRow: {
       flexDirection: isRTL ? 'row-reverse' : 'row',
