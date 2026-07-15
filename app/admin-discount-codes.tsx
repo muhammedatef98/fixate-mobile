@@ -270,12 +270,23 @@ function DiscountCodeForm({
       Alert.alert(isRTL ? 'خطأ' : 'Error', isRTL ? 'الرجاء إكمال الحقول الأساسية' : 'Please fill required fields');
       return;
     }
+    // Validate the discount value: positive number, and ≤ 100 for a percentage.
+    // Without this a NaN or a 500% code could be saved and mangle checkout math.
+    const valueNum = Number(value);
+    if (!Number.isFinite(valueNum) || valueNum <= 0) {
+      Alert.alert(isRTL ? 'قيمة غير صالحة' : 'Invalid value', isRTL ? 'أدخل قيمة خصم أكبر من صفر.' : 'Enter a discount value greater than zero.');
+      return;
+    }
+    if (discountType === 'percent' && valueNum > 100) {
+      Alert.alert(isRTL ? 'نسبة غير صالحة' : 'Invalid percentage', isRTL ? 'النسبة المئوية يجب أن تكون بين 1 و 100.' : 'A percentage must be between 1 and 100.');
+      return;
+    }
     setSaving(true);
     try {
       const payload: DiscountCodeInput = {
         code: code.trim().toUpperCase(),
         discount_type: discountType,
-        discount_value: Number(value),
+        discount_value: valueNum,
         max_discount: maxDiscount ? Number(maxDiscount) : null,
         min_order_total: minOrder ? Number(minOrder) : 0,
         usage_limit: usageLimit ? Number(usageLimit) : null,

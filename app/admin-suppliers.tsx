@@ -6,6 +6,7 @@ import {
   SafeAreaView,
   StatusBar,
   ScrollView,
+  RefreshControl,
   TouchableOpacity,
   TextInput,
   Modal,
@@ -61,6 +62,13 @@ export default function AdminSuppliersScreen() {
     setLoading(true);
     setSuppliers(await listAllSuppliers());
     setLoading(false);
+  }, []);
+
+  const [refreshing, setRefreshing] = useState(false);
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    setSuppliers(await listAllSuppliers());
+    setRefreshing(false);
   }, []);
 
   useEffect(() => {
@@ -180,7 +188,12 @@ export default function AdminSuppliersScreen() {
           body={isRTL ? 'أضف موردي قطع الغيار ليصل إليهم الفنيون' : 'Add spare-parts suppliers for technicians to reach'}
         />
       ) : (
-        <ScrollView contentContainerStyle={{ padding: SPACING.lg, paddingBottom: 48 }}>
+        <ScrollView
+          contentContainerStyle={{ padding: SPACING.lg, paddingBottom: 48 }}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} colors={[COLORS.primary]} />
+          }
+        >
           {suppliers.map((s) => (
             <View key={s.id} style={[styles.card, !s.is_active && { opacity: 0.6 }]}>
               <View style={[styles.cardTop, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
