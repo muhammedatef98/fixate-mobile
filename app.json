@@ -12,7 +12,11 @@
       "translucent": false
     },
     "description": "منصة صيانة الأجهزة الإلكترونية في السعودية - إصلاح أجهزتك بسرعة وسهولة مع فنيين محترفين في موقعك",
-    "privacy": "https://fixate.site/privacy",
+    "androidNavigationBar": {
+      "visible": "sticky-immersive",
+      "barStyle": "dark-content",
+      "backgroundColor": "#ffffff"
+    },
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
@@ -24,7 +28,6 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.fixate.app",
-      "buildNumber": "1",
       "infoPlist": {
         "UIViewControllerBasedStatusBarAppearance": false,
         "UIStatusBarHidden": true,
@@ -88,12 +91,7 @@
       ],
       "blockedPermissions": [
         "android.permission.RECORD_AUDIO"
-      ],
-      "androidNavigationBar": {
-        "visible": "sticky-immersive",
-        "barStyle": "dark-content",
-        "backgroundColor": "#ffffff"
-      }
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png",
