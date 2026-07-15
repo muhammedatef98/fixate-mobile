@@ -162,7 +162,10 @@ export default function AnimatedSplash({ onFinish }: AnimatedSplashProps) {
         />
       </View>
 
-      <Animated.View style={{ opacity: wordOpacity, transform: [{ translateY: wordShift }] }}>
+      {/* Name floats just beneath the dead-centered mark (absolute, so it never
+          nudges the logo off centre — the logo stays where the native splash
+          put it, and the two read as one centered lockup). */}
+      <Animated.View style={[styles.wordWrap, { opacity: wordOpacity, transform: [{ translateY: wordShift }] }]}>
         <Text style={styles.wordmark}>Fixate</Text>
       </Animated.View>
     </Animated.View>
@@ -180,6 +183,16 @@ const styles = StyleSheet.create({
     zIndex: 9999,
   },
   stage: { alignItems: 'center', justifyContent: 'center' },
+  // Anchored to the vertical centre, then pushed just below the mark so the
+  // logo itself stays dead-centre (half the 168px logo + a small gap).
+  wordWrap: {
+    position: 'absolute',
+    top: '50%',
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    marginTop: 94,
+  },
   ring: {
     position: 'absolute',
     width: RING_SIZE,
@@ -190,7 +203,6 @@ const styles = StyleSheet.create({
   },
   logo: { width: 168, height: 168 },
   wordmark: {
-    marginTop: 18,
     fontSize: 34,
     fontWeight: '800',
     letterSpacing: 0.5,

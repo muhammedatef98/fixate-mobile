@@ -81,7 +81,31 @@ export const buildWarrantyHtml = async (
         'To claim, contact customer support from within the app quoting the certificate number above.',
       ];
 
-  const seal = isRTL ? 'ضمان\nمعتمد' : 'CERTIFIED\nWARRANTY';
+  const brandName = esc(settings.companyName || 'Fixate');
+  const sealRingTop = isRTL ? 'شهادة ضمان معتمدة' : 'CERTIFIED WARRANTY';
+  // Professional round emblem (SVG): concentric rings, arced text, centered
+  // check. Crisp at any size and far less template-looking than a rotated
+  // rubber-stamp. Latin brand text on the lower arc reads reliably in print.
+  const sealSvg = `
+    <svg viewBox="0 0 140 140" width="112" height="112" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" aria-hidden="true">
+      <defs>
+        <path id="wcarcTop" d="M 24,70 A 46,46 0 0 1 116,70" />
+        <path id="wcarcBottom" d="M 26,70 A 44,44 0 0 0 114,70" />
+      </defs>
+      <circle cx="70" cy="70" r="66" fill="none" stroke="#065f46" stroke-width="1"/>
+      <circle cx="70" cy="70" r="61" fill="none" stroke="#0e7a54" stroke-width="2.5"/>
+      <circle cx="70" cy="70" r="37" fill="#f4faf7" stroke="#c9e2d8" stroke-width="1"/>
+      <text font-family="-apple-system,Helvetica,Arial,sans-serif" font-size="9" font-weight="700" letter-spacing="2.4" fill="#065f46">
+        <textPath xlink:href="#wcarcTop" startOffset="50%" text-anchor="middle">${esc(sealRingTop)}</textPath>
+      </text>
+      <text font-family="-apple-system,Helvetica,Arial,sans-serif" font-size="8" font-weight="700" letter-spacing="2.8" fill="#0e7a54">
+        <textPath xlink:href="#wcarcBottom" startOffset="50%" text-anchor="middle">${brandName.toUpperCase()}</textPath>
+      </text>
+      <circle cx="21" cy="70" r="1.7" fill="#0e7a54"/>
+      <circle cx="119" cy="70" r="1.7" fill="#0e7a54"/>
+      <circle cx="70" cy="70" r="21" fill="#065f46"/>
+      <path d="M60.5,70.5 l6,6 l12.5,-14" fill="none" stroke="#ffffff" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>`;
 
   return `<!DOCTYPE html>
 <html dir="${dir}" lang="${isRTL ? 'ar' : 'en'}">
@@ -91,79 +115,79 @@ export const buildWarrantyHtml = async (
 <style>
   * { box-sizing: border-box; }
   body { font-family: -apple-system, 'Helvetica Neue', 'Segoe UI', Tahoma, Arial, sans-serif;
-         color: #0f1e17; margin: 0; padding: 26px; direction: ${dir};
-         background: #eef2f0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  /* Double-ruled formal frame: an emerald outer border with an inset hairline. */
-  .sheet { position: relative; overflow: hidden; border-radius: 14px; background: #ffffff;
-           border: 3px solid #065f46; box-shadow: inset 0 0 0 1px #d1ddd8, 0 10px 30px rgba(6,95,70,.12); }
-  .accent-strip { height: 6px; background: linear-gradient(90deg, #065f46 0%, #047857 45%, #10b981 100%); }
-  .inner { padding: 26px 28px; position: relative; }
-  .watermark { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
-               font-size: 120px; font-weight: 900; letter-spacing: 4px;
-               color: rgba(6,95,70,.045); transform: rotate(-22deg); pointer-events: none; }
+         color: #101f19; margin: 0; padding: 30px; direction: ${dir};
+         background: #f3f6f4; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  /* Clean single sheet: hairline border + a soft inner keyline, one slim accent
+     rule under the header. No heavy frame, no rotated watermark. */
+  .sheet { position: relative; background: #ffffff; border: 1px solid #dfe8e4; border-radius: 6px;
+           box-shadow: 0 12px 34px rgba(16,31,25,.10); }
+  .accent-strip { height: 4px; border-radius: 6px 6px 0 0;
+                  background: linear-gradient(90deg, #065f46 0%, #0e7a54 60%, #34d399 100%); }
+  .inner { padding: 34px 38px 30px; }
 
-  .head { position: relative; display: flex; justify-content: space-between; align-items: flex-start; gap: 18px;
-          border-bottom: 2px solid #065f46; padding-bottom: 18px; }
-  .brand { text-align: ${align}; }
-  .brand h1 { margin: 0; font-size: 22px; font-weight: 900; color: #065f46; letter-spacing: .5px; }
-  .brand .meta { color: #5b6b64; font-size: 11px; margin-top: 6px; line-height: 1.7; }
-  .logo { max-height: 54px; max-width: 160px; object-fit: contain; }
+  .head { display: flex; justify-content: space-between; align-items: flex-start; gap: 20px;
+          padding-bottom: 18px; border-bottom: 1px solid #e8efeb; }
+  .brand { text-align: ${align}; display: flex; align-items: center; gap: 12px;
+           flex-direction: ${isRTL ? 'row-reverse' : 'row'}; }
+  .monogram { width: 44px; height: 44px; border-radius: 10px; background: #065f46; color: #fff;
+              font-size: 22px; font-weight: 800; display: flex; align-items: center; justify-content: center; }
+  .brand h1 { margin: 0; font-size: 19px; font-weight: 800; color: #0b3b2c; letter-spacing: .3px; }
+  .brand .meta { color: #6a7a73; font-size: 10.5px; margin-top: 3px; line-height: 1.6; }
+  .logo { max-height: 48px; max-width: 150px; object-fit: contain; }
   .doc { text-align: ${isRTL ? 'left' : 'right'}; }
-  .doc .kicker { font-size: 10px; font-weight: 800; letter-spacing: 2.5px; text-transform: uppercase; color: #10b981; }
-  .doc .title { font-size: 19px; font-weight: 900; color: #0f1e17; margin-top: 3px; }
-  .doc .field { font-size: 12px; color: #33443d; margin-top: 6px; }
-  .doc .field b { color: #065f46; }
-  .pill { display: inline-block; font-size: 11px; font-weight: 800; padding: 6px 14px; border-radius: 999px;
-          margin-top: 10px; letter-spacing: .3px;
-          background: #047857; color: #ffffff; box-shadow: 0 2px 6px rgba(4,120,87,.3); }
-  .pill.expired { background: #e2e8e5; color: #556660; box-shadow: none; }
+  .doc .kicker { font-size: 9.5px; font-weight: 800; letter-spacing: 3px; text-transform: uppercase; color: #34d399; }
+  .doc .title { font-size: 20px; font-weight: 800; color: #0b3b2c; margin-top: 4px; letter-spacing: .2px; }
+  .doc .field { font-size: 11.5px; color: #3d4f48; margin-top: 5px; }
+  .doc .field b { color: #065f46; font-weight: 700; }
+  .pill { display: inline-block; font-size: 10.5px; font-weight: 700; padding: 5px 13px; border-radius: 999px;
+          margin-top: 11px; letter-spacing: .3px; background: #e7f6ee; color: #0b6b47; border: 1px solid #bfe6d3; }
+  .pill.expired { background: #f1f4f2; color: #66756e; border-color: #e0e6e3; }
 
-  /* Certified seal — an official round emblem, top-inner corner. */
-  .seal { position: absolute; ${isRTL ? 'left' : 'right'}: 26px; top: 96px; width: 92px; height: 92px;
-          border-radius: 50%; border: 2px solid #b45309; color: #b45309;
-          display: flex; align-items: center; justify-content: center; text-align: center;
-          font-size: 11px; font-weight: 900; letter-spacing: 1.5px; line-height: 1.5; white-space: pre-line;
-          transform: rotate(-12deg); box-shadow: inset 0 0 0 4px rgba(180,83,9,.12); opacity: .9; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0; margin: 26px 0 22px;
+          border: 1px solid #e8efeb; border-radius: 8px; overflow: hidden; }
+  .cell { padding: 14px 18px; text-align: ${align}; border-bottom: 1px solid #eef3f0; }
+  .cell:nth-child(odd) { ${isRTL ? 'border-left' : 'border-right'}: 1px solid #eef3f0; }
+  .cell:nth-last-child(-n+2) { border-bottom: none; }
+  .cell .lbl { font-size: 9.5px; text-transform: uppercase; letter-spacing: 1px; color: #8a9a92; font-weight: 700; }
+  .cell .val { font-size: 14px; font-weight: 700; margin-top: 5px; line-height: 1.45; color: #101f19; }
+  .cell .val.accent { color: #0b6b47; }
 
-  .grid { display: flex; flex-wrap: wrap; gap: 12px; margin: 24px 0 20px; }
-  .cell { flex: 1 1 40%; background: #f5faf8; border: 1px solid #d8e6e0; border-radius: 10px;
-          padding: 13px 15px; text-align: ${align}; ${isRTL ? 'border-right' : 'border-left'}: 3px solid #10b981; }
-  .cell .lbl { font-size: 10px; text-transform: uppercase; letter-spacing: .6px; color: #6b8078; font-weight: 700; }
-  .cell .val { font-size: 14px; font-weight: 800; margin-top: 5px; line-height: 1.5; color: #0f1e17; }
-  .cell .val.accent { color: #047857; }
+  .terms { text-align: ${align}; margin-top: 2px; }
+  .terms h2 { font-size: 11px; margin: 0 0 8px; color: #8a9a92; font-weight: 800;
+              text-transform: uppercase; letter-spacing: 1.4px; }
+  .terms ul { margin: 0; padding-${isRTL ? 'right' : 'left'}: 16px; }
+  .terms li { font-size: 11px; color: #46574f; line-height: 1.9; }
 
-  .terms { text-align: ${align}; margin-top: 4px; background: #fbfdfc; border: 1px solid #e5efeb;
-           border-radius: 10px; padding: 14px 16px; }
-  .terms h2 { font-size: 13px; margin: 0 0 8px; color: #065f46; font-weight: 800;
-              display: flex; align-items: center; gap: 6px; }
-  .terms ul { margin: 0; padding-${isRTL ? 'right' : 'left'}: 18px; }
-  .terms li { font-size: 11.5px; color: #3f524a; line-height: 1.95; }
-
-  .foot { display: flex; justify-content: space-between; align-items: center; gap: 18px;
-          border-top: 2px solid #065f46; margin-top: 20px; padding-top: 16px; }
-  .foot .notes { font-size: 11px; color: #5b6b64; text-align: ${align}; line-height: 1.75; flex: 1; }
-  .foot .sig { text-align: center; min-width: 130px; }
-  .foot .sig .line { border-top: 1.5px solid #33443d; margin-bottom: 5px; }
-  .foot .sig .cap { font-size: 10px; color: #6b8078; font-weight: 700; letter-spacing: .4px; }
-  .qr { width: 104px; height: 104px; }
+  /* Footer: emblem seal sits BELOW the details, beside the signature. */
+  .foot { display: flex; align-items: center; gap: 22px; margin-top: 26px; padding-top: 20px;
+          border-top: 1px solid #e8efeb; flex-direction: ${isRTL ? 'row-reverse' : 'row'}; }
+  .seal { flex: 0 0 auto; line-height: 0; }
+  .sign { flex: 1; text-align: center; }
+  .sign .line { width: 78%; margin: 0 auto 6px; border-top: 1px solid #46574f; }
+  .sign .cap { font-size: 10px; color: #6a7a73; font-weight: 700; letter-spacing: .4px; }
+  .sign .sub { font-size: 9px; color: #9aa8a1; margin-top: 2px; }
+  .qrwrap { flex: 0 0 auto; text-align: center; }
+  .qr { width: 92px; height: 92px; }
+  .qrwrap .verify { font-size: 8.5px; color: #8a9a92; margin-top: 4px; max-width: 96px; line-height: 1.4; }
+  .legal { margin-top: 16px; font-size: 9px; color: #9aa8a1; text-align: ${align}; line-height: 1.6; }
 </style>
 </head>
 <body>
   <div class="sheet">
     <div class="accent-strip"></div>
     <div class="inner">
-      <div class="watermark">${esc(settings.companyName || 'Fixate')}</div>
-
       <div class="head">
         <div class="brand">
-          ${settings.logoUrl ? `<img class="logo" src="${esc(settings.logoUrl)}" />` : `<h1>${esc(settings.companyName || 'Fixate')}</h1>`}
-          <div class="meta">
-            ${esc(settings.address)}<br/>
-            ${esc(settings.phone)} ${settings.email ? `· ${esc(settings.email)}` : ''}
+          ${settings.logoUrl
+            ? `<img class="logo" src="${esc(settings.logoUrl)}" />`
+            : `<div class="monogram">${brandName.slice(0, 1).toUpperCase()}</div>`}
+          <div>
+            ${settings.logoUrl ? '' : `<h1>${brandName}</h1>`}
+            <div class="meta">${esc(settings.address)}<br/>${esc(settings.phone)} ${settings.email ? `· ${esc(settings.email)}` : ''}</div>
           </div>
         </div>
         <div class="doc">
-          <div class="kicker">${esc(settings.companyName || 'Fixate')}</div>
+          <div class="kicker">${brandName}</div>
           <div class="title">${t.title}</div>
           <div class="field">${t.certNo}: <b>${esc(certNo)}</b></div>
           <div class="field">${t.order}: <b>${esc(order.order_number ?? order.id.slice(0, 8).toUpperCase())}</b></div>
@@ -171,33 +195,13 @@ export const buildWarrantyHtml = async (
         </div>
       </div>
 
-      <div class="seal">${esc(seal)}</div>
-
       <div class="grid">
-        <div class="cell">
-          <div class="lbl">${t.holder}</div>
-          <div class="val">${esc(customerName)}</div>
-        </div>
-        <div class="cell">
-          <div class="lbl">${t.device}</div>
-          <div class="val">${esc(deviceLabel(order, isRTL))}</div>
-        </div>
-        <div class="cell">
-          <div class="lbl">${t.issued}</div>
-          <div class="val"><span dir="ltr">${formatInvoiceDate(w.startDate.toISOString())}</span></div>
-        </div>
-        <div class="cell">
-          <div class="lbl">${t.validUntil}</div>
-          <div class="val accent"><span dir="ltr">${formatInvoiceDate(w.endDate.toISOString())}</span></div>
-        </div>
-        <div class="cell">
-          <div class="lbl">${t.duration}</div>
-          <div class="val">${t.months}</div>
-        </div>
-        <div class="cell">
-          <div class="lbl">${t.repair}</div>
-          <div class="val">${esc(order.issue_description || (isRTL ? 'إصلاح عام' : 'General repair'))}</div>
-        </div>
+        <div class="cell"><div class="lbl">${t.holder}</div><div class="val">${esc(customerName)}</div></div>
+        <div class="cell"><div class="lbl">${t.device}</div><div class="val">${esc(deviceLabel(order, isRTL))}</div></div>
+        <div class="cell"><div class="lbl">${t.issued}</div><div class="val"><span dir="ltr">${formatInvoiceDate(w.startDate.toISOString())}</span></div></div>
+        <div class="cell"><div class="lbl">${t.validUntil}</div><div class="val accent"><span dir="ltr">${formatInvoiceDate(w.endDate.toISOString())}</span></div></div>
+        <div class="cell"><div class="lbl">${t.duration}</div><div class="val">${t.months}</div></div>
+        <div class="cell"><div class="lbl">${t.repair}</div><div class="val">${esc(order.issue_description || (isRTL ? 'إصلاح عام' : 'General repair'))}</div></div>
       </div>
 
       <div class="terms">
@@ -206,13 +210,16 @@ export const buildWarrantyHtml = async (
       </div>
 
       <div class="foot">
-        <div class="notes">${t.verify}<br/>${esc(settings.legalText)}</div>
-        <div class="sig">
-          <div class="line">&nbsp;</div>
-          <div class="cap">${esc(settings.companyName || 'Fixate')}</div>
+        <div class="seal">${sealSvg}</div>
+        <div class="sign">
+          <div class="line"></div>
+          <div class="cap">${brandName}</div>
+          <div class="sub">${isRTL ? 'التوقيع المعتمد' : 'Authorized signature'}</div>
         </div>
-        ${qr ? `<img class="qr" src="${qr}" />` : ''}
+        ${qr ? `<div class="qrwrap"><img class="qr" src="${qr}" /><div class="verify">${t.verify}</div></div>` : ''}
       </div>
+
+      <div class="legal">${esc(settings.legalText)}</div>
     </div>
   </div>
 </body>
