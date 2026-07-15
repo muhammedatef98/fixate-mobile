@@ -8,8 +8,6 @@ import {
   TouchableOpacity,
   StatusBar,
   RefreshControl,
-  ActivityIndicator,
-  Alert,
   } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -30,8 +28,8 @@ import {
   type WarrantyInfo,
   type WarrantyOrderLike,
 } from '../utils/warranty';
-import { generateAndShareWarrantyPdf, certificateNumber } from '../services/warrantyPdf';
-import { getFriendlyError } from '../utils/errorMessages';
+import { certificateNumber } from '../services/warrantyPdf';
+import WarrantyViewerModal from '../components/WarrantyViewerModal';
 
 interface WarrantyRow extends WarrantyOrderLike {
   order_number?: string | null;
@@ -52,24 +50,13 @@ export default function WarrantyScreen() {
   const [rows, setRows] = useState<WarrantyRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [pdfFor, setPdfFor] = useState<string | null>(null);
+  // Which certificate the in-app viewer is showing (null = closed). Tapping a
+  // card opens the viewer (preview inside the app + Download/Share) instead of
+  // jumping straight to the OS share sheet — same UX as invoices.
+  const [viewerRow, setViewerRow] = useState<WarrantyRow | null>(null);
 
   const holderName =
     userProfile?.name?.trim() || user?.email || (isRTL ? 'عميل فيكسات' : 'Fixate customer');
-
-  // Renders the certificate to PDF and hands it to the OS share sheet, where the
-  // customer can preview it, save it to Files, or print it — same as invoices.
-  const exportCertificate = async (row: WarrantyRow) => {
-    setPdfFor(row.id);
-    try {
-      await generateAndShareWarrantyPdf(row, holderName, isRTL);
-    } catch (e) {
-      logger.warn('warranty pdf failed', e);
-      Alert.alert(isRTL ? 'تعذّر إصدار الشهادة' : 'Could not create certificate', getFriendlyError(e, language));
-    } finally {
-      setPdfFor(null);
-    }
-  };
 
   const load = useCallback(async () => {
     if (!user?.id) {
@@ -189,8 +176,7 @@ export default function WarrantyScreen() {
                       row={r}
                       COLORS={COLORS}
                       isRTL={isRTL}
-                      exporting={pdfFor === r.id}
-                      onExport={() => void exportCertificate(r)}
+                      onView={() => setViewerRow(r)}
                       onPress={() => router.push(`/order-details?id=${r.id}`)}
                     />
                   ))}
@@ -208,8 +194,7 @@ export default function WarrantyScreen() {
                       row={r}
                       COLORS={COLORS}
                       isRTL={isRTL}
-                      exporting={pdfFor === r.id}
-                      onExport={() => void exportCertificate(r)}
+                      onView={() => setViewerRow(r)}
                       onPress={() => router.push(`/order-details?id=${r.id}`)}
                     />
                   ))}
@@ -218,6 +203,17 @@ export default function WarrantyScreen() {
             </>
           )}
         </ScrollView>
+      )}
+
+      {viewerRow && (
+        <WarrantyViewerModal
+          order={viewerRow}
+          holderName={holderName}
+          isRTL={isRTL}
+          COLORS={COLORS}
+          visible={!!viewerRow}
+          onClose={() => setViewerRow(null)}
+        />
       )}
     </SafeAreaView>
   );
@@ -228,15 +224,13 @@ function WarrantyCertificate({
   row,
   COLORS,
   isRTL,
-  exporting,
-  onExport,
+  onView,
   onPress,
 }: {
   row: WarrantyRow;
   COLORS: any;
   isRTL: boolean;
-  exporting: boolean;
-  onExport: () => void;
+  onView: () => void;
   onPress: () => void;
 }) {
   const styles = makeStyles(COLORS, isRTL);
@@ -292,20 +286,14 @@ function WarrantyCertificate({
 
         <TouchableOpacity
           accessibilityRole="button"
-          onPress={onExport}
-          disabled={exporting}
-          style={[styles.certAction, exporting && { opacity: 0.6 }]}
+          accessibilityLabel={isRTL ? 'عرض شهادة الضمان' : 'View warranty certificate'}
+          onPress={onView}
+          style={styles.certAction}
         >
-          {exporting ? (
-            <ActivityIndicator size="small" color="#fff" />
-          ) : (
-            <>
-              <MaterialCommunityIcons name="file-pdf-box" size={18} color="#fff" />
-              <Text style={styles.certActionText}>
-                {isRTL ? 'إصدار شهادة الضمان (PDF)' : 'Export warranty certificate (PDF)'}
-              </Text>
-            </>
-          )}
+          <MaterialCommunityIcons name="shield-search" size={18} color="#fff" />
+          <Text style={styles.certActionText}>
+            {isRTL ? 'عرض شهادة الضمان' : 'View warranty certificate'}
+          </Text>
         </TouchableOpacity>
       </View>
     </PressableScale>
@@ -317,15 +305,13 @@ function ExpiredWarrantyRow({
   row,
   COLORS,
   isRTL,
-  exporting,
-  onExport,
+  onView,
   onPress,
 }: {
   row: WarrantyRow;
   COLORS: any;
   isRTL: boolean;
-  exporting: boolean;
-  onExport: () => void;
+  onView: () => void;
   onPress: () => void;
 }) {
   const styles = makeStyles(COLORS, isRTL);
@@ -344,20 +330,15 @@ function ExpiredWarrantyRow({
           {'  ·  ' + orderRef(row)}
         </Text>
       </View>
-      {/* An expired certificate is still a record worth keeping — let them export it. */}
+      {/* An expired certificate is still a record worth keeping — let them view it. */}
       <TouchableOpacity
         accessibilityRole="button"
-        accessibilityLabel={isRTL ? 'إصدار الشهادة PDF' : 'Export certificate PDF'}
-        onPress={onExport}
-        disabled={exporting}
+        accessibilityLabel={isRTL ? 'عرض الشهادة' : 'View certificate'}
+        onPress={onView}
         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         style={styles.expiredPdfBtn}
       >
-        {exporting ? (
-          <ActivityIndicator size="small" color={COLORS.textSecondary} />
-        ) : (
-          <MaterialCommunityIcons name="file-pdf-box" size={20} color={COLORS.textSecondary} />
-        )}
+        <MaterialCommunityIcons name="shield-search" size={20} color={COLORS.textSecondary} />
       </TouchableOpacity>
       <RTLIonicon name="chevron-forward" size={18} color={COLORS.textLight} />
     </PressableScale>

@@ -409,7 +409,11 @@ export default function OrderDetailsScreen() {
           <MaterialCommunityIcons
             name={
               (ORDER_TIMELINE.find(t => t.status === order.status)?.icon as any) ||
-              (order.status === 'rejected' ? 'close-octagon' : 'progress-clock')
+              (order.status === 'rejected'
+                ? 'close-octagon'
+                : order.status === 'expired'
+                  ? 'timer-off-outline'
+                  : 'progress-clock')
             }
             size={36}
             color="#fff"
@@ -417,9 +421,9 @@ export default function OrderDetailsScreen() {
           <Text style={styles.heroStatusLabel}>
             {isRTL
               ? ORDER_TIMELINE.find(t => t.status === order.status)?.arLabel ??
-                (order.status === 'rejected' ? 'مرفوض' : '')
+                (order.status === 'rejected' ? 'مرفوض' : order.status === 'expired' ? 'انتهت المهلة' : '')
               : ORDER_TIMELINE.find(t => t.status === order.status)?.enLabel ??
-                (order.status === 'rejected' ? 'Rejected' : '')}
+                (order.status === 'rejected' ? 'Rejected' : order.status === 'expired' ? 'Expired' : '')}
           </Text>
           <TouchableOpacity
             onPress={copyOrderRef}

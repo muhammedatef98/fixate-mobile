@@ -26,6 +26,7 @@ import {
   type AdminFilterChip,
 } from '../components/admin/AdminUI';
 import { deriveWarranty, deviceLabel, WARRANTY_MONTHS, type WarrantyInfo } from '../utils/warranty';
+import WarrantyViewerModal from '../components/WarrantyViewerModal';
 import GearLoader from '../components/GearLoader';
 
 interface WarrantyOrder {
@@ -66,6 +67,9 @@ export default function AdminWarrantiesScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<FilterKey>('all');
+  // Certificate the in-app viewer is showing (null = closed). Lets an admin
+  // preview + download the same certificate the customer gets, without leaving.
+  const [viewerRow, setViewerRow] = useState<WarrantyRow | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -235,12 +239,35 @@ export default function AdminWarrantiesScreen() {
                         {isRTL ? `متبقٍّ ${w.daysRemaining} يوماً` : `${w.daysRemaining} days remaining`}
                       </Text>
                     )}
+
+                    <TouchableOpacity
+                      onPress={() => setViewerRow(r)}
+                      style={styles.viewBtn}
+                      accessibilityRole="button"
+                      accessibilityLabel={isRTL ? 'عرض شهادة الضمان' : 'View warranty certificate'}
+                    >
+                      <MaterialCommunityIcons name="shield-search" size={15} color={COLORS.primary} />
+                      <Text style={styles.viewBtnText}>
+                        {isRTL ? 'عرض الشهادة / تنزيلها' : 'View / download certificate'}
+                      </Text>
+                    </TouchableOpacity>
                   </View>
                 </TouchableOpacity>
               );
             })
           )}
         </ScrollView>
+      )}
+
+      {viewerRow && (
+        <WarrantyViewerModal
+          order={viewerRow}
+          holderName={customerName(viewerRow, isRTL)}
+          isRTL={isRTL}
+          COLORS={COLORS}
+          visible={!!viewerRow}
+          onClose={() => setViewerRow(null)}
+        />
       )}
     </SafeAreaView>
   );
@@ -287,4 +314,17 @@ const makeStyles = (C: any, isRTL: boolean) =>
     meta: { fontSize: 12, color: C.textSecondary },
     dot: { fontSize: 12, color: C.textLight },
     remaining: { fontSize: 11.5, fontWeight: '700', color: C.primary, textAlign: isRTL ? 'right' : 'left' },
+    viewBtn: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
+      alignSelf: isRTL ? 'flex-end' : 'flex-start',
+      gap: 6,
+      marginTop: 4,
+      paddingVertical: 7,
+      paddingHorizontal: 12,
+      borderRadius: 999,
+      borderWidth: 1.5,
+      borderColor: C.primary,
+    },
+    viewBtnText: { fontSize: 12, fontWeight: '800', color: C.primary },
   });

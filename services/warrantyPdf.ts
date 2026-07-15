@@ -81,6 +81,8 @@ export const buildWarrantyHtml = async (
         'To claim, contact customer support from within the app quoting the certificate number above.',
       ];
 
+  const seal = isRTL ? 'ضمان\nمعتمد' : 'CERTIFIED\nWARRANTY';
+
   return `<!DOCTYPE html>
 <html dir="${dir}" lang="${isRTL ? 'ar' : 'en'}">
 <head>
@@ -89,92 +91,128 @@ export const buildWarrantyHtml = async (
 <style>
   * { box-sizing: border-box; }
   body { font-family: -apple-system, 'Helvetica Neue', 'Segoe UI', Tahoma, Arial, sans-serif;
-         color: #0f172a; margin: 0; padding: 30px; direction: ${dir}; }
-  .sheet { border: 2px solid #16A34A; border-radius: 16px; padding: 26px; position: relative; overflow: hidden; }
+         color: #0f1e17; margin: 0; padding: 26px; direction: ${dir};
+         background: #eef2f0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  /* Double-ruled formal frame: an emerald outer border with an inset hairline. */
+  .sheet { position: relative; overflow: hidden; border-radius: 14px; background: #ffffff;
+           border: 3px solid #065f46; box-shadow: inset 0 0 0 1px #d1ddd8, 0 10px 30px rgba(6,95,70,.12); }
+  .accent-strip { height: 6px; background: linear-gradient(90deg, #065f46 0%, #047857 45%, #10b981 100%); }
+  .inner { padding: 26px 28px; position: relative; }
   .watermark { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
-               font-size: 108px; font-weight: 800; color: rgba(22,163,74,.05); transform: rotate(-24deg); }
-  .head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px;
-          border-bottom: 1px solid #e2e8f0; padding-bottom: 16px; }
+               font-size: 120px; font-weight: 900; letter-spacing: 4px;
+               color: rgba(6,95,70,.045); transform: rotate(-22deg); pointer-events: none; }
+
+  .head { position: relative; display: flex; justify-content: space-between; align-items: flex-start; gap: 18px;
+          border-bottom: 2px solid #065f46; padding-bottom: 18px; }
   .brand { text-align: ${align}; }
-  .brand h1 { margin: 0; font-size: 20px; }
-  .brand .meta { color: #64748b; font-size: 11px; margin-top: 4px; line-height: 1.6; }
-  .logo { max-height: 52px; max-width: 150px; object-fit: contain; }
+  .brand h1 { margin: 0; font-size: 22px; font-weight: 900; color: #065f46; letter-spacing: .5px; }
+  .brand .meta { color: #5b6b64; font-size: 11px; margin-top: 6px; line-height: 1.7; }
+  .logo { max-height: 54px; max-width: 160px; object-fit: contain; }
   .doc { text-align: ${isRTL ? 'left' : 'right'}; }
-  .doc .title { font-size: 17px; font-weight: 800; color: #16A34A; }
-  .doc .field { font-size: 12px; color: #334155; margin-top: 4px; }
-  .pill { display: inline-block; font-size: 11px; font-weight: 800; padding: 5px 12px; border-radius: 999px;
-          background: #dcfce7; color: #166534; margin-top: 8px; }
-  .pill.expired { background: #f1f5f9; color: #64748b; }
-  .grid { display: flex; flex-wrap: wrap; gap: 12px; margin: 22px 0; }
-  .cell { flex: 1 1 40%; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px;
-          padding: 12px 14px; text-align: ${align}; }
-  .cell .lbl { font-size: 10px; text-transform: uppercase; letter-spacing: .5px; color: #94a3b8; }
-  .cell .val { font-size: 14px; font-weight: 700; margin-top: 4px; line-height: 1.5; }
-  .cell .val.accent { color: #16A34A; }
-  .terms { text-align: ${align}; margin-top: 6px; }
-  .terms h2 { font-size: 13px; margin: 0 0 8px; }
-  .terms li { font-size: 11.5px; color: #475569; line-height: 1.9; }
-  .foot { display: flex; justify-content: space-between; align-items: center; gap: 16px;
-          border-top: 1px solid #e2e8f0; margin-top: 20px; padding-top: 16px; }
-  .foot .notes { font-size: 11px; color: #64748b; text-align: ${align}; line-height: 1.7; flex: 1; }
+  .doc .kicker { font-size: 10px; font-weight: 800; letter-spacing: 2.5px; text-transform: uppercase; color: #10b981; }
+  .doc .title { font-size: 19px; font-weight: 900; color: #0f1e17; margin-top: 3px; }
+  .doc .field { font-size: 12px; color: #33443d; margin-top: 6px; }
+  .doc .field b { color: #065f46; }
+  .pill { display: inline-block; font-size: 11px; font-weight: 800; padding: 6px 14px; border-radius: 999px;
+          margin-top: 10px; letter-spacing: .3px;
+          background: #047857; color: #ffffff; box-shadow: 0 2px 6px rgba(4,120,87,.3); }
+  .pill.expired { background: #e2e8e5; color: #556660; box-shadow: none; }
+
+  /* Certified seal — an official round emblem, top-inner corner. */
+  .seal { position: absolute; ${isRTL ? 'left' : 'right'}: 26px; top: 96px; width: 92px; height: 92px;
+          border-radius: 50%; border: 2px solid #b45309; color: #b45309;
+          display: flex; align-items: center; justify-content: center; text-align: center;
+          font-size: 11px; font-weight: 900; letter-spacing: 1.5px; line-height: 1.5; white-space: pre-line;
+          transform: rotate(-12deg); box-shadow: inset 0 0 0 4px rgba(180,83,9,.12); opacity: .9; }
+
+  .grid { display: flex; flex-wrap: wrap; gap: 12px; margin: 24px 0 20px; }
+  .cell { flex: 1 1 40%; background: #f5faf8; border: 1px solid #d8e6e0; border-radius: 10px;
+          padding: 13px 15px; text-align: ${align}; ${isRTL ? 'border-right' : 'border-left'}: 3px solid #10b981; }
+  .cell .lbl { font-size: 10px; text-transform: uppercase; letter-spacing: .6px; color: #6b8078; font-weight: 700; }
+  .cell .val { font-size: 14px; font-weight: 800; margin-top: 5px; line-height: 1.5; color: #0f1e17; }
+  .cell .val.accent { color: #047857; }
+
+  .terms { text-align: ${align}; margin-top: 4px; background: #fbfdfc; border: 1px solid #e5efeb;
+           border-radius: 10px; padding: 14px 16px; }
+  .terms h2 { font-size: 13px; margin: 0 0 8px; color: #065f46; font-weight: 800;
+              display: flex; align-items: center; gap: 6px; }
+  .terms ul { margin: 0; padding-${isRTL ? 'right' : 'left'}: 18px; }
+  .terms li { font-size: 11.5px; color: #3f524a; line-height: 1.95; }
+
+  .foot { display: flex; justify-content: space-between; align-items: center; gap: 18px;
+          border-top: 2px solid #065f46; margin-top: 20px; padding-top: 16px; }
+  .foot .notes { font-size: 11px; color: #5b6b64; text-align: ${align}; line-height: 1.75; flex: 1; }
+  .foot .sig { text-align: center; min-width: 130px; }
+  .foot .sig .line { border-top: 1.5px solid #33443d; margin-bottom: 5px; }
+  .foot .sig .cap { font-size: 10px; color: #6b8078; font-weight: 700; letter-spacing: .4px; }
   .qr { width: 104px; height: 104px; }
 </style>
 </head>
 <body>
   <div class="sheet">
-    <div class="watermark">${esc(settings.companyName || 'Fixate')}</div>
+    <div class="accent-strip"></div>
+    <div class="inner">
+      <div class="watermark">${esc(settings.companyName || 'Fixate')}</div>
 
-    <div class="head">
-      <div class="brand">
-        ${settings.logoUrl ? `<img class="logo" src="${esc(settings.logoUrl)}" />` : `<h1>${esc(settings.companyName || 'Fixate')}</h1>`}
-        <div class="meta">
-          ${esc(settings.address)}<br/>
-          ${esc(settings.phone)} ${settings.email ? `· ${esc(settings.email)}` : ''}
+      <div class="head">
+        <div class="brand">
+          ${settings.logoUrl ? `<img class="logo" src="${esc(settings.logoUrl)}" />` : `<h1>${esc(settings.companyName || 'Fixate')}</h1>`}
+          <div class="meta">
+            ${esc(settings.address)}<br/>
+            ${esc(settings.phone)} ${settings.email ? `· ${esc(settings.email)}` : ''}
+          </div>
+        </div>
+        <div class="doc">
+          <div class="kicker">${esc(settings.companyName || 'Fixate')}</div>
+          <div class="title">${t.title}</div>
+          <div class="field">${t.certNo}: <b>${esc(certNo)}</b></div>
+          <div class="field">${t.order}: <b>${esc(order.order_number ?? order.id.slice(0, 8).toUpperCase())}</b></div>
+          <div class="pill ${w.isActive ? '' : 'expired'}">${w.isActive ? `${t.active} · ${t.remaining}` : t.expired}</div>
         </div>
       </div>
-      <div class="doc">
-        <div class="title">${t.title}</div>
-        <div class="field">${t.certNo}: <b>${esc(certNo)}</b></div>
-        <div class="field">${t.order}: <b>${esc(order.order_number ?? order.id.slice(0, 8).toUpperCase())}</b></div>
-        <div class="pill ${w.isActive ? '' : 'expired'}">${w.isActive ? `${t.active} · ${t.remaining}` : t.expired}</div>
-      </div>
-    </div>
 
-    <div class="grid">
-      <div class="cell">
-        <div class="lbl">${t.holder}</div>
-        <div class="val">${esc(customerName)}</div>
-      </div>
-      <div class="cell">
-        <div class="lbl">${t.device}</div>
-        <div class="val">${esc(deviceLabel(order, isRTL))}</div>
-      </div>
-      <div class="cell">
-        <div class="lbl">${t.issued}</div>
-        <div class="val"><span dir="ltr">${formatInvoiceDate(w.startDate.toISOString())}</span></div>
-      </div>
-      <div class="cell">
-        <div class="lbl">${t.validUntil}</div>
-        <div class="val accent"><span dir="ltr">${formatInvoiceDate(w.endDate.toISOString())}</span></div>
-      </div>
-      <div class="cell">
-        <div class="lbl">${t.duration}</div>
-        <div class="val">${t.months}</div>
-      </div>
-      <div class="cell">
-        <div class="lbl">${t.repair}</div>
-        <div class="val">${esc(order.issue_description || (isRTL ? 'إصلاح عام' : 'General repair'))}</div>
-      </div>
-    </div>
+      <div class="seal">${esc(seal)}</div>
 
-    <div class="terms">
-      <h2>${t.termsTitle}</h2>
-      <ul>${terms.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>
-    </div>
+      <div class="grid">
+        <div class="cell">
+          <div class="lbl">${t.holder}</div>
+          <div class="val">${esc(customerName)}</div>
+        </div>
+        <div class="cell">
+          <div class="lbl">${t.device}</div>
+          <div class="val">${esc(deviceLabel(order, isRTL))}</div>
+        </div>
+        <div class="cell">
+          <div class="lbl">${t.issued}</div>
+          <div class="val"><span dir="ltr">${formatInvoiceDate(w.startDate.toISOString())}</span></div>
+        </div>
+        <div class="cell">
+          <div class="lbl">${t.validUntil}</div>
+          <div class="val accent"><span dir="ltr">${formatInvoiceDate(w.endDate.toISOString())}</span></div>
+        </div>
+        <div class="cell">
+          <div class="lbl">${t.duration}</div>
+          <div class="val">${t.months}</div>
+        </div>
+        <div class="cell">
+          <div class="lbl">${t.repair}</div>
+          <div class="val">${esc(order.issue_description || (isRTL ? 'إصلاح عام' : 'General repair'))}</div>
+        </div>
+      </div>
 
-    <div class="foot">
-      <div class="notes">${t.verify}<br/>${esc(settings.legalText)}</div>
-      ${qr ? `<img class="qr" src="${qr}" />` : ''}
+      <div class="terms">
+        <h2>${t.termsTitle}</h2>
+        <ul>${terms.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>
+      </div>
+
+      <div class="foot">
+        <div class="notes">${t.verify}<br/>${esc(settings.legalText)}</div>
+        <div class="sig">
+          <div class="line">&nbsp;</div>
+          <div class="cap">${esc(settings.companyName || 'Fixate')}</div>
+        </div>
+        ${qr ? `<img class="qr" src="${qr}" />` : ''}
+      </div>
     </div>
   </div>
 </body>
