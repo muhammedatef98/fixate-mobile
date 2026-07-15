@@ -6,6 +6,7 @@ import {
   SafeAreaView,
   StatusBar,
   ScrollView,
+  RefreshControl,
   TouchableOpacity,
   TextInput,
   Modal,
@@ -62,6 +63,11 @@ export default function AdminPricingRulesScreen() {
 
   const [rows, setRows] = useState<PricingRuleRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try { setRows(await adminListRules()); } catch (e) { logger.warn('refresh rules failed', e); } finally { setRefreshing(false); }
+  }, []);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<PricingRuleRow | null>(null);
@@ -205,7 +211,12 @@ export default function AdminPricingRulesScreen() {
         rightLabel={isRTL ? 'إضافة' : 'Add'}
         onRightPress={openNew}
       />
-      <ScrollView contentContainerStyle={{ padding: SPACING.m, paddingBottom: 60 }}>
+      <ScrollView
+        contentContainerStyle={{ padding: SPACING.m, paddingBottom: 60 }}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} colors={[COLORS.primary]} />
+        }
+      >
         <TouchableOpacity
           onPress={() => setImportOpen(true)}
           style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderWidth: 1, borderColor: COLORS.primary, borderRadius: BORDER_RADIUS.md, paddingVertical: 11, marginBottom: 14 }}

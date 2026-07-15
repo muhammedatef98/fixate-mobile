@@ -6,6 +6,7 @@ import {
   SafeAreaView,
   StatusBar,
   ScrollView,
+  RefreshControl,
   TextInput,
   Switch,
   TouchableOpacity,
@@ -44,6 +45,17 @@ export default function AdminAutomationsScreen() {
 
   const [items, setItems] = useState<NotificationAutomation[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      const data = await listAutomations();
+      setItems(data);
+      setDrafts(Object.fromEntries(data.map((a) => [a.id, { title: a.title, body: a.body }])));
+    } finally {
+      setRefreshing(false);
+    }
+  }, []);
   const [drafts, setDrafts] = useState<Record<string, { title: string; body: string }>>({});
   const [savingId, setSavingId] = useState<string | null>(null);
 
@@ -104,7 +116,12 @@ export default function AdminAutomationsScreen() {
       {loading ? (
         <GearLoader size={48} style={{ marginTop: 40 }} />
       ) : (
-        <ScrollView contentContainerStyle={{ padding: SPACING.lg, gap: 14 }}>
+        <ScrollView
+          contentContainerStyle={{ padding: SPACING.lg, gap: 14 }}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} colors={[COLORS.primary]} />
+          }
+        >
           {items.map((a) => {
             const meta = EVENT_LABEL[a.trigger_event];
             const d = drafts[a.id] ?? { title: a.title, body: a.body };
