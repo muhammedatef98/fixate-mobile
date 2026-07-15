@@ -60,6 +60,9 @@ export interface AccountingData {
   /** Delivery fees collected on completed orders. Attributed 100% to the
    *  platform (not part of the technician/platform % split). */
   totalDelivery: number;
+  /** Add-ons (accessories + protection) sold on completed orders. Attributed
+   *  100% to the platform, same as delivery. */
+  totalAddons: number;
   /** Actually collected (orders.amount_paid — record_order_payment RPC). */
   totalPaid: number;
   /** Accepted-amount balance still uncollected on non-cancelled orders. */
@@ -82,6 +85,9 @@ interface OrderRow {
   final_price: number | null;
   estimated_price: number | null;
   delivery_fee: number | null;
+  discount_amount: number | null;
+  accessories: { price?: number }[] | null;
+  protection_addons: { price?: number }[] | null;
   amount_paid: number | null;
   spare_parts_cost: number | null;
   status: string;
@@ -132,6 +138,16 @@ const paidOf = (o: OrderRow): number => Number(o.amount_paid ?? 0);
 // technician/platform commission split base (which is service price only).
 const deliveryOf = (o: OrderRow): number => Number(o.delivery_fee ?? 0);
 
+const sumPrices = (list: { price?: number }[] | null | undefined): number =>
+  Array.isArray(list) ? list.reduce((s, a) => s + Number(a?.price ?? 0), 0) : 0;
+
+// Accessories + protection add-ons sold on the order. 100% platform revenue,
+// same treatment as delivery — not part of the tech/platform % split.
+const addonsOf = (o: OrderRow): number =>
+  sumPrices(o.accessories) + sumPrices(o.protection_addons);
+
+const discountOf = (o: OrderRow): number => Number(o.discount_amount ?? 0);
+
 export const getAccountingData = async (
   range: AccountingRange,
   isRTL: boolean
@@ -141,7 +157,7 @@ export const getAccountingData = async (
   let query = supabase
     .from('orders')
     .select(
-      'id, order_number, accepted_offer_amount, final_price, estimated_price, delivery_fee, amount_paid, spare_parts_cost, status, payment_status, service_type, created_at, technician_id, customer:users!user_id(name), technician:users!technician_id(name)'
+      'id, order_number, accepted_offer_amount, final_price, estimated_price, delivery_fee, discount_amount, accessories, protection_addons, amount_paid, spare_parts_cost, status, payment_status, service_type, created_at, technician_id, customer:users!user_id(name), technician:users!technician_id(name)'
     )
     .is('deleted_at', null)
     .order('created_at', { ascending: false })
@@ -160,16 +176,18 @@ export const getAccountingData = async (
 
   const totalRevenue = completed.reduce((s, o) => s + revenueOf(o), 0);
   const totalDelivery = completed.reduce((s, o) => s + deliveryOf(o), 0);
+  const totalAddons = completed.reduce((s, o) => s + addonsOf(o), 0);
   const totalSpareParts = completed.reduce(
     (s, o) => s + Number(o.spare_parts_cost ?? 0),
     0
   );
   const netProfit = totalRevenue - totalSpareParts;
   // Collection view: what was actually collected vs. what is still owed on
-  // live/completed (non-cancelled) orders. The customer pays service + delivery,
-  // and amount_paid is recorded against that full total — so the amount owed
-  // must use the same base (service + delivery), not service alone.
-  const billableAmount = (o: OrderRow): number => revenueOf(o) + deliveryOf(o);
+  // live/completed (non-cancelled) orders. amount_paid is recorded against the
+  // customer's FULL total, so the amount owed must use the same base:
+  // service + delivery + add-ons − discount (mirrors orderMoney.getOrderTotals).
+  const billableAmount = (o: OrderRow): number =>
+    Math.max(0, revenueOf(o) + deliveryOf(o) + addonsOf(o) - discountOf(o));
   const billable = rows.filter(
     (o) => !['cancelled', 'rejected', 'pending'].includes(o.status)
   );
@@ -264,6 +282,7 @@ export const getAccountingData = async (
   return {
     totalRevenue,
     totalDelivery,
+    totalAddons,
     totalPaid,
     totalOutstanding,
     totalSpareParts,
@@ -310,12 +329,13 @@ export const exportAccountingCsv = async (
   // on top (platform keeps 100% of delivery). Technician share is the rest.
   const platformCommission = (data.totalRevenue * commissionRate) / 100;
   const technicianShare = (data.totalRevenue * (100 - commissionRate)) / 100;
-  const platformTotal = platformCommission + data.totalDelivery;
+  const platformTotal = platformCommission + data.totalDelivery + data.totalAddons;
   const lines: string[] = [];
 
   lines.push(isRTL ? 'الملخص' : 'Summary');
   lines.push(`${isRTL ? 'إيرادات الخدمة (المبالغ المتفق عليها)' : 'Service revenue (accepted amounts)'} (${sar}),${data.totalRevenue.toFixed(2)}`);
   lines.push(`${isRTL ? 'إيراد التوصيل (للمنصة)' : 'Delivery revenue (platform)'} (${sar}),${data.totalDelivery.toFixed(2)}`);
+  lines.push(`${isRTL ? 'إيراد الإضافات (للمنصة)' : 'Add-ons revenue (platform)'} (${sar}),${data.totalAddons.toFixed(2)}`);
   lines.push(`${isRTL ? 'إجمالي المُحصَّل فعلياً' : 'Total actually collected'} (${sar}),${data.totalPaid.toFixed(2)}`);
   lines.push(`${isRTL ? 'أرصدة غير مُحصَّلة' : 'Outstanding balances'} (${sar}),${data.totalOutstanding.toFixed(2)}`);
   lines.push(`${isRTL ? 'إجمالي المصروفات (قطع الغيار)' : 'Total expenses (spare parts)'} (${sar}),${data.totalSpareParts.toFixed(2)}`);
@@ -323,7 +343,7 @@ export const exportAccountingCsv = async (
   lines.push(`${isRTL ? 'مدفوعات معلقة' : 'Pending payments'} (${sar}),${data.pendingPayments.toFixed(2)}`);
   lines.push(`${isRTL ? 'حصة الفنيين' : 'Technician share'} (${100 - commissionRate}%) (${sar}),${technicianShare.toFixed(2)}`);
   lines.push(`${isRTL ? 'عمولة المنصة (من الخدمة)' : 'Platform commission (service)'} (${commissionRate}%) (${sar}),${platformCommission.toFixed(2)}`);
-  lines.push(`${isRTL ? 'إجمالي حصة المنصة (عمولة + توصيل)' : 'Platform total (commission + delivery)'} (${sar}),${platformTotal.toFixed(2)}`);
+  lines.push(`${isRTL ? 'إجمالي حصة المنصة (عمولة + توصيل + إضافات)' : 'Platform total (commission + delivery + add-ons)'} (${sar}),${platformTotal.toFixed(2)}`);
   lines.push('');
 
   lines.push(isRTL ? 'أرباح وعمولات الفنيين' : 'Technician P&L');

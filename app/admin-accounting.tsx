@@ -166,6 +166,7 @@ export default function AdminAccountingScreen() {
     ? [
         { label: isRTL ? 'إيرادات الخدمة (المتفق عليها)' : 'Service revenue (accepted)', value: fmt(data.totalRevenue), icon: 'cash-multiple', color: '#10B981' },
         { label: isRTL ? 'إيراد التوصيل (للمنصة)' : 'Delivery revenue (platform)', value: fmt(data.totalDelivery), icon: 'truck-delivery-outline', color: '#0EA5E9' },
+        { label: isRTL ? 'إيراد الإضافات (للمنصة)' : 'Add-ons revenue (platform)', value: fmt(data.totalAddons), icon: 'puzzle-outline', color: '#14B8A6' },
         { label: isRTL ? 'المُحصَّل فعلياً' : 'Actually collected', value: fmt(data.totalPaid), icon: 'cash-check', color: '#059669' },
         { label: isRTL ? 'أرصدة غير مُحصَّلة' : 'Outstanding balances', value: fmt(data.totalOutstanding), icon: 'cash-clock', color: '#EF4444' },
         { label: isRTL ? 'تكلفة قطع الغيار' : 'Spare parts cost', value: fmt(data.totalSpareParts), icon: 'cog-outline', color: '#F59E0B' },
@@ -260,18 +261,18 @@ export default function AdminAccountingScreen() {
                 </View>
                 <View style={styles.splitTile}>
                   <Text style={[styles.splitTileVal, { color: '#8B5CF6' }]} numberOfLines={1}>
-                    {fmt((data.totalRevenue * commissionPct) / 100 + data.totalDelivery)} {sar}
+                    {fmt((data.totalRevenue * commissionPct) / 100 + data.totalDelivery + data.totalAddons)} {sar}
                   </Text>
                   <Text style={styles.splitTileLbl}>
-                    {isRTL ? 'حصة المنصة (شامل التوصيل)' : 'Platform (incl. delivery)'}
+                    {isRTL ? 'حصة المنصة (شامل التوصيل والإضافات)' : 'Platform (incl. delivery & add-ons)'}
                   </Text>
                 </View>
               </View>
-              {data.totalDelivery > 0 && (
+              {(data.totalDelivery > 0 || data.totalAddons > 0) && (
                 <Text style={[styles.splitHint, { marginTop: 8, marginBottom: 0 }]}>
                   {isRTL
-                    ? `منها التوصيل (بالكامل للمنصة): ${fmt(data.totalDelivery)} ${sar}`
-                    : `Incl. delivery (100% platform): ${fmt(data.totalDelivery)} ${sar}`}
+                    ? `منها للمنصة بالكامل — توصيل: ${fmt(data.totalDelivery)} · إضافات: ${fmt(data.totalAddons)} ${sar}`
+                    : `100% platform — delivery: ${fmt(data.totalDelivery)} · add-ons: ${fmt(data.totalAddons)} ${sar}`}
                 </Text>
               )}
             </View>
