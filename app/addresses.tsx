@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import {
   View,
+  RefreshControl,
   Text,
   StyleSheet,
   TouchableOpacity,
@@ -46,6 +47,7 @@ export default function AddressesScreen() {
 
   const [addresses, setAddresses] = useState<addressService.UserAddress[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   // Lower-cased set of currently-enabled city names (Arabic + English).
   // Used to flag saved addresses whose city is no longer in active
@@ -96,6 +98,19 @@ export default function AddressesScreen() {
   useEffect(() => {
     load();
   }, [load]);
+
+  const onRefresh = useCallback(async () => {
+    if (!user?.id) return;
+    setRefreshing(true);
+    try {
+      setAddresses(await addressService.getMyAddresses(user.id));
+      setErrorMsg(null);
+    } catch (e: any) {
+      setErrorMsg(getFriendlyError(e, language));
+    } finally {
+      setRefreshing(false);
+    }
+  }, [user?.id, language]);
 
   // Build the enabled-cities lookup once. We deliberately ignore failures
   // and an empty result here — without a known coverage set we hide the
@@ -388,7 +403,12 @@ export default function AddressesScreen() {
           </TouchableOpacity>
         </View>
       ) : (
-        <ScrollView contentContainerStyle={{ padding: SPACING.lg }}>
+        <ScrollView
+          contentContainerStyle={{ padding: SPACING.lg }}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} colors={[COLORS.primary]} />
+          }
+        >
           {addresses.map((a) => (
             <View key={a.id} style={styles.card}>
               <View style={styles.cardHeader}>

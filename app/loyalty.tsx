@@ -4,6 +4,7 @@ import {
   Text,
   StyleSheet,
   ScrollView,
+  RefreshControl,
   TouchableOpacity,
   SafeAreaView,
   StatusBar,
@@ -31,6 +32,11 @@ export default function LoyaltyScreen() {
   const styles = makeStyles(C, isRTL, SHADOWS);
 
   const [redeeming, setRedeeming] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try { await refresh(); } finally { setRefreshing(false); }
+  };
 
   // Feature flag — if the loyalty programme is disabled in platform
   // settings, bounce back to the previous screen. We only redirect once
@@ -114,7 +120,12 @@ export default function LoyaltyScreen() {
         <View style={{ width: 40 }} />
       </View>
 
-      <ScrollView contentContainerStyle={{ padding: SPACING.lg, paddingBottom: 60 }}>
+      <ScrollView
+        contentContainerStyle={{ padding: SPACING.lg, paddingBottom: 60 }}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.primary} colors={[C.primary]} />
+        }
+      >
         {/* Balance card */}
         <View style={[styles.balanceCard, { backgroundColor: C.primary }]}>
           <MaterialCommunityIcons name="star-circle" size={40} color="#fff" />
