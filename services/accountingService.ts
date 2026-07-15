@@ -54,7 +54,12 @@ export interface PendingOrder {
 }
 
 export interface AccountingData {
+  /** Service revenue = sum of accepted-offer amounts. This is the commission
+   *  split base (technician/platform %). Delivery is tracked separately. */
   totalRevenue: number;
+  /** Delivery fees collected on completed orders. Attributed 100% to the
+   *  platform (not part of the technician/platform % split). */
+  totalDelivery: number;
   /** Actually collected (orders.amount_paid — record_order_payment RPC). */
   totalPaid: number;
   /** Accepted-amount balance still uncollected on non-cancelled orders. */
@@ -76,6 +81,7 @@ interface OrderRow {
   accepted_offer_amount: number | null;
   final_price: number | null;
   estimated_price: number | null;
+  delivery_fee: number | null;
   amount_paid: number | null;
   spare_parts_cost: number | null;
   status: string;
@@ -122,6 +128,10 @@ const revenueOf = (o: OrderRow): number =>
 
 const paidOf = (o: OrderRow): number => Number(o.amount_paid ?? 0);
 
+// Delivery fee the customer paid. 100% platform revenue — never part of the
+// technician/platform commission split base (which is service price only).
+const deliveryOf = (o: OrderRow): number => Number(o.delivery_fee ?? 0);
+
 export const getAccountingData = async (
   range: AccountingRange,
   isRTL: boolean
@@ -131,7 +141,7 @@ export const getAccountingData = async (
   let query = supabase
     .from('orders')
     .select(
-      'id, order_number, accepted_offer_amount, final_price, estimated_price, amount_paid, spare_parts_cost, status, payment_status, service_type, created_at, technician_id, customer:users!user_id(name), technician:users!technician_id(name)'
+      'id, order_number, accepted_offer_amount, final_price, estimated_price, delivery_fee, amount_paid, spare_parts_cost, status, payment_status, service_type, created_at, technician_id, customer:users!user_id(name), technician:users!technician_id(name)'
     )
     .is('deleted_at', null)
     .order('created_at', { ascending: false })
@@ -149,26 +159,30 @@ export const getAccountingData = async (
   const completed = rows.filter((o) => o.status === 'completed');
 
   const totalRevenue = completed.reduce((s, o) => s + revenueOf(o), 0);
+  const totalDelivery = completed.reduce((s, o) => s + deliveryOf(o), 0);
   const totalSpareParts = completed.reduce(
     (s, o) => s + Number(o.spare_parts_cost ?? 0),
     0
   );
   const netProfit = totalRevenue - totalSpareParts;
   // Collection view: what was actually collected vs. what is still owed on
-  // live/completed (non-cancelled) orders with an agreed amount.
+  // live/completed (non-cancelled) orders. The customer pays service + delivery,
+  // and amount_paid is recorded against that full total — so the amount owed
+  // must use the same base (service + delivery), not service alone.
+  const billableAmount = (o: OrderRow): number => revenueOf(o) + deliveryOf(o);
   const billable = rows.filter(
     (o) => !['cancelled', 'rejected', 'pending'].includes(o.status)
   );
   const totalPaid = billable.reduce((s, o) => s + paidOf(o), 0);
   const totalOutstanding = billable.reduce(
-    (s, o) => s + Math.max(0, revenueOf(o) - paidOf(o)),
+    (s, o) => s + Math.max(0, billableAmount(o) - paidOf(o)),
     0
   );
   const pendingRows = billable.filter(
-    (o) => revenueOf(o) - paidOf(o) > 0.009 && o.payment_status !== 'paid'
+    (o) => billableAmount(o) - paidOf(o) > 0.009 && o.payment_status !== 'paid'
   );
   const pendingPayments = pendingRows.reduce(
-    (s, o) => s + Math.max(0, revenueOf(o) - paidOf(o)),
+    (s, o) => s + Math.max(0, billableAmount(o) - paidOf(o)),
     0
   );
 
@@ -178,7 +192,7 @@ export const getAccountingData = async (
       id: o.id,
       orderNumber: o.order_number ?? `#${o.id.slice(0, 6)}`,
       customer: flatName(o.customer) || (isRTL ? 'بدون اسم' : 'No name'),
-      amount: Math.max(0, revenueOf(o) - paidOf(o)),
+      amount: Math.max(0, billableAmount(o) - paidOf(o)),
       ageDays: o.created_at
         ? Math.max(0, Math.floor((now - new Date(o.created_at).getTime()) / 86400000))
         : 0,
@@ -239,7 +253,8 @@ export const getAccountingData = async (
       service: o.service_type || (isRTL ? 'خدمة' : 'Service'),
       amount,
       paid,
-      remaining: Math.max(0, amount - paid),
+      // Owed against the full total the customer pays (service + delivery).
+      remaining: Math.max(0, billableAmount(o) - paid),
       spareParts,
       net: amount - spareParts,
       date: o.created_at ?? '',
@@ -248,6 +263,7 @@ export const getAccountingData = async (
 
   return {
     totalRevenue,
+    totalDelivery,
     totalPaid,
     totalOutstanding,
     totalSpareParts,
@@ -290,17 +306,24 @@ export const exportAccountingCsv = async (
   commissionRate = 0
 ): Promise<void> => {
   const sar = isRTL ? 'ر.س' : 'SAR';
-  const totalCommission = (data.totalRevenue * commissionRate) / 100;
+  // Commission is the platform's % of SERVICE revenue only; delivery is added
+  // on top (platform keeps 100% of delivery). Technician share is the rest.
+  const platformCommission = (data.totalRevenue * commissionRate) / 100;
+  const technicianShare = (data.totalRevenue * (100 - commissionRate)) / 100;
+  const platformTotal = platformCommission + data.totalDelivery;
   const lines: string[] = [];
 
   lines.push(isRTL ? 'الملخص' : 'Summary');
-  lines.push(`${isRTL ? 'إجمالي الإيرادات (المبالغ المتفق عليها)' : 'Total revenue (accepted amounts)'} (${sar}),${data.totalRevenue.toFixed(2)}`);
+  lines.push(`${isRTL ? 'إيرادات الخدمة (المبالغ المتفق عليها)' : 'Service revenue (accepted amounts)'} (${sar}),${data.totalRevenue.toFixed(2)}`);
+  lines.push(`${isRTL ? 'إيراد التوصيل (للمنصة)' : 'Delivery revenue (platform)'} (${sar}),${data.totalDelivery.toFixed(2)}`);
   lines.push(`${isRTL ? 'إجمالي المُحصَّل فعلياً' : 'Total actually collected'} (${sar}),${data.totalPaid.toFixed(2)}`);
   lines.push(`${isRTL ? 'أرصدة غير مُحصَّلة' : 'Outstanding balances'} (${sar}),${data.totalOutstanding.toFixed(2)}`);
   lines.push(`${isRTL ? 'إجمالي المصروفات (قطع الغيار)' : 'Total expenses (spare parts)'} (${sar}),${data.totalSpareParts.toFixed(2)}`);
   lines.push(`${isRTL ? 'صافي الربح' : 'Net profit'} (${sar}),${data.netProfit.toFixed(2)}`);
   lines.push(`${isRTL ? 'مدفوعات معلقة' : 'Pending payments'} (${sar}),${data.pendingPayments.toFixed(2)}`);
-  lines.push(`${isRTL ? 'عمولة المنصة' : 'Platform commission'} (${commissionRate}%) (${sar}),${totalCommission.toFixed(2)}`);
+  lines.push(`${isRTL ? 'حصة الفنيين' : 'Technician share'} (${100 - commissionRate}%) (${sar}),${technicianShare.toFixed(2)}`);
+  lines.push(`${isRTL ? 'عمولة المنصة (من الخدمة)' : 'Platform commission (service)'} (${commissionRate}%) (${sar}),${platformCommission.toFixed(2)}`);
+  lines.push(`${isRTL ? 'إجمالي حصة المنصة (عمولة + توصيل)' : 'Platform total (commission + delivery)'} (${sar}),${platformTotal.toFixed(2)}`);
   lines.push('');
 
   lines.push(isRTL ? 'أرباح وعمولات الفنيين' : 'Technician P&L');
