@@ -34,6 +34,7 @@ import { RTLIonicon } from '../../components/RTLIcon';
 import { PressableScale, AnimatedTouchable } from '../../components/ui/PressableScale';
 import { Skeleton } from '../../components/ui/Skeleton';
 import HomeHighlightsCarousel from '../../components/HomeHighlightsCarousel';
+import AnnouncementBanner from '../../components/AnnouncementBanner';
 import { Riyal } from '../../components/Riyal';
 
 const { width } = Dimensions.get('window');
@@ -363,6 +364,7 @@ export default function CustomerHomeScreen() {
             BOTTOM_NAV_TOP + BOTTOM_NAV_ACCESSORY_GAP + ASSISTANT_FAB_SIZE + 16,
         }}
       >
+        <AnnouncementBanner />
         <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }], paddingHorizontal: SPACING.m, paddingTop: SPACING.s, paddingBottom: SPACING.m }}>
           {/* Greeting + wallet on one row — compact, balanced header */}
           <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>

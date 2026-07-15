@@ -1,7 +1,7 @@
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState, type ReactNode } from 'react';
-import { View, Platform } from 'react-native';
+import { View, Platform, AppState } from 'react-native';
 import {
   SafeAreaProvider,
   SafeAreaView,
@@ -21,6 +21,9 @@ import { supabase } from '../lib/supabase';
 import ErrorBoundary from '../components/ErrorBoundary';
 import OfflineBanner from '../components/OfflineBanner';
 import BlockedScreen from '../components/BlockedScreen';
+import AppGateScreen from '../components/AppGateScreen';
+import { getPlatformSettings } from '../services/platformSettingsService';
+import { isUpdateRequired } from '../utils/appVersion';
 import {
   useFonts,
   IBMPlexSansArabic_400Regular,
@@ -80,6 +83,30 @@ function RootLayoutContent() {
   const { user, userProfile, loading, adminPermissions, adminPermissionsLoaded } = useAuth();
   const segments = useSegments();
   const router = useRouter();
+
+  // App-wide gates driven by platform settings (maintenance / force-update).
+  // Loaded once on mount and refreshed when the app returns to foreground, so
+  // an admin flipping maintenance on/off reaches live sessions within a resume.
+  const [appGate, setAppGate] = useState<{ maintenance: boolean; minVersion: string }>(
+    { maintenance: false, minVersion: '' }
+  );
+  useEffect(() => {
+    let alive = true;
+    const refresh = () =>
+      getPlatformSettings()
+        .then((s) => {
+          if (alive) setAppGate({ maintenance: s.maintenanceMode, minVersion: s.minAppVersion });
+        })
+        .catch(() => {});
+    refresh();
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') refresh();
+    });
+    return () => {
+      alive = false;
+      sub.remove();
+    };
+  }, []);
 
   useEffect(() => {
     if (loading) return;
@@ -225,6 +252,24 @@ function RootLayoutContent() {
     (accountStatus === 'suspended' || accountStatus === 'blocked')
   ) {
     return <BlockedScreen status={accountStatus} />;
+  }
+
+  // Force-update floor — a hard version gate that applies to everyone
+  // (admins included; the fix is to install the new build). Fails open on a
+  // blank floor or unknown running version, so a bad settings read never
+  // locks the whole app out.
+  if (!loading && isUpdateRequired(appGate.minVersion)) {
+    return <AppGateScreen mode="update" />;
+  }
+
+  // Maintenance mode — admins keep access so they can operate during the
+  // window; everyone else sees the maintenance screen.
+  if (
+    !loading &&
+    appGate.maintenance &&
+    !(adminPermissionsLoaded && canAccessAdmin(user, adminPermissions))
+  ) {
+    return <AppGateScreen mode="maintenance" />;
   }
 
   // Unified transition for the whole market module. Every market-* screen is

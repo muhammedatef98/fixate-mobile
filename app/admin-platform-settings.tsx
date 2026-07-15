@@ -50,7 +50,6 @@ interface FormState {
   inspectionFee: string;
   inspectionEnabled: boolean;
   returnFee: string;
-  commissionRate: string;
   requestLifetimeMinutes: string;
   easternProvinceEnabled: boolean;
   serviceAreaMessageAr: string;
@@ -86,7 +85,6 @@ const toForm = (s: PlatformSettings): FormState => ({
   inspectionFee: String(s.inspectionFee),
   inspectionEnabled: s.inspectionEnabled,
   returnFee: String(s.returnFee),
-  commissionRate: String(s.commissionRate),
   requestLifetimeMinutes: String(s.requestLifetimeMinutes),
   easternProvinceEnabled: s.easternProvinceEnabled,
   serviceAreaMessageAr: s.serviceAreaMessageAr,
@@ -121,7 +119,6 @@ const toForm = (s: PlatformSettings): FormState => ({
 interface FieldErrors {
   inspectionFee?: string;
   returnFee?: string;
-  commissionRate?: string;
   requestLifetimeMinutes?: string;
   serviceAreaMessageAr?: string;
   serviceAreaMessageEn?: string;
@@ -179,9 +176,6 @@ export default function AdminPlatformSettingsScreen() {
     const life = num(f.requestLifetimeMinutes);
     if (!Number.isFinite(life) || life < 1)
       err.requestLifetimeMinutes = isRTL ? 'دقيقة واحدة على الأقل' : 'At least 1 minute';
-    const rate = num(f.commissionRate);
-    if (!Number.isFinite(rate) || rate < 0 || rate > 1)
-      err.commissionRate = isRTL ? 'النسبة بين 0 و 1' : 'Rate must be 0–1';
     if (!Number.isFinite(num(f.loyaltyPointsPerSAR)) || num(f.loyaltyPointsPerSAR) < 0)
       err.loyaltyPointsPerSAR = isRTL ? 'أدخل رقماً صحيحاً' : 'Enter a valid number';
     if (!Number.isFinite(num(f.loyaltyRedeemMin)) || num(f.loyaltyRedeemMin) < 0)
@@ -229,7 +223,6 @@ export default function AdminPlatformSettingsScreen() {
         { key: PLATFORM_SETTINGS_KEYS.inspectionFee, value: Number(form.inspectionFee) },
         { key: PLATFORM_SETTINGS_KEYS.inspectionEnabled, value: form.inspectionEnabled },
         { key: PLATFORM_SETTINGS_KEYS.returnFee, value: Number(form.returnFee) },
-        { key: PLATFORM_SETTINGS_KEYS.commissionRate, value: Number(form.commissionRate) },
         { key: PLATFORM_SETTINGS_KEYS.requestLifetimeMinutes, value: Math.max(1, Math.round(Number(form.requestLifetimeMinutes) || 30)) },
         { key: PLATFORM_SETTINGS_KEYS.easternProvinceEnabled, value: form.easternProvinceEnabled },
         { key: PLATFORM_SETTINGS_KEYS.serviceAreaMessageAr, value: form.serviceAreaMessageAr.trim() },
@@ -510,8 +503,8 @@ export default function AdminPlatformSettingsScreen() {
             <CollapsibleSection
               icon="percent"
               iconColor="#f59e0b"
-              title={isRTL ? 'الرسوم والعمولة' : 'Fees & commission'}
-              subtitle={isRTL ? 'الإرجاع وعمولة المنصة' : 'Return fee and platform commission'}
+              title={isRTL ? 'الرسوم' : 'Fees'}
+              subtitle={isRTL ? 'رسوم الإرجاع' : 'Return fee'}
               COLORS={COLORS}
               isRTL={isRTL}
             >
@@ -525,14 +518,9 @@ export default function AdminPlatformSettingsScreen() {
                 error={errors.returnFee}
                 COLORS={COLORS} isRTL={isRTL}
               />
-              <FieldNumber
-                label={isRTL ? 'عمولة المنصة (0 - 1)' : 'Platform commission (0 - 1)'}
-                hint={isRTL ? 'مثال: 0.15 تعني 15٪.' : 'Example: 0.15 means 15%.'}
-                value={form.commissionRate}
-                onChangeText={(v) => set({ commissionRate: v })}
-                error={errors.commissionRate}
-                COLORS={COLORS} isRTL={isRTL}
-              />
+              {/* Platform commission is set on the Accounting screen
+                  (commission_settings) — the single source of truth used by
+                  payouts and reports. A duplicate field here was orphaned. */}
             </CollapsibleSection>
 
             {/* Request lifetime (§8) */}
