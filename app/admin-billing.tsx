@@ -461,6 +461,12 @@ function SettingsForm({ settings, isRTL, COLORS, styles, onSaved }: any) {
         <Switch value={s.enabled} onValueChange={(v) => set('enabled', v)} trackColor={{ true: COLORS.primary }} />
       </View>
 
+      <Text style={{ color: COLORS.textSecondary, fontSize: 12, lineHeight: 18, marginBottom: 14, textAlign: isRTL ? 'right' : 'left' }}>
+        {isRTL
+          ? 'هذه الإعدادات (الشعار، العنوان، الجوال، البريد…) تظهر على الفاتورة وعلى شهادة الضمان معاً.'
+          : 'These settings (logo, address, phone, email…) appear on both the invoice and the warranty certificate.'}
+      </Text>
+
       {field(isRTL ? 'اسم الشركة' : 'Company name', 'companyName')}
       {field(isRTL ? 'رابط الشعار (URL)' : 'Logo URL', 'logoUrl')}
       {field(isRTL ? 'الرقم الضريبي (VAT)' : 'VAT number', 'vatNumber', 'numeric')}
@@ -478,6 +484,23 @@ function SettingsForm({ settings, isRTL, COLORS, styles, onSaved }: any) {
       {field(isRTL ? 'تذييل الفاتورة' : 'Invoice footer', 'footer', undefined, true)}
       {field(isRTL ? 'النص القانوني / الضريبي' : 'Legal / tax text', 'legalText', undefined, true)}
       {field(isRTL ? 'بادئة رقم الفاتورة' : 'Invoice number prefix', 'prefix')}
+
+      {/* Warranty certificate look */}
+      <View style={{ height: 1, backgroundColor: COLORS.border, marginVertical: 16 }} />
+      <Text style={{ color: COLORS.text, fontSize: 14, fontWeight: '800', marginBottom: 4, textAlign: isRTL ? 'right' : 'left' }}>
+        {isRTL ? 'شكل شهادة الضمان' : 'Warranty certificate look'}
+      </Text>
+      <Text style={{ color: COLORS.textSecondary, fontSize: 12, lineHeight: 18, marginBottom: 12, textAlign: isRTL ? 'right' : 'left' }}>
+        {isRTL
+          ? 'اللون الأساسي للشهادة (الختم، الشريط العلوي، العناوين). أدخل قيمة Hex مثل #065f46.'
+          : 'The certificate’s accent colour (seal, top bar, headings). Enter a hex value like #065f46.'}
+      </Text>
+      <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 12, marginBottom: 14 }}>
+        <View style={{ width: 40, height: 40, borderRadius: 10, borderWidth: 1, borderColor: COLORS.border, backgroundColor: (s.accentColor || '#065f46') }} />
+        <View style={{ flex: 1 }}>
+          {field(isRTL ? 'لون الشهادة (Hex)' : 'Certificate colour (Hex)', 'accentColor')}
+        </View>
+      </View>
 
       <TouchableOpacity style={[styles.primaryBtn, busy && { opacity: 0.6 }]} disabled={busy} onPress={save}>
         {busy ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryBtnText}>{isRTL ? 'حفظ الإعدادات' : 'Save settings'}</Text>}

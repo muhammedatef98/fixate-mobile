@@ -5,6 +5,7 @@ import { logger } from '../utils/logger';
 import { getInvoiceSettings, type InvoiceSettings } from './invoiceService';
 import { formatInvoiceDate } from './invoicePdf';
 import { deriveWarranty, deviceLabel, WARRANTY_MONTHS, type WarrantyOrderLike } from '../utils/warranty';
+import { BRAND_LOGO_DATA_URI } from '../constants/brandLogo';
 
 const esc = (s: unknown): string =>
   String(s ?? '')
@@ -82,6 +83,11 @@ export const buildWarrantyHtml = async (
       ];
 
   const brandName = esc(settings.companyName || 'Fixate');
+  // Admin-editable brand accent (invoice settings). Drives every coloured
+  // element on the certificate; falls back to the brand emerald.
+  const accent = esc((settings.accentColor || '#065f46').trim() || '#065f46');
+  // Admin logo URL wins; otherwise the bundled brand mark (self-contained).
+  const logoSrc = (settings.logoUrl || '').trim() || BRAND_LOGO_DATA_URI;
   const sealRingTop = isRTL ? 'شهادة ضمان معتمدة' : 'CERTIFIED WARRANTY';
   // Professional round emblem (SVG): concentric rings, arced text, centered
   // check. Crisp at any size and far less template-looking than a rotated
@@ -92,18 +98,18 @@ export const buildWarrantyHtml = async (
         <path id="wcarcTop" d="M 24,70 A 46,46 0 0 1 116,70" />
         <path id="wcarcBottom" d="M 26,70 A 44,44 0 0 0 114,70" />
       </defs>
-      <circle cx="70" cy="70" r="66" fill="none" stroke="#065f46" stroke-width="1"/>
-      <circle cx="70" cy="70" r="61" fill="none" stroke="#0e7a54" stroke-width="2.5"/>
-      <circle cx="70" cy="70" r="37" fill="#f4faf7" stroke="#c9e2d8" stroke-width="1"/>
-      <text font-family="-apple-system,Helvetica,Arial,sans-serif" font-size="9" font-weight="700" letter-spacing="2.4" fill="#065f46">
+      <circle cx="70" cy="70" r="66" fill="none" stroke="${accent}" stroke-width="1"/>
+      <circle cx="70" cy="70" r="61" fill="none" stroke="${accent}" stroke-width="2.5"/>
+      <circle cx="70" cy="70" r="37" fill="#f6faf8" stroke="${accent}33" stroke-width="1"/>
+      <text font-family="-apple-system,Helvetica,Arial,sans-serif" font-size="9" font-weight="700" letter-spacing="2.4" fill="${accent}">
         <textPath xlink:href="#wcarcTop" startOffset="50%" text-anchor="middle">${esc(sealRingTop)}</textPath>
       </text>
-      <text font-family="-apple-system,Helvetica,Arial,sans-serif" font-size="8" font-weight="700" letter-spacing="2.8" fill="#0e7a54">
+      <text font-family="-apple-system,Helvetica,Arial,sans-serif" font-size="8" font-weight="700" letter-spacing="2.8" fill="${accent}">
         <textPath xlink:href="#wcarcBottom" startOffset="50%" text-anchor="middle">${brandName.toUpperCase()}</textPath>
       </text>
-      <circle cx="21" cy="70" r="1.7" fill="#0e7a54"/>
-      <circle cx="119" cy="70" r="1.7" fill="#0e7a54"/>
-      <circle cx="70" cy="70" r="21" fill="#065f46"/>
+      <circle cx="21" cy="70" r="1.7" fill="${accent}"/>
+      <circle cx="119" cy="70" r="1.7" fill="${accent}"/>
+      <circle cx="70" cy="70" r="21" fill="${accent}"/>
       <path d="M60.5,70.5 l6,6 l12.5,-14" fill="none" stroke="#ffffff" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/>
     </svg>`;
 
@@ -122,25 +128,25 @@ export const buildWarrantyHtml = async (
   .sheet { position: relative; background: #ffffff; border: 1px solid #dfe8e4; border-radius: 6px;
            box-shadow: 0 12px 34px rgba(16,31,25,.10); }
   .accent-strip { height: 4px; border-radius: 6px 6px 0 0;
-                  background: linear-gradient(90deg, #065f46 0%, #0e7a54 60%, #34d399 100%); }
+                  background: linear-gradient(90deg, ${accent} 0%, ${accent} 55%, ${accent}99 100%); }
   .inner { padding: 34px 38px 30px; }
 
   .head { display: flex; justify-content: space-between; align-items: flex-start; gap: 20px;
           padding-bottom: 18px; border-bottom: 1px solid #e8efeb; }
   .brand { text-align: ${align}; display: flex; align-items: center; gap: 12px;
            flex-direction: ${isRTL ? 'row-reverse' : 'row'}; }
-  .monogram { width: 44px; height: 44px; border-radius: 10px; background: #065f46; color: #fff;
+  .monogram { width: 44px; height: 44px; border-radius: 10px; background: ${accent}; color: #fff;
               font-size: 22px; font-weight: 800; display: flex; align-items: center; justify-content: center; }
-  .brand h1 { margin: 0; font-size: 19px; font-weight: 800; color: #0b3b2c; letter-spacing: .3px; }
+  .brand h1 { margin: 0; font-size: 19px; font-weight: 800; color: #12211b; letter-spacing: .3px; }
   .brand .meta { color: #6a7a73; font-size: 10.5px; margin-top: 3px; line-height: 1.6; }
   .logo { max-height: 48px; max-width: 150px; object-fit: contain; }
   .doc { text-align: ${isRTL ? 'left' : 'right'}; }
-  .doc .kicker { font-size: 9.5px; font-weight: 800; letter-spacing: 3px; text-transform: uppercase; color: #34d399; }
-  .doc .title { font-size: 20px; font-weight: 800; color: #0b3b2c; margin-top: 4px; letter-spacing: .2px; }
+  .doc .kicker { font-size: 9.5px; font-weight: 800; letter-spacing: 3px; text-transform: uppercase; color: ${accent}; }
+  .doc .title { font-size: 20px; font-weight: 800; color: #12211b; margin-top: 4px; letter-spacing: .2px; }
   .doc .field { font-size: 11.5px; color: #3d4f48; margin-top: 5px; }
-  .doc .field b { color: #065f46; font-weight: 700; }
+  .doc .field b { color: ${accent}; font-weight: 700; }
   .pill { display: inline-block; font-size: 10.5px; font-weight: 700; padding: 5px 13px; border-radius: 999px;
-          margin-top: 11px; letter-spacing: .3px; background: #e7f6ee; color: #0b6b47; border: 1px solid #bfe6d3; }
+          margin-top: 11px; letter-spacing: .3px; background: ${accent}14; color: ${accent}; border: 1px solid ${accent}44; }
   .pill.expired { background: #f1f4f2; color: #66756e; border-color: #e0e6e3; }
 
   .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0; margin: 26px 0 22px;
@@ -150,7 +156,7 @@ export const buildWarrantyHtml = async (
   .cell:nth-last-child(-n+2) { border-bottom: none; }
   .cell .lbl { font-size: 9.5px; text-transform: uppercase; letter-spacing: 1px; color: #8a9a92; font-weight: 700; }
   .cell .val { font-size: 14px; font-weight: 700; margin-top: 5px; line-height: 1.45; color: #101f19; }
-  .cell .val.accent { color: #0b6b47; }
+  .cell .val.accent { color: ${accent}; }
 
   .terms { text-align: ${align}; margin-top: 2px; }
   .terms h2 { font-size: 11px; margin: 0 0 8px; color: #8a9a92; font-weight: 800;
@@ -178,12 +184,10 @@ export const buildWarrantyHtml = async (
     <div class="inner">
       <div class="head">
         <div class="brand">
-          ${settings.logoUrl
-            ? `<img class="logo" src="${esc(settings.logoUrl)}" />`
-            : `<div class="monogram">${brandName.slice(0, 1).toUpperCase()}</div>`}
+          <img class="logo" src="${esc(logoSrc)}" />
           <div>
-            ${settings.logoUrl ? '' : `<h1>${brandName}</h1>`}
-            <div class="meta">${esc(settings.address)}<br/>${esc(settings.phone)} ${settings.email ? `· ${esc(settings.email)}` : ''}</div>
+            <h1>${brandName}</h1>
+            <div class="meta">${esc(settings.address)}<br/><span dir="ltr">${esc(settings.phone)}${settings.email ? ` · ${esc(settings.email)}` : ''}</span></div>
           </div>
         </div>
         <div class="doc">

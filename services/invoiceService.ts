@@ -70,6 +70,8 @@ export interface InvoiceSettings {
   pricesIncludeVat: boolean;
   footer: string;
   legalText: string;
+  /** Brand accent colour (hex) driving the warranty certificate styling. */
+  accentColor: string;
 }
 
 export interface ListInvoicesOptions {
@@ -173,7 +175,11 @@ const SETTING_KEYS = [
   'invoice_prices_include_vat',
   'invoice_footer',
   'invoice_legal_text',
+  'invoice_accent_color',
 ];
+
+/** Default warranty-certificate accent — the brand emerald. */
+const DEFAULT_ACCENT = '#065f46';
 
 const str = (v: any, d = ''): string => (typeof v === 'string' ? v : v == null ? d : String(v));
 
@@ -197,6 +203,7 @@ export const getInvoiceSettings = async (): Promise<InvoiceSettings> => {
     pricesIncludeVat: map.get('invoice_prices_include_vat') !== false,
     footer: str(map.get('invoice_footer')),
     legalText: str(map.get('invoice_legal_text')),
+    accentColor: str(map.get('invoice_accent_color'), DEFAULT_ACCENT) || DEFAULT_ACCENT,
   };
 };
 
@@ -215,6 +222,7 @@ export const saveInvoiceSettings = async (s: InvoiceSettings): Promise<void> => 
     { key: 'invoice_prices_include_vat', value: s.pricesIncludeVat },
     { key: 'invoice_footer', value: s.footer },
     { key: 'invoice_legal_text', value: s.legalText },
+    { key: 'invoice_accent_color', value: (s.accentColor || DEFAULT_ACCENT).trim() },
   ];
   const rows = entries.map((e) => ({ key: e.key, value: e.value, updated_at: new Date().toISOString() }));
   const { error } = await supabase.from('platform_settings').upsert(rows, { onConflict: 'key' });

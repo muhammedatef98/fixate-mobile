@@ -4,6 +4,7 @@ import QRCode from 'qrcode';
 import { logger } from '../utils/logger';
 import type { Invoice, InvoiceSettings } from './invoiceService';
 import { getInvoiceSettings } from './invoiceService';
+import { BRAND_LOGO_DATA_URI } from '../constants/brandLogo';
 
 const esc = (s: unknown): string =>
   String(s ?? '')
@@ -168,7 +169,7 @@ export const buildInvoiceHtml = async (
 <body>
   <div class="head">
     <div class="brand">
-      ${settings.logoUrl ? `<img class="logo" src="${esc(settings.logoUrl)}" />` : `<h1>${esc(settings.companyName || invoice.seller_name)}</h1>`}
+      <img class="logo" src="${esc((settings.logoUrl || '').trim() || BRAND_LOGO_DATA_URI)}" /><h1 style="margin-top:6px">${esc(settings.companyName || invoice.seller_name)}</h1>
       <div class="meta">
         ${esc(invoice.seller_address || settings.address)}<br/>
         ${invoice.seller_vat_number ? `${t.vatNo}: ${esc(invoice.seller_vat_number)}<br/>` : ''}
