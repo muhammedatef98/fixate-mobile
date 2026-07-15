@@ -1,5 +1,6 @@
 import { supabase } from './supabaseClient';
 import { logger } from '../utils/logger';
+import { ksaDateTimeToIso, ksaTodayDateString } from '../utils/ksaTime';
 
 export type ScheduledAudience = 'all' | 'customers' | 'technicians';
 export type Recurrence = 'none' | 'daily' | 'weekly';
@@ -73,18 +74,22 @@ export const scheduleNextMonth = async (
   hour: number,
   minute: number
 ): Promise<number> => {
+  // The picked HH:MM is Saudi (Riyadh) time, not the admin device's timezone.
+  // Anchor day 1 at that KSA wall-clock, then step by exact 24h — Riyadh has no
+  // DST so each subsequent day lands on the same KSA hour. See utils/ksaTime.
+  const hh = String(Math.max(0, Math.min(23, hour))).padStart(2, '0');
+  const mm = String(Math.max(0, Math.min(59, minute))).padStart(2, '0');
+  const startIso = ksaDateTimeToIso(ksaTodayDateString(), `${hh}:${mm}`);
+  const startMs = startIso ? new Date(startIso).getTime() : Date.now();
+  const DAY_MS = 86_400_000;
   const rows = [];
-  const base = new Date();
-  base.setHours(hour, minute, 0, 0);
   for (let i = 1; i <= 30; i++) {
-    const d = new Date(base);
-    d.setDate(base.getDate() + i);
     rows.push({
       title: input.title.trim(),
       body: input.body.trim(),
       audience: input.audience,
       category: input.category ?? 'announcement',
-      scheduled_at: d.toISOString(),
+      scheduled_at: new Date(startMs + i * DAY_MS).toISOString(),
       recurrence: 'none' as Recurrence,
       created_by: input.created_by ?? null,
     });

@@ -21,7 +21,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useIsAdmin } from '../hooks/useAdminGuard';
 import { getColors, SPACING, BORDER_RADIUS } from '../constants/theme';
 import { AdminScreenHeader, AdminEmptyState } from '../components/admin/AdminUI';
-import { fmtAdminDate } from '../utils/dateFormat';
+import { ksaDateTimeToIso, fmtKsaDateTime } from '../utils/ksaTime';
 import {
   listUpcomingScheduled,
   createScheduled,
@@ -45,15 +45,10 @@ const RECURRENCES: { key: Recurrence; ar: string; en: string }[] = [
   { key: 'weekly', ar: 'أسبوعي', en: 'Weekly' },
 ];
 
-// Compose a local date (YYYY-MM-DD) + time (HH:MM) into an ISO timestamp.
-function toIso(dateStr: string, timeStr: string): string | null {
-  const d = dateStr.trim();
-  const t = (timeStr.trim() || '09:00');
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) return null;
-  if (!/^\d{1,2}:\d{2}$/.test(t)) return null;
-  const dt = new Date(`${d}T${t.padStart(5, '0')}:00`);
-  return Number.isNaN(dt.getTime()) ? null : dt.toISOString();
-}
+// Compose the picked date (YYYY-MM-DD) + time (HH:MM) into a UTC ISO timestamp.
+// The picked time is always Saudi (Riyadh) time — never the admin device's
+// timezone — so a push fires at the intended Saudi hour. See utils/ksaTime.
+const toIso = ksaDateTimeToIso;
 
 export default function AdminScheduledScreen() {
   const { language, isDark } = useApp();
@@ -244,7 +239,9 @@ export default function AdminScheduledScreen() {
                 </TouchableOpacity>
               </View>
               <View style={{ width: 130 }}>
-                <Text style={[styles.label, { marginTop: 10 }]}>{isRTL ? 'الوقت' : 'Time'}</Text>
+                <Text style={[styles.label, { marginTop: 10 }]}>
+                  {isRTL ? 'الوقت (توقيت السعودية)' : 'Time (KSA)'}
+                </Text>
                 <TouchableOpacity
                   onPress={() => setTimePickerOpen(true)}
                   style={[styles.input, { justifyContent: 'center' }]}
@@ -297,7 +294,7 @@ export default function AdminScheduledScreen() {
                 </View>
                 <Text style={styles.itemBody} numberOfLines={2}>{s.body}</Text>
                 <View style={styles.pillRow}>
-                  <Pill text={fmtAdminDate(s.scheduled_at, isRTL)} COLORS={COLORS} />
+                  <Pill text={fmtKsaDateTime(s.scheduled_at, isRTL)} COLORS={COLORS} />
                   <Pill text={audienceLabel(s.audience)} COLORS={COLORS} />
                   {s.recurrence !== 'none' && <Pill text={recurrenceLabel(s.recurrence)} COLORS={COLORS} />}
                 </View>
