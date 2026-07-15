@@ -1140,7 +1140,11 @@ export default function ChatbotScreen() {
       <StatusBar barStyle="light-content" />
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        // 'padding' on BOTH platforms: with SDK 54's always-on edge-to-edge,
+        // Android's adjustResize no longer lifts the composer by itself, so
+        // relying on it (behavior undefined) left the input covered by the
+        // keyboard.
+        behavior="padding"
       >
         {/* Header */}
         <View style={styles.header}>
@@ -1400,7 +1404,8 @@ const makeStyles = (C: any, isRTL: boolean) =>
       textAlign: isRTL ? 'right' : 'left',
     },
     inputBar: {
-      flexDirection: isRTL ? 'row-reverse' : 'row',
+      // Send button always on the RIGHT (user preference), in both languages.
+      flexDirection: 'row',
       alignItems: 'flex-end',
       gap: 8,
       padding: 10,

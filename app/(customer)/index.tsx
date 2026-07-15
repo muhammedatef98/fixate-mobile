@@ -129,7 +129,7 @@ const TRUST_POINTS = [
 
 export default function CustomerHomeScreen() {
   const router = useRouter();
-  const { language, setLanguage, isDark } = useApp();
+  const { language, isDark } = useApp();
   const { user, userProfile } = useAuth();
   const COLORS = getColors(isDark);
   const SHADOWS = getShadows(isDark);
@@ -310,14 +310,8 @@ export default function CustomerHomeScreen() {
         <Text style={[styles.logo, { color: COLORS.primary }]}>Fixate</Text>
 
         <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', gap: 8 }}>
-          <AnimatedTouchable
-            onPress={() => setLanguage(language === 'ar' ? 'en' : 'ar')}
-            style={[styles.iconBtn, { backgroundColor: COLORS.card, borderColor: COLORS.border }]}
-            accessibilityRole="button"
-            accessibilityLabel={isRTL ? 'تبديل اللغة' : 'Toggle language'}
-          >
-            <Ionicons name="language" size={18} color={COLORS.text} />
-          </AnimatedTouchable>
+          {/* Language toggle intentionally removed from the header (lives in
+              the sidebar's Preferences, near the top) to declutter. */}
           <AnimatedTouchable
             onPress={() => router.push('/notifications')}
             style={[styles.iconBtn, { backgroundColor: COLORS.card, borderColor: COLORS.border }]}

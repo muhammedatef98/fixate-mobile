@@ -12,11 +12,6 @@
       "translucent": false
     },
     "description": "منصة صيانة الأجهزة الإلكترونية في السعودية - إصلاح أجهزتك بسرعة وسهولة مع فنيين محترفين في موقعك",
-    "androidNavigationBar": {
-      "visible": "sticky-immersive",
-      "barStyle": "dark-content",
-      "backgroundColor": "#ffffff"
-    },
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",

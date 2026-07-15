@@ -231,7 +231,8 @@ const makeStyles = (C: any, isRTL: boolean) =>
     msgRow: { flexDirection: 'row', marginVertical: 4 },
     bubble: { maxWidth: '78%', borderRadius: 16, paddingVertical: 8, paddingHorizontal: 12 },
     inputBar: {
-      flexDirection: isRTL ? 'row-reverse' : 'row',
+      // Send button always on the RIGHT (user preference), in both languages.
+      flexDirection: 'row',
       alignItems: 'flex-end',
       padding: 8,
       gap: 8,

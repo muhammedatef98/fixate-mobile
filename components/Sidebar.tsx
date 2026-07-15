@@ -311,31 +311,12 @@ export default function Sidebar({ visible, onClose }: SidebarProps) {
               </Animated.View>
             )}
 
-            <SidebarSection
-              title={isRTL ? 'القائمة الرئيسية' : 'MAIN'}
-              COLORS={COLORS}
-              isRTL={isRTL}
-              startIndex={isAdmin ? 1 : 0}
-              rowAnim={rowAnim}
-              rows={main}
-              onPress={goto}
-            />
-
-            <SidebarSection
-              title={isRTL ? 'حسابي' : 'ACCOUNT'}
-              COLORS={COLORS}
-              isRTL={isRTL}
-              startIndex={isAdmin ? 1 + main.length : main.length}
-              rowAnim={rowAnim}
-              rows={account}
-              onPress={goto}
-            />
-
-            {/* Preferences */}
+            {/* Preferences — kept near the top so the language toggle stays
+                one swipe away now that it no longer lives in the home header. */}
             <Animated.View
               style={[
-                { paddingHorizontal: SPACING.md, marginBottom: SPACING.md },
-                rowAnim(main.length + account.length + (isAdmin ? 1 : 0)),
+                { paddingHorizontal: SPACING.md, marginTop: 14, marginBottom: SPACING.md },
+                rowAnim(isAdmin ? 1 : 0),
               ]}
             >
               <Text style={s.sectionLabel}>
@@ -384,6 +365,26 @@ export default function Sidebar({ visible, onClose }: SidebarProps) {
                 </Pressable>
               </View>
             </Animated.View>
+
+            <SidebarSection
+              title={isRTL ? 'القائمة الرئيسية' : 'MAIN'}
+              COLORS={COLORS}
+              isRTL={isRTL}
+              startIndex={isAdmin ? 2 : 1}
+              rowAnim={rowAnim}
+              rows={main}
+              onPress={goto}
+            />
+
+            <SidebarSection
+              title={isRTL ? 'حسابي' : 'ACCOUNT'}
+              COLORS={COLORS}
+              isRTL={isRTL}
+              startIndex={main.length + (isAdmin ? 2 : 1)}
+              rowAnim={rowAnim}
+              rows={account}
+              onPress={goto}
+            />
 
             {/* Logout */}
             <Animated.View
