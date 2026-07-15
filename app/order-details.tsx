@@ -103,6 +103,7 @@ export default function OrderDetailsScreen() {
   // Status log is collapsed on finished orders (see HISTORY_COLLAPSED_COUNT).
   const [historyExpanded, setHistoryExpanded] = useState(false);
   const [cancellingOrder, setCancellingOrder] = useState(false);
+  const [codConfirming, setCodConfirming] = useState(false);
   const [deliveryTasks, setDeliveryTasks] = useState<DeliveryTask[]>([]);
   const [pendingOfferCount, setPendingOfferCount] = useState(0);
   const [copiedRef, setCopiedRef] = useState(false);
@@ -830,16 +831,60 @@ export default function OrderDetailsScreen() {
         {/* Awaiting payment — the customer just accepted a technician's offer
             and confirms payment here (this IS the approval moment; they can
             still cancel). */}
-        {order.status === 'awaiting_payment' && userType === 'customer' && (
+        {order.status === 'awaiting_payment' && userType === 'customer' && (() => {
+          // COD chosen in the request wizard: this is a plain order
+          // confirmation, not a "complete payment" push — cash is collected
+          // by the technician on delivery (record_order_payment).
+          const isCodPreferred = (order as any).payment_method === 'cod';
+          const confirmCod = async () => {
+            setCodConfirming(true);
+            try {
+              const { error } = await supabase
+                .from('orders')
+                .update({
+                  payment_method: 'cod',
+                  payment_status: 'unpaid',
+                  status: 'accepted',
+                  updated_at: new Date().toISOString(),
+                })
+                .eq('id', order.id)
+                .eq('status', 'awaiting_payment');
+              if (error) throw error;
+              if (order.technician_id) {
+                try {
+                  const { notifyUsers } = await import('../services/notifyService');
+                  void notifyUsers(order.technician_id, {
+                    title: 'تم تأكيد الطلب ✅',
+                    body: 'أكد العميل الطلب (دفع عند الاستلام) — يمكنك بدء العمل.',
+                    data: { screen: 'order-details', orderId: String(order.id) },
+                  });
+                } catch (e) {
+                  logger.warn('cod-confirm push failed', e);
+                }
+              }
+              await loadOrderDetails();
+            } catch (e) {
+              Alert.alert(isRTL ? 'خطأ' : 'Error', isRTL ? 'فشل تأكيد الطلب' : 'Failed to confirm the order');
+            } finally {
+              setCodConfirming(false);
+            }
+          };
+          return (
           <View style={[styles.card, { backgroundColor: COLORS.card, borderWidth: 2, borderColor: COLORS.primary }, SHADOWS.small]}>
             <View style={styles.cardHeader}>
-              <MaterialCommunityIcons name="credit-card-clock" size={24} color={COLORS.primary} />
+              <MaterialCommunityIcons name={isCodPreferred ? 'cash-check' : 'credit-card-clock'} size={24} color={COLORS.primary} />
               <Text style={[styles.cardTitle, { color: COLORS.text }]}>
-                {isRTL ? 'أكّد الدفع لبدء الإصلاح' : 'Confirm payment to start the repair'}
+                {isCodPreferred
+                  ? (isRTL ? 'أكّد طلبك لبدء الإصلاح' : 'Confirm your order to start the repair')
+                  : (isRTL ? 'أكّد الدفع لبدء الإصلاح' : 'Confirm payment to start the repair')}
               </Text>
             </View>
             <Text style={{ color: COLORS.textSecondary, fontSize: 13, marginBottom: 12, textAlign: isRTL ? 'right' : 'left' }}>
-              {isSplitMode
+              {isCodPreferred
+                ? isRTL
+                  ? `قبلت عرض الفني بقيمة ${fmtSAR(totals.agreedAmount, isRTL)}. الدفع نقداً عند الاستلام — لن يُخصم أي مبلغ الآن.`
+                  : `You accepted the technician's offer of ${fmtSAR(totals.agreedAmount, isRTL)}. Cash on delivery — nothing is charged now.`
+                : isSplitMode
                 ? isRTL
                   ? `قبلت عرض الفني بقيمة ${fmtSAR(totals.agreedAmount, isRTL)}. المطلوب الآن ${fmtSAR(totals.dueNow, isRTL)} والمتبقي بعد الإصلاح.`
                   : `You accepted the technician's offer of ${fmtSAR(totals.agreedAmount, isRTL)}. ${fmtSAR(totals.dueNow, isRTL)} is due now; the rest after the repair.`
@@ -848,19 +893,37 @@ export default function OrderDetailsScreen() {
                   : `You accepted the technician's offer of ${fmtSAR(totals.agreedAmount, isRTL)}. Confirm payment to continue.`}
             </Text>
             <TouchableOpacity
-              style={[styles.actionButton, { backgroundColor: COLORS.primary }, SHADOWS.small]}
+              style={[styles.actionButton, { backgroundColor: COLORS.primary, opacity: codConfirming ? 0.6 : 1 }, SHADOWS.small]}
+              disabled={codConfirming}
               onPress={() =>
-                router.push({
-                  pathname: '/payment',
-                  params: { orderId: String(order.id) },
-                })
+                isCodPreferred
+                  ? confirmCod()
+                  : router.push({
+                      pathname: '/payment',
+                      params: { orderId: String(order.id) },
+                    })
               }
             >
-              <MaterialIcons name="payment" size={20} color="#fff" />
+              <MaterialIcons name={isCodPreferred ? 'check-circle' : 'payment'} size={20} color="#fff" />
               <Text style={styles.actionButtonText}>
-                {isRTL ? 'الانتقال للدفع' : 'Proceed to payment'}
+                {isCodPreferred
+                  ? (isRTL ? 'تأكيد الطلب — الدفع عند الاستلام' : 'Confirm order — cash on delivery')
+                  : (isRTL ? 'الانتقال للدفع' : 'Proceed to payment')}
               </Text>
             </TouchableOpacity>
+            {isCodPreferred && (
+              <TouchableOpacity
+                onPress={() =>
+                  router.push({ pathname: '/payment', params: { orderId: String(order.id) } })
+                }
+                style={{ alignItems: 'center', paddingVertical: 10, marginTop: 2 }}
+                accessibilityRole="button"
+              >
+                <Text style={{ color: COLORS.primary, fontSize: 13, fontWeight: '700' }}>
+                  {isRTL ? 'أو ادفع الآن بطريقة أخرى' : 'Or pay now with another method'}
+                </Text>
+              </TouchableOpacity>
+            )}
             <TouchableOpacity
               disabled={cancellingOrder}
               onPress={() =>
@@ -896,7 +959,8 @@ export default function OrderDetailsScreen() {
               </Text>
             </TouchableOpacity>
           </View>
-        )}
+          );
+        })()}
 
         {/* Price card — agreed offer is the price basis; initial estimate is
             shown separately and clearly labelled. Internal spare-part cost is

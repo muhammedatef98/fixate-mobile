@@ -978,7 +978,11 @@ const makeStyles = (C: any, isRTL: boolean, SHADOWS: any) =>
     },
     actionCard: {
       width: (width - SPACING.m * 2 - 12) / 2,
-      minHeight: 116,
+      // Fixed height (not minHeight): PressableScale's outer wrapper doesn't
+      // stretch row-mates to equal height, so a shorter card (e.g. "Track my
+      // order" with a one-line status) rendered visibly shorter than its
+      // two-line neighbours. Equal fixed height keeps the grid uniform.
+      height: 140,
       borderRadius: BORDER_RADIUS.md,
       borderWidth: 1,
       padding: 14,

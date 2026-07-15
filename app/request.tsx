@@ -170,7 +170,17 @@ export default function RequestScreen() {
   const [selectedDeviceType, setSelectedDeviceType] = useState<string | null>(initialDeviceType);
   const [selectedBrand, setSelectedBrand] = useState<Brand | null>(null);
   const [selectedModel, setSelectedModel] = useState<string | null>(null);
-  const [selectedIssue, setSelectedIssue] = useState<Issue | null>(null);
+  // Multi-select: the customer can report several faults in one request. The
+  // first selection is the "primary" issue (drives service_id + estimate);
+  // all names are composed into issue_description.
+  const [selectedIssues, setSelectedIssues] = useState<Issue[]>([]);
+  const selectedIssue = selectedIssues[0] ?? null;
+  const toggleIssue = (issue: Issue) =>
+    setSelectedIssues((prev) =>
+      prev.some((i) => i.id === issue.id)
+        ? prev.filter((i) => i.id !== issue.id)
+        : [...prev, issue]
+    );
   const [issueDescription, setIssueDescription] = useState('');
   const [mediaFiles, setMediaFiles] = useState<string[]>([]);
   // Seed from the calculator's quality selection when arriving via
@@ -739,14 +749,17 @@ export default function RequestScreen() {
 
       // 2. Compose description: prefer Arabic name in Arabic UI, fall back to English
       setSubmitStage('creating');
-      const issueName = isRTL ? selectedIssue.nameAr : selectedIssue.name;
+      const issueName = selectedIssues
+        .map((i) => (isRTL ? i.nameAr : i.name))
+        .join(isRTL ? ' + ' : ' + ');
       const composedDescription = issueDescription
         ? `${issueName}: ${issueDescription}`
         : issueName;
 
       // Estimate engine result (remote-config-aware) with the legacy static
       // calculation as fallback, so submission never blocks on config state.
-      const baseEstimate = selectedIssue.estimatedPrice ?? 0;
+      // Multi-issue: the static base is the sum across all selected faults.
+      const baseEstimate = selectedIssues.reduce((s, i) => s + (i.estimatedPrice ?? 0), 0);
       const adjustedEstimate = estimate?.hasEstimate
         ? estimate.typical
         : Math.round(baseEstimate * SPARE_PART_MULTIPLIERS[sparePartQuality]);
@@ -781,7 +794,7 @@ export default function RequestScreen() {
 
       if (!result) throw new Error('Failed to create request');
 
-      const pointsEarned = pointsForSpend((selectedIssue.estimatedPrice || 0) + deliveryFee);
+      const pointsEarned = pointsForSpend(baseEstimate + deliveryFee);
 
       // Best-effort persistence of delivery + loyalty snapshot. These columns
       // arrive with a pending migration; until then this update silently
@@ -793,6 +806,10 @@ export default function RequestScreen() {
           delivery_region: selectedCityRegion?.code ?? null,
           delivery_area: selectedCity?.name_en ?? null,
           delivery_fee: deliveryFee,
+          // Preferred method chosen in the wizard (e.g. 'cod') — lets the
+          // order-details screen skip the "complete payment" push for
+          // cash-on-delivery orders.
+          payment_method: prefMethod ?? null,
           loyalty_points_earned: pointsEarned,
           commitment_fee: commitmentFeeOnOrder,
           commitment_paid_at: commitmentFeeOnOrder > 0 ? new Date().toISOString() : null,
@@ -807,7 +824,7 @@ export default function RequestScreen() {
       loyaltyService
         .recordEarn(
           user.id,
-          (selectedIssue.estimatedPrice || 0) + deliveryFee,
+          baseEstimate + deliveryFee,
           `${orderData.device_brand} ${orderData.device_model}`
         )
         .then(() => refreshLoyalty())
@@ -1102,21 +1119,36 @@ export default function RequestScreen() {
                 onChangeText={setIssueSearch}
               />
             </View>
+            <View style={styles.payNotice}>
+              <MaterialCommunityIcons name="information-outline" size={18} color={COLORS.primary} />
+              <Text style={styles.payNoticeText}>
+                {isRTL
+                  ? 'يمكنك اختيار أكثر من عطل لنفس الجهاز.'
+                  : 'You can select more than one issue for the same device.'}
+              </Text>
+            </View>
             <ScrollView>
-              {filteredIssues.length > 0 ? filteredIssues.map((issue) => (
+              {filteredIssues.length > 0 ? filteredIssues.map((issue) => {
+                const isPicked = selectedIssues.some((i) => i.id === issue.id);
+                return (
                 <PressableScale
                   key={issue.id}
                   to={0.985}
-                  style={[styles.issueCard, selectedIssue?.id === issue.id && styles.selectedCard]}
-                  onPress={() => setSelectedIssue(issue)}
+                  style={[styles.issueCard, isPicked && styles.selectedCard]}
+                  onPress={() => toggleIssue(issue)}
                 >
                   <View style={styles.issueInfo}>
                     <Text style={styles.issueName}>{isRTL ? issue.nameAr : issue.name}</Text>
                     {/* Per-issue prices intentionally hidden — final cost is shown only in the invoice step. */}
                   </View>
-                  <MaterialCommunityIcons name={issue.icon as any} size={24} color={selectedIssue?.id === issue.id ? COLORS.primary : COLORS.gray} />
+                  {isPicked ? (
+                    <Ionicons name="checkmark-circle" size={24} color={COLORS.primary} />
+                  ) : (
+                    <MaterialCommunityIcons name={issue.icon as any} size={24} color={COLORS.gray} />
+                  )}
                 </PressableScale>
-              )) : renderEmptyState(isRTL ? 'لا توجد نتائج' : 'No results found')}
+                );
+              }) : renderEmptyState(isRTL ? 'لا توجد نتائج' : 'No results found')}
             </ScrollView>
           </View>
         )}
@@ -1660,9 +1692,11 @@ export default function RequestScreen() {
                 </Text>
               </View>
               <View style={styles.summaryRow}>
-                <Text style={styles.summaryLabel}>{isRTL ? 'العطل' : 'Issue'}</Text>
-                <Text style={styles.summaryValue} numberOfLines={2}>
-                  {isRTL ? selectedIssue?.nameAr : selectedIssue?.name}
+                <Text style={styles.summaryLabel}>
+                  {selectedIssues.length > 1 ? (isRTL ? 'الأعطال' : 'Issues') : (isRTL ? 'العطل' : 'Issue')}
+                </Text>
+                <Text style={styles.summaryValue} numberOfLines={3}>
+                  {selectedIssues.map((i) => (isRTL ? i.nameAr : i.name)).join(isRTL ? '، ' : ', ')}
                 </Text>
               </View>
               <View style={styles.summaryRow}>
@@ -1848,6 +1882,21 @@ export default function RequestScreen() {
             </Text>
           )}
         </AnimatedTouchable>
+        {currentStep > 0 && (
+          <AnimatedTouchable
+            style={styles.prevButton}
+            onPress={() => {
+              tapLight();
+              setCurrentStep(currentStep - 1);
+            }}
+            disabled={isSubmitting}
+            accessibilityRole="button"
+            accessibilityLabel={isRTL ? 'الخطوة السابقة' : 'Previous step'}
+          >
+            <RTLIonicon name="chevron-back" size={16} color={COLORS.gray} />
+            <Text style={styles.prevButtonText}>{isRTL ? 'السابق' : 'Previous'}</Text>
+          </AnimatedTouchable>
+        )}
       </View>
     </SafeAreaView>
   );
@@ -2058,4 +2107,6 @@ const createStyles = (COLORS: any, isRTL: boolean, SHADOWS: any) => StyleSheet.c
   footer: { padding: 16, backgroundColor: COLORS.card, borderTopWidth: 1, borderTopColor: COLORS.border },
   nextButton: { backgroundColor: COLORS.primary, height: 54, borderRadius: BORDER_RADIUS.sm, justifyContent: 'center', alignItems: 'center', ...SHADOWS.small },
   nextButtonText: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
+  prevButton: { flexDirection: isRTL ? 'row-reverse' : 'row', gap: 4, height: 44, marginTop: 8, borderRadius: BORDER_RADIUS.sm, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: COLORS.border, backgroundColor: COLORS.background },
+  prevButtonText: { color: COLORS.gray, fontSize: 15, fontWeight: '700' },
 });

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useApp } from '../../contexts/AppContext';
@@ -38,6 +38,11 @@ export default function DeliveryTaskCard({
   const SHADOWS = getShadows(isDark);
   const isRTL = language === 'ar';
 
+  // Available tasks expand on tap so the courier can read the full route,
+  // notes and fee BEFORE committing to Accept.
+  const [expanded, setExpanded] = useState(false);
+  const expandable = mode === 'available';
+
   const isPickupLeg = task.task_type === 'pickup';
   const accent = isPickupLeg ? COLORS.primary : RETURN_ACCENT;
   const custodyLabel = deliveryLegLabel(task.task_type, task.status)[isRTL ? 'ar' : 'en'];
@@ -53,10 +58,15 @@ export default function DeliveryTaskCard({
   const toText = [task.dropoff_contact_name, task.dropoff_address].filter(Boolean).join(' — ');
 
   return (
-    <View
+    <TouchableOpacity
+      activeOpacity={expandable ? 0.85 : 1}
+      disabled={!expandable}
+      onPress={() => setExpanded((v) => !v)}
+      accessibilityRole={expandable ? 'button' : undefined}
+      accessibilityLabel={expandable ? (isRTL ? 'عرض تفاصيل المهمة' : 'View task details') : undefined}
       style={[
         styles.card,
-        { backgroundColor: COLORS.card, borderColor: COLORS.border, opacity: isDone ? 0.75 : 1 },
+        { backgroundColor: COLORS.card, borderColor: expanded ? accent : COLORS.border, opacity: isDone ? 0.75 : 1 },
         SHADOWS.small,
       ]}
     >
@@ -104,7 +114,7 @@ export default function DeliveryTaskCard({
           <Text style={[styles.lineLabel, { color: COLORS.textSecondary }]}>{fromLabel}</Text>
           <Text
             style={[styles.lineText, { color: COLORS.text, textAlign: isRTL ? 'right' : 'left' }]}
-            numberOfLines={1}
+            numberOfLines={expanded ? undefined : 1}
           >
             {fromText || (isRTL ? 'يُنسَّق عبر المحادثة' : 'Coordinated in chat')}
           </Text>
@@ -114,17 +124,59 @@ export default function DeliveryTaskCard({
           <Text style={[styles.lineLabel, { color: COLORS.textSecondary }]}>{toLabel}</Text>
           <Text
             style={[styles.lineText, { color: COLORS.text, textAlign: isRTL ? 'right' : 'left' }]}
-            numberOfLines={1}
+            numberOfLines={expanded ? undefined : 1}
           >
             {toText || (isRTL ? 'يُنسَّق عبر المحادثة' : 'Coordinated in chat')}
           </Text>
         </View>
       </View>
 
+      {/* Full details — revealed when the courier taps the card. */}
+      {expanded && !!task.notes && (
+        <View
+          style={{
+            backgroundColor: COLORS.background,
+            borderRadius: 10,
+            padding: 10,
+            marginTop: 10,
+          }}
+        >
+          <Text style={{ color: COLORS.textSecondary, fontSize: 11, fontWeight: '700', marginBottom: 3, textAlign: isRTL ? 'right' : 'left' }}>
+            {isRTL ? 'ملاحظات' : 'Notes'}
+          </Text>
+          <Text style={{ color: COLORS.text, fontSize: 13, lineHeight: 19, textAlign: isRTL ? 'right' : 'left' }}>
+            {task.notes}
+          </Text>
+        </View>
+      )}
+
       {!!task.created_at && mode === 'available' && (
         <Text style={{ color: COLORS.textSecondary, fontSize: 11, marginTop: 8, textAlign: isRTL ? 'right' : 'left' }}>
           {fmtRequestDateTime(task.created_at, isRTL)}
         </Text>
+      )}
+
+      {expandable && (
+        <View
+          style={{
+            flexDirection: isRTL ? 'row-reverse' : 'row',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 4,
+            marginTop: 8,
+          }}
+        >
+          <MaterialCommunityIcons
+            name={expanded ? 'chevron-up' : 'chevron-down'}
+            size={15}
+            color={COLORS.textSecondary}
+          />
+          <Text style={{ color: COLORS.textSecondary, fontSize: 11.5, fontWeight: '700' }}>
+            {expanded
+              ? (isRTL ? 'إخفاء التفاصيل' : 'Hide details')
+              : (isRTL ? 'اضغط لعرض التفاصيل قبل القبول' : 'Tap for details before accepting')}
+          </Text>
+        </View>
       )}
 
       {mode === 'available' ? (
@@ -171,7 +223,7 @@ export default function DeliveryTaskCard({
           </Text>
         </TouchableOpacity>
       )}
-    </View>
+    </TouchableOpacity>
   );
 }
 
