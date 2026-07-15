@@ -725,22 +725,6 @@ export default function AdminDashboardScreen() {
           subtitle={isRTL ? 'الرسوم، العمولة، وضع الصيانة، الإعلانات' : 'Fees, commission, maintenance mode, announcements'}
           onPress={() => router.push('/admin-platform-settings')}
         />
-        {can('platform_settings') && (
-          <AdminActionCard
-            icon="credit-card-settings-outline" iconColor="#0ea5e9"
-            title={isRTL ? 'بوابة الدفع' : 'Payment gateway'}
-            subtitle={isRTL ? 'ربط مزوّد الدفع ومفاتيحه' : 'Connect the payment provider and its keys'}
-            onPress={() => router.push('/admin-payment-gateway' as any)}
-          />
-        )}
-        {can('platform_settings') && (
-          <AdminActionCard
-            icon="message-processing-outline" iconColor="#8b5cf6"
-            title={isRTL ? 'مزوّد OTP / SMS' : 'OTP / SMS provider'}
-            subtitle={isRTL ? 'إعداد مزوّد رسائل التحقق' : 'Configure the verification SMS provider'}
-            onPress={() => router.push('/admin-otp-provider' as any)}
-          />
-        )}
         <AdminActionCard
           icon="ticket-percent-outline" iconColor="#f59e0b"
           title={isRTL ? 'أكواد الخصم' : 'Discount codes'}
