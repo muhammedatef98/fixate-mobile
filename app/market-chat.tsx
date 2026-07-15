@@ -283,6 +283,16 @@ export default function MarketChatScreen() {
             keyboardShouldPersistTaps="handled"
             keyboardDismissMode="interactive"
             contentContainerStyle={{ padding: SPACING.md, flexGrow: 1 }}
+            ListHeaderComponent={
+              <View style={styles.safetyNote}>
+                <Ionicons name="shield-checkmark-outline" size={15} color={COLORS.primary} />
+                <Text style={styles.safetyText}>
+                  {isRTL
+                    ? 'للأمان: عايِن الجهاز قبل الدفع وقابل البائع في مكان عام. المنصّة وسيط ربط فقط ولا تتدخّل في الدفع.'
+                    : 'Stay safe: inspect before you pay and meet in a public place. The platform only connects you — it never handles payment.'}
+                </Text>
+              </View>
+            }
             ListEmptyComponent={
               <View style={styles.emptyMessages}>
                 <Text style={styles.emptyMessagesTitle}>
@@ -478,5 +488,25 @@ const makeStyles = (C: any, isRTL: boolean) =>
       fontSize: 13,
       textAlign: 'center',
       lineHeight: 19,
+    },
+    safetyNote: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
+      gap: 8,
+      backgroundColor: C.primary + '10',
+      borderWidth: 1,
+      borderColor: C.primary + '22',
+      borderRadius: BORDER_RADIUS.md,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+      marginBottom: SPACING.md,
+    },
+    safetyText: {
+      flex: 1,
+      color: C.textSecondary,
+      fontSize: 11.5,
+      lineHeight: 17,
+      fontWeight: '600',
+      textAlign: isRTL ? 'right' : 'left',
     },
   });
