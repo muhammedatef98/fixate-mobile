@@ -425,7 +425,8 @@ const makeStyles = (C: any, isRTL: boolean) =>
       paddingHorizontal: 12,
     },
     inputBar: {
-      flexDirection: isRTL ? 'row-reverse' : 'row',
+      // Send button always on the RIGHT (user preference), in both languages.
+      flexDirection: 'row',
       alignItems: 'flex-end',
       padding: 8,
       gap: 8,

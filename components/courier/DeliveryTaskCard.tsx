@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'rea
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useApp } from '../../contexts/AppContext';
 import { getColors, getShadows, SPACING, BORDER_RADIUS } from '../../constants/theme';
-import { deliveryLegLabel, type DeliveryTask } from '../../services/courierService';
+import { deliveryLegLabel, localizeTaskNotes, type DeliveryTask } from '../../services/courierService';
 import { fmtRequestDateTime } from '../../utils/dateFormat';
 import { Riyal } from '../Riyal';
 
@@ -145,7 +145,7 @@ export default function DeliveryTaskCard({
             {isRTL ? 'ملاحظات' : 'Notes'}
           </Text>
           <Text style={{ color: COLORS.text, fontSize: 13, lineHeight: 19, textAlign: isRTL ? 'right' : 'left' }}>
-            {task.notes}
+            {localizeTaskNotes(task.notes, isRTL)}
           </Text>
         </View>
       )}

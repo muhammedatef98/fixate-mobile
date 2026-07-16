@@ -40,7 +40,13 @@ import { estimatedRepairLabel } from '../utils/estimatedRepair';
 import { PAYMENT_MODE_LABELS } from '../utils/paymentPlan';
 import { resolveStorageUrls } from '../utils/resolveStorageUrls';
 import { getOrderTimeline, actorTypeLabel, type OrderTimelineEvent } from '../services/orderTimelineService';
-import { getDeliveryTasksForOrder, deliveryLegLabel, type DeliveryTask } from '../services/courierService';
+import {
+  getDeliveryTasksForOrder,
+  deliveryLegLabel,
+  rateCourierTask,
+  getMyCourierRatingsForOrder,
+  type DeliveryTask,
+} from '../services/courierService';
 import { isCourierChatOpen } from '../services/courierChatService';
 import { getPendingOfferCount, subscribeToOrderOffers } from '../services/offerMarketplaceService';
 import { formatAppDate } from '../lib/formatDate';
@@ -105,6 +111,9 @@ export default function OrderDetailsScreen() {
   const [cancellingOrder, setCancellingOrder] = useState(false);
   const [codConfirming, setCodConfirming] = useState(false);
   const [deliveryTasks, setDeliveryTasks] = useState<DeliveryTask[]>([]);
+  // task_id → stars the customer already gave (empty for non-customers).
+  const [courierRatings, setCourierRatings] = useState<Record<string, number>>({});
+  const [ratingCourier, setRatingCourier] = useState(false);
   const [pendingOfferCount, setPendingOfferCount] = useState(0);
   const [copiedRef, setCopiedRef] = useState(false);
 
@@ -154,6 +163,7 @@ export default function OrderDetailsScreen() {
     const fulfillment = (order as any).fulfillment_type ?? order.service_type;
     if (['pickup', 'pickup_delivery'].includes(fulfillment as string)) {
       getDeliveryTasksForOrder(order.id as string).then(setDeliveryTasks).catch(() => {});
+      getMyCourierRatingsForOrder(order.id as string).then(setCourierRatings).catch(() => {});
     }
   }, [order?.id, order?.status]);
 
@@ -541,6 +551,67 @@ export default function OrderDetailsScreen() {
                   {label}
                 </Text>
               </View>
+              {/* Rate the courier — one tap, shown once the leg completes. */}
+              {userType === 'customer' && lastDone?.courier_id && (() => {
+                const given = courierRatings[lastDone.id];
+                const submit = async (stars: number) => {
+                  if (ratingCourier || given) return;
+                  setRatingCourier(true);
+                  // Optimistic — the insert is guarded server-side by RLS.
+                  setCourierRatings((prev) => ({ ...prev, [lastDone.id]: stars }));
+                  try {
+                    await rateCourierTask(
+                      { id: lastDone.id, order_id: lastDone.order_id, courier_id: lastDone.courier_id! },
+                      (order as any).user_id,
+                      stars
+                    );
+                  } catch (e) {
+                    setCourierRatings((prev) => {
+                      const { [lastDone.id]: _drop, ...rest } = prev;
+                      return rest;
+                    });
+                    logger.warn('rateCourierTask failed', e);
+                  } finally {
+                    setRatingCourier(false);
+                  }
+                };
+                return (
+                  <View
+                    style={{
+                      flexDirection: isRTL ? 'row-reverse' : 'row',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      marginTop: 10,
+                      paddingTop: 10,
+                      borderTopWidth: StyleSheet.hairlineWidth,
+                      borderTopColor: COLORS.primary + '30',
+                    }}
+                  >
+                    <Text style={{ color: COLORS.textSecondary, fontSize: 12.5, fontWeight: '700' }}>
+                      {given
+                        ? (isRTL ? 'تقييمك للمندوب' : 'Your courier rating')
+                        : (isRTL ? 'قيّم مندوب التوصيل' : 'Rate the courier')}
+                    </Text>
+                    <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', gap: 4 }}>
+                      {[1, 2, 3, 4, 5].map((s) => (
+                        <TouchableOpacity
+                          key={s}
+                          disabled={!!given || ratingCourier}
+                          onPress={() => void submit(s)}
+                          accessibilityRole="button"
+                          accessibilityLabel={`${s}`}
+                        >
+                          <Ionicons
+                            name={given && s <= given ? 'star' : given ? 'star-outline' : 'star-outline'}
+                            size={22}
+                            color="#F59E0B"
+                          />
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </View>
+                );
+              })()}
               {userType === 'customer' && courierChatTask && (
                 <TouchableOpacity
                   onPress={() =>

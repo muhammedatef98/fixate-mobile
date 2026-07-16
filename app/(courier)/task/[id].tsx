@@ -21,6 +21,7 @@ import {
   advanceDeliveryTask,
   nextDeliveryAction,
   deliveryLegLabel,
+  localizeTaskNotes,
   type DeliveryTask,
   type DeliveryTaskStatus,
 } from '../../../services/courierService';
@@ -487,7 +488,7 @@ export default function CourierTaskDetailScreen() {
               {isRTL ? 'ملاحظات' : 'Notes'}
             </Text>
             <Text style={{ color: COLORS.textSecondary, fontSize: 13, marginTop: 6, lineHeight: 20, textAlign: isRTL ? 'right' : 'left' }}>
-              {task.notes}
+              {localizeTaskNotes(task.notes, isRTL)}
             </Text>
           </View>
         )}

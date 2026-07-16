@@ -415,3 +415,81 @@ const notifyOrderPartiesOfDelivery = async (
     logger.warn('notifyOrderPartiesOfDelivery failed', e);
   }
 };
+
+/**
+ * The task-creation RPCs write two canonical English boilerplate notes.
+ * Localize those known strings for display; genuine free-text notes pass
+ * through untouched.
+ */
+const CANONICAL_TASK_NOTES: Record<string, { ar: string; en: string }> = {
+  'Pickup the device from the customer and deliver it to the assigned technician.': {
+    ar: 'استلم الجهاز من العميل وسلّمه إلى الفني المكلّف.',
+    en: 'Pickup the device from the customer and deliver it to the assigned technician.',
+  },
+  'Collect the repaired device from the technician and return it to the customer.': {
+    ar: 'استلم الجهاز بعد إصلاحه من الفني وأعده إلى العميل.',
+    en: 'Collect the repaired device from the technician and return it to the customer.',
+  },
+};
+
+export const localizeTaskNotes = (
+  notes: string | null | undefined,
+  isRTL: boolean
+): string | null => {
+  if (!notes) return null;
+  const hit = CANONICAL_TASK_NOTES[notes.trim()];
+  return hit ? hit[isRTL ? 'ar' : 'en'] : notes;
+};
+
+// ── Courier ratings ──────────────────────────────────────────────────────
+
+/** Customer rates a completed delivery leg (once per task). */
+export const rateCourierTask = async (
+  task: Pick<DeliveryTask, 'id' | 'order_id' | 'courier_id'>,
+  customerId: string,
+  stars: number
+): Promise<void> => {
+  const { error } = await supabase.from('courier_ratings').insert({
+    task_id: task.id,
+    order_id: task.order_id,
+    courier_id: task.courier_id,
+    customer_id: customerId,
+    stars,
+  });
+  if (error) throw error;
+};
+
+/** Ratings the current customer already gave on this order (task_id → stars). */
+export const getMyCourierRatingsForOrder = async (
+  orderId: string
+): Promise<Record<string, number>> => {
+  const { data, error } = await supabase
+    .from('courier_ratings')
+    .select('task_id, stars')
+    .eq('order_id', orderId);
+  if (error) {
+    logger.warn('getMyCourierRatingsForOrder failed', error);
+    return {};
+  }
+  const map: Record<string, number> = {};
+  for (const r of data ?? []) map[r.task_id] = r.stars;
+  return map;
+};
+
+/** Average + count for the courier's own profile. */
+export const getCourierRatingSummary = async (
+  courierUserId: string
+): Promise<{ average: number; count: number }> => {
+  const { data, error } = await supabase
+    .from('courier_ratings')
+    .select('stars')
+    .eq('courier_id', courierUserId);
+  if (error) {
+    logger.warn('getCourierRatingSummary failed', error);
+    return { average: 0, count: 0 };
+  }
+  const list = data ?? [];
+  if (list.length === 0) return { average: 0, count: 0 };
+  const sum = list.reduce((s, r) => s + Number(r.stars || 0), 0);
+  return { average: Math.round((sum / list.length) * 10) / 10, count: list.length };
+};

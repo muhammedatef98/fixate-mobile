@@ -273,14 +273,30 @@ export default function TechnicianProfile() {
               />
             </View>
 
-            {/* Stats row — rating intentionally removed here. The single
-                source of truth for ratings is the dedicated "Ratings &
-                Reviews" section below to avoid showing the same number twice. */}
+            {/* Stats row — includes the live rating so the technician can
+                track it at a glance; the full breakdown stays in Ratings &
+                Reviews below. */}
             <View style={styles.statsRow}>
               <View style={styles.statItem}>
                 <Text style={styles.statValue}>{stats.completed}</Text>
                 <Text style={styles.statLabel}>{isRTL ? 'مكتملة' : 'Completed'}</Text>
               </View>
+              <View style={styles.statDivider} />
+              <TouchableOpacity
+                style={styles.statItem}
+                onPress={() => router.push('/(technician)/ratings' as any)}
+                accessibilityRole="button"
+                accessibilityLabel={isRTL ? 'التقييم' : 'Rating'}
+              >
+                <Text style={[styles.statValue, { color: '#F59E0B' }]}>
+                  {stats.rating > 0 ? `★ ${stats.rating.toFixed(1)}` : '★ —'}
+                </Text>
+                <Text style={styles.statLabel}>
+                  {stats.ratingCount > 0
+                    ? (isRTL ? `التقييم (${stats.ratingCount})` : `Rating (${stats.ratingCount})`)
+                    : (isRTL ? 'التقييم' : 'Rating')}
+                </Text>
+              </TouchableOpacity>
               <View style={styles.statDivider} />
               <View style={styles.statItem}>
                 <Text style={styles.statValue}>

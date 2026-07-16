@@ -9,6 +9,7 @@ import { getColors, getShadows, SPACING, BORDER_RADIUS } from '../../constants/t
 import {
   getMyCourierProfile,
   getMyDeliveryTasks,
+  getCourierRatingSummary,
   type CourierProfile,
 } from '../../services/courierService';
 import { computeCourierStats, type CourierStats } from '../../utils/deliveryTasks';
@@ -40,17 +41,20 @@ export default function CourierProfileScreen() {
   // Stats derive from the courier's actual delivery tasks (source of truth),
   // not the denormalized counter — see computeCourierStats.
   const [stats, setStats] = useState<CourierStats | null>(null);
+  const [rating, setRating] = useState<{ average: number; count: number }>({ average: 0, count: 0 });
   const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
     if (!user) return;
     try {
-      const [profile, tasks] = await Promise.all([
+      const [profile, tasks, ratingSummary] = await Promise.all([
         getMyCourierProfile(user.id),
         getMyDeliveryTasks(user.id),
+        getCourierRatingSummary(user.id),
       ]);
       setCourier(profile);
       setStats(computeCourierStats(tasks));
+      setRating(ratingSummary);
     } catch (e) {
       logger.warn('courier profile load failed', e);
     }
@@ -228,6 +232,16 @@ export default function CourierProfileScreen() {
               </Text>
               <Text style={[styles.statLabel, { color: COLORS.textSecondary }]}>
                 {isRTL ? 'نشطة الآن' : 'Active now'}
+              </Text>
+            </View>
+            <View style={[styles.statTile, { backgroundColor: '#F59E0B0F' }]}>
+              <Text style={{ color: '#F59E0B', fontSize: 22, fontWeight: '900' }}>
+                {rating.count > 0 ? `★ ${rating.average.toFixed(1)}` : '★ —'}
+              </Text>
+              <Text style={[styles.statLabel, { color: COLORS.textSecondary }]}>
+                {rating.count > 0
+                  ? (isRTL ? `التقييم (${rating.count})` : `Rating (${rating.count})`)
+                  : (isRTL ? 'التقييم' : 'Rating')}
               </Text>
             </View>
           </View>
