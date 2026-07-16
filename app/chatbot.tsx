@@ -1160,9 +1160,9 @@ export default function ChatbotScreen() {
               <Text style={styles.onlineText}>{isRTL ? 'متصل الآن' : 'Online now'}</Text>
             </View>
           </View>
-          <TouchableOpacity onPress={goToSupport} style={styles.headerBtn} accessibilityLabel={isRTL ? 'الدعم' : 'Support'}>
-            <Ionicons name="headset" size={22} color="#fff" />
-          </TouchableOpacity>
+          {/* Support shortcut removed — human handoff appears inline only when
+              the bot can't answer (out-of-scope question). */}
+          <View style={styles.headerBtn} />
         </View>
 
         {/* Messages */}
@@ -1250,15 +1250,6 @@ export default function ChatbotScreen() {
               answer lands at the bottom and scrolls into view. */}
           {messages.slice(1).map(renderMessage)}
         </ScrollView>
-
-        {/* Persistent transfer-to-support strip */}
-        <TouchableOpacity style={styles.supportStrip} onPress={goToSupport} activeOpacity={0.85}>
-          <Ionicons name="headset" size={16} color={COLORS.primary} />
-          <Text style={styles.supportStripText}>
-            {isRTL ? 'تحتاج مساعدة بشرية؟ تواصل مع الدعم' : 'Need a human? Contact support'}
-          </Text>
-          <RTLIonicon name="chevron-forward" size={16} color={COLORS.primary} />
-        </TouchableOpacity>
 
         {/* Input */}
         <View style={styles.inputBar}>
@@ -1386,21 +1377,6 @@ const makeStyles = (C: any, isRTL: boolean) =>
       fontSize: 13,
       fontWeight: '600',
       color: C.text,
-      textAlign: isRTL ? 'right' : 'left',
-    },
-    supportStrip: {
-      flexDirection: isRTL ? 'row-reverse' : 'row',
-      alignItems: 'center',
-      gap: 8,
-      backgroundColor: C.primary + '12',
-      paddingHorizontal: SPACING.md,
-      paddingVertical: 10,
-    },
-    supportStripText: {
-      flex: 1,
-      fontSize: 12,
-      fontWeight: '700',
-      color: C.primary,
       textAlign: isRTL ? 'right' : 'left',
     },
     inputBar: {

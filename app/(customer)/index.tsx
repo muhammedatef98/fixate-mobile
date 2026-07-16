@@ -647,12 +647,9 @@ export default function CustomerHomeScreen() {
           </Text>
           <View style={styles.trustGrid}>
             {TRUST_POINTS.map((t, i) => (
-              <View
-                key={i}
-                style={[styles.trustTile, { backgroundColor: COLORS.card, borderColor: COLORS.border }]}
-              >
-                <View style={[styles.trustIcon, { backgroundColor: t.color + '18' }]}>
-                  <MaterialCommunityIcons name={t.icon as any} size={22} color={t.color} />
+              <View key={i} style={styles.trustTile}>
+                <View style={[styles.trustIcon, { backgroundColor: COLORS.primary + '14' }]}>
+                  <MaterialCommunityIcons name={t.icon as any} size={22} color={COLORS.primary} />
                 </View>
                 <Text style={[styles.trustTitle, { color: COLORS.text }]} numberOfLines={2}>
                   {isRTL ? t.ar : t.en}
@@ -1052,15 +1049,14 @@ const makeStyles = (C: any, isRTL: boolean, SHADOWS: any) =>
       gap: 10,
       marginBottom: 8,
     },
+    // Plain (card-less) tiles with a unified brand-color icon — reads as
+    // lightweight trust copy rather than three more cards.
     trustTile: {
       flex: 1,
-      borderRadius: BORDER_RADIUS.md,
-      borderWidth: 1,
-      paddingVertical: 16,
-      paddingHorizontal: 10,
+      paddingVertical: 10,
+      paddingHorizontal: 6,
       alignItems: 'center',
       gap: 7,
-      ...SHADOWS.small,
     },
     trustIcon: {
       width: 44, height: 44, borderRadius: 13,
