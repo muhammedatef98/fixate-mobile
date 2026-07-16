@@ -232,7 +232,7 @@ export default function MyOrdersScreen() {
           </View>
           <View style={styles.priceTag}>
             <Text style={[styles.priceValue, { color: COLORS.primary }]}>
-              {(() => { const v = (order as any).accepted_offer_amount ?? (order as any).final_price ?? order.estimated_price; return v ? <>{v} <Riyal /></> : (isRTL ? 'غير محدد' : 'TBD'); })()}
+              {(() => { const v = (order as any).accepted_offer_amount ?? (order as any).final_price ?? order.estimated_price; return v ? <>{'\u2066'}<Riyal /> {v}{'\u2069'}</> : (isRTL ? 'غير محدد' : 'TBD'); })()}
             </Text>
           </View>
         </View>

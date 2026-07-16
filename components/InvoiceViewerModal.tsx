@@ -54,7 +54,7 @@ const money = (n: number, _isRTL: boolean, _currency = SAR_TEXT): React.ReactNod
   });
   return (
     <>
-      {v} <Riyal />
+      {'\u2066'}<Riyal /> {v}{'\u2069'}
     </>
   );
 };

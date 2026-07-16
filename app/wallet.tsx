@@ -127,7 +127,7 @@ export default function WalletScreen() {
             <Text style={[styles.balanceValue, { opacity: 0.6 }]}>· · ·</Text>
           ) : (
             <Text style={styles.balanceValue}>
-              {balance.toFixed(2)} <Riyal />
+              {'\u2066'}<Riyal /> {balance.toFixed(2)}{'\u2069'}
             </Text>
           )}
           <TouchableOpacity style={styles.addFundsBtn} onPress={onAddFunds} accessibilityRole="button">
@@ -162,7 +162,7 @@ export default function WalletScreen() {
                     </Text>
                   </View>
                   <Text style={[styles.txnAmount, { color: credit ? COLORS.success : COLORS.error }]}>
-                    {credit ? '+' : '-'}{Number(t.amount).toFixed(2)} <Riyal />
+                    {credit ? '+' : '-'}{'\u2066'}<Riyal /> {Number(t.amount).toFixed(2)}{'\u2069'}
                   </Text>
                 </View>
               );
@@ -173,7 +173,7 @@ export default function WalletScreen() {
         {/* Payment history (kept) */}
         <Text style={styles.sectionTitle}>
           {isRTL ? 'سجل المدفوعات' : 'Payment history'}
-          {payments.length > 0 ? <>{`  ·  ${totalSpent.toFixed(0)} `}<Riyal /></> : null}
+          {payments.length > 0 ? <>{'  ·  '}{'\u2066'}<Riyal /> {totalSpent.toFixed(0)}{'\u2069'}</> : null}
         </Text>
 
         {loading ? (

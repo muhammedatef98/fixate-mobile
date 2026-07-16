@@ -320,7 +320,7 @@ export default function TechnicianProfile() {
                 <ActivityIndicator color="#fff" style={{ alignSelf: isRTL ? 'flex-end' : 'flex-start', marginTop: 6 }} />
               ) : (
                 <Text style={styles.earningsValue}>
-                  {fmt(wallet.balance)} <Riyal />
+                  {'\u2066'}<Riyal /> {fmt(wallet.balance)}{'\u2069'}
                 </Text>
               )}
               <Text style={styles.earningsHint}>

@@ -229,7 +229,7 @@ export default function OrdersScreen() {
         label: isRTL ? 'السعر المتفق عليه — أكّد الدفع' : 'Agreed price — confirm payment',
         amount: (
           <>
-            {agreed} <Riyal />
+            {'\u2066'}<Riyal /> {agreed}{'\u2069'}
           </>
         ),
         color: COLORS.warning,
@@ -240,7 +240,7 @@ export default function OrdersScreen() {
         label: isRTL ? 'السعر المتفق عليه' : 'Agreed price',
         amount: (
           <>
-            {agreed} <Riyal />
+            {'\u2066'}<Riyal /> {agreed}{'\u2069'}
           </>
         ),
         color: COLORS.success,
@@ -251,7 +251,7 @@ export default function OrdersScreen() {
         label: isRTL ? 'السعر عند الإلغاء' : 'Price at cancellation',
         amount: (
           <>
-            {agreed} <Riyal />
+            {'\u2066'}<Riyal /> {agreed}{'\u2069'}
           </>
         ),
         color: COLORS.error,

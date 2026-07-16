@@ -182,7 +182,7 @@ export default function OrderOffersScreen() {
           </View>
           <View style={{ alignItems: isRTL ? 'flex-start' : 'flex-end' }}>
             <Text style={{ color: COLORS.primary, fontWeight: '800', fontSize: 19 }}>
-              {Math.round(offer.amount)} <Riyal />
+              {'\u2066'}<Riyal /> {Math.round(offer.amount)}{'\u2069'}
             </Text>
             {decided && (
               <Text style={{ color: COLORS.textSecondary, fontSize: 11, fontWeight: '700', marginTop: 2 }}>

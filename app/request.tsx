@@ -1665,7 +1665,7 @@ export default function RequestScreen() {
                     <Text style={[styles.summaryValue, { color: COLORS.primary, fontWeight: '800', fontSize: 16 }]}>
                       {isFreeDelivery
                         ? (isRTL ? 'مجاناً' : 'Free')
-                        : <>{deliveryFee} <Riyal /></>}
+                        : <>{'\u2066'}<Riyal /> {deliveryFee}{'\u2069'}</>}
                     </Text>
                   </View>
                 )}
@@ -1742,7 +1742,7 @@ export default function RequestScreen() {
                   <Text style={styles.summaryValue}>
                     {isFreeDelivery
                       ? (isRTL ? 'مجاناً' : 'Free')
-                      : <>{deliveryFee} <Riyal /></>}
+                      : <>{'\u2066'}<Riyal /> {deliveryFee}{'\u2069'}</>}
                   </Text>
                 </View>
               )}
@@ -1756,7 +1756,7 @@ export default function RequestScreen() {
                   ]}
                 >
                   {inspectionFeeDue > 0
-                    ? <>{inspectionFeeDue} <Riyal /></>
+                    ? <>{'\u2066'}<Riyal /> {inspectionFeeDue}{'\u2069'}</>
                     : isRTL ? 'مجاني' : 'Free'}
                 </Text>
               </View>
@@ -1774,7 +1774,7 @@ export default function RequestScreen() {
                     </Text>
                   </View>
                   <Text style={styles.summaryValue}>
-                    {commitmentDue} <Riyal />
+                    {'\u2066'}<Riyal /> {commitmentDue}{'\u2069'}
                   </Text>
                 </View>
               )}

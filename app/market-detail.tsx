@@ -1292,10 +1292,10 @@ const createStyles = (C: any, isRTL: boolean) =>
       letterSpacing: 0.2,
     },
     priceValueWrap: {
-      // The amount and currency must stay glued together in the reading
-      // direction. Using row-reverse on RTL keeps "1,200 ر.س" reading
-      // right-to-left without the currency sliding to the wrong end.
-      flexDirection: isRTL ? 'row-reverse' : 'row',
+      // Riyal symbol always LEFT of the amount in both languages; the pair
+      // right-aligns as a block in Arabic.
+      flexDirection: 'row',
+      justifyContent: isRTL ? 'flex-end' : 'flex-start',
       alignItems: 'baseline',
       gap: 6,
     },

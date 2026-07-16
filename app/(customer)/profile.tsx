@@ -556,7 +556,7 @@ const makeStyles = (C: any, isRTL: boolean, SHADOWS: any) =>
       paddingVertical: 10,
       borderRadius: 999,
       marginTop: 14,
-      alignSelf: isRTL ? 'flex-end' : 'flex-start',
+      alignSelf: 'center',
     },
     editPillText: { color: C.primary, fontSize: 12.5, fontWeight: '800' },
 

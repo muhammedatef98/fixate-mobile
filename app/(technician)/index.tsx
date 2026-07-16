@@ -527,7 +527,7 @@ export default function TechnicianHomeScreen() {
           </View>
           <View style={styles.statInfo}>
             <Text style={[styles.statValue, { color: COLORS.text }]} numberOfLines={1} adjustsFontSizeToFit>
-              {todaysEarnings.toLocaleString('en-US')} <Riyal />
+              {'\u2066'}<Riyal /> {todaysEarnings.toLocaleString('en-US')}{'\u2069'}
             </Text>
             <Text style={[styles.statLabel, { color: COLORS.textSecondary }]}>
               {isRTL ? 'أرباح اليوم' : "Today's Earnings"}

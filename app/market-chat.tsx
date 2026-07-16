@@ -440,7 +440,8 @@ const makeStyles = (C: any, isRTL: boolean) =>
       borderRadius: BORDER_RADIUS.md,
     },
     inputBar: {
-      flexDirection: isRTL ? 'row-reverse' : 'row',
+      // Send button always on the RIGHT (user preference), in both languages.
+      flexDirection: 'row',
       alignItems: 'flex-end',
       gap: 8,
       paddingHorizontal: 12,

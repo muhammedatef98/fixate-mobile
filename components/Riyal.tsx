@@ -41,7 +41,16 @@ export function Riyal({ size, color, bold, style }: RiyalProps) {
       allowFontScaling
       accessibilityLabel="Saudi Riyal"
       style={[
-        { fontFamily: bold ? RIYAL_FONT_BOLD : RIYAL_FONT_REGULAR },
+        {
+          fontFamily: bold ? RIYAL_FONT_BOLD : RIYAL_FONT_REGULAR,
+          // Android: a nested <Text> inherits the parent's fontWeight, and
+          // when the requested weight has no cut in this single-glyph family
+          // Android falls back to the system font — which lacks U+E900, so
+          // the symbol simply didn't render. Pinning weight/style to normal
+          // keeps Android on the riyal font.
+          fontWeight: 'normal',
+          fontStyle: 'normal',
+        },
         size != null && { fontSize: size },
         color != null && { color },
         style,

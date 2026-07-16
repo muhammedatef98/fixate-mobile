@@ -146,8 +146,8 @@ export default function MarketSellerScreen() {
         <View style={styles.cardBody}>
           <Text style={styles.cardTitle} numberOfLines={2}>{item.title}</Text>
           <View style={styles.priceRow}>
-            <Text style={styles.cardPrice}>{item.price.toLocaleString('en-US')}</Text>
             <Text style={styles.cardCurrency}><Riyal /></Text>
+            <Text style={styles.cardPrice}>{item.price.toLocaleString('en-US')}</Text>
           </View>
           <View style={styles.cardMetaRow}>
             {item.city ? (
@@ -316,7 +316,7 @@ const createStyles = (C: any, isRTL: boolean) =>
     soldBadgeText: { color: '#fff', fontSize: 11, fontWeight: '800' },
     cardBody: { padding: 10, gap: 4 },
     cardTitle: { color: C.text, fontSize: 13, fontWeight: '700', textAlign: isRTL ? 'right' : 'left' },
-    priceRow: { flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'baseline', gap: 4 },
+    priceRow: { flexDirection: 'row', justifyContent: isRTL ? 'flex-end' : 'flex-start', alignItems: 'baseline', gap: 4 },
     cardPrice: { color: C.primary, fontSize: 15, fontWeight: '900' },
     cardCurrency: { color: C.textSecondary, fontSize: 11, fontWeight: '700' },
     cardMetaRow: { flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 3 },

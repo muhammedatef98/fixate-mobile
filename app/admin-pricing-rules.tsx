@@ -250,7 +250,7 @@ export default function AdminPricingRulesScreen() {
                   {r.note ? ` · ${r.note}` : ''}
                 </Text>
               </View>
-              <Text style={styles.price}>{Math.round(r.price)} <Riyal /></Text>
+              <Text style={styles.price}>{'\u2066'}<Riyal /> {Math.round(r.price)}{'\u2069'}</Text>
               <TouchableOpacity onPress={() => remove(r)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
                 <MaterialCommunityIcons name="trash-can-outline" size={20} color="#EF4444" />
               </TouchableOpacity>

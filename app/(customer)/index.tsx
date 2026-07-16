@@ -391,7 +391,7 @@ export default function CustomerHomeScreen() {
             >
               <MaterialCommunityIcons name="wallet-outline" size={16} color={COLORS.primary} />
               <Text style={{ color: COLORS.primary, fontWeight: '800', fontSize: 13.5 }}>
-                {walletBalance.toFixed(2)} <Riyal />
+                {'\u2066'}<Riyal /> {walletBalance.toFixed(2)}{'\u2069'}
               </Text>
             </TouchableOpacity>
           </View>
@@ -490,27 +490,8 @@ export default function CustomerHomeScreen() {
             </AnimatedTouchable>
           )}
 
-          {/* My Orders — prominent, always-visible access to all orders */}
-          <AnimatedTouchable
-            onPress={() => router.push('/(customer)/orders')}
-            style={[styles.myOrdersCard, { backgroundColor: COLORS.card, borderColor: COLORS.border }]}
-            activeOpacity={0.85}
-            accessibilityRole="button"
-            accessibilityLabel={isRTL ? 'طلباتي' : 'My orders'}
-          >
-            <View style={[styles.myOrdersIcon, { backgroundColor: COLORS.primary + '15' }]}>
-              <MaterialCommunityIcons name="clipboard-text-clock-outline" size={24} color={COLORS.primary} />
-            </View>
-            <View style={{ flex: 1, marginHorizontal: 12 }}>
-              <Text style={[styles.myOrdersTitle, { color: COLORS.text }]}>
-                {isRTL ? 'طلباتي' : 'My Orders'}
-              </Text>
-              <Text style={[styles.myOrdersSub, { color: COLORS.textSecondary }]} numberOfLines={1}>
-                {isRTL ? 'تتبّع ومتابعة جميع طلبات الإصلاح' : 'Track and manage all your repairs'}
-              </Text>
-            </View>
-            <RTLIonicon name="chevron-forward" size={20} color={COLORS.primary} />
-          </AnimatedTouchable>
+          {/* My Orders card removed — "طلباتي" now lives in the bottom tab bar
+              (it replaced the Services tab). */}
 
           {/* Quick Actions — six distinct, genuinely useful cards (FEAT-06).
               Each has its own icon, color accent and destination/inline info
@@ -616,11 +597,6 @@ export default function CustomerHomeScreen() {
             <Text style={[styles.sectionTitle, { color: COLORS.text }]}>
               {isRTL ? 'اختر جهازك' : 'Choose device'}
             </Text>
-            <AnimatedTouchable onPress={() => router.push('/(customer)/services')}>
-              <Text style={{ color: COLORS.primary, fontSize: 13, fontWeight: '700' }}>
-                {isRTL ? 'كل الخدمات' : 'See all'}
-              </Text>
-            </AnimatedTouchable>
           </View>
 
           <View style={styles.deviceGrid}>

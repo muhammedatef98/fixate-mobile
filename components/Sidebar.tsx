@@ -456,12 +456,44 @@ interface SidebarRowProps {
 }
 
 function SidebarRow({ row, isLast, onPress, COLORS, isRTL }: SidebarRowProps) {
+  // Arabic: text hugs the RIGHT edge, icon on the LEFT (chevron at the far
+  // left, pointing left). English mirrors it: text left, icon right.
+  const iconBubble = (
+    <View
+      style={{
+        width: 36,
+        height: 36,
+        borderRadius: 11,
+        backgroundColor: row.color + '18',
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+    >
+      <Ionicons name={row.icon as never} size={18} color={row.color} />
+    </View>
+  );
+  const label = (
+    <Text
+      style={{
+        flex: 1,
+        color: COLORS.text,
+        fontSize: 14.5,
+        fontWeight: '700',
+        textAlign: isRTL ? 'right' : 'left',
+      }}
+    >
+      {row.label}
+    </Text>
+  );
+  const chevron = (
+    <RTLMaterialIcon name="chevron-right" size={16} color={COLORS.textSecondary} />
+  );
   return (
     <Pressable
       onPress={onPress}
       android_ripple={{ color: COLORS.primary + '15' }}
       style={({ pressed }) => ({
-        flexDirection: isRTL ? 'row-reverse' : 'row',
+        flexDirection: 'row',
         alignItems: 'center',
         paddingVertical: 12,
         paddingHorizontal: 12,
@@ -473,22 +505,19 @@ function SidebarRow({ row, isLast, onPress, COLORS, isRTL }: SidebarRowProps) {
       accessibilityRole="button"
       accessibilityLabel={row.label}
     >
-      <View
-        style={{
-          width: 36,
-          height: 36,
-          borderRadius: 11,
-          backgroundColor: row.color + '18',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
-        <Ionicons name={row.icon as never} size={18} color={row.color} />
-      </View>
-      <Text style={{ flex: 1, color: COLORS.text, fontSize: 14.5, fontWeight: '700' }}>
-        {row.label}
-      </Text>
-      <RTLMaterialIcon name="chevron-right" size={16} color={COLORS.textSecondary} />
+      {isRTL ? (
+        <>
+          {chevron}
+          {iconBubble}
+          {label}
+        </>
+      ) : (
+        <>
+          {label}
+          {iconBubble}
+          {chevron}
+        </>
+      )}
     </Pressable>
   );
 }
@@ -681,8 +710,10 @@ const styles = (COLORS: ReturnType<typeof getColors>, isRTL: boolean) =>
       paddingVertical: 12,
       paddingHorizontal: 12,
     },
+    // Icon sits to the LEFT of its label in Arabic (label at the right edge)
+    // and to the RIGHT of it in English — mirrors the SidebarRow layout.
     prefLeft: {
-      flexDirection: isRTL ? 'row-reverse' : 'row',
+      flexDirection: isRTL ? 'row' : 'row-reverse',
       alignItems: 'center',
       gap: 10,
     },

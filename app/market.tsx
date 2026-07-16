@@ -156,6 +156,9 @@ export default function MarketScreen() {
   const [minPrice, setMinPrice] = useState('');
   const [maxPrice, setMaxPrice] = useState('');
   const [filtersOpen, setFiltersOpen] = useState(false);
+  // The result-bar sort chip opens THIS small sort-only menu, not the full
+  // filters sheet — sorting shouldn't drag every other filter along.
+  const [sortOpen, setSortOpen] = useState(false);
   // Snapshot of the filter values when the sheet opens, so "Cancel" (إلغاء)
   // can restore them — filters are applied live as the user edits them.
   const filtersSnapshot = useRef<{
@@ -202,8 +205,10 @@ export default function MarketScreen() {
 
   useEffect(() => {
     listFade.setValue(0);
-    Animated.timing(listFade, { toValue: 1, duration: 150, useNativeDriver: true }).start();
-  }, [device, listFade]);
+    // Slightly longer + spring-eased so switching filters feels like a soft
+    // slide-in rather than a hard swap (paired with the translateY below).
+    Animated.timing(listFade, { toValue: 1, duration: 260, useNativeDriver: true }).start();
+  }, [device, sort, condition, city, minPrice, maxPrice, listFade]);
 
   // Favorites are now per-user, stored server-side in `market_favorites`
   // with RLS gating reads/writes to the row owner. We reset the local set
@@ -459,10 +464,10 @@ export default function MarketScreen() {
           <Text style={styles.cardTitle} numberOfLines={2}>{item.title}</Text>
 
           <View style={styles.priceRow}>
+            <Text style={styles.cardCurrency}><Riyal /></Text>
             <Text style={styles.cardPrice}>
               {item.price.toLocaleString('en-US')}
             </Text>
-            <Text style={styles.cardCurrency}><Riyal /></Text>
             {condLabel ? (
               <View style={styles.condInline}>
                 <Text style={styles.condInlineText} numberOfLines={1}>{condLabel}</Text>
@@ -571,8 +576,14 @@ export default function MarketScreen() {
           {!loading && total > 0 ? (
             <Text style={styles.subtitle}>
               {isRTL
-                ? `${total.toLocaleString('en-US')} إعلان مباشر`
-                : `${total.toLocaleString('en-US')} listings live`}
+                ? total === 1
+                  ? 'إعلان واحد نشط'
+                  : total === 2
+                    ? 'إعلانان نشطان'
+                    : total <= 10
+                      ? `${total} إعلانات نشطة`
+                      : `${total.toLocaleString('en-US')} إعلاناً نشطاً`
+                : `${total.toLocaleString('en-US')} ${total === 1 ? 'listing' : 'listings'} live`}
             </Text>
           ) : null}
         </View>
@@ -647,7 +658,15 @@ export default function MarketScreen() {
       <AdminFilterChips filters={DEVICE_FILTER_CHIPS} value={device} onChange={setDevice} />
 
       {/* Grid — fades in (opacity 0 → 1) on every filter change. */}
-      <Animated.View style={{ flex: 1, opacity: listFade }}>
+      <Animated.View
+        style={{
+          flex: 1,
+          opacity: listFade,
+          transform: [
+            { translateY: listFade.interpolate({ inputRange: [0, 1], outputRange: [14, 0] }) },
+          ],
+        }}
+      >
       {loading && listings.length === 0 ? (
         renderSkeletonGrid()
       ) : displayedListings.length === 0 ? (
@@ -696,7 +715,7 @@ export default function MarketScreen() {
                     : `${total.toLocaleString('en-US')} ${total === 1 ? 'result' : 'results'}`)}
             </Text>
             <AnimatedTouchable
-              onPress={() => openFilters()}
+              onPress={() => setSortOpen(true)}
               style={styles.sortChip}
               accessibilityRole="button"
             >
@@ -771,6 +790,48 @@ export default function MarketScreen() {
           old in-header Messages / My Listings shortcuts, and gives the
           Market section a navigation surface of its own. */}
       <MarketBottomTabs />
+
+      {/* Sort-only sheet — opened from the result-bar chip. */}
+      <Modal visible={sortOpen} animationType="fade" transparent onRequestClose={() => setSortOpen(false)}>
+        <View style={styles.modalBackdrop}>
+          <AnimatedTouchable style={StyleSheet.absoluteFill} onPress={() => setSortOpen(false)} />
+          <View style={[styles.sheet, { backgroundColor: COLORS.card }]}>
+            <View style={[styles.sheetHandle, { backgroundColor: COLORS.border }]} />
+            <Text style={styles.sheetTitle}>{isRTL ? 'الترتيب حسب السعر' : 'Sort by price'}</Text>
+            {SORT_OPTS.map((s) => {
+              const active = sort === s.id;
+              return (
+                <TouchableOpacity
+                  key={s.id}
+                  onPress={() => { setSort(s.id); setSortOpen(false); }}
+                  style={{
+                    flexDirection: isRTL ? 'row-reverse' : 'row',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    paddingVertical: 14,
+                    paddingHorizontal: 4,
+                    borderBottomWidth: StyleSheet.hairlineWidth,
+                    borderBottomColor: COLORS.border,
+                  }}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: active }}
+                >
+                  <Text
+                    style={{
+                      color: active ? COLORS.primary : COLORS.text,
+                      fontSize: 15,
+                      fontWeight: active ? '800' : '600',
+                    }}
+                  >
+                    {isRTL ? s.ar : s.en}
+                  </Text>
+                  {active && <Ionicons name="checkmark-circle" size={20} color={COLORS.primary} />}
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </View>
+      </Modal>
 
       {/* Filter sheet */}
       <Modal visible={filtersOpen} animationType="slide" transparent onRequestClose={cancelFilters}>
@@ -1216,13 +1277,16 @@ const createStyles = (C: any, isRTL: boolean) =>
       writingDirection: isRTL ? 'rtl' : 'ltr',
       minHeight: 36,
     },
+    // Riyal symbol always LEFT of the amount, in both languages; the row
+    // still right-aligns as a block in Arabic.
     priceRow: {
-      flexDirection: isRTL ? 'row-reverse' : 'row',
+      flexDirection: 'row',
       alignItems: 'baseline',
       gap: 4,
+      justifyContent: isRTL ? 'flex-end' : 'flex-start',
     },
     cardPrice: { color: C.primary, fontWeight: '900', fontSize: 17, letterSpacing: -0.2 },
-    cardCurrency: { color: C.primary, fontWeight: '700', fontSize: 11, opacity: 0.85 },
+    cardCurrency: { color: C.primary, fontSize: 13, opacity: 0.85 },
     cardMetaRow: {
       flexDirection: isRTL ? 'row-reverse' : 'row',
       alignItems: 'center',
@@ -1345,13 +1409,13 @@ const createStyles = (C: any, isRTL: boolean) =>
     },
     // Cancel is the quiet, secondary escape hatch: it hugs its label instead of
     // claiming half the row, while still matching Apply's height and radius.
+    // Same footprint as Apply — the pair reads as two equal actions.
     sheetSecondary: {
-      minWidth: 104,
-      paddingHorizontal: 20,
+      flex: 1, minHeight: 52, paddingVertical: 15,
       alignItems: 'center', justifyContent: 'center',
       borderRadius: BORDER_RADIUS.md, borderWidth: 1.5,
     },
-    sheetSecondaryText: { fontWeight: '700', fontSize: 14 },
+    sheetSecondaryText: { fontWeight: '700', fontSize: 15 },
     sheetPrimary: {
       flex: 1, minHeight: 52, paddingVertical: 15,
       alignItems: 'center', justifyContent: 'center',

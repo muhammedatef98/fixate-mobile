@@ -26,7 +26,7 @@ export const BOTTOM_NAV_SIDE_INSET = 20;
 
 const NAV_ITEMS = [
   { path: '/(customer)', icon: 'home-outline', activeIcon: 'home', labelAr: 'الرئيسية', labelEn: 'Home' },
-  { path: '/services', icon: 'construct-outline', activeIcon: 'construct', labelAr: 'الخدمات', labelEn: 'Services' },
+  { path: '/orders', icon: 'receipt-outline', activeIcon: 'receipt', labelAr: 'طلباتي', labelEn: 'My Orders' },
   { path: '/market', icon: 'storefront-outline', activeIcon: 'storefront', labelAr: 'السوق', labelEn: 'Market' },
   { path: '/profile', icon: 'person-outline', activeIcon: 'person', labelAr: 'حسابي', labelEn: 'Profile' },
 ];

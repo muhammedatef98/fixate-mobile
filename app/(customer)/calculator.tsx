@@ -234,7 +234,7 @@ export default function PriceCalculatorScreen() {
           <Text style={styles.priceValue}>
             {range
               ? isRTL
-                ? <>{`تبدأ من ${range.min} – ${range.max} `}<Riyal /></>
+                ? <>{'تبدأ من '}{'\u2066'}<Riyal /> {`${range.min} – ${range.max}`}{'\u2069'}</>
                 : `Starts from ${range.min} – ${range.max} SAR`
               : '—'}
           </Text>
@@ -250,7 +250,7 @@ export default function PriceCalculatorScreen() {
                 {isRTL ? 'يستلمه الفني' : "Technician's payout"}
               </Text>
               <Text style={styles.breakdownValue}>
-                {techMin} – {techMax} <Riyal />
+                {'\u2066'}<Riyal /> {techMin} – {techMax}{'\u2069'}
               </Text>
             </View>
             <View style={styles.breakdownRow}>
@@ -258,7 +258,7 @@ export default function PriceCalculatorScreen() {
                 {isRTL ? 'رسوم المنصة (15%)' : 'Platform fee (15%)'}
               </Text>
               <Text style={[styles.breakdownValue, { color: COLORS.textSecondary }]}>
-                {platformMin} – {platformMax} <Riyal />
+                {'\u2066'}<Riyal /> {platformMin} – {platformMax}{'\u2069'}
               </Text>
             </View>
             <Text style={styles.breakdownNote}>

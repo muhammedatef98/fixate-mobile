@@ -20,7 +20,7 @@ interface Props {
 // is a glyph from a bundled font — it can only be rendered by <Riyal />.
 const fmt = (n: number, _isRTL: boolean) => (
   <>
-    {n.toLocaleString('en-US')} <Riyal />
+    {'\u2066'}<Riyal /> {n.toLocaleString('en-US')}{'\u2069'}
   </>
 );
 

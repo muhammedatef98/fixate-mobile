@@ -229,10 +229,8 @@ export default function MarketMessagesScreen() {
               </Text>
               {item.listing_price != null && (
                 <Text style={styles.listingPrice}>
-                  {Number(item.listing_price).toLocaleString(
-                    'en-US'
-                  )}{' '}
-                  <Riyal />
+                  {'\u2066'}<Riyal />{' '}
+                  {Number(item.listing_price).toLocaleString('en-US')}{'\u2069'}
                 </Text>
               )}
             </View>

@@ -514,10 +514,10 @@ export default function AdminDashboardScreen() {
               />
             ) : (
               <Text style={s.revenueValue}>
-                {stats.revenue.toLocaleString('en-US')}{' '}
-                <Text style={{ fontSize: 14, fontWeight: '700' }}>
+                {'\u2066'}<Text style={{ fontSize: 14 }}>
                   <Riyal />
-                </Text>
+                </Text>{' '}
+                {stats.revenue.toLocaleString('en-US')}{'\u2069'}
               </Text>
             )}
             {stats.revenueToday > 0 && !loading ? (

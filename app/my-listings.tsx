@@ -240,7 +240,7 @@ export default function MyListingsScreen() {
             </View>
             <View style={styles.metaRow}>
               <Text style={styles.price}>
-                {Number(l.price).toLocaleString('en-US')} <Riyal />
+                {'\u2066'}<Riyal /> {Number(l.price).toLocaleString('en-US')}{'\u2069'}
               </Text>
               {!!l.city && (
                 <>

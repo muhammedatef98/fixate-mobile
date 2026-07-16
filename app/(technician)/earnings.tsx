@@ -112,7 +112,7 @@ export default function EarningsScreen() {
         </View>
         <View style={[styles.earningAmount, { backgroundColor: '#10B98115' }]}>
           <Text style={[styles.earningAmountText, { color: '#10B981' }]}>
-            +{netOf(order)} <Riyal />
+            +{'\u2066'}<Riyal /> {netOf(order)}{'\u2069'}
           </Text>
         </View>
       </View>
@@ -147,7 +147,7 @@ export default function EarningsScreen() {
                 {isRTL ? 'رصيد المحفظة' : 'Wallet balance'}
               </Text>
               <Text style={[localStyles.walletAmount, { color: COLORS.primary }]}>
-                {wallet.balance.toFixed(2)} <Riyal />
+                {'\u2066'}<Riyal /> {wallet.balance.toFixed(2)}{'\u2069'}
               </Text>
             </View>
             <MaterialCommunityIcons name="wallet-outline" size={36} color={COLORS.primary} />
@@ -164,7 +164,7 @@ export default function EarningsScreen() {
             {language === 'ar' ? 'إجمالي الأرباح' : 'Total Earnings'}
           </Text>
           <Text style={styles.totalAmount}>
-            {earnings.total.toFixed(2)} <Riyal />
+            {'\u2066'}<Riyal /> {earnings.total.toFixed(2)}{'\u2069'}
           </Text>
           <View style={styles.totalStats}>
             <View style={styles.totalStatItem}>

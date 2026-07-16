@@ -87,7 +87,7 @@ export default function DeliveryTaskCard({
           <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 4 }}>
             <MaterialCommunityIcons name="cash" size={14} color="#10B981" />
             <Text style={{ color: '#10B981', fontSize: 12.5, fontWeight: '800' }}>
-              {Number(task.courier_fee)} <Riyal />
+              {'\u2066'}<Riyal /> {Number(task.courier_fee)}{'\u2069'}
             </Text>
           </View>
         )}

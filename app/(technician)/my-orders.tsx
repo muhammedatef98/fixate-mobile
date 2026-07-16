@@ -144,7 +144,7 @@ export default function MyOrdersScreen() {
           <View style={styles.orderDetailItem}>
             <MaterialCommunityIcons name="cash" size={16} color="#10B981" />
             <Text style={[styles.priceText, { color: '#10B981' }]}>
-              {(order as any).accepted_offer_amount ?? (order as any).final_price ?? order.estimated_price} <Riyal />
+              {'\u2066'}<Riyal /> {(order as any).accepted_offer_amount ?? (order as any).final_price ?? order.estimated_price}{'\u2069'}
             </Text>
           </View>
         </View>

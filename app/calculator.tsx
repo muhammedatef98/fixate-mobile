@@ -169,7 +169,7 @@ export default function PriceCalculatorScreen() {
             {isRTL ? 'عرض السعر:' : 'Quotation:'}
           </Text>
           <Text style={styles.priceValue}>
-            {totalPrice.min > 0 ? <>{totalPrice.min}-{totalPrice.max} <Riyal /></> : '--'}
+            {totalPrice.min > 0 ? <>{'\u2066'}<Riyal /> {totalPrice.min}-{totalPrice.max}{'\u2069'}</> : '--'}
           </Text>
         </View>
         <View style={styles.disclaimerContainer}>
