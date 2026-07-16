@@ -443,19 +443,22 @@ export const localizeTaskNotes = (
 
 // ── Courier ratings ──────────────────────────────────────────────────────
 
-/** Customer rates a completed delivery leg (once per task). */
+/** Customer rates a completed delivery leg — re-rating updates in place. */
 export const rateCourierTask = async (
   task: Pick<DeliveryTask, 'id' | 'order_id' | 'courier_id'>,
   customerId: string,
   stars: number
 ): Promise<void> => {
-  const { error } = await supabase.from('courier_ratings').insert({
-    task_id: task.id,
-    order_id: task.order_id,
-    courier_id: task.courier_id,
-    customer_id: customerId,
-    stars,
-  });
+  const { error } = await supabase.from('courier_ratings').upsert(
+    {
+      task_id: task.id,
+      order_id: task.order_id,
+      courier_id: task.courier_id,
+      customer_id: customerId,
+      stars,
+    },
+    { onConflict: 'task_id,customer_id' }
+  );
   if (error) throw error;
 };
 

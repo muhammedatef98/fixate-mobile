@@ -555,7 +555,7 @@ const createStyles = (COLORS: any, isRTL: boolean) => StyleSheet.create({
   },
   altRow: {
     flexDirection: isRTL ? 'row-reverse' : 'row',
-    justifyContent: 'flex-end',
+    justifyContent: 'center',
     alignItems: 'center',
     marginTop: 12,
   },

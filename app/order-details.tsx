@@ -101,6 +101,8 @@ export default function OrderDetailsScreen() {
   const [myComment, setMyComment] = useState<string>('');
   const [submittingRating, setSubmittingRating] = useState(false);
   const [hasReviewed, setHasReviewed] = useState(false);
+  // The customer can revise a submitted review — this re-opens the form.
+  const [editingReview, setEditingReview] = useState(false);
   const [ratingsEnabled, setRatingsEnabled] = useState(true);
   const [viewerOpen, setViewerOpen] = useState(false);
   const [viewerIndex, setViewerIndex] = useState(0);
@@ -234,12 +236,13 @@ export default function OrderDetailsScreen() {
   }, [order?.id]);
 
   const submitRating = async () => {
-    if (!order || hasReviewed || submittingRating || myRating < 1) return;
+    if (!order || submittingRating || myRating < 1) return;
+    if (hasReviewed && !editingReview) return;
     setSubmittingRating(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
-      await reviewService.submitReview(
+      await reviewService.upsertReview(
         order.id,
         user.id,
         order.technician_id ?? null,
@@ -247,9 +250,10 @@ export default function OrderDetailsScreen() {
         myComment.trim() || undefined,
       );
       setHasReviewed(true);
+      setEditingReview(false);
       Alert.alert(
         isRTL ? 'شكراً لك ✓' : 'Thanks ✓',
-        isRTL ? 'تم استلام تقييمك بنجاح' : 'Your rating has been recorded'
+        isRTL ? 'تم حفظ تقييمك بنجاح' : 'Your rating has been saved'
       );
     } catch (e: any) {
       Alert.alert(
@@ -552,13 +556,15 @@ export default function OrderDetailsScreen() {
                   {label}
                 </Text>
               </View>
-              {/* Rate the courier — one tap, shown once the leg completes. */}
+              {/* Rate the courier — one tap once the leg completes; tapping a
+                  different star later REVISES the rating (upsert). */}
               {userType === 'customer' && lastDone?.courier_id && (() => {
                 const given = courierRatings[lastDone.id];
                 const submit = async (stars: number) => {
-                  if (ratingCourier || given) return;
+                  if (ratingCourier || stars === given) return;
                   setRatingCourier(true);
-                  // Optimistic — the insert is guarded server-side by RLS.
+                  const previous = given;
+                  // Optimistic — the upsert is guarded server-side by RLS.
                   setCourierRatings((prev) => ({ ...prev, [lastDone.id]: stars }));
                   try {
                     await rateCourierTask(
@@ -568,8 +574,11 @@ export default function OrderDetailsScreen() {
                     );
                   } catch (e) {
                     setCourierRatings((prev) => {
-                      const { [lastDone.id]: _drop, ...rest } = prev;
-                      return rest;
+                      if (previous == null) {
+                        const { [lastDone.id]: _drop, ...rest } = prev;
+                        return rest;
+                      }
+                      return { ...prev, [lastDone.id]: previous };
                     });
                     logger.warn('rateCourierTask failed', e);
                   } finally {
@@ -590,20 +599,20 @@ export default function OrderDetailsScreen() {
                   >
                     <Text style={{ color: COLORS.textSecondary, fontSize: 12.5, fontWeight: '700' }}>
                       {given
-                        ? (isRTL ? 'تقييمك للمندوب' : 'Your courier rating')
+                        ? (isRTL ? 'تقييمك للمندوب — اضغط للتعديل' : 'Your courier rating — tap to edit')
                         : (isRTL ? 'قيّم مندوب التوصيل' : 'Rate the courier')}
                     </Text>
                     <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', gap: 4 }}>
                       {[1, 2, 3, 4, 5].map((s) => (
                         <TouchableOpacity
                           key={s}
-                          disabled={!!given || ratingCourier}
+                          disabled={ratingCourier}
                           onPress={() => void submit(s)}
                           accessibilityRole="button"
                           accessibilityLabel={`${s}`}
                         >
                           <Ionicons
-                            name={given && s <= given ? 'star' : given ? 'star-outline' : 'star-outline'}
+                            name={given && s <= given ? 'star' : 'star-outline'}
                             size={22}
                             color="#F59E0B"
                           />
@@ -1418,15 +1427,19 @@ export default function OrderDetailsScreen() {
           )}
         </View>
 
-        {userType === 'customer' && order.status === 'completed' && ratingsEnabled && (
+        {userType === 'customer' && order.status === 'completed' && ratingsEnabled && (() => {
+          const readOnly = hasReviewed && !editingReview;
+          return (
           <View style={[styles.card, { backgroundColor: COLORS.card }, SHADOWS.small]}>
             <Text style={[styles.cardTitle, { color: COLORS.text, marginBottom: 6 }]}>
-              {hasReviewed
+              {readOnly
                 ? (isRTL ? 'تقييمك ⭐' : 'Your rating ⭐')
-                : (isRTL ? 'كيف كانت تجربتك؟' : 'Rate your experience')}
+                : hasReviewed
+                  ? (isRTL ? 'تعديل تقييمك' : 'Edit your rating')
+                  : (isRTL ? 'كيف كانت تجربتك؟' : 'Rate your experience')}
             </Text>
             <Text style={{ color: COLORS.textSecondary, fontSize: 12, marginBottom: 14 }}>
-              {hasReviewed
+              {readOnly
                 ? (isRTL ? 'شكراً لمشاركة رأيك' : 'Thanks for your feedback')
                 : (isRTL ? 'اضغط على نجمة لتقييم خدمة الفني' : 'Tap a star to rate the technician')}
             </Text>
@@ -1437,8 +1450,8 @@ export default function OrderDetailsScreen() {
                   <TouchableOpacity
                     key={star}
                     style={styles.starButton}
-                    onPress={() => !hasReviewed && setMyRating(star)}
-                    disabled={hasReviewed || submittingRating}
+                    onPress={() => !readOnly && setMyRating(star)}
+                    disabled={readOnly || submittingRating}
                     accessibilityRole="button"
                     accessibilityLabel={`${star} ${isRTL ? 'نجمة' : 'star'}`}
                   >
@@ -1451,19 +1464,41 @@ export default function OrderDetailsScreen() {
                 );
               })}
             </View>
-            {hasReviewed ? (
-              myComment ? (
-                <Text style={{
-                  color: COLORS.text,
-                  fontSize: 13,
-                  lineHeight: 19,
-                  marginTop: 12,
-                  textAlign: isRTL ? 'right' : 'left',
-                  writingDirection: isRTL ? 'rtl' : 'ltr',
-                }}>
-                  {`"${myComment}"`}
-                </Text>
-              ) : null
+            {readOnly ? (
+              <>
+                {myComment ? (
+                  <Text style={{
+                    color: COLORS.text,
+                    fontSize: 13,
+                    lineHeight: 19,
+                    marginTop: 12,
+                    textAlign: isRTL ? 'right' : 'left',
+                    writingDirection: isRTL ? 'rtl' : 'ltr',
+                  }}>
+                    {`"${myComment}"`}
+                  </Text>
+                ) : null}
+                <TouchableOpacity
+                  onPress={() => setEditingReview(true)}
+                  style={{
+                    marginTop: 12,
+                    borderWidth: 1,
+                    borderColor: COLORS.primary,
+                    borderRadius: 12,
+                    paddingVertical: 10,
+                    alignItems: 'center',
+                    flexDirection: isRTL ? 'row-reverse' : 'row',
+                    justifyContent: 'center',
+                    gap: 6,
+                  }}
+                  accessibilityRole="button"
+                >
+                  <MaterialIcons name="edit" size={16} color={COLORS.primary} />
+                  <Text style={{ color: COLORS.primary, fontWeight: '800', fontSize: 13.5 }}>
+                    {isRTL ? 'تعديل التقييم' : 'Edit rating'}
+                  </Text>
+                </TouchableOpacity>
+              </>
             ) : (
               <>
                 <TextInput
@@ -1506,13 +1541,16 @@ export default function OrderDetailsScreen() {
                   <Text style={{ color: '#fff', fontWeight: '800', fontSize: 14 }}>
                     {submittingRating
                       ? (isRTL ? 'جارٍ الإرسال...' : 'Submitting...')
-                      : (isRTL ? 'إرسال التقييم' : 'Submit rating')}
+                      : hasReviewed
+                        ? (isRTL ? 'حفظ التعديل' : 'Save changes')
+                        : (isRTL ? 'إرسال التقييم' : 'Submit rating')}
                   </Text>
                 </TouchableOpacity>
               </>
             )}
           </View>
-        )}
+          );
+        })()}
 
         <View style={{ height: 30 }} />
       </ScrollView>

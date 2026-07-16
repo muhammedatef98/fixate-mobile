@@ -28,6 +28,30 @@ export const submitReview = async (
   return data;
 };
 
+/** Insert the review, or update it in place if the customer already rated
+ *  this order — lets the customer revise stars/comment after submitting. */
+export const upsertReview = async (
+  orderId: string,
+  userId: string,
+  technicianId: string | null,
+  rating: number,
+  comment?: string
+): Promise<Review> => {
+  if (rating < 1 || rating > 5) throw new Error('Rating must be 1-5');
+  const existing = await getReviewByOrder(orderId, userId);
+  if (existing) {
+    const { data, error } = await supabase
+      .from('reviews')
+      .update({ rating, comment: comment?.trim() || null })
+      .eq('id', existing.id)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  }
+  return submitReview(orderId, userId, technicianId, rating, comment);
+};
+
 export const getReviewByOrder = async (orderId: string, userId: string): Promise<Review | null> => {
   const { data, error } = await supabase
     .from('reviews')
