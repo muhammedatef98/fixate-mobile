@@ -359,8 +359,9 @@ export default function OrderDetailsScreen() {
     || order.status === 'cancelled'
     || order.status === 'rejected'
     || order.status === 'expired';
-  const historyCollapsible =
-    isOrderFinished && timeline.length > HISTORY_COLLAPSED_COUNT;
+  // Collapse on LIVE orders too — past ~3 events the log gets long and pushes
+  // the actionable cards down; "view more" keeps the full history one tap away.
+  const historyCollapsible = timeline.length > HISTORY_COLLAPSED_COUNT;
   const visibleTimeline =
     historyCollapsible && !historyExpanded
       ? timeline.slice(-HISTORY_COLLAPSED_COUNT)

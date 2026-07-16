@@ -573,19 +573,6 @@ export default function MarketScreen() {
         </AnimatedTouchable>
         <View style={{ flex: 1, alignItems: 'center', paddingHorizontal: 8 }}>
           <Text style={styles.title}>{isRTL ? 'سوق Fixate' : 'Fixate Market'}</Text>
-          {!loading && total > 0 ? (
-            <Text style={styles.subtitle}>
-              {isRTL
-                ? total === 1
-                  ? 'إعلان واحد نشط'
-                  : total === 2
-                    ? 'إعلانان نشطان'
-                    : total <= 10
-                      ? `${total} إعلانات نشطة`
-                      : `${total.toLocaleString('en-US')} إعلاناً نشطاً`
-                : `${total.toLocaleString('en-US')} ${total === 1 ? 'listing' : 'listings'} live`}
-            </Text>
-          ) : null}
         </View>
         <View style={styles.headerActions}>
           <AnimatedTouchable

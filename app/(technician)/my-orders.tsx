@@ -26,15 +26,31 @@ const ORDER_FILTERS: AdminFilterChip<OrderFilterKey>[] = [
   { key: 'cancelled', ar: 'ملغاة', en: 'Cancelled' },
 ];
 
-// Per-status badge config (label + colour). Color-coded: accepted = orange,
-// active = blue, completed = green, rejected/cancelled = red.
+// Per-status badge config (label + colour). Color-coded: waiting = orange,
+// active = blue, completed = green, rejected/cancelled/expired = red.
+// EVERY status the pipeline can produce is mapped, and getStatusConfig always
+// returns a coloured entry — the badge must never render gray/empty.
 const STATUS_CONFIG: Record<string, { labelAr: string; labelEn: string; color: string }> = {
+  pending: { labelAr: 'بانتظار العروض', labelEn: 'Awaiting offers', color: '#F59E0B' },
   accepted: { labelAr: 'مقبولة', labelEn: 'Accepted', color: '#F59E0B' },
+  awaiting_payment: { labelAr: 'بانتظار الدفع', labelEn: 'Awaiting payment', color: '#F59E0B' },
+  quoted: { labelAr: 'بانتظار تأكيد السعر', labelEn: 'Awaiting confirmation', color: '#F59E0B' },
+  picking_up: { labelAr: 'جاري الاستلام', labelEn: 'Picking up', color: '#3B82F6' },
+  diagnosing: { labelAr: 'تحت الفحص', labelEn: 'Inspecting', color: '#3B82F6' },
+  waiting_parts: { labelAr: 'انتظار قطع غيار', labelEn: 'Waiting for parts', color: '#3B82F6' },
+  repairing: { labelAr: 'قيد الإصلاح', labelEn: 'Repairing', color: '#3B82F6' },
   in_progress: { labelAr: 'قيد التنفيذ', labelEn: 'In Progress', color: '#3B82F6' },
+  testing: { labelAr: 'اختبار الجودة', labelEn: 'Quality testing', color: '#3B82F6' },
+  delivering: { labelAr: 'قيد التسليم', labelEn: 'Delivering', color: '#3B82F6' },
   completed: { labelAr: 'مكتملة', labelEn: 'Completed', color: '#10B981' },
   rejected: { labelAr: 'مرفوضة', labelEn: 'Rejected', color: '#EF4444' },
   cancelled: { labelAr: 'ملغاة', labelEn: 'Cancelled', color: '#EF4444' },
+  expired: { labelAr: 'منتهية المهلة', labelEn: 'Expired', color: '#EF4444' },
 };
+
+// Unknown/future statuses fall back to a coloured "in progress", never gray.
+const getStatusConfig = (status: string | null | undefined) =>
+  STATUS_CONFIG[status ?? ''] ?? STATUS_CONFIG.in_progress;
 
 export default function MyOrdersScreen() {
   const router = useRouter();
@@ -87,7 +103,7 @@ export default function MyOrdersScreen() {
 
   const renderOrderCard = (order: any) => {
     if (!order || !order.id) return null;
-    const statusConfig = STATUS_CONFIG[order.status];
+    const statusConfig = getStatusConfig(order.status);
     // A rejected order is final & read-only — mute the card and drop all
     // action buttons so it visually reads as "closed/ended" (Fix 7).
     const isRejected = order.status === 'rejected';

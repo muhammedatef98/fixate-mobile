@@ -765,8 +765,7 @@ export default function CommunityScreen() {
         />
       )}
 
-      {/* FAB — create post (raised above the floating nav bar, labeled pill
-          like the marketplace "Sell" button) */}
+      {/* FAB — create post: a bare "+" icon (user preference). */}
       <TouchableOpacity
         style={styles.fab}
         onPress={() => setComposerOpen(true)}
@@ -774,10 +773,7 @@ export default function CommunityScreen() {
         accessibilityRole="button"
         accessibilityLabel={isRTL ? 'إنشاء منشور' : 'Create post'}
       >
-        <View style={styles.fabIconWrap}>
-          <Ionicons name="add" size={18} color="#fff" />
-        </View>
-        <Text style={styles.fabText}>{isRTL ? 'منشور جديد' : 'New post'}</Text>
+        <Ionicons name="add" size={28} color="#fff" />
       </TouchableOpacity>
 
       {/* Create-post modal */}
@@ -1087,12 +1083,11 @@ const makeStyles = (C: any, isRTL: boolean) =>
       // Sit clear above the floating technician nav bar (was hidden behind it).
       bottom: TECH_NAV_HEIGHT + 14,
       [isRTL ? 'left' : 'right']: 18,
-      flexDirection: isRTL ? 'row-reverse' : 'row',
+      width: 54,
+      height: 54,
+      borderRadius: 27,
       alignItems: 'center',
-      gap: 7,
-      paddingHorizontal: 16,
-      paddingVertical: 11,
-      borderRadius: 999,
+      justifyContent: 'center',
       backgroundColor: C.primary,
       borderWidth: 2,
       borderColor: 'rgba(255,255,255,0.35)',
@@ -1100,12 +1095,6 @@ const makeStyles = (C: any, isRTL: boolean) =>
       shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.45, shadowRadius: 16,
       elevation: 10,
     },
-    fabIconWrap: {
-      width: 22, height: 22, borderRadius: 11,
-      backgroundColor: 'rgba(255,255,255,0.22)',
-      alignItems: 'center', justifyContent: 'center',
-    },
-    fabText: { color: '#fff', fontWeight: '900', fontSize: 13.5, letterSpacing: 0.3 },
 
     modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
     modalSheet: {
