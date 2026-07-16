@@ -355,7 +355,7 @@ export default function TechnicianProfile() {
                   else if (item.id === 'notifications') router.push('/notifications-settings');
                   else if (item.id === 'settings') router.push('/settings');
                   else if (item.id === 'help') router.push('/contact');
-                  else if (item.id === 'skills') router.push('/technician-onboarding');
+                  else if (item.id === 'skills') router.push('/(technician)/skills');
                 }}
               >
                 <View style={styles.menuItemLeft}>

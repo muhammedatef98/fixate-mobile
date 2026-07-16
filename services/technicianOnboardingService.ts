@@ -19,7 +19,7 @@ export interface TechnicianOnboardingPayload {
   certificateUri?: string;
 }
 
-const uploadDoc = async (userId: string, uri: string, kind: 'id' | 'cert'): Promise<string> => {
+export const uploadDoc = async (userId: string, uri: string, kind: 'id' | 'cert'): Promise<string> => {
   const ext = uri.split('.').pop()?.toLowerCase() ?? 'jpg';
   const path = `${userId}/${kind}-${Date.now()}.${ext}`;
   // Read the local file as base64 and upload an ArrayBuffer, matching
