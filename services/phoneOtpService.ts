@@ -91,6 +91,7 @@ const friendly = (key: string | undefined, lang: 'ar' | 'en') => {
   const ar: Record<string, string> = {
     invalid_phone: 'رقم الجوال غير صحيح',
     cooldown: 'الرجاء الانتظار قبل إعادة إرسال الكود',
+    daily_limit: 'تم تجاوز الحد اليومي لإرسال الرمز، حاول غداً',
     storage_failed: 'تعذر إرسال الكود، حاول مرة أخرى',
     invalid_input: 'بيانات غير صحيحة',
     otp_not_found_or_expired: 'الكود غير صالح أو انتهت صلاحيته',
@@ -102,6 +103,7 @@ const friendly = (key: string | undefined, lang: 'ar' | 'en') => {
   const en: Record<string, string> = {
     invalid_phone: 'Invalid phone number',
     cooldown: 'Please wait before requesting another code',
+    daily_limit: 'Daily code limit reached, please try again tomorrow',
     storage_failed: 'Could not send the code, please try again',
     invalid_input: 'Invalid input',
     otp_not_found_or_expired: 'The code is invalid or has expired',

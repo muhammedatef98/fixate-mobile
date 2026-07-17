@@ -22,6 +22,11 @@ const corsHeaders = {
 
 const OTP_TTL_SECONDS = 300;
 const RESEND_COOLDOWN_SECONDS = 30;
+// Rolling-window cap: at most DAILY_SEND_CAP paid SMS per phone per 24h.
+// `send_attempts` counts sends inside the current window and resets once
+// the last send is older than the window (SMS-pumping cost control).
+const DAILY_SEND_CAP = 8;
+const DAILY_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 const AUTHENTICA_API_KEY = Deno.env.get('AUTHENTICA_API_KEY') ?? '';
 const AUTHENTICA_BASE_URL_RAW = Deno.env.get('AUTHENTICA_BASE_URL') ?? 'https://api.authentica.sa/api/v2';
@@ -101,15 +106,27 @@ Deno.serve(async (req: Request) => {
       .eq('phone', phone)
       .maybeSingle();
 
+    let attemptsInWindow = 0;
     if (rateRow?.last_sent_at) {
       const last = new Date(rateRow.last_sent_at).getTime();
-      const elapsed = (Date.now() - last) / 1000;
-      if (elapsed < RESEND_COOLDOWN_SECONDS) {
+      const elapsedMs = Date.now() - last;
+      if (elapsedMs / 1000 < RESEND_COOLDOWN_SECONDS) {
         return new Response(
           JSON.stringify({
             error: 'cooldown',
-            retry_after_seconds: Math.ceil(RESEND_COOLDOWN_SECONDS - elapsed),
+            retry_after_seconds: Math.ceil(RESEND_COOLDOWN_SECONDS - elapsedMs / 1000),
           }),
+          { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      // Still inside the 24h window → keep counting; otherwise start fresh.
+      if (elapsedMs < DAILY_WINDOW_MS) {
+        attemptsInWindow = rateRow.send_attempts ?? 0;
+      }
+      if (attemptsInWindow >= DAILY_SEND_CAP) {
+        console.warn(`[send-phone-otp] daily cap hit for ${phone}`);
+        return new Response(
+          JSON.stringify({ error: 'daily_limit' }),
           { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
@@ -131,7 +148,7 @@ Deno.serve(async (req: Request) => {
         {
           phone,
           last_sent_at: nowIso,
-          send_attempts: (rateRow?.send_attempts ?? 0) + 1,
+          send_attempts: attemptsInWindow + 1,
           updated_at: nowIso,
         },
         { onConflict: 'phone' }

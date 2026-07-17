@@ -29,6 +29,10 @@ const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send';
 const EXPO_RECEIPTS_URL = 'https://exp.host/--/api/v2/push/getReceipts';
 const EXPO_CHUNK = 100; // Expo accepts up to 100 messages per request.
 const RECEIPT_CHUNK = 1000; // Expo accepts up to 1000 receipt ids per request.
+// Largest legitimate targeted fan-out is small (order counterparties, losing
+// offer bidders, the admin team). Anything bigger belongs on the gated
+// `audience` path.
+const MAX_TARGETED_IDS = 100;
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -73,15 +77,35 @@ Deno.serve(async (req: Request) => {
     const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const admin = createClient(supabaseUrl, serviceKey);
 
-    // --- Authorization: audience-wide sends are gated. ---------------------
-    // Targeted sends — explicit `tokens` (incl. push-to-self) and `userIds`
-    // (order-flow counterparty notifications) — stay open to any authenticated
-    // caller. Segment broadcasts are gated:
-    //   • 'all' / 'customers' → admin only (app_metadata.is_admin === true, or
+    // --- Authorization ------------------------------------------------------
+    //   • `tokens` — open at the gateway level. Tokens are unguessable
+    //     capability strings that RLS keeps unreadable cross-user, and the
+    //     scheduled-notifications DB cron calls this path with anon-key auth
+    //     (see 20260626000060), so it cannot present a user JWT.
+    //   • `userIds` — requires an authenticated caller (order/chat/market
+    //     counterparty notifications), capped at MAX_TARGETED_IDS so a stolen
+    //     session can't fan out to the whole user base.
+    //   • audience broadcasts:
+    //     'all' / 'customers' → admin only (app_metadata.is_admin === true, or
     //     app_metadata.roles including 'admin'; same rule as constants/admin.ts).
-    //   • 'technicians'       → admin, OR the owner of the order referenced by
+    //     'technicians'       → admin, OR the owner of the order referenced by
     //     data.orderId. This keeps the customer→technicians "new order" push
     //     working without letting anyone spam all technicians at will.
+    if (payload.userIds?.length && !payload.audience) {
+      const caller = await getCaller(req, admin);
+      if (!caller) {
+        console.warn('push-dispatch: rejected unauthenticated userIds send');
+        return json({ error: 'forbidden: authentication required' }, 401);
+      }
+      if (payload.userIds.length > MAX_TARGETED_IDS) {
+        console.warn(
+          `push-dispatch: rejected oversized userIds send ` +
+            `(${payload.userIds.length} ids, caller=${caller.userId})`
+        );
+        return json({ error: `too many userIds (max ${MAX_TARGETED_IDS})` }, 400);
+      }
+    }
+
     if (payload.audience) {
       const caller = await getCaller(req, admin);
       let allowed = caller?.isAdmin === true;
