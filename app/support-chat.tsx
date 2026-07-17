@@ -17,13 +17,21 @@ import { useRouter } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useApp } from '../contexts/AppContext';
 import { useAuth } from '../contexts/AuthContext';
-import { getColors, SPACING, BORDER_RADIUS } from '../constants/theme';
+import { getColors, SPACING } from '../constants/theme';
 import { RTLIonicon } from '../components/RTLIcon';
 import { safeBack } from '../utils/navigation';
 import * as support from '../services/supportService';
 import { supabase } from '../services/supabaseClient';
 import { useScrollToEndOnKeyboard } from '../hooks/useScrollToEndOnKeyboard';
 import { formatAppTimeOnly } from '../lib/formatDate';
+import {
+  CHAT_BUBBLE,
+  CHAT_BUBBLE_MAX_WIDTH,
+  CHAT_INPUT,
+  CHAT_MSG_FONT_SIZE,
+  CHAT_SEND_BTN,
+  CHAT_TIME_FONT_SIZE,
+} from '../components/chat/chatGeometry';
 import { getInputDirection } from '../utils/rtl';
 
 export default function SupportChatScreen() {
@@ -161,18 +169,18 @@ export default function SupportChatScreen() {
                   <View style={[
                     styles.bubble,
                     mine
-                      ? { backgroundColor: COLORS.primary, borderBottomRightRadius: 4 }
-                      : { backgroundColor: COLORS.card, borderColor: COLORS.border, borderWidth: 1, borderBottomLeftRadius: 4 },
+                      ? { backgroundColor: COLORS.primary }
+                      : { backgroundColor: COLORS.card, borderColor: COLORS.border, borderWidth: 1 },
                   ]}>
                     {!mine && (
                       <Text style={{ color: COLORS.primary, fontSize: 11, fontWeight: '700', marginBottom: 2 }}>
                         {isRTL ? 'الدعم' : 'Support'}
                       </Text>
                     )}
-                    <Text style={{ color: mine ? '#fff' : COLORS.text, fontSize: 14, lineHeight: 20, textAlign: isRTL ? 'right' : 'left', writingDirection: isRTL ? 'rtl' : 'ltr' }}>
+                    <Text style={{ color: mine ? '#fff' : COLORS.text, fontSize: CHAT_MSG_FONT_SIZE, lineHeight: 21, textAlign: isRTL ? 'right' : 'left', writingDirection: isRTL ? 'rtl' : 'ltr' }}>
                       {item.content}
                     </Text>
-                    <Text style={{ color: mine ? '#ffffffaa' : COLORS.textSecondary, fontSize: 10, marginTop: 4, textAlign: isRTL ? 'left' : 'right' }}>
+                    <Text style={{ color: mine ? '#ffffffaa' : COLORS.textSecondary, fontSize: CHAT_TIME_FONT_SIZE, marginTop: 4, textAlign: isRTL ? 'left' : 'right' }}>
                       {formatAppTimeOnly(item.created_at, isRTL)}
                     </Text>
                   </View>
@@ -229,7 +237,7 @@ const makeStyles = (C: any, isRTL: boolean) =>
     },
     title: { fontSize: 17, fontWeight: '700' },
     msgRow: { flexDirection: 'row', marginVertical: 4 },
-    bubble: { maxWidth: '78%', borderRadius: 16, paddingVertical: 8, paddingHorizontal: 12 },
+    bubble: { maxWidth: CHAT_BUBBLE_MAX_WIDTH, ...CHAT_BUBBLE },
     inputBar: {
       // Send button always on the RIGHT (user preference), in both languages.
       flexDirection: 'row',
@@ -239,20 +247,9 @@ const makeStyles = (C: any, isRTL: boolean) =>
       borderTopWidth: 1,
     },
     input: {
-      flex: 1,
-      borderWidth: 1,
-      borderRadius: BORDER_RADIUS.lg,
-      paddingHorizontal: 14,
-      paddingTop: 10,
-      paddingBottom: 10,
-      maxHeight: 140,
-      fontSize: 14,
+      ...CHAT_INPUT,
     },
     sendBtn: {
-      width: 44,
-      height: 44,
-      borderRadius: 22,
-      alignItems: 'center',
-      justifyContent: 'center',
+      ...CHAT_SEND_BTN,
     },
   });

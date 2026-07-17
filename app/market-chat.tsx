@@ -33,6 +33,14 @@ import {
 import { supabase } from '../services/supabaseClient';
 import { useScrollToEndOnKeyboard } from '../hooks/useScrollToEndOnKeyboard';
 import { formatAppTimeOnly } from '../lib/formatDate';
+import {
+  CHAT_BUBBLE,
+  CHAT_BUBBLE_MAX_WIDTH,
+  CHAT_INPUT,
+  CHAT_MSG_FONT_SIZE,
+  CHAT_SEND_BTN,
+  CHAT_TIME_FONT_SIZE,
+} from '../components/chat/chatGeometry';
 
 /**
  * Marketplace DM thread.
@@ -337,8 +345,8 @@ export default function MarketChatScreen() {
                     <Text
                       style={{
                         color: mine ? '#fff' : COLORS.text,
-                        fontSize: 14,
-                        lineHeight: 20,
+                        fontSize: CHAT_MSG_FONT_SIZE,
+                        lineHeight: 21,
                         textAlign: isRTL ? 'right' : 'left',
                         writingDirection: isRTL ? 'rtl' : 'ltr',
                       }}
@@ -348,7 +356,7 @@ export default function MarketChatScreen() {
                     <Text
                       style={{
                         color: mine ? '#ffffffaa' : COLORS.textSecondary,
-                        fontSize: 10,
+                        fontSize: CHAT_TIME_FONT_SIZE,
                         marginTop: 4,
                         textAlign: isRTL ? 'left' : 'right',
                         writingDirection: 'ltr',
@@ -434,10 +442,8 @@ const makeStyles = (C: any, isRTL: boolean) =>
     },
     msgRow: { flexDirection: 'row', marginVertical: 4 },
     bubble: {
-      maxWidth: '78%',
-      paddingHorizontal: 12,
-      paddingVertical: 8,
-      borderRadius: BORDER_RADIUS.md,
+      maxWidth: CHAT_BUBBLE_MAX_WIDTH,
+      ...CHAT_BUBBLE,
     },
     inputBar: {
       // Send button always on the RIGHT (user preference), in both languages.
@@ -451,25 +457,14 @@ const makeStyles = (C: any, isRTL: boolean) =>
       backgroundColor: C.card,
     },
     input: {
-      flex: 1,
-      maxHeight: 100,
-      minHeight: 40,
-      paddingHorizontal: 12,
-      paddingVertical: 8,
-      borderRadius: BORDER_RADIUS.md,
+      ...CHAT_INPUT,
       backgroundColor: C.background,
-      borderWidth: 1,
       borderColor: C.border,
-      fontSize: 14,
       writingDirection: isRTL ? 'rtl' : 'ltr',
     },
     sendBtn: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
+      ...CHAT_SEND_BTN,
       backgroundColor: C.primary,
-      alignItems: 'center',
-      justifyContent: 'center',
     },
     emptyMessages: {
       flex: 1,

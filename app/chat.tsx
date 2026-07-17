@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
-import { getColors, SPACING, BORDER_RADIUS, SHADOWS } from '../constants/theme';
+import { getColors, SPACING, SHADOWS } from '../constants/theme';
 import { useApp } from '../contexts/AppContext';
 import { useAuth } from '../contexts/AuthContext';
 import * as messagingService from '../services/messagingService';
@@ -22,6 +22,14 @@ import type { Message } from '../services/messagingService';
 import { logger } from '../utils/logger';
 import { useScrollToEndOnKeyboard } from '../hooks/useScrollToEndOnKeyboard';
 import { formatAppTimeOnly } from '../lib/formatDate';
+import {
+  CHAT_BUBBLE,
+  CHAT_BUBBLE_MAX_WIDTH,
+  CHAT_INPUT,
+  CHAT_MSG_FONT_SIZE,
+  CHAT_SEND_BTN,
+  CHAT_TIME_FONT_SIZE,
+} from '../components/chat/chatGeometry';
 import GearLoader from '../components/GearLoader';
 
 export default function ChatScreen() {
@@ -169,8 +177,9 @@ export default function ChatScreen() {
           <TextInput
             style={[
               styles.input, 
-              { 
+              {
                 backgroundColor: isDark ? '#374151' : '#F3F4F6',
+                borderColor: COLORS.border,
                 color: COLORS.text,
                 textAlign: isRTL ? 'right' : 'left'
               }
@@ -255,7 +264,7 @@ const makeStyles = (isRTL: boolean) => StyleSheet.create({
   },
   messageContainer: {
     marginBottom: SPACING.m,
-    maxWidth: '80%',
+    maxWidth: CHAT_BUBBLE_MAX_WIDTH,
   },
   myMessageContainer: {
     alignSelf: 'flex-end',
@@ -264,16 +273,14 @@ const makeStyles = (isRTL: boolean) => StyleSheet.create({
     alignSelf: 'flex-start',
   },
   messageBubble: {
-    padding: SPACING.m,
-    borderRadius: 16,
-    borderBottomRightRadius: 4,
+    ...CHAT_BUBBLE,
   },
   messageText: {
-    fontSize: 16,
+    fontSize: CHAT_MSG_FONT_SIZE,
     marginBottom: 4,
   },
   messageTime: {
-    fontSize: 10,
+    fontSize: CHAT_TIME_FONT_SIZE,
     alignSelf: 'flex-end',
   },
   inputContainer: {
@@ -284,17 +291,9 @@ const makeStyles = (isRTL: boolean) => StyleSheet.create({
     gap: SPACING.m,
   },
   input: {
-    flex: 1,
-    borderRadius: 24,
-    paddingHorizontal: SPACING.l,
-    paddingVertical: SPACING.s,
-    maxHeight: 100,
+    ...CHAT_INPUT,
   },
   sendButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    justifyContent: 'center',
-    alignItems: 'center',
+    ...CHAT_SEND_BTN,
   },
 });

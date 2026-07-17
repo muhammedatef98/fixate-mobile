@@ -15,7 +15,7 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { getColors, BORDER_RADIUS, SPACING } from '../../constants/theme';
+import { getColors, SPACING } from '../../constants/theme';
 import { useApp } from '../../contexts/AppContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { RTLIonicon } from '../../components/RTLIcon';
@@ -45,6 +45,14 @@ import {
 } from '../../utils/courierChatThreads';
 import { supabase } from '../../services/supabaseClient';
 import GearLoader from '../../components/GearLoader';
+import {
+  CHAT_BUBBLE,
+  CHAT_BUBBLE_MAX_WIDTH,
+  CHAT_INPUT,
+  CHAT_MSG_FONT_SIZE,
+  CHAT_SEND_BTN,
+  CHAT_TIME_FONT_SIZE,
+} from '../../components/chat/chatGeometry';
 
 /**
  * Courier chat, scoped to one delivery task. Two isolated threads live on a
@@ -207,15 +215,15 @@ export default function CourierChatScreen() {
           <Text
             style={{
               color: isMe ? '#fff' : COLORS.text,
-              fontSize: 14,
-              lineHeight: 20,
+              fontSize: CHAT_MSG_FONT_SIZE,
+              lineHeight: 21,
               textAlign: isRTL ? 'right' : 'left',
               writingDirection: isRTL ? 'rtl' : 'ltr',
             }}
           >
             {item.content}
           </Text>
-          <Text style={{ color: isMe ? '#ffffffaa' : COLORS.textSecondary, fontSize: 10, alignSelf: 'flex-end', marginTop: 4 }}>
+          <Text style={{ color: isMe ? '#ffffffaa' : COLORS.textSecondary, fontSize: CHAT_TIME_FONT_SIZE, alignSelf: 'flex-end', marginTop: 4 }}>
             {formatAppTimeOnly(item.created_at, isRTL)}
           </Text>
         </View>
@@ -419,10 +427,8 @@ const makeStyles = (C: any, isRTL: boolean) =>
     },
     messageRow: { flexDirection: 'row', marginTop: 6 },
     bubble: {
-      maxWidth: '76%',
-      borderRadius: 18,
-      paddingVertical: 8,
-      paddingHorizontal: 12,
+      maxWidth: CHAT_BUBBLE_MAX_WIDTH,
+      ...CHAT_BUBBLE,
     },
     inputBar: {
       // Send button always on the RIGHT (user preference), in both languages.
@@ -442,20 +448,9 @@ const makeStyles = (C: any, isRTL: boolean) =>
       borderTopWidth: 1,
     },
     input: {
-      flex: 1,
-      borderWidth: 1,
-      borderRadius: BORDER_RADIUS.lg,
-      paddingHorizontal: 16,
-      paddingVertical: 12,
-      minHeight: 44,
-      maxHeight: 140,
-      fontSize: 15,
+      ...CHAT_INPUT,
     },
     sendBtn: {
-      width: 44,
-      height: 44,
-      borderRadius: 22,
-      alignItems: 'center',
-      justifyContent: 'center',
+      ...CHAT_SEND_BTN,
     },
   });
