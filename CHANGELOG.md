@@ -1,69 +1,47 @@
 # Changelog
 
-All notable changes to the Fixate mobile app will be documented in this file.
+Notable changes to the Fixate mobile app. Format follows
+[Keep a Changelog](https://keepachangelog.com/en/1.0.0/); versioning follows
+[SemVer](https://semver.org/spec/v2.0.0.html).
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
-
-## [1.0.0] - 2024-12-22
+## [1.0.1] - 2026-07-17
 
 ### Added
-- ✅ Complete Supabase integration for backend services
-- ✅ Separate authentication flows for customers and technicians
-- ✅ Service request system with location-based matching
-- ✅ Real-time order tracking
-- ✅ Media upload functionality for order images
-- ✅ Bilingual support (Arabic/English)
-- ✅ Dark mode support
-- ✅ Interactive maps for location selection
-- ✅ Technician dashboard with available orders
-- ✅ Customer dashboard with order history
-- ✅ Rating and review system
-- ✅ Email verification with SendGrid SMTP
+- Offer marketplace: technicians bid on repair requests, the accepted offer is
+  the price basis for payment
+- Courier role with live location tracking and document verification
+- In-app wallet, invoices, and admin payment modes
+- Push notifications via Expo Push (order dispatch, offers, status changes)
+- Realtime chat between customer, technician, and courier
+- Technician community feed with admin moderation
+- Repair warranty derived from completed orders (12 months)
+- Pricing registry (add-ons and rules) with repair estimates
+- Admin area: RBAC permissions, technician verification (approve / reject /
+  request changes), support inbox, scheduled automations
 
 ### Changed
-- 🔄 Migrated from VPS API to Supabase
-- 🔄 Updated all API calls to use Supabase client
-- 🔄 Removed expo-dev-client for Expo Go compatibility
-- 🔄 Fixed useAppContext to useApp naming consistency
-
-### Fixed
-- 🐛 Fixed order submission error by adding missing database columns
-- 🐛 Fixed authentication context import issues
-- 🐛 Fixed services API integration
-- 🐛 Resolved Expo Go compatibility issues
-
-### Removed
-- ❌ Removed old VPS API files (api.ts, unified-api.ts, mobile-api-adapter.ts)
-- ❌ Removed expo-dev-client dependency
-
-### Database Schema Updates
-- Added `service_type` column to orders table
-- Added `location` column to orders table
-- Added `latitude` column to orders table
-- Added `longitude` column to orders table
-- Added `media_urls` column to orders table
+- Upgraded to the Firebase 25 native runtime (new EAS build runtime)
+- Unified order status metadata (colors, icons, progress) into a single source
+- Shared chat bubble/composer geometry across all chat surfaces
 
 ### Security
-- 🔒 All sensitive keys moved to environment variables
-- 🔒 Row Level Security (RLS) enabled on Supabase tables
-- 🔒 Email verification required for new accounts
+- Revoked client EXECUTE on unguarded cron RPCs; pinned function search paths
+- Push dispatch restricted to authorized user IDs; OTP rate-limited
+- Removed unused dependencies flagged in the security audit
 
-## [Unreleased]
+## [1.0.0] - 2025-12-22
 
-### Planned Features
-- 🚀 Push notifications for order updates
-- 🚀 In-app chat between customers and technicians
-- 🚀 Payment gateway integration
-- 🚀 Advanced search and filters
-- 🚀 Technician availability scheduling
-- 🚀 Multi-language support (add more languages)
-- 🚀 Social media authentication (Google, Facebook, Apple)
-- 🚀 Referral program
-- 🚀 Loyalty points system
+Initial release.
 
----
+- Customer flow: request a repair, live technician tracking, media upload,
+  ratings and reviews
+- Technician flow: nearby job feed, status pipeline, earnings
+- Supabase backend: Postgres with RLS everywhere, Auth, Storage, Realtime,
+  Edge Functions
+- Email OTP login and password reset (Resend edge function, no SMS provider)
+- Saudi-specific verification: National ID / Iqama checksum, IBAN validation,
+  document upload
+- Bilingual Arabic/English with full RTL support, dark mode
 
-## Version History
-
-- **v1.0.0** (2024-12-22) - Initial release with full Supabase integration
+[1.0.1]: https://github.com/muhammedatef98/fixate-mobile/releases/tag/v1.0.1
+[1.0.0]: https://github.com/muhammedatef98/fixate-mobile/commits/main
