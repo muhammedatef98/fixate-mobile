@@ -22,6 +22,7 @@ import InvoiceDownloadButton from '../components/InvoiceDownloadButton';
 import { formatAppDateOnly } from '../lib/formatDate';
 import { Riyal } from '../components/Riyal';
 import GearLoader from '../components/GearLoader';
+import { EmptyState } from '../components/ui/EmptyState';
 import {
   ORDER_STATUS_META,
   ORDER_STATUS_LABELS_AR,
@@ -234,12 +235,23 @@ export default function MyOrdersScreen() {
         }
       >
         {filteredOrders.length === 0 ? (
-          <View style={styles.emptyContainer}>
-            <MaterialCommunityIcons name="inbox" size={64} color={COLORS.textSecondary} />
-            <Text style={[styles.emptyText, { color: COLORS.textSecondary }]}>
-              {isRTL ? 'لا توجد طلبات' : 'No orders found'}
-            </Text>
-          </View>
+          <EmptyState
+            icon="wrench-outline"
+            title={
+              filter === 'completed'
+                ? (isRTL ? 'لا توجد طلبات منتهية' : 'No past orders')
+                : (isRTL ? 'لا توجد طلبات بعد' : 'No orders yet')
+            }
+            description={
+              filter === 'completed'
+                ? undefined
+                : (isRTL
+                    ? 'اطلب فني معتمد يصلك أينما كنت، مع ضمان 12 شهراً على الإصلاح.'
+                    : 'Request a certified technician to come to you — every repair is covered by a 12-month warranty.')
+            }
+            actionLabel={filter === 'completed' ? undefined : (isRTL ? 'اطلب صيانة الآن' : 'Request a repair')}
+            onAction={filter === 'completed' ? undefined : () => router.push('/request')}
+          />
         ) : (
           filteredOrders.map(renderOrderCard)
         )}
@@ -414,15 +426,5 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '600',
-  },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: SPACING.xl * 3,
-  },
-  emptyText: {
-    fontSize: 16,
-    marginTop: SPACING.md,
   },
 });

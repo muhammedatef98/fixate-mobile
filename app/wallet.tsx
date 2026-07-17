@@ -24,6 +24,7 @@ import { safeBack } from '../utils/navigation';
 import { formatAppDateOnly } from '../lib/formatDate';
 import { Riyal } from '../components/Riyal';
 import GearLoader from '../components/GearLoader';
+import { EmptyState } from '../components/ui/EmptyState';
 
 export default function WalletScreen() {
   const router = useRouter();
@@ -181,15 +182,11 @@ export default function WalletScreen() {
         ) : errorMsg ? (
           <ErrorState message={errorMsg} onRetry={load} />
         ) : payments.length === 0 ? (
-          <View style={styles.empty}>
-            <MaterialCommunityIcons name="wallet-outline" size={64} color={COLORS.border} />
-            <Text style={styles.emptyTitle}>
-              {isRTL ? 'لا توجد معاملات بعد' : 'No transactions yet'}
-            </Text>
-            <Text style={styles.emptySub}>
-              {isRTL ? 'ستظهر مدفوعاتك هنا بعد إكمال أي طلب صيانة' : 'Your payments will appear here after completing any repair'}
-            </Text>
-          </View>
+          <EmptyState
+            icon="wallet-outline"
+            title={isRTL ? 'لا توجد معاملات بعد' : 'No transactions yet'}
+            description={isRTL ? 'ستظهر مدفوعاتك هنا بعد إكمال أي طلب صيانة' : 'Your payments will appear here after completing any repair'}
+          />
         ) : (
           payments.map((p) => {
             const info = statusInfo(p.status);
@@ -262,9 +259,6 @@ const createStyles = (C: any, isRTL: boolean) =>
     },
     addFundsText: { color: C.primary, fontWeight: '800', fontSize: 13.5 },
     sectionTitle: { fontSize: 16, fontWeight: 'bold', color: C.text, marginBottom: SPACING.md, textAlign: isRTL ? 'right' : 'left' },
-    empty: { alignItems: 'center', paddingVertical: 40 },
-    emptyTitle: { fontSize: 16, fontWeight: '600', color: C.text, marginTop: SPACING.md },
-    emptySub: { fontSize: 13, color: C.textSecondary, textAlign: 'center', marginTop: SPACING.sm, paddingHorizontal: SPACING.lg },
     txnRow: {
       flexDirection: isRTL ? 'row-reverse' : 'row',
       alignItems: 'center',
