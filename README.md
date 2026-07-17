@@ -5,11 +5,21 @@
 > Looking for the pitch / market story? See [docs/business/INVESTOR_SUMMARY.md](docs/business/INVESTOR_SUMMARY.md).
 > Need to set things up? See [docs/setup/](docs/setup/).
 
-[![Platform](https://img.shields.io/badge/Platform-iOS%20%7C%20Android-blue.svg)](https://expo.dev)
-[![Status](https://img.shields.io/badge/Status-Active-success.svg)]()
-[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![CI](https://github.com/muhammedatef98/fixate-mobile/actions/workflows/ci.yml/badge.svg)](https://github.com/muhammedatef98/fixate-mobile/actions/workflows/ci.yml)
+[![Platform](https://img.shields.io/badge/platform-iOS%20%7C%20Android-blue.svg)](https://expo.dev)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
 ---
+
+## Screenshots
+
+| Login | Home | Services |
+| :---: | :---: | :---: |
+| <img src="screenshots/ios/01-login.png" width="220" alt="Login screen"> | <img src="screenshots/ios/02-home.png" width="220" alt="Customer home"> | <img src="screenshots/ios/03-services.png" width="220" alt="Service selection"> |
+
+| Marketplace | Order tracking | Profile |
+| :---: | :---: | :---: |
+| <img src="screenshots/ios/04-market.png" width="220" alt="Offer marketplace"> | <img src="screenshots/ios/06-track-order.png" width="220" alt="Live order tracking"> | <img src="screenshots/ios/05-profile.png" width="220" alt="Profile"> |
 
 ## Features
 
