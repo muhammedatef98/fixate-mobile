@@ -1,7 +1,6 @@
-# Payment Architecture v2 — design (2026-07-08)
+# Payment Architecture
 
-Design deliverable for the accepted-offer → immediate-payment release. Written
-before implementation per the execution contract.
+How pricing and payment work in Fixate (v2, live since 2026-07-08).
 
 ## 1. Canonical payment model
 

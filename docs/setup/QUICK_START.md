@@ -5,7 +5,8 @@
 ### 1. التثبيت
 
 ```bash
-cd mobile
+git clone https://github.com/muhammedatef98/fixate-mobile.git
+cd fixate-mobile
 pnpm install
 ```
 
