@@ -51,6 +51,7 @@ import { isCourierChatOpen } from '../services/courierChatService';
 import { getPendingOfferCount, subscribeToOrderOffers } from '../services/offerMarketplaceService';
 import { formatAppDate } from '../lib/formatDate';
 import GearLoader from '../components/GearLoader';
+import { getOrderStatusColor } from '../types/order';
 
 const ORDER_TIMELINE: { status: string; arLabel: string; enLabel: string; icon: string }[] = [
   { status: 'pending', arLabel: 'بانتظار العروض', enLabel: 'Awaiting offers', icon: 'clock-outline' },
@@ -309,21 +310,9 @@ export default function OrderDetailsScreen() {
     return ORDER_TIMELINE.findIndex(step => step.status === order.status);
   };
 
-  const getStatusColor = (status: string) => {
-    const colors: { [key: string]: string } = {
-      pending: '#F59E0B',
-      accepted: '#3B82F6',
-      picking_up: '#8B5CF6',
-      diagnosing: '#06B6D4',
-      quoted: '#F59E0B',
-      repairing: '#EC4899',
-      delivering: '#10B981',
-      completed: '#10B981',
-      cancelled: '#EF4444',
-      rejected: '#EF4444',
-    };
-    return colors[status] || '#6B7280';
-  };
+  // Colors come from the shared ORDER_STATUS_META so the detail screen always
+  // agrees with the orders list.
+  const getStatusColor = getOrderStatusColor;
 
   if (loading) {
     return (
@@ -935,7 +924,7 @@ export default function OrderDetailsScreen() {
                 try {
                   const { notifyUsers } = await import('../services/notifyService');
                   void notifyUsers(order.technician_id, {
-                    title: 'تم تأكيد الطلب ✅',
+                    title: 'تم تأكيد الطلب',
                     body: 'أكد العميل الطلب (دفع عند الاستلام) — يمكنك بدء العمل.',
                     data: { screen: 'order-details', orderId: String(order.id) },
                   });

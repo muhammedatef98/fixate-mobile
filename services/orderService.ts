@@ -13,6 +13,8 @@ const STATUS_LABEL_AR: Record<string, string> = {
   accepted: 'تم قبول طلبك',
   picking_up: 'الفني في طريقه لاستلام جهازك',
   diagnosing: 'جاري فحص جهازك',
+  // Legacy (pre payment-v2): no code path sets 'quoted' anymore; kept so a
+  // hypothetical old row still notifies sensibly.
   quoted: 'تم إرسال عرض السعر',
   awaiting_payment: 'بإنتظار الدفع',
   waiting_parts: 'بانتظار قطع الغيار',

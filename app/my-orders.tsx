@@ -22,107 +22,13 @@ import InvoiceDownloadButton from '../components/InvoiceDownloadButton';
 import { formatAppDateOnly } from '../lib/formatDate';
 import { Riyal } from '../components/Riyal';
 import GearLoader from '../components/GearLoader';
+import {
+  ORDER_STATUS_META,
+  ORDER_STATUS_LABELS_AR,
+  ORDER_STATUS_LABELS_EN,
+  OrderStatus,
+} from '../types/order';
 
-const ORDER_STATUS_CONFIG = {
-  pending: {
-    ar: 'بانتظار العروض',
-    en: 'Pending',
-    icon: 'clock-outline',
-    color: '#F59E0B',
-    progress: 0,
-  },
-  accepted: {
-    ar: 'تم القبول',
-    en: 'Accepted',
-    icon: 'check-circle',
-    color: '#10B981',
-    progress: 20,
-  },
-  picking_up: {
-    ar: 'جاري الاستلام',
-    en: 'Picking Up',
-    icon: 'car',
-    color: '#3B82F6',
-    progress: 40,
-  },
-  diagnosing: {
-    ar: 'جاري الفحص',
-    en: 'Diagnosing',
-    icon: 'magnify',
-    color: '#8B5CF6',
-    progress: 50,
-  },
-  quoted: {
-    ar: 'بانتظار موافقتك على السعر',
-    en: 'Awaiting your approval',
-    icon: 'cash-check',
-    color: '#F59E0B',
-    progress: 55,
-  },
-  awaiting_payment: {
-    ar: 'بإنتظار الدفع',
-    en: 'Awaiting payment',
-    icon: 'credit-card-clock',
-    color: '#0EA5E9',
-    progress: 58,
-  },
-  waiting_parts: {
-    ar: 'بانتظار قطع الغيار',
-    en: 'Waiting for Parts',
-    icon: 'package-variant',
-    color: '#A855F7',
-    progress: 60,
-  },
-  repairing: {
-    ar: 'جاري الإصلاح',
-    en: 'Repairing',
-    icon: 'tools',
-    color: '#EC4899',
-    progress: 70,
-  },
-  testing: {
-    ar: 'جاري الاختبار',
-    en: 'Testing',
-    icon: 'check-decagram',
-    color: '#0EA5E9',
-    progress: 80,
-  },
-  delivering: {
-    ar: 'جاري التوصيل',
-    en: 'Delivering',
-    icon: 'truck-delivery',
-    color: '#06B6D4',
-    progress: 90,
-  },
-  completed: {
-    ar: 'مكتمل',
-    en: 'Completed',
-    icon: 'check-all',
-    color: '#10B981',
-    progress: 100,
-  },
-  cancelled: {
-    ar: 'ملغي',
-    en: 'Cancelled',
-    icon: 'close-circle',
-    color: '#EF4444',
-    progress: 0,
-  },
-  rejected: {
-    ar: 'مرفوض',
-    en: 'Rejected',
-    icon: 'cancel',
-    color: '#EF4444',
-    progress: 0,
-  },
-  expired: {
-    ar: 'انتهت المهلة',
-    en: 'Expired',
-    icon: 'timer-off-outline',
-    color: '#94A3B8',
-    progress: 0,
-  },
-};
 
 export default function MyOrdersScreen() {
   const router = useRouter();
@@ -160,7 +66,11 @@ export default function MyOrdersScreen() {
   };
 
   const renderOrderCard = (order: Order) => {
-    const statusConfig = ORDER_STATUS_CONFIG[order.status];
+    const statusConfig = {
+      ...ORDER_STATUS_META[order.status as OrderStatus],
+      ar: ORDER_STATUS_LABELS_AR[order.status as OrderStatus],
+      en: ORDER_STATUS_LABELS_EN[order.status as OrderStatus],
+    };
     const isActive = !['completed', 'cancelled'].includes(order.status);
 
     return (

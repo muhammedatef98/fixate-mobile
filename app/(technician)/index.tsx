@@ -35,6 +35,7 @@ import ErrorState from '../../components/ErrorState';
 import { getFriendlyError } from '../../utils/errorMessages';
 import { SkeletonOrderCard } from '../../components/SkeletonLoader';
 import { Riyal } from '../../components/Riyal';
+import { getOrderStatusColor } from '../../types/order';
 
 const { width } = Dimensions.get('window');
 
@@ -262,21 +263,9 @@ export default function TechnicianHomeScreen() {
     return Number.isFinite(t) && (Date.now() - t) < FRESH_MS;
   };
 
-  const getStatusColor = (status: string) => {
-    const colors: { [key: string]: string } = {
-      pending: '#F59E0B',
-      accepted: '#3B82F6',
-      picking_up: '#8B5CF6',
-      diagnosing: '#EC4899',
-      quoted: '#F59E0B',
-      repairing: '#10B981',
-      delivering: '#06B6D4',
-      completed: '#22C55E',
-      cancelled: '#EF4444',
-      rejected: '#EF4444',
-    };
-    return colors[status] || '#6B7280';
-  };
+  // Shared ORDER_STATUS_META — keeps status colors identical to the customer
+  // list/detail screens.
+  const getStatusColor = getOrderStatusColor;
 
   const getStatusText = (status: string) => {
     const statusTexts: { [key: string]: { ar: string; en: string } } = {

@@ -299,3 +299,38 @@ export const ORDER_STATUS_LABELS_EN: Record<OrderStatus, string> = {
 export const isTerminalStatus = (status: OrderStatus): boolean =>
   status === 'completed' || status === 'cancelled' || status === 'rejected' ||
   status === 'expired';
+
+// Canonical status presentation — single source of truth for the color, icon
+// and progress used wherever an order status is rendered (list, detail,
+// technician views). Colors must agree across screens: a status that shows
+// green in the list must not show blue on the detail screen.
+export interface OrderStatusMeta {
+  /** Badge/accent color (hex). */
+  color: string;
+  /** MaterialCommunityIcons name. */
+  icon: string;
+  /** 0–100, drives progress bars/timelines. */
+  progress: number;
+}
+
+export const ORDER_STATUS_META: Record<OrderStatus, OrderStatusMeta> = {
+  pending: { color: '#F59E0B', icon: 'clock-outline', progress: 0 },
+  accepted: { color: '#10B981', icon: 'check-circle', progress: 20 },
+  picking_up: { color: '#3B82F6', icon: 'car', progress: 40 },
+  diagnosing: { color: '#8B5CF6', icon: 'magnify', progress: 50 },
+  // Legacy state — rendered for historical rows only.
+  quoted: { color: '#F59E0B', icon: 'cash-check', progress: 55 },
+  awaiting_payment: { color: '#0EA5E9', icon: 'credit-card-clock', progress: 58 },
+  waiting_parts: { color: '#A855F7', icon: 'package-variant', progress: 60 },
+  repairing: { color: '#EC4899', icon: 'tools', progress: 70 },
+  testing: { color: '#0EA5E9', icon: 'check-decagram', progress: 80 },
+  delivering: { color: '#06B6D4', icon: 'truck-delivery', progress: 90 },
+  completed: { color: '#10B981', icon: 'check-all', progress: 100 },
+  cancelled: { color: '#EF4444', icon: 'close-circle', progress: 0 },
+  rejected: { color: '#EF4444', icon: 'cancel', progress: 0 },
+  expired: { color: '#94A3B8', icon: 'timer-off-outline', progress: 0 },
+};
+
+/** Color for a status, tolerant of unknown/legacy strings. */
+export const getOrderStatusColor = (status: string): string =>
+  ORDER_STATUS_META[status as OrderStatus]?.color ?? '#6B7280';
