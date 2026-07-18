@@ -849,7 +849,7 @@ export default function MarketDetailScreen() {
                 </TouchableOpacity>
               </View>
             )}
-            <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'flex-end', gap: 8 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 8 }}>
               <TextInput
                 style={[styles.composerInput, { color: COLORS.text, backgroundColor: COLORS.background, borderColor: COLORS.border, textAlign: isRTL ? 'right' : 'left' }]}
                 value={commentText}
