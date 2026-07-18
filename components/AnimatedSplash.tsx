@@ -4,40 +4,31 @@ import Svg, { Path } from 'react-native-svg';
 import { GEAR_PATH } from './GearLoader';
 
 /**
- * Animated splash overlay — the brand mark assembles from its real parts.
+ * Animated splash overlay — "f i x" spells out, then becomes the logo.
  *
- * The logo bitmap is split into its two shapes (assets/fixate-logo-bolt.png,
- * assets/fixate-logo-flap.png — the pixels the gear covered are repaired
- * underneath), and the gear is drawn as a vector (the same path GearLoader
- * uses, traced from the logo artboard). Choreography (~2.3s):
+ * Choreography (~2.8s):
+ *   1. A lowercase "f" fades up.
+ *   2. The "i" joins — its stem is a bar, and its DOT is the brand gear
+ *      (the same vector GearLoader uses), spinning the whole time.
+ *   3. The "x" lands, completing "fix".
+ *   4. The letters give way to the actual logo — the ORIGINAL, untouched
+ *      bitmap (assets/fixate-logo-main.png) — via a scale-crossfade, and
+ *      the "Fixate" wordmark rises beneath it. Hold, fade into the app.
  *
- *   1. The bolt — the "F" stroke — rises into place.
- *   2. The top flap folds in from above, completing the letterform.
- *   3. The gear (the "i" dot) spins into its slot and settles.
- *   4. The "Fixate" wordmark fades up. Hold, then fade into the app.
- *
- * Every part ends at its exact position in the original bitmap, so the final
- * frame is pixel-identical to the untouched logo — no crop, no seams.
- *
- * Built on RN Animated (transform/opacity only → native driver, no Lottie).
- * Respects reduce-motion: parts render statically for 900ms, then continue.
+ * The logo asset is never edited, layered, or recomposed — it appears
+ * exactly as designed. Only transform/opacity animate (native driver).
+ * Respects reduce-motion: the logo + wordmark show statically for 900ms.
  */
 
 const BG = '#ffffff';
 const BRAND = '#10B981';
-const BOLT_IMG = require('../assets/fixate-logo-bolt.png');
-const FLAP_IMG = require('../assets/fixate-logo-flap.png');
+const DARK_GREEN = '#05956B';
+const LOGO = require('../assets/fixate-logo-main.png');
 
-// Gear geometry inside the source bitmap (510×380): bbox x151..279, y251..379.
-// Both layer PNGs keep the full canvas, so all three parts share one 168-box.
-const LOGO_BOX = 168;
-const SRC_W = 510;
-const SRC_H = 380;
-const SCALE = LOGO_BOX / SRC_W;
-const GEAR_SIZE = 128 * SCALE;
-const GEAR_LEFT = 151 * SCALE;
-const GEAR_TOP = (LOGO_BOX - SRC_H * SCALE) / 2 + 251 * SCALE;
-const GEAR_COLOR = '#05956B';
+const LETTER_SIZE = 74;
+const STEM_W = 11;
+const STEM_H = 46;
+const DOT_GEAR = 34;
 
 interface AnimatedSplashProps {
   onFinish: () => void;
@@ -45,18 +36,20 @@ interface AnimatedSplashProps {
 
 export default function AnimatedSplash({ onFinish }: AnimatedSplashProps) {
   const containerOpacity = useRef(new Animated.Value(1)).current;
-  const stageScale = useRef(new Animated.Value(0.94)).current;
 
-  const boltOpacity = useRef(new Animated.Value(0)).current;
-  const boltShift = useRef(new Animated.Value(22)).current;
-  const flapOpacity = useRef(new Animated.Value(0)).current;
-  const flapShift = useRef(new Animated.Value(-18)).current;
-  const gearOpacity = useRef(new Animated.Value(0)).current;
-  const gearSpin = useRef(new Animated.Value(0)).current; // 0→1 = -270deg→0
-
+  // Letter entrances
+  const fIn = useRef(new Animated.Value(0)).current;
+  const iIn = useRef(new Animated.Value(0)).current;
+  const xIn = useRef(new Animated.Value(0)).current;
+  // Continuous gear rotation across the whole intro
+  const gearTurn = useRef(new Animated.Value(0)).current;
+  // Letters → logo crossfade
+  const lettersOut = useRef(new Animated.Value(0)).current; // 0 = shown, 1 = gone
+  const logoIn = useRef(new Animated.Value(0)).current;
+  // Wordmark
   const wordOpacity = useRef(new Animated.Value(0)).current;
   const wordShift = useRef(new Animated.Value(14)).current;
-
+  // Depth rings behind the logo reveal
   const ring1 = useRef(new Animated.Value(0)).current;
   const ring2 = useRef(new Animated.Value(0)).current;
 
@@ -83,117 +76,145 @@ export default function AnimatedSplash({ onFinish }: AnimatedSplashProps) {
     };
 
     if (reduceMotion) {
-      stageScale.setValue(1);
-      boltOpacity.setValue(1); boltShift.setValue(0);
-      flapOpacity.setValue(1); flapShift.setValue(0);
-      gearOpacity.setValue(1); gearSpin.setValue(1);
-      wordOpacity.setValue(1); wordShift.setValue(0);
+      lettersOut.setValue(1);
+      logoIn.setValue(1);
+      wordOpacity.setValue(1);
+      wordShift.setValue(0);
       const t = setTimeout(fadeOutAndFinish, 900);
       return () => clearTimeout(t);
     }
+
+    const enter = (v: Animated.Value, delay: number) =>
+      Animated.sequence([
+        Animated.delay(delay),
+        Animated.timing(v, {
+          toValue: 1,
+          duration: 420,
+          easing: Easing.out(Easing.back(1.4)),
+          useNativeDriver: true,
+        }),
+      ]);
 
     const ringPulse = (v: Animated.Value, delay: number) =>
       Animated.sequence([
         Animated.delay(delay),
         Animated.timing(v, {
           toValue: 1,
-          duration: 1100,
-          easing: Easing.out(Easing.cubic),
-          useNativeDriver: true,
-        }),
-      ]);
-
-    const inTiming = (v: Animated.Value, to: number, duration: number, delay = 0) =>
-      Animated.sequence([
-        Animated.delay(delay),
-        Animated.timing(v, {
-          toValue: to,
-          duration,
+          duration: 1000,
           easing: Easing.out(Easing.cubic),
           useNativeDriver: true,
         }),
       ]);
 
     Animated.parallel([
-      ringPulse(ring1, 260),
-      ringPulse(ring2, 660),
-      Animated.spring(stageScale, { toValue: 1, friction: 7, tension: 60, useNativeDriver: true }),
+      // f → i (gear dot) → x
+      enter(fIn, 0),
+      enter(iIn, 280),
+      enter(xIn, 560),
 
-      // 1 — the bolt (the F stroke) rises in.
-      inTiming(boltOpacity, 1, 380),
-      inTiming(boltShift, 0, 480),
+      // The gear spins steadily through the letters phase and eases to a
+      // stop as the logo lands (2 full turns, decelerating).
+      Animated.timing(gearTurn, {
+        toValue: 1,
+        duration: 2100,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
 
-      // 2 — the flap folds down onto it.
-      inTiming(flapOpacity, 1, 340, 260),
-      inTiming(flapShift, 0, 420, 260),
-
-      // 3 — the gear (the i dot) spins into its slot: rotation-only, in
-      //     place, so it always lands exactly where the bitmap gear was.
-      inTiming(gearOpacity, 1, 220, 520),
+      // Letters give way to the untouched logo.
       Animated.sequence([
-        Animated.delay(520),
-        Animated.timing(gearSpin, {
-          toValue: 1,
-          duration: 1150,
-          easing: Easing.out(Easing.cubic),
-          useNativeDriver: true,
-        }),
+        Animated.delay(1350),
+        Animated.parallel([
+          Animated.timing(lettersOut, {
+            toValue: 1,
+            duration: 380,
+            easing: Easing.in(Easing.cubic),
+            useNativeDriver: true,
+          }),
+          Animated.timing(logoIn, {
+            toValue: 1,
+            duration: 520,
+            easing: Easing.out(Easing.cubic),
+            useNativeDriver: true,
+          }),
+          ringPulse(ring1, 60),
+          ringPulse(ring2, 380),
+        ]),
       ]),
 
-      // 4 — wordmark rises once the mark has assembled.
-      inTiming(wordOpacity, 1, 480, 1050),
-      inTiming(wordShift, 0, 560, 1050),
+      // Wordmark rises under the logo.
+      Animated.sequence([
+        Animated.delay(1850),
+        Animated.parallel([
+          Animated.timing(wordOpacity, {
+            toValue: 1,
+            duration: 460,
+            easing: Easing.out(Easing.cubic),
+            useNativeDriver: true,
+          }),
+          Animated.timing(wordShift, {
+            toValue: 0,
+            duration: 540,
+            easing: Easing.out(Easing.cubic),
+            useNativeDriver: true,
+          }),
+        ]),
+      ]),
 
-      Animated.delay(2250),
+      Animated.delay(2750),
     ]).start(({ finished }) => {
       if (finished) fadeOutAndFinish();
     });
   }, [reduceMotion]);
 
-  const gearRotate = gearSpin.interpolate({ inputRange: [0, 1], outputRange: ['-270deg', '0deg'] });
+  const rise = (v: Animated.Value) => ({
+    opacity: v,
+    transform: [
+      { translateY: v.interpolate({ inputRange: [0, 1], outputRange: [26, 0] }) },
+      { scale: v.interpolate({ inputRange: [0, 1], outputRange: [0.7, 1] }) },
+    ],
+  });
+
+  const gearRotate = gearTurn.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '720deg'] });
+
+  const lettersStyle = {
+    opacity: lettersOut.interpolate({ inputRange: [0, 1], outputRange: [1, 0] }),
+    transform: [{ scale: lettersOut.interpolate({ inputRange: [0, 1], outputRange: [1, 0.86] }) }],
+  };
+  const logoStyle = {
+    opacity: logoIn,
+    transform: [{ scale: logoIn.interpolate({ inputRange: [0, 1], outputRange: [1.12, 1] }) }],
+  };
 
   const ringStyle = (v: Animated.Value) => ({
-    opacity: v.interpolate({ inputRange: [0, 0.15, 1], outputRange: [0, 0.28, 0] }),
-    transform: [{ scale: v.interpolate({ inputRange: [0, 1], outputRange: [0.5, 2.6] }) }],
+    opacity: v.interpolate({ inputRange: [0, 0.15, 1], outputRange: [0, 0.26, 0] }),
+    transform: [{ scale: v.interpolate({ inputRange: [0, 1], outputRange: [0.5, 2.4] }) }],
   });
 
   return (
     <Animated.View style={[styles.container, { opacity: containerOpacity }]}>
       <View style={styles.stage}>
-        {/* Depth rings behind the mark */}
         <Animated.View style={[styles.ring, ringStyle(ring1)]} pointerEvents="none" />
         <Animated.View style={[styles.ring, ringStyle(ring2)]} pointerEvents="none" />
 
-        <Animated.View style={{ width: LOGO_BOX, height: LOGO_BOX, transform: [{ scale: stageScale }] }}>
-          <Animated.Image
-            source={BOLT_IMG}
-            resizeMode="contain"
-            style={[styles.layer, { opacity: boltOpacity, transform: [{ translateY: boltShift }] }]}
-          />
-          <Animated.Image
-            source={FLAP_IMG}
-            resizeMode="contain"
-            style={[styles.layer, { opacity: flapOpacity, transform: [{ translateY: flapShift }] }]}
-          />
-          <Animated.View
-            style={{
-              position: 'absolute',
-              left: GEAR_LEFT,
-              top: GEAR_TOP,
-              width: GEAR_SIZE,
-              height: GEAR_SIZE,
-              opacity: gearOpacity,
-              transform: [{ rotate: gearRotate }],
-            }}
-          >
-            <Svg width={GEAR_SIZE} height={GEAR_SIZE} viewBox="0 0 100 100">
-              <Path d={GEAR_PATH} fill={GEAR_COLOR} fillRule="evenodd" />
-            </Svg>
+        {/* Phase 1 — "f i x", the i's dot is the spinning gear. */}
+        <Animated.View style={[styles.letters, lettersStyle]} pointerEvents="none">
+          <Animated.Text style={[styles.letter, rise(fIn)]}>f</Animated.Text>
+          <Animated.View style={[styles.iWrap, rise(iIn)]}>
+            <Animated.View style={{ transform: [{ rotate: gearRotate }] }}>
+              <Svg width={DOT_GEAR} height={DOT_GEAR} viewBox="0 0 100 100">
+                <Path d={GEAR_PATH} fill={DARK_GREEN} fillRule="evenodd" />
+              </Svg>
+            </Animated.View>
+            <View style={styles.stem} />
           </Animated.View>
+          <Animated.Text style={[styles.letter, rise(xIn)]}>x</Animated.Text>
         </Animated.View>
+
+        {/* Phase 2 — the original logo, exactly as designed. */}
+        <Animated.Image source={LOGO} resizeMode="contain" style={[styles.logo, logoStyle]} />
       </View>
 
-      {/* Name floats just beneath the dead-centered mark. */}
       <Animated.View style={[styles.wordWrap, { opacity: wordOpacity, transform: [{ translateY: wordShift }] }]}>
         <Text style={styles.wordmark}>Fixate</Text>
       </Animated.View>
@@ -212,7 +233,32 @@ const styles = StyleSheet.create({
     zIndex: 9999,
   },
   stage: { alignItems: 'center', justifyContent: 'center' },
-  layer: { position: 'absolute', top: 0, left: 0, width: LOGO_BOX, height: LOGO_BOX },
+  letters: {
+    position: 'absolute',
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 10,
+  },
+  letter: {
+    fontSize: LETTER_SIZE,
+    lineHeight: LETTER_SIZE * 1.05,
+    fontWeight: '800',
+    color: BRAND,
+  },
+  // The "i": gear dot over a rounded stem, sized to sit on the letters'
+  // baseline next to f and x.
+  iWrap: {
+    alignItems: 'center',
+    gap: 6,
+    paddingBottom: LETTER_SIZE * 0.13,
+  },
+  stem: {
+    width: STEM_W,
+    height: STEM_H,
+    borderRadius: STEM_W / 2,
+    backgroundColor: BRAND,
+  },
+  logo: { width: 168, height: 168 },
   wordWrap: {
     position: 'absolute',
     top: '50%',
