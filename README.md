@@ -1,8 +1,8 @@
-# Fixate 🔧
+# Fixate
 
-**Device repair, on demand — a Saudi-market mobile platform connecting customers with verified repair technicians.**
+**A Saudi-market platform for on-demand electronics repair. Customers post a repair request, verified technicians bid on it, and the accepted offer is the final price — tracked through pickup, repair, delivery, and payment in one app.**
 
-Customers request a repair, technicians bid on it, and the accepted offer becomes the price — followed through pickup, repair, delivery, and payment in one app. Built with React Native (Expo) on Supabase, bilingual Arabic/English with full RTL.
+Four roles share one codebase: customer, technician, courier, and a full admin back office. Arabic-first with complete RTL support and an English mirror, built on React Native (Expo) and Supabase.
 
 [![CI](https://github.com/muhammedatef98/fixate-mobile/actions/workflows/ci.yml/badge.svg)](https://github.com/muhammedatef98/fixate-mobile/actions/workflows/ci.yml)
 [![Platform](https://img.shields.io/badge/platform-iOS%20%7C%20Android-blue.svg)](https://expo.dev)
@@ -18,32 +18,32 @@ Customers request a repair, technicians bid on it, and the accepted offer become
 | :---: | :---: | :---: |
 | <img src="screenshots/ios/04-market.png" width="220" alt="Offer marketplace"> | <img src="screenshots/ios/06-track-order.png" width="220" alt="Live order tracking"> | <img src="screenshots/ios/05-profile.png" width="220" alt="Profile"> |
 
-## How it works
+## How Fixate works
 
-1. **Request** — the customer describes the device and issue, picks a location, and attaches photos.
-2. **Bid** — nearby verified technicians see the request and submit offers.
-3. **Accept** — the customer accepts an offer; that amount is the price basis (no post-inspection renegotiation). See [docs/payment-architecture.md](docs/payment-architecture.md).
-4. **Repair** — the order moves through a tracked status pipeline with live technician/courier location and realtime chat.
-5. **Pay & review** — payment in-app, then rating and review. Completed repairs carry a 12-month warranty derived from the order itself.
+1. **Request** — the customer picks the device and issue, sets a location, attaches photos.
+2. **Bid** — verified technicians in the service area see the request and submit priced offers. Requests that get no response auto-expire.
+3. **Accept** — accepting an offer locks the price. There is no post-inspection renegotiation; the accepted amount plus delivery fee and any add-ons is what the customer pays ([payment architecture](docs/payment-architecture.md)).
+4. **Repair** — the order moves through an explicit status pipeline. Customers watch technician and courier locations live and chat in-app at every stage.
+5. **Pay and review** — payment is recorded in-app, the customer rates the job, and the completed order itself carries a 12-month repair warranty (computed from order history, not a separate ledger).
 
 ## App surfaces
 
-| Surface | What it does |
-| ------- | ------------ |
-| **Customer** | Request repairs, compare offers, track orders live, chat, pay, review |
-| **Technician** | Browse nearby requests, submit offers, manage the repair pipeline, earnings, community feed |
-| **Courier** | Pickup/delivery tasks with live location broadcasting |
-| **Admin** | RBAC-gated back office: technician verification, orders, pricing rules, support inbox, broadcasts, accounting |
+| Surface | What it covers |
+| ------- | -------------- |
+| **Customer** | Request repairs, compare offers, price calculator, live tracking, chat, wallet, reviews |
+| **Technician** | Nearby request feed, offer submission, repair pipeline, earnings, skills, community feed |
+| **Courier** | Pickup and delivery tasks with live location broadcasting and document verification |
+| **Admin** | 27 RBAC-gated screens: technician verification, orders, pricing rules, service areas, support inbox, broadcasts, accounting |
 
-## Key features
+## Key capabilities
 
-- **Offer marketplace** — competitive technician bids instead of fixed price lists
-- **Phone OTP login** — SMS via Authentica edge functions, with cooldowns and daily send caps
-- **Saudi-specific verification** — National ID / Iqama checksum, IBAN validation, document upload
-- **Realtime everywhere** — chat, order status, and location tracking over Supabase Realtime
-- **Push notifications** — Expo Push dispatch for order events, offers, and admin broadcasts
-- **RTL + dark mode** — Arabic-first UI (Cairo font) with a full English mirror
-- **RLS-everywhere schema** — every table behind Row Level Security; writes go through guarded RPCs
+- **Offer marketplace** — competitive technician bids replace a fixed price list; the estimate engine gives customers a reference range before offers arrive
+- **Phone OTP auth** — SMS one-time codes via Authentica edge functions, with resend cooldowns and daily per-number caps
+- **Saudi-specific verification** — National ID / Iqama checksum validation, IBAN checks, and document upload for technician and courier onboarding
+- **Realtime by default** — order status, chat, and location updates flow over Supabase Realtime channels
+- **Push notifications** — Expo Push dispatch for order events, offers, and segmented admin broadcasts
+- **RLS everywhere** — all tables sit behind Row Level Security and sensitive writes go through guarded RPCs; the schema has grown through 80+ versioned migrations
+- **Arabic-first UI** — RTL layout, Cairo typography, dark mode, and a Saudi Riyal symbol font
 
 ## Tech stack
 
@@ -67,7 +67,7 @@ lib/                  Supabase client
 utils/                logger, validation, warranty, RTL helpers
 types/                Domain types (Order, OrderStatus, ...)
 constants/            theme, translations, issue categories
-supabase/migrations/  Database migrations
+supabase/migrations/  Versioned database migrations
 supabase/functions/   Edge functions — create-payment, send-phone-otp, verify-phone-otp,
                       signup, push-dispatch, notify-segment, delete-account,
                       send-technician-approval-email
@@ -90,10 +90,10 @@ First-time backend setup (Supabase project, OAuth, Firebase push, production che
 
 ### Environment notes
 
-- Only the two `EXPO_PUBLIC_SUPABASE_*` variables are required to run the app.
-- `EXPO_PUBLIC_GOOGLE_MAPS_API_KEY` is optional: it enables Google-powered place search
-  (better Arabic coverage). Without it, the location picker falls back to the platform
-  geocoder. See [.env.example](.env.example) for key restrictions.
+- The two `EXPO_PUBLIC_SUPABASE_*` variables are the only ones required to run the app.
+- `EXPO_PUBLIC_GOOGLE_MAPS_API_KEY` is optional. With it, the location picker gets
+  Google-powered place search with strong Arabic coverage; without it, it falls back to
+  the platform geocoder. See [.env.example](.env.example) for key-restriction notes.
 
 ## Scripts
 
@@ -106,11 +106,11 @@ First-time backend setup (Supabase project, OAuth, Firebase push, production che
 | `pnpm lint` | ESLint |
 | `pnpm format` | Prettier write |
 
-## Docs
+## Docs worth opening next
 
+- [Payment architecture](docs/payment-architecture.md) — how offer-based pricing, fees, and payment recording fit together
 - [Setup guides](docs/setup/) — Supabase, OAuth, Firebase, production checklist
-- [Payment architecture](docs/payment-architecture.md) — offer-based pricing model
-- [Business overview](docs/business/INVESTOR_SUMMARY.md) — market story and pricing research
+- [Business overview](docs/business/INVESTOR_SUMMARY.md) — market context and pricing research
 
 ## Contributing & license
 
@@ -123,7 +123,6 @@ Contact: **fixate01@gmail.com**
 
 ## 🇸🇦 بالعربية
 
-**Fixate** — منصّة سعودية لصيانة الأجهزة الإلكترونية: العميل يطلب الصيانة، الفنيون المعتمدون يقدّمون عروض أسعار، والعرض المقبول هو السعر النهائي — مع تتبّع مباشر، محادثة فورية، دفع داخل التطبيق، وضمان ١٢ شهرًا على الإصلاح. التطبيق عربي بالكامل مع دعم RTL والوضع الليلي.
+**Fixate** — منصّة سعودية لصيانة الأجهزة الإلكترونية: العميل ينشر طلب صيانة، الفنيون المعتمدون يقدّمون عروض أسعار، والعرض المقبول هو السعر النهائي — مع تتبّع مباشر، محادثة فورية، دفع داخل التطبيق، وضمان ١٢ شهرًا على الإصلاح. التطبيق عربي بالكامل (RTL + الوضع الليلي) ويشمل أربعة أدوار: عميل، فني، مندوب توصيل، وإدارة.
 
-**ابدأ:** `pnpm install` ثم انسخ `.env.example` إلى `.env` واملأه، ثم `pnpm start`.
-**الأدلة:** [docs/setup/](docs/setup/)
+**التشغيل:** `pnpm install` ثم انسخ `.env.example` إلى `.env` واملأه، ثم `pnpm start` — الأدلة الكاملة في [docs/setup/](docs/setup/).
