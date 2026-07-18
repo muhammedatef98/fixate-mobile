@@ -49,7 +49,7 @@ export default function AnimatedSplash({ onFinish }: AnimatedSplashProps) {
   const logoOpacity = useRef(new Animated.Value(0)).current;
   const logoScale = useRef(new Animated.Value(0.68)).current;
   const logoSpin = useRef(new Animated.Value(0)).current; // 0 → 1 maps to -14deg → 0
-  const gearTurn = useRef(new Animated.Value(0)).current; // 0 → 1 = two turns, settling at 0°
+  const gearTurn = useRef(new Animated.Value(0)).current; // 0 → 1 = one full turn, settling at 0°
   const wordOpacity = useRef(new Animated.Value(0)).current;
   const wordShift = useRef(new Animated.Value(14)).current;
   const containerOpacity = useRef(new Animated.Value(1)).current;
@@ -142,14 +142,15 @@ export default function AnimatedSplash({ onFinish }: AnimatedSplashProps) {
     ]);
 
     // Rings run in parallel with the intro; the mark/word are sequenced.
-    // The gear does two decelerating turns across the whole intro and
-    // settles exactly in its original orientation.
+    // The gear does ONE full decelerating turn across the intro — fast at
+    // first, easing to rest in its original orientation right as the
+    // wordmark lands.
     Animated.parallel([
       ringPulse(ring1, 120),
       ringPulse(ring2, 520),
       Animated.timing(gearTurn, {
         toValue: 1,
-        duration: 2000,
+        duration: 1900,
         easing: Easing.out(Easing.cubic),
         useNativeDriver: true,
       }),
@@ -165,7 +166,7 @@ export default function AnimatedSplash({ onFinish }: AnimatedSplashProps) {
   }, [reduceMotion]);
 
   const spin = logoSpin.interpolate({ inputRange: [0, 1], outputRange: ['-14deg', '0deg'] });
-  const gearRotate = gearTurn.interpolate({ inputRange: [0, 1], outputRange: ['-720deg', '0deg'] });
+  const gearRotate = gearTurn.interpolate({ inputRange: [0, 1], outputRange: ['-360deg', '0deg'] });
 
   const ringStyle = (v: Animated.Value) => ({
     opacity: v.interpolate({ inputRange: [0, 0.15, 1], outputRange: [0, 0.28, 0] }),
