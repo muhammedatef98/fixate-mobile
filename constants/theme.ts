@@ -75,9 +75,11 @@ const LIGHT_COLORS = {
 
 // Dark Mode Colors
 const DARK_COLORS = {
-  primary: '#10B981',
+  // Calmer emerald than light mode's #10B981 — the bright green glows
+  // uncomfortably against dark surfaces (user feedback 2026-07-18).
+  primary: '#0DA271',
   primaryLight: '#064E3B',
-  primaryDark: '#34D399',
+  primaryDark: '#2BB98A',
   primaryForeground: '#FFFFFF',
   primarySoft: '#0E3A30',
 
@@ -115,8 +117,8 @@ const DARK_COLORS = {
   pink: '#F472B6',
   orange: '#FB923C',
 
-  gradientStart: '#10B981',
-  gradientEnd: '#059669',
+  gradientStart: '#0DA271',
+  gradientEnd: '#04785C',
 
   overlay: 'rgba(0, 0, 0, 0.7)',
   shadowDark: '#000000',

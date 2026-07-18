@@ -499,34 +499,64 @@ export default function AdminReportsScreen() {
             />
           }
         >
-          {/* Headline KPIs — horizontal scroller. */}
+          {/* Headline KPIs — horizontal scroller. In Arabic the whole
+              scroller is mirrored with scaleX(-1) (and each card flipped
+              back) so the first card starts at the RIGHT edge and the list
+              scrolls right-to-left, matching the reading direction. */}
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
+            style={isRTL && styles.flip}
             contentContainerStyle={{ gap: 12, paddingVertical: 2 }}
           >
-            <View style={[styles.kpiCard, { backgroundColor: COLORS.primary, minWidth: 200 }]}>
+            <View style={[styles.kpiCard, isRTL && styles.flip, { backgroundColor: isDark ? '#0B7D5F' : COLORS.primary, minWidth: 200 }]}>
               <View style={styles.kpiIconWrap}>
                 <MaterialCommunityIcons name="cash-multiple" size={22} color="#fff" />
               </View>
               <Text style={styles.kpiLabel}>{isRTL ? 'إجمالي الإيرادات' : 'Total Revenue'}</Text>
               <Text style={styles.kpiValue}>{fmt(data.revenueCompleted)} {sar}</Text>
             </View>
-            <View style={[styles.kpiCard, { backgroundColor: '#0EA5A4', minWidth: 180 }]}>
+            <View style={[styles.kpiCard, isRTL && styles.flip, { backgroundColor: isDark ? '#0B7C7B' : '#0EA5A4', minWidth: 180 }]}>
               <View style={styles.kpiIconWrap}>
                 <MaterialCommunityIcons name="clipboard-text-multiple-outline" size={22} color="#fff" />
               </View>
               <Text style={styles.kpiLabel}>{isRTL ? 'إجمالي الطلبات' : 'Total Orders'}</Text>
               <Text style={styles.kpiValue}>{fmt(data.ordersTotal)}</Text>
             </View>
-            <View style={[styles.kpiCard, { backgroundColor: '#6366F1', minWidth: 200 }]}>
+            <View style={[styles.kpiCard, isRTL && styles.flip, { backgroundColor: isDark ? '#15803D' : '#16A34A', minWidth: 190 }]}>
+              <View style={styles.kpiIconWrap}>
+                <MaterialCommunityIcons name="check-decagram-outline" size={22} color="#fff" />
+              </View>
+              <Text style={styles.kpiLabel}>{isRTL ? 'نسبة الإكمال' : 'Completion Rate'}</Text>
+              <Text style={styles.kpiValue}>
+                {data.ordersTotal > 0
+                  ? `${Math.round(((data.ordersByStatus['completed'] ?? 0) / data.ordersTotal) * 100)}%`
+                  : '—'}
+              </Text>
+              <Text style={[styles.kpiLabel, { marginTop: 2 }]}>
+                {`${fmt(data.ordersByStatus['completed'] ?? 0)} ${isRTL ? 'طلب مكتمل' : 'completed'}`}
+              </Text>
+            </View>
+            <View style={[styles.kpiCard, isRTL && styles.flip, { backgroundColor: isDark ? '#4B4FC0' : '#6366F1', minWidth: 200 }]}>
               <View style={styles.kpiIconWrap}>
                 <MaterialCommunityIcons name="chart-line-variant" size={22} color="#fff" />
               </View>
               <Text style={styles.kpiLabel}>{isRTL ? 'متوسط قيمة الطلب' : 'Avg Order Value'}</Text>
               <Text style={styles.kpiValue}>{fmt(Math.round(data.avgOrderValue))} {sar}</Text>
             </View>
-            <View style={[styles.kpiCard, { backgroundColor: '#F59E0B', minWidth: 220 }]}>
+            <View style={[styles.kpiCard, isRTL && styles.flip, { backgroundColor: isDark ? '#9F3D3D' : '#DC2626', minWidth: 180 }]}>
+              <View style={styles.kpiIconWrap}>
+                <MaterialCommunityIcons name="close-octagon-outline" size={22} color="#fff" />
+              </View>
+              <Text style={styles.kpiLabel}>{isRTL ? 'طلبات ملغاة' : 'Cancelled Orders'}</Text>
+              <Text style={styles.kpiValue}>{fmt(data.ordersByStatus['cancelled'] ?? 0)}</Text>
+              <Text style={[styles.kpiLabel, { marginTop: 2 }]}>
+                {data.ordersTotal > 0
+                  ? `${Math.round(((data.ordersByStatus['cancelled'] ?? 0) / data.ordersTotal) * 100)}% ${isRTL ? 'من الإجمالي' : 'of total'}`
+                  : ''}
+              </Text>
+            </View>
+            <View style={[styles.kpiCard, isRTL && styles.flip, { backgroundColor: isDark ? '#B07A15' : '#F59E0B', minWidth: 220 }]}>
               <View style={styles.kpiIconWrap}>
                 <MaterialCommunityIcons name="trophy-outline" size={22} color="#fff" />
               </View>
@@ -560,6 +590,7 @@ export default function AdminReportsScreen() {
                       <View style={[styles.barFill, { width: `${Math.max(pct, 3)}%`, backgroundColor: meta.color }]} />
                     </View>
                     <Text style={styles.barCount}>{fmt(count)}</Text>
+                    <Text style={styles.barPct}>{pct}%</Text>
                   </View>
                 );
               })
@@ -1039,7 +1070,12 @@ const createStyles = (C: any, isRTL: boolean) =>
       overflow: 'hidden',
     },
     barFill: { height: 8, borderRadius: 4 },
-    barCount: { color: C.text, fontSize: 13, fontWeight: '800', width: 38, textAlign: isRTL ? 'left' : 'right' },
+    barCount: { color: C.text, fontSize: 13, fontWeight: '800', width: 34, textAlign: isRTL ? 'left' : 'right' },
+    barPct: { color: C.textSecondary, fontSize: 11, fontWeight: '700', width: 34, textAlign: isRTL ? 'left' : 'right' },
+    // scaleX(-1) — applied to the horizontal KPI scroller AND each card in
+    // RTL so the list is mirrored (starts at the right) while card content
+    // renders un-mirrored.
+    flip: { transform: [{ scaleX: -1 }] },
     statRow: { flexDirection: isRTL ? 'row-reverse' : 'row', gap: 10 },
     kvRow: {
       flexDirection: isRTL ? 'row-reverse' : 'row',

@@ -70,16 +70,24 @@ export const buildWarrantyHtml = async (
 
   const terms = isRTL
     ? [
-        `يغطي هذا الضمان عيوب الإصلاح وقطع الغيار المستبدلة لمدة ${WARRANTY_MONTHS} شهراً من تاريخ إتمام الإصلاح.`,
-        'لا يشمل الضمان الأضرار الناتجة عن سوء الاستخدام أو السقوط أو السوائل أو محاولات الإصلاح خارج فيكسات.',
-        'يسقط الضمان عند فتح الجهاز أو إصلاحه لدى جهة أخرى.',
-        'لتفعيل الضمان، تواصل مع خدمة العملاء من داخل التطبيق مع رقم الشهادة الموضح أعلاه.',
+        `يبدأ سريان الضمان تلقائياً من تاريخ استلام العميل للجهاز بعد إتمام الإصلاح، ويستمر لمدة ${WARRANTY_MONTHS} شهراً — دون الحاجة لأي إجراء تفعيل إضافي.`,
+        'يغطي الضمان عيب الإصلاح نفسه وقطع الغيار المستبدلة الموضحة في الطلب فقط.',
+        'في حال تكرار نفس العطل خلال فترة الضمان، تُعاد معالجته مجاناً بالكامل شاملةً القطع والمصنعية.',
+        'لا يشمل الضمان الأعطال الجديدة غير المرتبطة بالإصلاح الأصلي، أو الأضرار الناتجة عن سوء الاستخدام أو السقوط أو الكسر أو دخول السوائل أو الحرارة والرطوبة الزائدة.',
+        'لا يغطي الضمان مشاكل النظام (السوفتوير) أو فقدان البيانات أو البطارية الاستهلاكية ما لم تكن هي القطعة المستبدلة.',
+        'يسقط الضمان تلقائياً عند فتح الجهاز أو العبث به أو إصلاحه لدى أي جهة أخرى غير فيكسات.',
+        'الضمان مرتبط بالجهاز ورقم الطلب الموضحين في هذه الشهادة وغير قابل للتحويل إلى جهاز آخر.',
+        'للمطالبة بالضمان، تواصل مع خدمة العملاء من داخل التطبيق مع ذكر رقم الشهادة، وقد يتطلب التحقق فحص الجهاز لدى الفني.',
       ]
     : [
-        `This warranty covers repair defects and replaced parts for ${WARRANTY_MONTHS} months from the repair completion date.`,
-        'It does not cover damage from misuse, drops, liquid, or repairs attempted outside Fixate.',
-        'The warranty is void if the device is opened or serviced by another party.',
-        'To claim, contact customer support from within the app quoting the certificate number above.',
+        `The warranty starts automatically on the date the customer receives the device after repair, and runs for ${WARRANTY_MONTHS} months — no extra activation step needed.`,
+        'It covers the repaired defect itself and the replaced parts listed on the order only.',
+        'If the same fault recurs within the warranty period, it is fixed again completely free of charge, parts and labor included.',
+        'It does not cover new unrelated faults, or damage from misuse, drops, breakage, liquid ingress, or excessive heat and humidity.',
+        'Software issues, data loss, and consumable batteries are not covered unless the battery was the replaced part.',
+        'The warranty is automatically void if the device is opened, tampered with, or serviced by any party other than Fixate.',
+        'The warranty is tied to the device and order number shown on this certificate and is not transferable to another device.',
+        'To claim, contact customer support from within the app quoting the certificate number; verification may require a technician inspection.',
       ];
 
   const brandName = esc(settings.companyName || 'Fixate');
@@ -88,7 +96,10 @@ export const buildWarrantyHtml = async (
   const accent = esc((settings.accentColor || '#065f46').trim() || '#065f46');
   // Admin logo URL wins; otherwise the bundled brand mark (self-contained).
   const logoSrc = (settings.logoUrl || '').trim() || BRAND_LOGO_DATA_URI;
-  const sealRingTop = isRTL ? 'شهادة ضمان معتمدة' : 'CERTIFIED WARRANTY';
+  // Arc text is Latin-only: SVG textPath does not run Arabic shaping in the
+  // print renderer, so Arabic on the arc comes out as disconnected letters.
+  // The Arabic label renders as normal HTML under the seal instead.
+  const sealRingTop = 'CERTIFIED WARRANTY';
   // Professional round emblem (SVG): concentric rings, arced text, centered
   // check. Crisp at any size and far less template-looking than a rotated
   // rubber-stamp. Latin brand text on the lower arc reads reliably in print.
@@ -131,7 +142,10 @@ export const buildWarrantyHtml = async (
                   background: linear-gradient(90deg, ${accent} 0%, ${accent} 55%, ${accent}99 100%); }
   .inner { padding: 34px 38px 30px; }
 
-  .head { display: flex; justify-content: space-between; align-items: flex-start; gap: 20px;
+  /* RTL: row-reverse (under dir=rtl) pins the certificate title block to the
+     RIGHT edge and the brand block to the left — the natural Arabic order. */
+  .head { display: flex; flex-direction: ${isRTL ? 'row-reverse' : 'row'};
+          justify-content: space-between; align-items: flex-start; gap: 20px;
           padding-bottom: 18px; border-bottom: 1px solid #e8efeb; }
   .brand { text-align: ${align}; display: flex; align-items: center; gap: 12px;
            flex-direction: ${isRTL ? 'row-reverse' : 'row'}; }
@@ -140,7 +154,8 @@ export const buildWarrantyHtml = async (
   .brand h1 { margin: 0; font-size: 19px; font-weight: 800; color: #12211b; letter-spacing: .3px; }
   .brand .meta { color: #6a7a73; font-size: 10.5px; margin-top: 3px; line-height: 1.6; }
   .logo { max-height: 48px; max-width: 150px; object-fit: contain; }
-  .doc { text-align: ${isRTL ? 'left' : 'right'}; }
+  .doc { text-align: right; }
+  .seal-cap { font-size: 8.5px; font-weight: 700; color: #6a7a73; text-align: center; margin-top: 4px; }
   .doc .kicker { font-size: 9.5px; font-weight: 800; letter-spacing: 3px; text-transform: uppercase; color: ${accent}; }
   .doc .title { font-size: 20px; font-weight: 800; color: #12211b; margin-top: 4px; letter-spacing: .2px; }
   .doc .field { font-size: 11.5px; color: #3d4f48; margin-top: 5px; }
@@ -214,7 +229,7 @@ export const buildWarrantyHtml = async (
       </div>
 
       <div class="foot">
-        <div class="seal">${sealSvg}</div>
+        <div class="seal">${sealSvg}${isRTL ? '<div class="seal-cap">شهادة ضمان معتمدة</div>' : ''}</div>
         <div class="sign">
           <div class="line"></div>
           <div class="cap">${brandName}</div>
