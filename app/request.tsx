@@ -26,6 +26,7 @@ import {
   getRegionTree,
   resolveDeliveryFee,
   type RegionWithCities,
+  type CityWithNeighborhoods,
 } from '../services/serviceAreasService';
 import {
   computeDeliveryFee,
@@ -119,9 +120,12 @@ export default function RequestScreen() {
   const [regionTree, setRegionTree] = useState<RegionWithCities[]>([]);
   const [selectedCityId, setSelectedCityId] = useState<string | null>(null);
   useEffect(() => {
-    // Only currently-available regions/cities are offered. Coverage is
-    // admin-controlled — disabled areas simply do not appear.
-    getRegionTree(true)
+    // The FULL tree (disabled areas included) is needed so the pin
+    // auto-detect can assign the pin to its true nearest city and then
+    // reject it when that city is off — matching only against enabled
+    // cities let a pin in a disabled city (e.g. Dammam) snap to a nearby
+    // enabled one (e.g. Qatif) and book anyway.
+    getRegionTree(false)
       .then((tree) => setRegionTree(tree))
       .catch(() => undefined);
   }, []);
@@ -414,34 +418,39 @@ export default function RequestScreen() {
     applyPickedLocation(place.latitude, place.longitude);
   };
 
-  // Auto-detect serviceable city from the dropped pin. We compute the
-  // closest enabled-city centroid (using the same lookup the delivery
-  // fee uses) and select it when the pin sits within a generous radius
-  // (50 km — covers a city's outskirts but rejects a pin in the next
-  // governorate). When no city matches we clear the selection so the
-  // Submit button stays disabled and the customer sees the OOS message.
+  // Auto-detect serviceable city from the dropped pin. The pin is
+  // assigned to its true nearest city across ALL known cities (enabled
+  // or not), and only accepted when that city — and its region — is
+  // enabled. Matching against enabled cities only allowed a pin inside
+  // a disabled city to snap to a nearby enabled neighbour (Dammam pin →
+  // Qatif coverage) and book anyway.
+  //
+  // Per-city admin geometry (center_lat/center_lng + radius_km from the
+  // map editor) overrides the static centroid + default radius.
   const SERVICE_RADIUS_KM = 50;
   const autoDetectedCityId = useMemo(() => {
     if (!location?.latitude || !location?.longitude) return null;
-    const enabledCities = regionTree
-      .filter((r) => r.enabled !== false)
-      .flatMap((r) => r.cities.filter((c) => c.enabled !== false));
-    if (enabledCities.length === 0) return null;
-    let bestId: string | null = null;
-    let bestKm = Infinity;
-    for (const c of enabledCities) {
-      const centroid = getCityCentroid(c.name_en, c.name_ar);
-      if (!centroid) continue;
-      const km = haversineKm(centroid, {
-        lat: location.latitude,
-        lng: location.longitude,
-      });
-      if (km < bestKm) {
-        bestKm = km;
-        bestId = c.id;
+    const pin = { lat: location.latitude, lng: location.longitude };
+    let best: { city: CityWithNeighborhoods; region: RegionWithCities; km: number } | null = null;
+    for (const r of regionTree) {
+      for (const c of r.cities) {
+        const centroid =
+          c.center_lat != null && c.center_lng != null
+            ? { lat: c.center_lat, lng: c.center_lng }
+            : getCityCentroid(c.name_en, c.name_ar);
+        if (!centroid) continue;
+        const km = haversineKm(centroid, pin);
+        if (!best || km < best.km) best = { city: c, region: r, km };
       }
     }
-    return bestKm <= SERVICE_RADIUS_KM ? bestId : null;
+    if (!best) return null;
+    const radius = best.city.radius_km != null && best.city.radius_km > 0
+      ? best.city.radius_km
+      : SERVICE_RADIUS_KM;
+    if (best.km > radius) return null;
+    // Nearest city found — bookable only when its whole chain is on.
+    if (best.region.enabled === false || best.city.enabled === false) return null;
+    return best.city.id;
   }, [location?.latitude, location?.longitude, regionTree]);
   useEffect(() => {
     // Sync the detected city into selection. When the pin moves outside
