@@ -181,9 +181,8 @@ export default function CourierChatScreen() {
   // at accept time (courier_contact_phone).
   // The courier sees the actual party name (customer/technician) stamped on
   // the task; the customer/technician always see "Courier".
-  const counterpartName =
-    (isCourier && task ? partyName(task, thread) : null) ||
-    threadCounterpartLabel(thread, isCourier, isRTL);
+  const rawPartyName = (isCourier && task ? partyName(task, thread) : null)?.trim() || null;
+  const counterpartName = rawPartyName || threadCounterpartLabel(thread, isCourier, isRTL);
   const deviceLabel = orderInfo
     ? [orderInfo.device_brand, orderInfo.device_model].filter(Boolean).join(' ')
     : '';
@@ -270,12 +269,18 @@ export default function CourierChatScreen() {
             />
           </View>
           <View style={{ flex: 1 }}>
+            {/* Courier side: "party name — #order" (order number alone when
+                the name is missing); other sides keep the counterpart label. */}
             <Text style={[styles.headerTitle, { color: COLORS.text }]} numberOfLines={1}>
-              {counterpartName}
+              {isCourier && orderRef
+                ? rawPartyName
+                  ? `${rawPartyName} — ${orderRef}`
+                  : orderRef
+                : counterpartName}
             </Text>
             <Text style={[styles.headerSubtitle, { color: COLORS.textSecondary }]} numberOfLines={1}>
-              {contextLine
-                ? contextLine
+              {(isCourier ? deviceLabel : contextLine)
+                ? (isCourier ? deviceLabel : contextLine)
                 : task.task_type === 'pickup'
                   ? isRTL ? 'مهمة استلام' : 'Pickup task'
                   : isRTL ? 'مهمة إعادة' : 'Return task'}

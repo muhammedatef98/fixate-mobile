@@ -166,7 +166,9 @@ export default function ChatScreen() {
       const meta = (user?.user_metadata || {}) as { user_type?: string; role?: string };
       const userRole = meta.user_type || meta.role;
       if (userRole === 'technician') {
-        setOtherPartyName((orderData as any)?.customer_name || (isRTL ? 'العميل' : 'Customer'));
+        // Empty when the order has no customer name — the header then shows
+        // the order number alone as the chat title.
+        setOtherPartyName(((orderData as any)?.customer_name ?? '').trim());
         setOtherPartyPhone((orderData as any)?.customer_phone ?? null);
       } else {
         setOtherPartyName((orderData as any)?.technician_name || (isRTL ? 'الفني' : 'Technician'));
@@ -422,11 +424,18 @@ export default function ChatScreen() {
             <Text style={{ color: '#fff', fontWeight: '800', fontSize: 14 }}>{initial}</Text>
           </View>
           <View style={{ flex: 1 }}>
+            {/* Technician sees "customer name — #order" (order number alone
+                when the name is missing); customer keeps the technician name. */}
             <Text style={[styles.headerTitle, { color: COLORS.text }]} numberOfLines={1}>
-              {otherPartyName}
+              {(() => {
+                const no = `#${order?.order_number ?? (order?.id ?? '').slice(0, 6)}`;
+                if (isTechnician) return otherPartyName ? `${otherPartyName} — ${no}` : no;
+                return otherPartyName || (isRTL ? 'الفني' : 'Technician');
+              })()}
             </Text>
             <Text style={[styles.headerSubtitle, { color: COLORS.textSecondary }]} numberOfLines={1}>
-              {order?.device_brand} {order?.device_model} · #{order?.order_number ?? (order?.id ?? '').slice(0, 6)}
+              {order?.device_brand} {order?.device_model}
+              {isTechnician ? '' : ` · #${order?.order_number ?? (order?.id ?? '').slice(0, 6)}`}
             </Text>
           </View>
         </View>

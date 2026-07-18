@@ -267,25 +267,21 @@ export default function TechnicianChats() {
       const built: ChatRow[] = list.map((o: any) => {
         const last = latestByOrder.get(o.id);
         const cust = o.user_id ? customersById.get(o.user_id) : null;
-        // Fix 6b — identify each conversation by the device + order number,
-        // e.g. "Apple iPhone 13 — #1042", instead of a generic customer
-        // name/placeholder. order_number is shown bare-prefixed with '#';
-        // we fall back to a short id slice when it's missing.
+        // Each conversation is titled "customer name — #order"; when the
+        // customer has no name the order number stands alone. order_number
+        // falls back to a short id slice when missing.
         const orderNo = o.order_number
           ? `#${o.order_number}`
           : o.id
           ? `#${String(o.id).slice(0, 8)}`
           : '';
-        const deviceLabel =
-          [o.device_brand, o.device_model].filter(Boolean).join(' ').trim() ||
-          (isRTL ? 'جهاز' : 'Device');
+        const custName = (cust?.name ?? '').trim();
         return {
           orderId: o.id,
           customerId: o.user_id ?? null,
-          // Kept for the avatar only — no longer shown as the row title.
-          customerName: cust?.name || (isRTL ? 'عميل' : 'Customer'),
+          customerName: custName || (isRTL ? 'عميل' : 'Customer'),
           customerAvatar: cust?.avatar_url ?? null,
-          title: `${deviceLabel} — ${orderNo}`,
+          title: custName ? `${custName} — ${orderNo}` : orderNo,
           orderStatus: o.status || 'pending',
           lastMessage: last?.content ?? null,
           lastAt: last?.created_at ?? o.created_at ?? null,
