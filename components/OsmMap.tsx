@@ -45,6 +45,8 @@ export interface OsmMarker {
 export interface OsmMapHandle {
   recenter: (lat: number, lng: number, zoom?: number) => void;
   fitToMarkers: () => void;
+  /** Update the coverage circle radius (km); null removes it. */
+  setCircleRadius: (km: number | null) => void;
 }
 
 interface OsmMapProps {
@@ -61,6 +63,9 @@ interface OsmMapProps {
   onMoveEnd?: (lat: number, lng: number) => void;
   onReady?: () => void;
   markers?: OsmMarker[];
+  /** Coverage circle (km) glued to the map centre — the admin service-area
+   *  editor's radius preview. Follows the pin while panning. */
+  circleRadiusKm?: number | null;
   style?: StyleProp<ViewStyle>;
 }
 
@@ -74,6 +79,7 @@ function buildHtml(
   interactive: boolean,
   markers: OsmMarker[],
   tapToPlace: boolean,
+  circleRadiusKm: number | null,
 ): string {
   return `<!DOCTYPE html><html><head>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
@@ -115,7 +121,18 @@ ${interactive ? `<div id="pin">${PIN_SVG('#10b981')}</div>` : ''}
     markerLayer.forEach(function(m){ map.removeLayer(m); }); markerLayer=[];
     (list||[]).forEach(function(it){ markerLayer.push(L.marker([it.lat,it.lng],{icon:pinIcon(it.color)}).addTo(map)); });
   }
-  function recenter(la,ln,z){ skip=true; map.setView([la,ln], z||map.getZoom()); }
+  var circle=null;
+  function setCircle(km){
+    if(km==null||!(km>0)){ if(circle){ map.removeLayer(circle); circle=null; } return; }
+    var c=map.getCenter();
+    if(!circle){
+      circle=L.circle(c,{radius:km*1000,color:'#10b981',weight:2,fillColor:'#10b981',fillOpacity:0.12}).addTo(map);
+    } else { circle.setLatLng(c); circle.setRadius(km*1000); }
+  }
+  // Keep the circle glued to the centre pin while panning.
+  map.on('move',function(){ if(circle){ circle.setLatLng(map.getCenter()); } });
+  setCircle(${circleRadiusKm == null ? 'null' : Number(circleRadiusKm)});
+  function recenter(la,ln,z){ skip=true; map.setView([la,ln], z||map.getZoom()); if(circle){ circle.setLatLng([la,ln]); } }
   function fitToMarkers(){
     if(markerLayer.length===0) return;
     if(markerLayer.length===1){ skip=true; map.setView(markerLayer[0].getLatLng(), 15); return; }
@@ -126,7 +143,7 @@ ${interactive ? `<div id="pin">${PIN_SVG('#10b981')}</div>` : ''}
 }
 
 const OsmMap = forwardRef<OsmMapHandle, OsmMapProps>(function OsmMap(
-  { latitude, longitude, zoom = 15, interactive = false, tapToPlace = false, onMoveEnd, onReady, markers = [], style },
+  { latitude, longitude, zoom = 15, interactive = false, tapToPlace = false, onMoveEnd, onReady, markers = [], circleRadiusKm = null, style },
   ref,
 ) {
   const webRef = useRef<any>(null);
@@ -134,7 +151,7 @@ const OsmMap = forwardRef<OsmMapHandle, OsmMapProps>(function OsmMap(
   // Build the HTML once. Programmatic changes go through injectJavaScript so
   // the WebView never reloads (which would reset the user's pan/zoom).
   const html = useMemo(
-    () => buildHtml(latitude, longitude, zoom, interactive, markers, tapToPlace),
+    () => buildHtml(latitude, longitude, zoom, interactive, markers, tapToPlace, circleRadiusKm),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [],
   );
@@ -148,9 +165,18 @@ const OsmMap = forwardRef<OsmMapHandle, OsmMapProps>(function OsmMap(
       fitToMarkers: () => {
         webRef.current?.injectJavaScript(`fitToMarkers();true;`);
       },
+      setCircleRadius: (km) => {
+        webRef.current?.injectJavaScript(`setCircle(${km == null ? 'null' : Number(km)});true;`);
+      },
     }),
     [],
   );
+
+  useEffect(() => {
+    webRef.current?.injectJavaScript(
+      `setCircle(${circleRadiusKm == null ? 'null' : Number(circleRadiusKm)});true;`
+    );
+  }, [circleRadiusKm]);
 
   const markersKey = JSON.stringify(markers);
   useEffect(() => {

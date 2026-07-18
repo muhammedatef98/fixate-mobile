@@ -188,15 +188,17 @@ const makeStyles = (COLORS: any, isRTL: boolean) => StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: SPACING.xl,
   },
+  // 40% (was 50%) — the old height pushed the subtitle's second line below
+  // the list viewport on shorter screens, where the footer clipped it.
   imageContainer: {
-    height: height * 0.5,
+    height: height * 0.4,
     justifyContent: 'center',
     alignItems: 'center',
   },
   iconCircle: {
-    width: 200,
-    height: 200,
-    borderRadius: 100,
+    width: 180,
+    height: 180,
+    borderRadius: 90,
     backgroundColor: `${COLORS.primary}10`,
     justifyContent: 'center',
     alignItems: 'center',

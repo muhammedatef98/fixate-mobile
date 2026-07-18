@@ -15,6 +15,8 @@ import {
   Text,
   StyleSheet,
   TextInput,
+  TouchableOpacity,
+  Platform,
   Switch,
   Modal,
   Alert,
@@ -48,6 +50,7 @@ import {
 } from '../services/serviceAreasService';
 import { getFriendlyError } from '../utils/errorMessages';
 import { getCityCentroid } from '../utils/deliveryPricing';
+import OsmMap from '../components/OsmMap';
 import { Riyal } from '../components/Riyal';
 
 interface CoverageDraft {
@@ -644,32 +647,81 @@ export default function AdminServiceAreasScreen() {
             </Text>
             <Text style={[styles.modalSub, { color: COLORS.textSecondary, marginTop: 4 }]}>
               {isRTL
-                ? 'تحدد مركز المدينة ونصف قطر التغطية — أي طلب خارج هذا النطاق يُرفض تلقائياً. الإحداثيات معبأة مسبقاً، غالباً يكفي الضغط على حفظ.'
-                : 'Sets the city center and coverage radius — requests outside it are rejected. Coordinates are prefilled; usually just press Save.'}
+                ? 'حرّك الخريطة لوضع الدبوس واضبط نصف القطر — أي طلب خارج الدائرة الخضراء يُرفض تلقائياً.'
+                : 'Pan the map to place the pin and set the radius — requests outside the green circle are rejected.'}
             </Text>
 
-            <Text style={[styles.modalLabel, { color: COLORS.textSecondary }]}>
-              {isRTL ? 'الإحداثيات (lat, lng)' : 'Center (lat, lng)'}
-            </Text>
-            <TextInput
-              value={coverageDraft?.centerText ?? ''}
-              onChangeText={(t) => setCoverageDraft((d) => (d ? { ...d, centerText: t } : d))}
-              placeholder="24.7136, 46.6753"
-              placeholderTextColor={COLORS.textSecondary}
-              style={[styles.modalInput, { color: COLORS.text, borderColor: COLORS.border }]}
-            />
+            {/* Interactive editor: drag the map under the fixed pin to place
+                the centre; the green circle previews the coverage radius. */}
+            {(() => {
+              const parts = (coverageDraft?.centerText ?? '').split(',').map((s) => s.trim());
+              const lat = Number(parts[0]);
+              const lng = Number(parts[1]);
+              const hasCenter = Number.isFinite(lat) && Number.isFinite(lng);
+              const radius = Number(coverageDraft?.radiusText) || 25;
+              return (
+                <>
+                  <View style={{ height: 260, borderRadius: BORDER_RADIUS.md, overflow: 'hidden', marginTop: 10 }}>
+                    <OsmMap
+                      key={coverageDraft?.cityId ?? 'none'}
+                      latitude={hasCenter ? lat : 24.7136}
+                      longitude={hasCenter ? lng : 46.6753}
+                      zoom={10}
+                      interactive
+                      tapToPlace={Platform.OS === 'android'}
+                      circleRadiusKm={radius}
+                      onMoveEnd={(la, ln) =>
+                        setCoverageDraft((d) =>
+                          d ? { ...d, centerText: `${la.toFixed(5)}, ${ln.toFixed(5)}` } : d
+                        )
+                      }
+                    />
+                  </View>
+                  <Text style={[styles.modalLabel, { color: COLORS.textSecondary }]}>
+                    {isRTL
+                      ? 'حرّك الخريطة لوضع الدبوس على مركز المدينة'
+                      : 'Pan the map to place the pin on the city centre'}
+                  </Text>
+                  <Text style={{ color: COLORS.textSecondary, fontSize: 11, textAlign: 'center', writingDirection: 'ltr' }}>
+                    {coverageDraft?.centerText || '—'}
+                  </Text>
 
-            <Text style={[styles.modalLabel, { color: COLORS.textSecondary }]}>
-              {isRTL ? 'نصف القطر (كم)' : 'Radius (km)'}
-            </Text>
-            <TextInput
-              value={coverageDraft?.radiusText ?? ''}
-              onChangeText={(t) => setCoverageDraft((d) => (d ? { ...d, radiusText: t } : d))}
-              keyboardType="numeric"
-              placeholder="25"
-              placeholderTextColor={COLORS.textSecondary}
-              style={[styles.modalInput, { color: COLORS.text, borderColor: COLORS.border }]}
-            />
+                  {/* Radius stepper — 5 km steps, 5..100 km. */}
+                  <View style={styles.radiusRow}>
+                    <TouchableOpacity
+                      onPress={() =>
+                        setCoverageDraft((d) =>
+                          d ? { ...d, radiusText: String(Math.max(5, radius - 5)) } : d
+                        )
+                      }
+                      style={[styles.radiusBtn, { borderColor: COLORS.border }]}
+                      accessibilityLabel={isRTL ? 'تصغير نصف القطر' : 'Decrease radius'}
+                    >
+                      <Ionicons name="remove" size={18} color={COLORS.text} />
+                    </TouchableOpacity>
+                    <View style={{ alignItems: 'center', minWidth: 110 }}>
+                      <Text style={{ color: COLORS.text, fontWeight: '800', fontSize: 16 }}>
+                        {radius} {isRTL ? 'كم' : 'km'}
+                      </Text>
+                      <Text style={{ color: COLORS.textSecondary, fontSize: 10.5 }}>
+                        {isRTL ? 'نصف قطر التغطية' : 'Coverage radius'}
+                      </Text>
+                    </View>
+                    <TouchableOpacity
+                      onPress={() =>
+                        setCoverageDraft((d) =>
+                          d ? { ...d, radiusText: String(Math.min(100, radius + 5)) } : d
+                        )
+                      }
+                      style={[styles.radiusBtn, { borderColor: COLORS.border }]}
+                      accessibilityLabel={isRTL ? 'تكبير نصف القطر' : 'Increase radius'}
+                    >
+                      <Ionicons name="add" size={18} color={COLORS.text} />
+                    </TouchableOpacity>
+                  </View>
+                </>
+              );
+            })()}
 
             <View style={styles.modalActions}>
               <AnimatedTouchable
@@ -895,13 +947,20 @@ const createStyles = (COLORS: ReturnType<typeof getColors>, isRTL: boolean) =>
     modalTitle: { fontSize: 17, fontWeight: '800', textAlign: isRTL ? 'right' : 'left' },
     modalSub: { fontSize: 13, marginBottom: 8, textAlign: isRTL ? 'right' : 'left' },
     modalLabel: { fontSize: 12, fontWeight: '700', marginTop: 8, marginBottom: 4, textAlign: isRTL ? 'right' : 'left' },
-    modalInput: {
+    radiusRow: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 18,
+      marginTop: 12,
+    },
+    radiusBtn: {
+      width: 38,
+      height: 38,
+      borderRadius: 19,
       borderWidth: 1,
-      borderRadius: BORDER_RADIUS.md,
-      paddingHorizontal: 12,
-      paddingVertical: 10,
-      fontSize: 14,
-      textAlign: isRTL ? 'right' : 'left',
+      alignItems: 'center',
+      justifyContent: 'center',
     },
     modalActions: {
       flexDirection: isRTL ? 'row-reverse' : 'row',

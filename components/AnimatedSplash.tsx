@@ -1,5 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Animated, Easing, StyleSheet, View, Text, AccessibilityInfo } from 'react-native';
+import Svg, { Path } from 'react-native-svg';
+import { GEAR_PATH } from './GearLoader';
 
 /**
  * Animated splash overlay.
@@ -26,7 +28,20 @@ import { Animated, Easing, StyleSheet, View, Text, AccessibilityInfo } from 'rea
 
 const BG = '#ffffff';
 const BRAND = '#10B981';
-const LOGO = require('../assets/fixate-logo-main.png');
+// The logo bitmap with the gear erased — the gear is drawn separately as a
+// vector (same path GearLoader uses, traced from the logo) so it can spin
+// independently while the bolt stays still.
+const LOGO = require('../assets/fixate-logo-gearless.png');
+// Gear geometry inside the source bitmap (510×380): bbox x151..279, y251..379.
+// The 168px rendered logo uses resizeMode="contain", so scale = 168/510.
+const LOGO_BOX = 168;
+const SRC_W = 510;
+const SRC_H = 380;
+const SCALE = LOGO_BOX / SRC_W;
+const GEAR_SIZE = 128 * SCALE;
+const GEAR_LEFT = 151 * SCALE;
+const GEAR_TOP = (LOGO_BOX - SRC_H * SCALE) / 2 + 251 * SCALE;
+const GEAR_COLOR = '#05956B';
 
 interface AnimatedSplashProps {
   onFinish: () => void;
@@ -36,6 +51,7 @@ export default function AnimatedSplash({ onFinish }: AnimatedSplashProps) {
   const logoOpacity = useRef(new Animated.Value(0)).current;
   const logoScale = useRef(new Animated.Value(0.68)).current;
   const logoSpin = useRef(new Animated.Value(0)).current; // 0 → 1 maps to -14deg → 0
+  const gearSpin = useRef(new Animated.Value(0)).current; // 0 → 1 maps to a full turn
   const wordOpacity = useRef(new Animated.Value(0)).current;
   const wordShift = useRef(new Animated.Value(14)).current;
   const containerOpacity = useRef(new Animated.Value(1)).current;
@@ -70,6 +86,7 @@ export default function AnimatedSplash({ onFinish }: AnimatedSplashProps) {
       logoOpacity.setValue(1);
       logoScale.setValue(1);
       logoSpin.setValue(1);
+      gearSpin.setValue(1);
       wordOpacity.setValue(1);
       wordShift.setValue(0);
       const t = setTimeout(fadeOutAndFinish, 900);
@@ -127,9 +144,17 @@ export default function AnimatedSplash({ onFinish }: AnimatedSplashProps) {
     ]);
 
     // Rings run in parallel with the intro; the mark/word are sequenced.
+    // The gear does one full easing-out turn across the whole intro —
+    // spinning fast at first, settling as the wordmark lands.
     Animated.parallel([
       ringPulse(ring1, 120),
       ringPulse(ring2, 520),
+      Animated.timing(gearSpin, {
+        toValue: 1,
+        duration: 1900,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
       Animated.sequence([
         markIn,
         Animated.delay(120),
@@ -142,6 +167,7 @@ export default function AnimatedSplash({ onFinish }: AnimatedSplashProps) {
   }, [reduceMotion]);
 
   const spin = logoSpin.interpolate({ inputRange: [0, 1], outputRange: ['-14deg', '0deg'] });
+  const gearRotate = gearSpin.interpolate({ inputRange: [0, 1], outputRange: ['-360deg', '0deg'] });
 
   const ringStyle = (v: Animated.Value) => ({
     opacity: v.interpolate({ inputRange: [0, 0.15, 1], outputRange: [0, 0.28, 0] }),
@@ -155,11 +181,27 @@ export default function AnimatedSplash({ onFinish }: AnimatedSplashProps) {
         <Animated.View style={[styles.ring, ringStyle(ring1)]} pointerEvents="none" />
         <Animated.View style={[styles.ring, ringStyle(ring2)]} pointerEvents="none" />
 
-        <Animated.Image
-          source={LOGO}
-          resizeMode="contain"
-          style={[styles.logo, { opacity: logoOpacity, transform: [{ scale: logoScale }, { rotate: spin }] }]}
-        />
+        <Animated.View
+          style={{ opacity: logoOpacity, transform: [{ scale: logoScale }, { rotate: spin }] }}
+        >
+          <Animated.Image source={LOGO} resizeMode="contain" style={styles.logo} />
+          {/* The gear, spinning in place over the exact spot it was erased
+              from the bitmap. */}
+          <Animated.View
+            style={{
+              position: 'absolute',
+              left: GEAR_LEFT,
+              top: GEAR_TOP,
+              width: GEAR_SIZE,
+              height: GEAR_SIZE,
+              transform: [{ rotate: gearRotate }],
+            }}
+          >
+            <Svg width={GEAR_SIZE} height={GEAR_SIZE} viewBox="0 0 100 100">
+              <Path d={GEAR_PATH} fill={GEAR_COLOR} fillRule="evenodd" />
+            </Svg>
+          </Animated.View>
+        </Animated.View>
       </View>
 
       {/* Name floats just beneath the dead-centered mark (absolute, so it never

@@ -24,7 +24,7 @@ import { COLORS } from '../constants/theme';
  * Two subpaths (gear body, hub) + evenodd: the hub reads as a hole, so the
  * surface behind it shows through on any background.
  */
-const GEAR_PATH =
+export const GEAR_PATH =
   'M40.92 0.00 L59.08 0.00 L60.18 11.74 L65.14 13.58 L69.36 15.78 L78.90 8.26 L91.74 21.10 ' +
   'L83.85 30.64 L86.06 35.60 L87.16 39.45 L99.82 40.73 L99.82 59.08 L86.79 60.37 L84.77 65.32 ' +
   'L83.12 68.26 L91.74 78.72 L78.90 91.56 L78.53 91.56 L68.07 82.75 L64.40 84.59 L60.73 85.69 ' +
