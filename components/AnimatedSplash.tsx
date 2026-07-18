@@ -183,7 +183,13 @@ export default function AnimatedSplash({ onFinish }: AnimatedSplashProps) {
         <Animated.View
           style={[styles.logo, { opacity: logoOpacity, transform: [{ scale: logoScale }, { rotate: spin }] }]}
         >
-          <Animated.Image source={LOGO} resizeMode="contain" style={StyleSheet.absoluteFill} />
+          {/* Explicit size — absoluteFill alone leaves the bitmap at its
+              intrinsic 510pt width, spilling over the whole screen. */}
+          <Animated.Image
+            source={LOGO}
+            resizeMode="contain"
+            style={{ width: LOGO_BOX, height: LOGO_BOX }}
+          />
           {/* The gear, spinning in the exact spot it occupies in the logo. */}
           <Animated.View
             style={{
