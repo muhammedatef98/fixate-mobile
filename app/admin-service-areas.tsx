@@ -47,6 +47,7 @@ import {
   type ServiceNeighborhood,
 } from '../services/serviceAreasService';
 import { getFriendlyError } from '../utils/errorMessages';
+import { getCityCentroid } from '../utils/deliveryPricing';
 import { Riyal } from '../components/Riyal';
 
 interface CoverageDraft {
@@ -257,6 +258,10 @@ export default function AdminServiceAreasScreen() {
   };
 
   const openCoverage = (region: RegionWithCities, city: CityWithNeighborhoods) => {
+    // Prefill from the app's built-in centroid table when the admin hasn't
+    // set coordinates yet — saving as-is is enough for most cities, no need
+    // to hunt down lat/lng by hand.
+    const known = getCityCentroid(city.name_en, city.name_ar);
     setCoverageDraft({
       regionId: region.id,
       cityId: city.id,
@@ -264,8 +269,10 @@ export default function AdminServiceAreasScreen() {
       centerText:
         typeof city.center_lat === 'number' && typeof city.center_lng === 'number'
           ? `${city.center_lat}, ${city.center_lng}`
-          : '',
-      radiusText: typeof city.radius_km === 'number' ? String(city.radius_km) : '',
+          : known
+            ? `${known.lat}, ${known.lng}`
+            : '',
+      radiusText: typeof city.radius_km === 'number' ? String(city.radius_km) : '25',
     });
   };
 
@@ -634,6 +641,11 @@ export default function AdminServiceAreasScreen() {
             </Text>
             <Text style={[styles.modalSub, { color: COLORS.textSecondary }]}>
               {coverageDraft?.name}
+            </Text>
+            <Text style={[styles.modalSub, { color: COLORS.textSecondary, marginTop: 4 }]}>
+              {isRTL
+                ? 'تحدد مركز المدينة ونصف قطر التغطية — أي طلب خارج هذا النطاق يُرفض تلقائياً. الإحداثيات معبأة مسبقاً، غالباً يكفي الضغط على حفظ.'
+                : 'Sets the city center and coverage radius — requests outside it are rejected. Coordinates are prefilled; usually just press Save.'}
             </Text>
 
             <Text style={[styles.modalLabel, { color: COLORS.textSecondary }]}>

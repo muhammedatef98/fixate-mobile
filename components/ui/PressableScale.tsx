@@ -30,11 +30,19 @@ const splitLayoutStyle = (style: ViewStyle | ViewStyle[] | undefined): {
   if (!style) return { layout: {}, rest: undefined };
   const flat = StyleSheet.flatten(style) as ViewStyle;
   const layout: ViewStyle = {};
+  const rest: ViewStyle = { ...flat };
   for (const k of LAYOUT_KEYS) {
     const v = (flat as Record<string, unknown>)[k];
     if (v !== undefined) (layout as Record<string, unknown>)[k] = v;
   }
-  return { layout, rest: style };
+  // Flex-sizing must NOT stay on the inner touchable: `flex: 1` there
+  // resolves against the wrapper's auto height and collapses the button
+  // to zero (labels vanish). Width/height/margins stay duplicated —
+  // existing screens size the inner visual (bg, radius) through them.
+  for (const k of ['flex', 'flexGrow', 'flexShrink', 'flexBasis', 'alignSelf'] as const) {
+    delete (rest as Record<string, unknown>)[k];
+  }
+  return { layout, rest };
 };
 
 interface Props extends PressableProps {
