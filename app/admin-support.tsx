@@ -9,13 +9,13 @@ import {
   FlatList,
   ActivityIndicator,
   TextInput,
-  KeyboardAvoidingView,
   Platform,
   Alert,
   RefreshControl,
   Modal,
   ScrollView,
 } from 'react-native';
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { ORDER_STATUS_LABELS_AR, ORDER_STATUS_LABELS_EN } from '../types/order';
 import { useRouter } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -404,7 +404,7 @@ export default function AdminSupportScreen() {
 
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior="padding"
         keyboardVerticalOffset={Platform.OS === 'ios' ? 88 : 0}
       >
         <FlatList

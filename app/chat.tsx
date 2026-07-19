@@ -7,11 +7,11 @@ import {
   TextInput,
   TouchableOpacity,
   FlatList,
-  KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
   I18nManager,
 } from 'react-native';
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { getColors, SPACING, SHADOWS } from '../constants/theme';
@@ -159,7 +159,7 @@ export default function ChatScreen() {
           full height and hiding the latest messages behind the keyboard). */}
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior="padding"
         keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
       >
         <FlatList

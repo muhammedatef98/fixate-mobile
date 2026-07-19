@@ -6,12 +6,12 @@ import {
   TextInput,
   TouchableOpacity,
   StatusBar,
-  KeyboardAvoidingView,
   Platform,
   FlatList,
   ActivityIndicator,
   Alert,
 } from 'react-native';
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -137,7 +137,7 @@ export default function SupportChatScreen() {
           // adjustResize (app.json softwareKeyboardLayoutMode: "resize") so the
           // composer is lifted by the OS. 'height' here fought adjustResize and
           // left the input covered.
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          behavior="padding"
           keyboardVerticalOffset={Platform.OS === 'ios' ? 88 : 0}
         >
           <FlatList

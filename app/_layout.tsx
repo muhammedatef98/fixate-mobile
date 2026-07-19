@@ -7,6 +7,7 @@ import {
   SafeAreaView,
   initialWindowMetrics,
 } from 'react-native-safe-area-context';
+import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { getColors } from '../constants/theme';
 import { RequestProvider } from '../contexts/RequestContext';
 import { ThemeProvider } from '../contexts/ThemeContext';
@@ -540,6 +541,11 @@ export default function RootLayout() {
           applies on Android (the status-bar overlap). initialWindowMetrics
           gives correct insets on first paint, avoiding a layout flash. */}
       <SafeAreaProvider initialMetrics={initialWindowMetrics}>
+        {/* KeyboardProvider: SDK 54 forces edge-to-edge on Android, which
+            breaks adjustResize — RN's KeyboardAvoidingView no longer gets a
+            resized window, so the keyboard covers chat inputs. All chat
+            screens use keyboard-controller's KAV, which needs this provider. */}
+        <KeyboardProvider>
         <AppProvider>
           <AuthProvider>
             <OrdersProvider>
@@ -554,6 +560,7 @@ export default function RootLayout() {
             </OrdersProvider>
           </AuthProvider>
         </AppProvider>
+        </KeyboardProvider>
       </SafeAreaProvider>
     </ErrorBoundary>
   );
