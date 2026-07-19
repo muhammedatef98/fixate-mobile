@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useColorScheme } from 'react-native';
+import { useColorScheme, Platform } from 'react-native';
 import { logger } from '../utils/logger';
 
 type ThemeMode = 'light' | 'dark' | 'system';
@@ -81,6 +81,28 @@ export const ThemeProvider = ({ children }: { children: ReactNode }) => {
       logger.error('Error saving theme', error);
     }
   };
+
+  // Android launcher icon follows the effective theme (iOS 18 handles this
+  // natively via the light/dark icon variants in app.json). The change is
+  // applied when the app goes to background so the launcher never kills us.
+  // require() is lazy on purpose: the native module only exists in builds
+  // that include it, and an OTA update reaching an older build must not
+  // crash at import time.
+  useEffect(() => {
+    if (Platform.OS !== 'android') return;
+    (async () => {
+      try {
+        const { setAppIcon, getAppIcon } = require('@howincodes/expo-dynamic-app-icon');
+        const target = theme === 'dark' ? 'dark' : null;
+        const current = await getAppIcon();
+        if ((current === 'DEFAULT' ? null : current) !== target) {
+          await setAppIcon(target);
+        }
+      } catch (error) {
+        logger.error('Error switching app icon for theme', error);
+      }
+    })();
+  }, [theme]);
 
   const colors = theme === 'dark' ? darkColors : lightColors;
 

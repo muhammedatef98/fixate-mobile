@@ -148,7 +148,18 @@
       "./plugins/withIosAllowNonModularIncludes.js",
       "./plugins/withAndroidIconBackgroundColor.js",
       "./plugins/withGradleMemory.js",
-      "./plugins/withSentryUploadSkipWhenNoToken.js"
+      "./plugins/withSentryUploadSkipWhenNoToken.js",
+      [
+        "@howincodes/expo-dynamic-app-icon",
+        {
+          "dark": {
+            "android": {
+              "foregroundImage": "./assets/adaptive-icon-dark.png",
+              "backgroundColor": "#09271D"
+            }
+          }
+        }
+      ]
     ],
     "updates": {
       "fallbackToCacheTimeout": 0,
