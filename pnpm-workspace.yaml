@@ -5,3 +5,6 @@ onlyBuiltDependencies:
   - '@firebase/util'
   - protobufjs
   - '@sentry/cli'
+
+patchedDependencies:
+  '@howincodes/expo-dynamic-app-icon': patches/@howincodes__expo-dynamic-app-icon.patch

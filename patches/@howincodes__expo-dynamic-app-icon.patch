@@ -1,0 +1,16 @@
+diff --git a/package.json b/package.json
+index 3b6bf778469f9d99cbe8c554d876c7036e76630b..4dbf3c3cf0b9f2d040648269054437667fa5e86d 100644
+--- a/package.json
++++ b/package.json
+@@ -56,5 +56,10 @@
+     "react": "*",
+     "react-native": "*"
+   },
+-  "packageManager": "yarn@1.22.22+sha512.a6b2f7906b721bba3d67d4aff083df04dad64c399707841b7acf00f6b133b7ac24255f2652fa22ae3534329dc6180534e98d17432037ff6fd140556e2bb3137e"
++  "packageManager": "yarn@1.22.22+sha512.a6b2f7906b721bba3d67d4aff083df04dad64c399707841b7acf00f6b133b7ac24255f2652fa22ae3534329dc6180534e98d17432037ff6fd140556e2bb3137e",
++  "peerDependenciesMeta": {
++    "expo-modules-core": {
++      "optional": true
++    }
++  }
+ }
