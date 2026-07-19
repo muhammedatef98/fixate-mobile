@@ -716,39 +716,74 @@ export default function OrderDetailsScreen() {
                 );
               })()}
               {userType === 'customer' && courierChatTask && (
-                <TouchableOpacity
-                  onPress={() =>
-                    router.push({
-                      pathname: '/courier-chat/[taskId]',
-                      params: { taskId: courierChatTask.id, thread: 'customer' },
-                    } as any)
-                  }
-                  style={{
-                    flexDirection: isRTL ? 'row-reverse' : 'row',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: 8,
-                    backgroundColor: COLORS.primary,
-                    borderRadius: BORDER_RADIUS.md,
-                    paddingVertical: 10,
-                    marginTop: 10,
-                  }}
-                  accessibilityRole="button"
-                  accessibilityLabel={isRTL ? 'مراسلة مندوب التوصيل' : 'Chat with the courier'}
-                >
-                  <MaterialCommunityIcons name="chat-outline" size={17} color="#fff" />
-                  <Text style={{ color: '#fff', fontWeight: '800', fontSize: 13.5 }}>
-                    {isRTL ? 'مراسلة مندوب التوصيل' : 'Chat with the courier'}
-                  </Text>
-                </TouchableOpacity>
+                <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', gap: 8, marginTop: 10 }}>
+                  <TouchableOpacity
+                    onPress={() =>
+                      router.push({
+                        pathname: '/courier-chat/[taskId]',
+                        params: { taskId: courierChatTask.id, thread: 'customer' },
+                      } as any)
+                    }
+                    style={{
+                      flex: 1,
+                      flexDirection: isRTL ? 'row-reverse' : 'row',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 8,
+                      backgroundColor: COLORS.primary,
+                      borderRadius: BORDER_RADIUS.md,
+                      paddingVertical: 10,
+                    }}
+                    accessibilityRole="button"
+                    accessibilityLabel={isRTL ? 'مراسلة المندوب' : 'Chat with the courier'}
+                  >
+                    <MaterialCommunityIcons name="chat-outline" size={17} color="#fff" />
+                    <Text style={{ color: '#fff', fontWeight: '800', fontSize: 13.5 }}>
+                      {isRTL ? 'مراسلة المندوب' : 'Chat courier'}
+                    </Text>
+                  </TouchableOpacity>
+                  {/* All the movement on pickup&delivery orders is the
+                      courier's — live tracking lives here, not on a
+                      technician map. */}
+                  {moving && (
+                    <TouchableOpacity
+                      onPress={() =>
+                        router.push({
+                          pathname: '/track-courier/[taskId]',
+                          params: { taskId: courierChatTask.id },
+                        } as any)
+                      }
+                      style={{
+                        flex: 1,
+                        flexDirection: isRTL ? 'row-reverse' : 'row',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: 8,
+                        backgroundColor: '#8B5CF6',
+                        borderRadius: BORDER_RADIUS.md,
+                        paddingVertical: 10,
+                      }}
+                      accessibilityRole="button"
+                      accessibilityLabel={isRTL ? 'تتبع المندوب' : 'Track courier'}
+                    >
+                      <MaterialCommunityIcons name="map-marker-path" size={17} color="#fff" />
+                      <Text style={{ color: '#fff', fontWeight: '800', fontSize: 13.5 }}>
+                        {isRTL ? 'تتبع المندوب' : 'Track courier'}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
               )}
             </View>
           );
         })()}
 
+        {/* Technician live tracking — MOBILE technician orders only: he is the
+            one travelling to the customer. On pickup & delivery orders all the
+            movement is the courier's, tracked from the custody strip above. */}
         {!isCancelled &&
           order.technician_id &&
-          orderFulfillment !== 'personal_handoff' &&
+          orderFulfillment === 'mobile' &&
           ['accepted', 'picking_up', 'diagnosing', 'repairing', 'delivering'].includes(order.status) && (
             <View style={{ paddingHorizontal: SPACING.lg, marginBottom: SPACING.md }}>
               <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 6, marginBottom: 8 }}>

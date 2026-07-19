@@ -206,15 +206,17 @@ export default function ManageOrderScreen() {
     };
   }, [id]);
 
-  // Live location broadcast — while the technician is en route on a
-  // pickup&delivery or mobile job, the customer can see where they are.
+  // Live location broadcast — MOBILE jobs only: the technician is the one
+  // travelling to the customer. On pickup&delivery orders the courier does
+  // all the movement (tracked via courier_locations), so broadcasting the
+  // technician's position would be pointless noise + a privacy leak.
   // Foreground-only (no background permission) — practical and battery-safe.
   useEffect(() => {
     if (!order || !id) return;
     const enRoute = ['accepted', 'picking_up', 'diagnosing', 'repairing', 'delivering']
       .includes(order.status);
     const fulfillment = (order as any).fulfillment_type ?? order.service_type;
-    const travels = fulfillment !== 'personal_handoff';
+    const travels = fulfillment === 'mobile';
     let cancelled = false;
     if (enRoute && travels && order.technician_id) {
       (async () => {
