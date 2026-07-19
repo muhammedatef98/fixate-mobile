@@ -57,7 +57,11 @@ import { recordOrderPayment, setEstimatedRepair } from '../../services/orderServ
 import { ESTIMATED_REPAIR_OPTIONS, estimatedRepairLabel } from '../../utils/estimatedRepair';
 import {
   getDeliveryTasksForOrder,
+  subscribeToOrderDeliveryTasks,
+  confirmableHandoff,
+  confirmDeliveryHandoff,
   type DeliveryTask,
+  type HandoffStage,
 } from '../../services/courierService';
 import { isCourierChatOpen } from '../../services/courierChatService';
 import { getOrderTotals, fmtSAR } from '../../utils/orderMoney';
@@ -166,17 +170,31 @@ export default function ManageOrderScreen() {
   // Return-leg courier request (pickup&delivery orders in 'delivering').
   const [requestingCourier, setRequestingCourier] = useState(false);
   const [returnCourierRequested, setReturnCourierRequested] = useState(false);
+  // Handoff handshake — technician confirming a courier hand-over/receipt.
+  const [confirmingHandoff, setConfirmingHandoff] = useState(false);
 
   useEffect(() => {
     loadOrderDetails();
-    
+
     // Subscribe to real-time updates
     let subscription: any = null;
+    let unsubscribeTasks: (() => void) | null = null;
     if (id) {
       subscription = requests.subscribeToUpdates(id as string, (updatedOrder) => {
         if (updatedOrder) {
           setOrder(prev => ({ ...prev, ...updatedOrder }));
         }
+      });
+      // Courier leg progress (picked_up / delivered / confirmations) lives in
+      // delivery_tasks — refresh the surfaced task live so the technician's
+      // confirm button appears without a manual reload.
+      unsubscribeTasks = subscribeToOrderDeliveryTasks(id as string, () => {
+        getDeliveryTasksForOrder(id as string)
+          .then((tasks) => {
+            const active = tasks.find((t) => t.status !== 'completed' && t.status !== 'cancelled');
+            setDeliveryTask(active ?? tasks[tasks.length - 1] ?? null);
+          })
+          .catch(() => {});
       });
     }
 
@@ -184,6 +202,7 @@ export default function ManageOrderScreen() {
       if (subscription) {
         subscription.unsubscribe();
       }
+      unsubscribeTasks?.();
     };
   }, [id]);
 
@@ -360,6 +379,25 @@ export default function ManageOrderScreen() {
       );
     } finally {
       setRequestingCourier(false);
+    }
+  };
+
+  // Handoff handshake — the technician confirms receiving the device from the
+  // courier (pickup leg) or handing it over for the return leg.
+  const handleConfirmHandoff = async (taskId: string, stage: HandoffStage) => {
+    if (confirmingHandoff) return;
+    setConfirmingHandoff(true);
+    try {
+      const updated = await confirmDeliveryHandoff(taskId, stage);
+      setDeliveryTask(updated);
+    } catch (error) {
+      logger.warn('confirmDeliveryHandoff failed', error);
+      Alert.alert(
+        isRTL ? 'خطأ' : 'Error',
+        isRTL ? 'تعذّر تسجيل التأكيد. حاول مرة أخرى.' : 'Could not record the confirmation. Try again.'
+      );
+    } finally {
+      setConfirmingHandoff(false);
     }
   };
 
@@ -939,6 +977,35 @@ export default function ManageOrderScreen() {
                 RLS policy that permitted it has been dropped.) */}
           </View>
         )}
+
+        {/* Handoff handshake — confirm receiving the device from the courier
+            (pickup leg) or handing it over to him (return leg). */}
+        {deliveryTask && (() => {
+          const stage = confirmableHandoff(deliveryTask, 'technician');
+          if (!stage) return null;
+          const label =
+            stage === 'delivery'
+              ? isRTL ? 'تأكيد استلام الجهاز من المندوب' : 'Confirm receiving the device from the courier'
+              : isRTL ? 'تأكيد تسليم الجهاز للمندوب' : 'Confirm handing the device to the courier';
+          return (
+            <View style={[styles.actionButtonRow, { marginBottom: SPACING.m }]}>
+              <TouchableOpacity
+                style={[
+                  styles.chatButton,
+                  { backgroundColor: COLORS.primary, flex: 1, opacity: confirmingHandoff ? 0.7 : 1 },
+                  SHADOWS.small,
+                ]}
+                disabled={confirmingHandoff}
+                onPress={() => void handleConfirmHandoff(deliveryTask.id, stage)}
+                accessibilityRole="button"
+                accessibilityLabel={label}
+              >
+                <MaterialCommunityIcons name="handshake" size={22} color="#FFFFFF" />
+                <Text style={styles.chatButtonText}>{label}</Text>
+              </TouchableOpacity>
+            </View>
+          );
+        })()}
 
         {/* Courier coordination — pickup&delivery orders with a live courier
             leg get a direct courier chat (customer is never part of it). */}

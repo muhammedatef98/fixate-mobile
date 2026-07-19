@@ -22,6 +22,7 @@ import {
   nextDeliveryAction,
   deliveryLegLabel,
   localizeTaskNotes,
+  subscribeToOrderDeliveryTasks,
   type DeliveryTask,
   type DeliveryTaskStatus,
 } from '../../../services/courierService';
@@ -108,6 +109,13 @@ export default function CourierTaskDetailScreen() {
     void load();
   }, [load]);
 
+  // The receiver's confirmation completes the task server-side — reflect it
+  // here live so the courier sees "completed" without a manual refresh.
+  useEffect(() => {
+    if (!task?.order_id) return;
+    return subscribeToOrderDeliveryTasks(task.order_id, () => void load());
+  }, [task?.order_id, load]);
+
   const handleRefresh = async () => {
     setRefreshing(true);
     await load();
@@ -122,13 +130,6 @@ export default function CourierTaskDetailScreen() {
     try {
       const updated = await advanceDeliveryTask(task.id, action.next);
       setTask(updated);
-      if (action.next === 'completed') {
-        Alert.alert(
-          isRTL ? 'أحسنت! 🎉' : 'Well done! 🎉',
-          isRTL ? 'تم إنهاء مهمة التوصيل بنجاح.' : 'Delivery task completed successfully.',
-          [{ text: isRTL ? 'حسناً' : 'OK', onPress: () => router.back() }]
-        );
-      }
     } catch (e) {
       logger.warn('advance task failed', e);
       Alert.alert(isRTL ? 'خطأ' : 'Error', getFriendlyError(e, language));
@@ -512,6 +513,19 @@ export default function CourierTaskDetailScreen() {
               </>
             )}
           </TouchableOpacity>
+        )}
+
+        {/* Delivered — the courier's part is done; the receiving party's
+            confirmation (customer/technician) closes the task automatically. */}
+        {task.status === 'delivered' && (
+          <View style={{ alignItems: 'center', paddingVertical: 12 }}>
+            <MaterialCommunityIcons name="timer-sand" size={36} color={COLORS.primary} />
+            <Text style={{ color: COLORS.textSecondary, fontSize: 14, marginTop: 6, textAlign: 'center', lineHeight: 21 }}>
+              {isRTL
+                ? 'تم التسليم — تُغلق المهمة تلقائياً بمجرد تأكيد المستلم.'
+                : 'Delivered — the task closes automatically once the receiver confirms.'}
+            </Text>
+          </View>
         )}
 
         {task.status === 'completed' && (

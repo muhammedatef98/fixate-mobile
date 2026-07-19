@@ -45,9 +45,12 @@ import {
   getDeliveryTasksForOrder,
   subscribeToOrderDeliveryTasks,
   deliveryLegLabel,
+  confirmableHandoff,
+  confirmDeliveryHandoff,
   rateCourierTask,
   getMyCourierRatingsForOrder,
   type DeliveryTask,
+  type HandoffStage,
 } from '../services/courierService';
 import { isCourierChatOpen } from '../services/courierChatService';
 import { getPendingOfferCount, subscribeToOrderOffers } from '../services/offerMarketplaceService';
@@ -86,6 +89,11 @@ const COURIER_TIMELINE_LABELS: Record<string, { ar: string; en: string; icon: st
   courier_return_accepted: { ar: 'المندوب في الطريق لإعادة الجهاز', en: 'Courier heading out to return your device', icon: 'moped' },
   courier_return_picked_up: { ar: 'استلم المندوب الجهاز من الفني', en: 'Courier collected the device from the technician', icon: 'package-up' },
   courier_return_delivered: { ar: 'تمت إعادة الجهاز إليك', en: 'Device returned to you', icon: 'check-decagram' },
+  // Handoff handshake confirmations (confirm_delivery_handoff RPC).
+  handoff_pickup_pickup_confirmed: { ar: 'أكد العميل تسليم الجهاز للمندوب', en: 'Customer confirmed handing the device to the courier', icon: 'handshake' },
+  handoff_pickup_delivery_confirmed: { ar: 'أكد الفني استلام الجهاز', en: 'Technician confirmed receiving the device', icon: 'handshake' },
+  handoff_return_pickup_confirmed: { ar: 'أكد الفني تسليم الجهاز للمندوب', en: 'Technician confirmed handing the device to the courier', icon: 'handshake' },
+  handoff_return_delivery_confirmed: { ar: 'أكد العميل استلام الجهاز — اكتمل الطلب', en: 'Customer confirmed receipt — order completed', icon: 'check-decagram' },
 };
 
 export default function OrderDetailsScreen() {
@@ -122,6 +130,7 @@ export default function OrderDetailsScreen() {
   const [pendingOfferCount, setPendingOfferCount] = useState(0);
   const [copiedRef, setCopiedRef] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [confirmingHandoff, setConfirmingHandoff] = useState(false);
 
   const styles = makeStyles(isRTL);
 
@@ -316,6 +325,30 @@ export default function OrderDetailsScreen() {
       ]);
     } finally {
       setRefreshing(false);
+    }
+  };
+
+  // Handoff handshake — the customer confirms handing the device to the
+  // courier (pickup leg) or receiving it back (return leg). The latter also
+  // auto-completes the order server-side, so reload the whole screen.
+  const handleConfirmHandoff = async (taskId: string, stage: HandoffStage) => {
+    if (confirmingHandoff) return;
+    setConfirmingHandoff(true);
+    try {
+      await confirmDeliveryHandoff(taskId, stage);
+      await Promise.all([
+        loadOrderDetails(),
+        getOrderTimeline(id as string).then(setTimeline).catch(() => {}),
+        getDeliveryTasksForOrder(id as string).then(setDeliveryTasks).catch(() => {}),
+      ]);
+    } catch (e) {
+      logger.warn('confirmDeliveryHandoff failed', e);
+      Alert.alert(
+        isRTL ? 'خطأ' : 'Error',
+        isRTL ? 'تعذّر تسجيل التأكيد. حاول مرة أخرى.' : 'Could not record the confirmation. Try again.'
+      );
+    } finally {
+      setConfirmingHandoff(false);
     }
   };
 
@@ -586,6 +619,41 @@ export default function OrderDetailsScreen() {
                   {label}
                 </Text>
               </View>
+              {/* Handoff handshake — confirm handing the device to the courier
+                  (pickup leg) or receiving it back (return leg — completes the
+                  order automatically). */}
+              {userType === 'customer' && active && (() => {
+                const stage = confirmableHandoff(active, 'customer');
+                if (!stage) return null;
+                const label =
+                  stage === 'pickup'
+                    ? isRTL ? 'تأكيد تسليم الجهاز للمندوب' : 'Confirm hand-over to the courier'
+                    : isRTL ? 'تأكيد استلام الجهاز' : 'Confirm you received the device';
+                return (
+                  <TouchableOpacity
+                    disabled={confirmingHandoff}
+                    onPress={() => void handleConfirmHandoff(active.id, stage)}
+                    style={{
+                      flexDirection: isRTL ? 'row-reverse' : 'row',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 8,
+                      backgroundColor: COLORS.primary,
+                      borderRadius: BORDER_RADIUS.md,
+                      paddingVertical: 11,
+                      marginTop: 10,
+                      opacity: confirmingHandoff ? 0.7 : 1,
+                    }}
+                    accessibilityRole="button"
+                    accessibilityLabel={label}
+                  >
+                    <MaterialCommunityIcons name="handshake" size={18} color="#fff" />
+                    <Text style={{ color: '#fff', fontWeight: '800', fontSize: 13.5 }}>
+                      {label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })()}
               {/* Rate the courier — one tap once the leg completes; tapping a
                   different star later REVISES the rating (upsert). */}
               {userType === 'customer' && lastDone?.courier_id && (() => {

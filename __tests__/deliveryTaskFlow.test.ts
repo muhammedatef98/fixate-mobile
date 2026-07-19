@@ -2,16 +2,21 @@ import {
   nextDeliveryAction,
   deliveryLegLabel,
   computeCourierStats,
+  confirmableHandoff,
   DELIVERY_STATUS_LABELS,
   type DeliveryTaskStatus,
   type DeliveryTaskType,
+  type HandoffTaskState,
 } from '../utils/deliveryTasks';
 
 describe('nextDeliveryAction (courier task state machine)', () => {
   it('walks the fixed lifecycle one step at a time', () => {
     expect(nextDeliveryAction('accepted')?.next).toBe('picked_up');
     expect(nextDeliveryAction('picked_up')?.next).toBe('delivered');
-    expect(nextDeliveryAction('delivered')?.next).toBe('completed');
+  });
+
+  it('offers no action once delivered — the receiver closes the task', () => {
+    expect(nextDeliveryAction('delivered')).toBeNull();
   });
 
   it('offers no action on terminal or unclaimed states', () => {
@@ -21,11 +26,50 @@ describe('nextDeliveryAction (courier task state machine)', () => {
   });
 
   it('provides bilingual labels for every action', () => {
-    for (const s of ['accepted', 'picked_up', 'delivered'] as DeliveryTaskStatus[]) {
+    for (const s of ['accepted', 'picked_up'] as DeliveryTaskStatus[]) {
       const action = nextDeliveryAction(s);
       expect(action?.ar).toBeTruthy();
       expect(action?.en).toBeTruthy();
     }
+  });
+});
+
+describe('confirmableHandoff (two-sided handshake)', () => {
+  const task = (
+    task_type: DeliveryTaskType,
+    status: DeliveryTaskStatus,
+    pickup_confirmed_at: string | null = null,
+    delivery_confirmed_at: string | null = null
+  ): HandoffTaskState => ({ task_type, status, pickup_confirmed_at, delivery_confirmed_at });
+
+  it('pickup leg: customer confirms hand-over, technician confirms receipt', () => {
+    expect(confirmableHandoff(task('pickup', 'picked_up'), 'customer')).toBe('pickup');
+    expect(confirmableHandoff(task('pickup', 'delivered'), 'customer')).toBe('pickup');
+    expect(confirmableHandoff(task('pickup', 'delivered'), 'technician')).toBe('delivery');
+    expect(confirmableHandoff(task('pickup', 'picked_up'), 'technician')).toBeNull();
+  });
+
+  it('return leg: technician confirms hand-over, customer confirms receipt', () => {
+    expect(confirmableHandoff(task('return', 'picked_up'), 'technician')).toBe('pickup');
+    expect(confirmableHandoff(task('return', 'delivered'), 'customer')).toBe('delivery');
+    expect(confirmableHandoff(task('return', 'picked_up'), 'customer')).toBeNull();
+  });
+
+  it('never re-asks once a confirmation is recorded', () => {
+    expect(confirmableHandoff(task('pickup', 'picked_up', '2026-01-01'), 'customer')).toBeNull();
+    expect(confirmableHandoff(task('return', 'delivered', null, '2026-01-01'), 'customer')).toBeNull();
+  });
+
+  it('asks nothing before the courier has the device or after completion', () => {
+    for (const role of ['customer', 'technician'] as const) {
+      expect(confirmableHandoff(task('pickup', 'accepted'), role)).toBeNull();
+      expect(confirmableHandoff(task('pickup', 'available'), role)).toBeNull();
+      expect(confirmableHandoff(task('pickup', 'cancelled'), role)).toBeNull();
+    }
+    // Completed with both confirmations — nothing left to do.
+    expect(
+      confirmableHandoff(task('return', 'completed', '2026-01-01', '2026-01-01'), 'customer')
+    ).toBeNull();
   });
 });
 
@@ -58,7 +102,7 @@ describe('nextDeliveryAction (leg-aware copy)', () => {
     for (const leg of ['pickup', 'return'] as DeliveryTaskType[]) {
       expect(nextDeliveryAction('accepted', leg)?.next).toBe('picked_up');
       expect(nextDeliveryAction('picked_up', leg)?.next).toBe('delivered');
-      expect(nextDeliveryAction('delivered', leg)?.next).toBe('completed');
+      expect(nextDeliveryAction('delivered', leg)).toBeNull();
       expect(nextDeliveryAction('completed', leg)).toBeNull();
     }
   });

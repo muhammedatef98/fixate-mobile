@@ -33,7 +33,7 @@ export const DELIVERY_STATUS_LABELS: Record<
   available: { ar: 'متاحة', en: 'Available' },
   accepted: { ar: 'تم القبول — توجّه للاستلام', en: 'Accepted — head to pickup' },
   picked_up: { ar: 'تم الاستلام — جاري التوصيل', en: 'Picked up — delivering' },
-  delivered: { ar: 'تم التسليم — بانتظار التأكيد', en: 'Delivered — confirm to close' },
+  delivered: { ar: 'تم التسليم — بانتظار تأكيد المستلم', en: 'Delivered — awaiting receiver confirmation' },
   completed: { ar: 'مكتملة', en: 'Completed' },
   cancelled: { ar: 'ملغاة', en: 'Cancelled' },
 };
@@ -120,11 +120,53 @@ export const nextDeliveryAction = (
             ? 'Confirm delivery to customer'
             : 'Confirm delivery',
       };
-    case 'delivered':
-      return { next: 'completed', ar: 'إنهاء المهمة', en: 'Complete task' };
+    // 'delivered' has NO courier action anymore: the task closes when the
+    // receiving party confirms receipt (confirm_delivery_handoff RPC).
     default:
       return null;
   }
+};
+
+// ── Handoff handshake ───────────────────────────────────────────────────────
+// Each custody transfer is a two-sided handshake. The courier presses his
+// step, then the counterparty confirms it:
+//   pickup leg:  picked_up  → customer confirms hand-over
+//                delivered  → technician confirms receipt (closes the task)
+//   return leg:  picked_up  → technician confirms hand-over
+//                delivered  → customer confirms receipt (closes the task AND
+//                             auto-completes the order, server-side)
+
+export type HandoffStage = 'pickup' | 'delivery';
+
+export interface HandoffTaskState {
+  task_type: DeliveryTaskType;
+  status: DeliveryTaskStatus;
+  pickup_confirmed_at: string | null;
+  delivery_confirmed_at: string | null;
+}
+
+/**
+ * The confirmation this role owes on this task right now, or null.
+ * Pure — shared by the customer's order screen and the technician's
+ * manage-order screen so the gating logic never drifts.
+ */
+export const confirmableHandoff = (
+  task: HandoffTaskState,
+  role: 'customer' | 'technician'
+): HandoffStage | null => {
+  const sender = task.task_type === 'pickup' ? 'customer' : 'technician';
+  const receiver = task.task_type === 'pickup' ? 'technician' : 'customer';
+  if (
+    role === sender &&
+    !task.pickup_confirmed_at &&
+    ['picked_up', 'delivered'].includes(task.status)
+  ) {
+    return 'pickup';
+  }
+  if (role === receiver && !task.delivery_confirmed_at && task.status === 'delivered') {
+    return 'delivery';
+  }
+  return null;
 };
 
 interface CourierStatsInput {

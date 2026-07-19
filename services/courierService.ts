@@ -14,9 +14,11 @@ import { notifyUsers } from './notifyService';
 import {
   nextDeliveryAction,
   deliveryLegLabel,
+  confirmableHandoff,
   DELIVERY_STATUS_LABELS,
   type DeliveryTaskType,
   type DeliveryTaskStatus,
+  type HandoffStage,
 } from '../utils/deliveryTasks';
 
 // Pure state-machine helpers live in utils/deliveryTasks (framework-free,
@@ -24,9 +26,11 @@ import {
 export {
   nextDeliveryAction,
   deliveryLegLabel,
+  confirmableHandoff,
   DELIVERY_STATUS_LABELS,
   type DeliveryTaskType,
   type DeliveryTaskStatus,
+  type HandoffStage,
 };
 
 export interface DeliveryTask {
@@ -53,6 +57,9 @@ export interface DeliveryTask {
   picked_up_at: string | null;
   delivered_at: string | null;
   completed_at: string | null;
+  // Handoff handshake — set by confirm_delivery_handoff (sender / receiver).
+  pickup_confirmed_at: string | null;
+  delivery_confirmed_at: string | null;
 }
 
 export interface CourierProfile {
@@ -331,6 +338,26 @@ export const advanceDeliveryTask = async (
 };
 
 /**
+ * Counterparty confirmation of a custody hand-off (see utils/deliveryTasks
+ * for the handshake rules). 'delivery' by the receiver closes the task; on
+ * the return leg it also auto-completes the order — all server-side.
+ */
+export const confirmDeliveryHandoff = async (
+  taskId: string,
+  stage: HandoffStage
+): Promise<DeliveryTask> => {
+  const { data, error } = await supabase.rpc('confirm_delivery_handoff', {
+    p_task_id: taskId,
+    p_stage: stage,
+  });
+  if (error) {
+    logger.warn('confirmDeliveryHandoff failed', error);
+    throw error;
+  }
+  return data as DeliveryTask;
+};
+
+/**
  * Technician requests the return leg (repaired device back to the customer).
  * Idempotent server-side; safe to call twice.
  */
@@ -405,10 +432,36 @@ export const subscribeToOrderDeliveryTasks = (
 
 // ── Notifications (best-effort, never block the action) ────────────────────
 
-const DELIVERY_PUSH_AR: Partial<Record<DeliveryTaskStatus, string>> = {
-  accepted: 'قبل مندوب التوصيل مهمة النقل الخاصة بطلبك.',
-  picked_up: 'استلم المندوب الجهاز وهو في الطريق.',
-  delivered: 'قام المندوب بتسليم الجهاز.',
+// Per-leg, per-recipient copy so the party who owes a confirmation gets an
+// explicit "confirm" nudge while the other party gets a plain status update.
+const DELIVERY_PUSH_AR: Record<
+  string,
+  { customer?: string; technician?: string }
+> = {
+  pickup_accepted: {
+    customer: 'قبل مندوب التوصيل مهمة استلام جهازك.',
+    technician: 'قبل مندوب التوصيل مهمة نقل الجهاز إليك.',
+  },
+  pickup_picked_up: {
+    customer: 'استلم المندوب جهازك — الرجاء تأكيد التسليم من صفحة الطلب.',
+    technician: 'استلم المندوب الجهاز من العميل وهو في الطريق إليك.',
+  },
+  pickup_delivered: {
+    customer: 'وصل جهازك إلى الفني.',
+    technician: 'سلّمك المندوب الجهاز — الرجاء تأكيد الاستلام من صفحة الطلب.',
+  },
+  return_accepted: {
+    customer: 'قبل مندوب التوصيل مهمة إعادة جهازك.',
+    technician: 'قبل مندوب التوصيل مهمة إعادة الجهاز للعميل.',
+  },
+  return_picked_up: {
+    customer: 'جهازك في الطريق إليك مع المندوب.',
+    technician: 'استلم المندوب الجهاز منك — الرجاء تأكيد التسليم من صفحة الطلب.',
+  },
+  return_delivered: {
+    customer: 'وصل جهازك — الرجاء تأكيد الاستلام لإكمال الطلب.',
+    technician: 'سلّم المندوب الجهاز للعميل.',
+  },
 };
 
 const notifyOrderPartiesOfDelivery = async (
@@ -416,23 +469,34 @@ const notifyOrderPartiesOfDelivery = async (
   status: DeliveryTaskStatus
 ): Promise<void> => {
   try {
-    const body = DELIVERY_PUSH_AR[status];
-    if (!body) return;
+    const copy = DELIVERY_PUSH_AR[`${task.task_type}_${status}`];
+    if (!copy) return;
     const { data: order } = await supabase
       .from('orders')
       .select('user_id, technician_id')
       .eq('id', task.order_id)
       .maybeSingle();
     if (!order) return;
-    const recipients = [order.user_id, order.technician_id].filter(
-      Boolean
-    ) as string[];
-    if (recipients.length === 0) return;
-    void notifyUsers(recipients, {
-      title: 'تحديث التوصيل 🚚',
-      body,
-      data: { screen: 'order-details', orderId: task.order_id },
-    });
+    const sends: Promise<unknown>[] = [];
+    if (order.user_id && copy.customer) {
+      sends.push(
+        notifyUsers(order.user_id, {
+          title: 'تحديث التوصيل 🚚',
+          body: copy.customer,
+          data: { screen: 'order-details', orderId: task.order_id },
+        })
+      );
+    }
+    if (order.technician_id && copy.technician) {
+      sends.push(
+        notifyUsers(order.technician_id, {
+          title: 'تحديث التوصيل 🚚',
+          body: copy.technician,
+          data: { screen: 'order-details', orderId: task.order_id },
+        })
+      );
+    }
+    await Promise.all(sends);
   } catch (e) {
     logger.warn('notifyOrderPartiesOfDelivery failed', e);
   }
