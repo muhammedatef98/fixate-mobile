@@ -108,6 +108,7 @@ export default function OrderDetailsScreen() {
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
   const [userType, setUserType] = useState<'customer' | 'technician'>('customer');
+  const [myUserId, setMyUserId] = useState<string | null>(null);
   const [myRating, setMyRating] = useState<number>(0);
   const [myComment, setMyComment] = useState<string>('');
   const [submittingRating, setSubmittingRating] = useState(false);
@@ -284,6 +285,12 @@ export default function OrderDetailsScreen() {
     setResolvedUrls(signed.filter((s) => !!s));
   };
 
+  // Derive the view side whenever the order (or its technician) changes.
+  useEffect(() => {
+    if (!myUserId || !order) return;
+    setUserType((order as any).technician_id === myUserId ? 'technician' : 'customer');
+  }, [myUserId, order?.id, (order as any)?.technician_id]);
+
   useEffect(() => {
     checkUserType();
     loadOrderDetails();
@@ -352,11 +359,12 @@ export default function OrderDetailsScreen() {
     }
   };
 
+  // Multi-role: the VIEW (customer vs technician) is decided by this order's
+  // relationship to me, never by account metadata — the same account can be
+  // a customer on one order and the technician on another.
   const checkUserType = async () => {
     const user = await auth.getCurrentUser();
-    if (user?.user_metadata?.user_type) {
-      setUserType(user.user_metadata.user_type);
-    }
+    if (user?.id) setMyUserId(user.id);
   };
 
   const loadOrderDetails = async () => {

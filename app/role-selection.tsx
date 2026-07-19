@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Animated, Dimensions, StatusBar, Image, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -8,6 +8,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { RTLMaterialIcon } from '../components/RTLIcon';
 import { logger } from '../utils/logger';
+import { supabase } from '../services/supabaseClient';
 
 const { width } = Dimensions.get('window');
 
@@ -22,6 +23,76 @@ export default function RoleSelectionScreen() {
   
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
+
+  // Multi-role: one account can hold several roles. For a logged-in user we
+  // surface where they stand in each provider role (approved / under review /
+  // not registered) so this screen doubles as the account's role hub.
+  const [roleStatus, setRoleStatus] = useState<{
+    technician: string | null;
+    courier: string | null;
+  } | null>(null);
+
+  useEffect(() => {
+    if (!user?.id) {
+      setRoleStatus(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const [tech, cour] = await Promise.all([
+          supabase.from('technicians').select('verification_status').eq('user_id', user.id).maybeSingle(),
+          supabase.from('couriers').select('verification_status').eq('user_id', user.id).maybeSingle(),
+        ]);
+        if (cancelled) return;
+        setRoleStatus({
+          technician: (tech.data as any)?.verification_status ?? null,
+          courier: (cour.data as any)?.verification_status ?? null,
+        });
+      } catch (e) {
+        logger.warn('role-selection: role status lookup failed', e);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id]);
+
+  // Status → chip copy/color. null = no profile yet ("apply now").
+  const providerChip = (status: string | null) => {
+    if (status === 'approved' || status === 'verified') {
+      return { text: language === 'ar' ? 'معتمد ✓' : 'Approved ✓', color: '#10b981' };
+    }
+    if (status === 'pending') {
+      return { text: language === 'ar' ? 'قيد المراجعة' : 'Under review', color: '#f59e0b' };
+    }
+    if (status === 'changes_requested') {
+      return { text: language === 'ar' ? 'مطلوب تعديلات' : 'Changes requested', color: '#f59e0b' };
+    }
+    if (status === 'rejected') {
+      return { text: language === 'ar' ? 'مرفوض' : 'Rejected', color: '#ef4444' };
+    }
+    return { text: language === 'ar' ? 'سجّل الآن' : 'Apply now', color: COLORS.textSecondary };
+  };
+
+  const RoleChip = ({ status }: { status: string | null }) => {
+    if (!isLoggedIn || !roleStatus) return null;
+    const chip = providerChip(status);
+    return (
+      <View
+        style={{
+          alignSelf: isRTL ? 'flex-end' : 'flex-start',
+          backgroundColor: chip.color + '18',
+          paddingHorizontal: 8,
+          paddingVertical: 2,
+          borderRadius: 8,
+          marginTop: 6,
+        }}
+      >
+        <Text style={{ color: chip.color, fontSize: 11.5, fontWeight: '800' }}>{chip.text}</Text>
+      </View>
+    );
+  };
 
   useEffect(() => {
     Animated.parallel([
@@ -211,6 +282,7 @@ export default function RoleSelectionScreen() {
                 <Text style={styles.roleDescription}>
                   {language === 'ar' ? 'أقدم عروض أسعار وأنفذ الإصلاحات' : 'Quote on requests & do the repairs'}
                 </Text>
+                <RoleChip status={roleStatus?.technician ?? null} />
               </View>
               <RTLMaterialIcon name="chevron-right"
                 size={28}
@@ -236,6 +308,7 @@ export default function RoleSelectionScreen() {
                 <Text style={styles.roleDescription}>
                   {language === 'ar' ? 'أوصل الأجهزة بين العملاء والفنيين' : 'Deliver devices between customers & technicians'}
                 </Text>
+                <RoleChip status={roleStatus?.courier ?? null} />
               </View>
               <RTLMaterialIcon name="chevron-right"
                 size={28}

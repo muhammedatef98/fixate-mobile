@@ -157,6 +157,22 @@ export default function SettingsScreen() {
           <RTLIonicon name="chevron-forward" size={20} color={COLORS.textSecondary} />
         </TouchableOpacity>
 
+        {/* Multi-role: the same account can also work as a technician or
+            courier — the role hub shows where they stand in each role. */}
+        <TouchableOpacity
+          style={styles.row}
+          onPress={() => router.replace('/role-selection')}
+          accessibilityRole="button"
+        >
+          <View style={styles.rowLeft}>
+            <MaterialCommunityIcons name="swap-horizontal" size={22} color={COLORS.primary} />
+            <Text style={styles.rowText}>
+              {isRTL ? 'تبديل الدور (فني / مندوب)' : 'Switch role (technician / courier)'}
+            </Text>
+          </View>
+          <RTLIonicon name="chevron-forward" size={20} color={COLORS.textSecondary} />
+        </TouchableOpacity>
+
         <Text style={styles.section}>{isRTL ? 'الحساب' : 'Account'}</Text>
 
         <TouchableOpacity

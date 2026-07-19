@@ -81,7 +81,7 @@ function timeAgo(iso: string, isRTL: boolean): string {
 export default function TechnicianNotificationsScreen() {
   const router = useRouter();
   const { language, isDark } = useApp();
-  const { user, userProfile } = useAuth();
+  const { user } = useAuth();
   const COLORS = getColors(isDark);
   const SHADOWS = getShadows(isDark);
   const isRTL = language === 'ar';
@@ -91,19 +91,10 @@ export default function TechnicianNotificationsScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  // Defensive role guard: a customer must never see technician deep-link
-  // routing (would push them to /(technician)/manage-order which the
-  // technician layout will then bounce them out of anyway — but bouncing
-  // here is faster and cleaner).
-  const role =
-    (userProfile as any)?.role ??
-    (user?.user_metadata as any)?.role ??
-    null;
-  useEffect(() => {
-    if (role && role !== 'technician') {
-      router.replace('/notifications');
-    }
-  }, [role, router]);
+  // No role guard here: this screen lives INSIDE the (technician) layout,
+  // which already gates on the technicians-table verification status. With
+  // multi-role accounts, users.role no longer says who may be here — a
+  // customer-registered account approved as a technician is fully legitimate.
 
   const load = useCallback(async () => {
     if (!user?.id) {

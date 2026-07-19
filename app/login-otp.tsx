@@ -10,7 +10,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
-  Alert,
   Animated,
   Easing,
   ScrollView,
@@ -30,7 +29,6 @@ import {
   RESEND_COOLDOWN_SECONDS,
 } from '../services/phoneOtpService';
 import { supabase } from '../services/supabaseClient';
-import { logger } from '../utils/logger';
 
 /**
  * Phone-only OTP login/registration. The same screen handles both cases —
@@ -147,37 +145,18 @@ export default function LoginOtpScreen() {
     try {
       await verifyPhoneOtp(phone, code, language);
       success();
-      // Role-gate first: a verified phone may belong to a technician
-      // account. The customer entrypoint must NOT silently route a
-      // technician into the customer app.
+      // Multi-role: one account may hold several roles, so a technician or
+      // courier signing in here simply enters the CUSTOMER flow of the same
+      // account — no wall. We still detect a missing display name to finish
+      // first-time profile setup.
       try {
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
           const { data: profile } = await supabase
             .from('users')
-            .select('name, role')
+            .select('name')
             .eq('id', user.id)
             .maybeSingle();
-          const profileRole =
-            ((profile as any)?.role as string | null) ??
-            ((user.user_metadata as any)?.role as string | null) ??
-            null;
-          if (profileRole === 'technician') {
-            try { await supabase.auth.signOut({ scope: 'local' }); } catch (e) { logger.warn('login-otp: local sign-out of technician account failed', e); }
-            Alert.alert(
-              isRTL ? 'هذا الحساب فني' : 'Technician account',
-              isRTL
-                ? 'هذا الرقم مسجّل كفني. الرجاء الدخول من بوابة الفنيين.'
-                : 'This number is registered as a technician. Please sign in from the technician portal.',
-              [
-                { text: isRTL ? 'إلغاء' : 'Cancel', style: 'cancel' },
-                { text: isRTL ? 'بوابة الفنيين' : 'Technician portal', onPress: () => router.replace('/technician-auth') },
-              ]
-            );
-            setCode('');
-            setLoading(false);
-            return;
-          }
           const existingName = ((profile as any)?.name ?? '').trim();
           if (!existingName) {
             setStep('name');
@@ -186,8 +165,7 @@ export default function LoginOtpScreen() {
           }
         }
       } catch {
-        // Profile lookup failure: fall through to customer area; the
-        // (customer) layout guard handles any role mismatch.
+        // Profile lookup failure: fall through to the customer area.
       }
       router.replace('/(customer)');
     } catch (e: any) {

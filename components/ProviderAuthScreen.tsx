@@ -102,33 +102,11 @@ export default function ProviderAuthScreen({ flow }: ProviderAuthScreenProps) {
         if (authError) throw authError;
 
         if (authData.user) {
-          // Verify role from the canonical users table.
-          const { data: profileData } = await supabase
-            .from('users')
-            .select('role')
-            .eq('id', authData.user.id)
-            .maybeSingle();
-
-          const userRole =
-            (profileData as any)?.role ||
-            authData.user.user_metadata?.role ||
-            'customer';
-
-          if (userRole !== flow) {
-            await supabase.auth.signOut();
-            Alert.alert(
-              isRTL ? 'تنبيه' : 'Access Denied',
-              isCourier
-                ? isRTL
-                  ? 'هذا الحساب غير مسجل كمندوب توصيل. سجّل حساباً جديداً كمندوب أو ادخل من البوابة الصحيحة.'
-                  : 'This account is not registered as a courier. Sign up as a courier or use the correct portal.'
-                : isRTL
-                  ? 'هذا الحساب غير مسجل كفني. يرجى الدخول من بوابة العملاء.'
-                  : 'This account is not registered as a technician. Please login from the customer portal.'
-            );
-            return;
-          }
-
+          // Multi-role: ANY existing account may enter the provider portal.
+          // The (technician)/(courier) group layout gates what happens next —
+          // no role profile means it funnels the user into onboarding, an
+          // unapproved profile shows the pending/rejected screen. So there is
+          // no role wall here anymore; one account can hold several roles.
           router.replace(portalTarget as any);
         }
       } else {
@@ -151,7 +129,20 @@ export default function ProviderAuthScreen({ flow }: ProviderAuthScreenProps) {
         router.replace(onboardingTarget as any);
       }
     } catch (e: any) {
-      setError(getFriendlyError(e, language));
+      // Existing account trying to "sign up" again: with multi-role accounts
+      // they should just SIGN IN — the same account then applies for this
+      // role via onboarding. Flip to the login tab with a clear hint.
+      const msg = String(e?.message ?? '').toLowerCase();
+      if (!isLogin && (msg.includes('already') || msg.includes('مسجّل مسبقاً'))) {
+        setIsLogin(true);
+        setError(
+          isRTL
+            ? 'عندك حساب بالفعل بهذا البريد — سجّل الدخول به وسنكمل تسجيلك في هذا الدور.'
+            : 'You already have an account with this email — sign in and we\'ll continue your registration for this role.'
+        );
+      } else {
+        setError(getFriendlyError(e, language));
+      }
     } finally {
       setLoading(false);
     }

@@ -163,9 +163,11 @@ export default function ChatScreen() {
       setCurrentUser(user);
       setOrder(orderData);
       setMessages(await resolveMessageImages(msgs));
-      const meta = (user?.user_metadata || {}) as { user_type?: string; role?: string };
-      const userRole = meta.user_type || meta.role;
-      if (userRole === 'technician') {
+      // Multi-role: which SIDE of this chat we are on comes from the ORDER
+      // itself (am I its technician?), never from account metadata — the same
+      // account can be a customer on one order and the technician on another.
+      const iAmTechnician = !!user?.id && (orderData as any)?.technician_id === user.id;
+      if (iAmTechnician) {
         // Empty when the order has no customer name — the header then shows
         // the order number alone as the chat title.
         setOtherPartyName(((orderData as any)?.customer_name ?? '').trim());
@@ -184,9 +186,9 @@ export default function ChatScreen() {
 
   const handleSend = async (textOverride?: string) => {
     // Technician side is read-only once the order reaches any terminal state
-    // (completed / rejected / cancelled).
-    const role = (currentUser?.user_metadata || {})?.user_type || (currentUser?.user_metadata || {})?.role;
-    if (role === 'technician' && TERMINAL_STATUSES.includes(order?.status)) return;
+    // (completed / rejected / cancelled). Side derived from the order row.
+    const senderIsTechnician = !!currentUser?.id && order?.technician_id === currentUser.id;
+    if (senderIsTechnician && TERMINAL_STATUSES.includes(order?.status)) return;
     const messageContent = (textOverride ?? newMessage).trim();
     if (!messageContent) return;
 
@@ -400,9 +402,9 @@ export default function ChatScreen() {
   }
 
   const initial = (otherPartyName?.[0] || '?').toUpperCase();
-  const meta = (currentUser?.user_metadata || {}) as { user_type?: string; role?: string };
-  const myRole = meta.user_type || meta.role;
-  const isTechnician = myRole === 'technician';
+  // Side derived from the order (multi-role safe): technician view only when
+  // I am THIS order's technician.
+  const isTechnician = !!currentUser?.id && order?.technician_id === currentUser.id;
   // Fix 1 — once the order is in a terminal state (completed / rejected /
   // cancelled), the technician can read the full history but can no longer
   // send. The customer side is unaffected.

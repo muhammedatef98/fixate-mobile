@@ -14,7 +14,7 @@ interface OrdersContextType {
 const OrdersContext = createContext<OrdersContextType | undefined>(undefined);
 
 export function OrdersProvider({ children }: { children: React.ReactNode }) {
-  const { user, userProfile } = useAuth();
+  const { user } = useAuth();
   const [orders, setOrders] = useState<orderService.Order[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -23,15 +23,10 @@ export function OrdersProvider({ children }: { children: React.ReactNode }) {
 
     setLoading(true);
     try {
-      let fetchedOrders: orderService.Order[] = [];
-
-      if (userProfile?.role === 'technician') {
-        // Get technician orders
-        fetchedOrders = await orderService.getTechnicianOrders(user.id);
-      } else {
-        // Get customer orders
-        fetchedOrders = await orderService.getMyOrders(user.id);
-      }
+      // This context feeds CUSTOMER-surface screens (my-orders, request).
+      // Multi-role: even an account that is also a technician sees their own
+      // customer orders here — the technician area has its own loaders.
+      const fetchedOrders = await orderService.getMyOrders(user.id);
 
       setOrders(fetchedOrders);
     } catch (error) {
@@ -58,7 +53,7 @@ export function OrdersProvider({ children }: { children: React.ReactNode }) {
     if (user) {
       refreshOrders();
     }
-  }, [user, userProfile?.role]);
+  }, [user]);
 
   return (
     <OrdersContext.Provider

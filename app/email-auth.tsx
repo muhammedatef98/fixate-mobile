@@ -10,7 +10,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
-  Alert,
   Animated,
   Easing,
   ScrollView,
@@ -30,7 +29,6 @@ import {
 } from '../services/authService';
 import { sendOtp, verifyOtp } from '../services/customOtpService';
 import { getFriendlyError } from '../utils/errorMessages';
-import { logger } from '../utils/logger';
 
 /**
  * Secondary auth path: email-based login/signup for customers only.
@@ -43,10 +41,10 @@ import { logger } from '../utils/logger';
  *   - 'code'     → Supabase-side email OTP (send-otp / verify-otp edge fns)
  *   - 'password' → email + password, with an inner sign-in vs sign-up toggle
  *
- * Role is hard-pinned to 'customer'. The signup edge function honours
- * handle_new_user's whitelist (M-3), so any client tampering still resolves
- * to 'customer'. A post-auth role check (same as login-otp) signs out and
- * redirects technicians to their portal.
+ * Signup role is pinned to 'customer' (the signup edge function honours
+ * handle_new_user's whitelist, M-3). Multi-role: any existing account —
+ * including technicians and couriers — may sign in here and use the
+ * customer flow of the same account.
  */
 
 const OTP_LENGTH = 6;
@@ -117,41 +115,10 @@ export default function EmailAuthScreen() {
     return `${m}:${String(r).padStart(2, '0')}`;
   };
 
-  // After ANY successful auth we check the resolved profile.role and bounce
-  // technicians back to their portal so they never accidentally land in the
-  // customer app from the email path.
+  // Multi-role: one account may hold several roles, so a technician or
+  // courier signing in from the email path simply enters the CUSTOMER flow of
+  // the same account — no wall. BlockedScreen still handles suspended accounts.
   const finishAndRouteCustomer = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        const { data: profile } = await supabase
-          .from('users')
-          .select('role')
-          .eq('id', user.id)
-          .maybeSingle();
-        const profileRole =
-          ((profile as any)?.role as string | null) ??
-          ((user.user_metadata as any)?.role as string | null) ??
-          null;
-        if (profileRole === 'technician') {
-          try { await supabase.auth.signOut({ scope: 'local' }); } catch (e) { logger.warn('email-auth: local sign-out of technician account failed', e); }
-          Alert.alert(
-            isRTL ? 'هذا الحساب فني' : 'Technician account',
-            isRTL
-              ? 'هذا الحساب مسجّل كفني. الرجاء الدخول من بوابة الفنيين.'
-              : 'This account is registered as a technician. Please sign in from the technician portal.',
-            [
-              { text: isRTL ? 'إلغاء' : 'Cancel', style: 'cancel' },
-              { text: isRTL ? 'بوابة الفنيين' : 'Technician portal', onPress: () => router.replace('/technician-auth') },
-            ]
-          );
-          return;
-        }
-      }
-    } catch {
-      // Profile lookup failure: fall through; the (customer) layout guard
-      // handles any role mismatch and BlockedScreen handles suspended accounts.
-    }
     success();
     router.replace('/(customer)');
   };

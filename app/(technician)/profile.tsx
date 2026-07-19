@@ -408,6 +408,19 @@ export default function TechnicianProfile() {
             ))}
           </View>
 
+          {/* Switch role — multi-role accounts can hop to the customer or
+              courier side of the same account from the role hub. */}
+          <PressableScale
+            to={0.985}
+            style={[styles.logoutButton, { marginBottom: SPACING.s }]}
+            onPress={() => router.replace('/role-selection')}
+          >
+            <MaterialCommunityIcons name="swap-horizontal" size={22} color={C.primary} />
+            <Text style={[styles.logoutText, { color: C.primary }]}>
+              {isRTL ? 'تبديل الدور' : 'Switch role'}
+            </Text>
+          </PressableScale>
+
           {/* Logout */}
           <PressableScale to={0.985} style={styles.logoutButton} onPress={handleLogout}>
             <Ionicons name="log-out-outline" size={22} color={C.error} />

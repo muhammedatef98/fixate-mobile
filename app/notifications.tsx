@@ -29,6 +29,7 @@ import {
 } from '../utils/notifications';
 import { formatAppDateOnly } from '../lib/formatDate';
 import GearLoader from '../components/GearLoader';
+import { getLastRole, type AppRole } from '../utils/rolePreference';
 
 type IconPack = 'ion' | 'mci';
 // Filled glyphs read more strongly inside the small colored badge than
@@ -87,7 +88,7 @@ function timeAgo(iso: string, isRTL: boolean): string {
 export default function NotificationsScreen() {
   const router = useRouter();
   const { language, isDark } = useApp();
-  const { user, userProfile } = useAuth();
+  const { user } = useAuth();
   const COLORS = getColors(isDark);
   const SHADOWS = getShadows(isDark);
   const isRTL = language === 'ar';
@@ -97,19 +98,21 @@ export default function NotificationsScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  // Role guard — this screen is the customer notifications surface.
-  // A technician who lands here (deep link, cached link, stale push tap)
-  // is bounced to the technician notifications screen instead of seeing
-  // customer-style deep links (e.g. /order-details vs /manage-order).
-  const role =
-    (userProfile as any)?.role ??
-    (user?.user_metadata as any)?.role ??
-    null;
+  // Flow guard — this screen is the customer notifications surface. With
+  // multi-role accounts the profile role no longer says which SIDE the user
+  // is on, so we key on the active flow (rolePreference): someone currently
+  // working in the technician flow gets bounced to the technician screen
+  // (its deep links are /manage-order, not /order-details); someone in the
+  // customer flow stays here even if their account is also a technician.
+  const [activeFlow, setActiveFlow] = useState<AppRole | null>(null);
   useEffect(() => {
-    if (role === 'technician') {
-      router.replace('/(technician)/notifications');
-    }
-  }, [role, router]);
+    getLastRole().then((flow) => {
+      setActiveFlow(flow);
+      if (flow === 'technician') {
+        router.replace('/(technician)/notifications');
+      }
+    });
+  }, [router]);
 
   const load = useCallback(async () => {
     if (!user?.id) {
@@ -164,7 +167,7 @@ export default function NotificationsScreen() {
     // Couriers share this screen (they have no separate one) but the deep-link
     // targets below are customer routes they can't open — for them, tapping
     // just marks the notification read.
-    if (role === 'courier') return;
+    if (activeFlow === 'courier') return;
     if (n.type === 'order' || n.type === 'message') {
       router.push({ pathname: '/order-details', params: { id: n.related_id } });
     } else if (n.type === 'listing' || n.type === 'comment') {

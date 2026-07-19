@@ -37,6 +37,18 @@ export const getFriendlyError = (error: unknown, language: 'ar' | 'en' = 'ar'): 
     return language === 'ar' ? 'محاولات كثيرة، يرجى المحاولة لاحقاً' : 'Too many attempts, please try again later';
   }
 
+  // Multi-role self-dealing guards (server-side RPC exceptions)
+  if (message.includes('cannot_offer_on_own_order')) {
+    return language === 'ar'
+      ? 'لا يمكنك تقديم عرض على طلبك الخاص.'
+      : "You can't offer on your own order.";
+  }
+  if (message.includes('cannot_deliver_own_order')) {
+    return language === 'ar'
+      ? 'لا يمكنك توصيل طلب أنت طرف فيه (كعميل أو فني).'
+      : "You can't deliver an order you're a party to (as customer or technician).";
+  }
+
   // Network
   if (message.includes('network') || message.includes('fetch')) {
     return language === 'ar' ? 'تعذّر الاتصال بالخادم، تحقّق من الإنترنت' : 'Network error, check your connection';
