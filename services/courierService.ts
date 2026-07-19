@@ -381,6 +381,28 @@ export const subscribeToMyDeliveryTasks = (
     )
   );
 
+/**
+ * Live updates for one ORDER's delivery tasks — lets the customer's order
+ * details screen react instantly when the courier accepts / picks up /
+ * delivers, without waiting for an orders-row change.
+ */
+export const subscribeToOrderDeliveryTasks = (
+  orderId: string,
+  onChange: () => void
+): (() => void) =>
+  subscribeUnique(`delivery-tasks-order-${orderId}`, (ch) =>
+    ch.on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'delivery_tasks',
+        filter: `order_id=eq.${orderId}`,
+      },
+      () => onChange()
+    )
+  );
+
 // ── Notifications (best-effort, never block the action) ────────────────────
 
 const DELIVERY_PUSH_AR: Partial<Record<DeliveryTaskStatus, string>> = {

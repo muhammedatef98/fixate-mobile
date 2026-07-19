@@ -16,6 +16,7 @@ import {
   AccessibilityInfo,
   KeyboardAvoidingView,
   Platform,
+  RefreshControl,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
@@ -42,6 +43,7 @@ import { resolveStorageUrls } from '../utils/resolveStorageUrls';
 import { getOrderTimeline, actorTypeLabel, type OrderTimelineEvent } from '../services/orderTimelineService';
 import {
   getDeliveryTasksForOrder,
+  subscribeToOrderDeliveryTasks,
   deliveryLegLabel,
   rateCourierTask,
   getMyCourierRatingsForOrder,
@@ -119,6 +121,7 @@ export default function OrderDetailsScreen() {
   const [ratingCourier, setRatingCourier] = useState(false);
   const [pendingOfferCount, setPendingOfferCount] = useState(0);
   const [copiedRef, setCopiedRef] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   const styles = makeStyles(isRTL);
 
@@ -279,12 +282,42 @@ export default function OrderDetailsScreen() {
     const subscription = requests.subscribeToUpdates(id as string, async (updatedOrder) => {
       setOrder(updatedOrder);
       await resolveAndSetUrls(updatedOrder);
+      // Non-status columns (rejection note, parts cost, payment fields…) can
+      // change without a status transition — the aux effects key on status,
+      // so refresh the timeline here too.
+      getOrderTimeline(id as string).then(setTimeline).catch(() => {});
+    });
+
+    // Courier progress is written to delivery_tasks (+ timeline rows via
+    // trigger) and often doesn't touch the orders row at all — listen to the
+    // tasks directly so the custody strip and timeline update live.
+    const unsubscribeTasks = subscribeToOrderDeliveryTasks(id as string, () => {
+      getDeliveryTasksForOrder(id as string).then(setDeliveryTasks).catch(() => {});
+      getOrderTimeline(id as string).then(setTimeline).catch(() => {});
     });
 
     return () => {
       subscription.unsubscribe();
+      unsubscribeTasks();
     };
   }, [id]);
+
+  // Pull-to-refresh: reload everything the realtime channels might have missed
+  // (e.g. after the app was backgrounded and the socket dropped).
+  const onRefresh = async () => {
+    if (!id) return;
+    setRefreshing(true);
+    try {
+      await Promise.all([
+        loadOrderDetails(),
+        getOrderTimeline(id as string).then(setTimeline).catch(() => {}),
+        getDeliveryTasksForOrder(id as string).then(setDeliveryTasks).catch(() => {}),
+        getMyCourierRatingsForOrder(id as string).then(setCourierRatings).catch(() => {}),
+      ]);
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   const checkUserType = async () => {
     const user = await auth.getCurrentUser();
@@ -403,6 +436,14 @@ export default function OrderDetailsScreen() {
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={COLORS.primary}
+            colors={[COLORS.primary]}
+          />
+        }
       >
         {/* Prominent status hero (FEAT-04 animated on status change) */}
         <Animated.View
