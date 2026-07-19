@@ -40,7 +40,7 @@ import { Riyal } from '../../components/Riyal';
  */
 export default function TechnicianProfile() {
   const router = useRouter();
-  const { language, isDark } = useApp();
+  const { language, isDark, toggleTheme } = useApp();
   const isRTL = language === 'ar';
   const C = getColors(isDark);
   const SHADOWS = getShadows(isDark);
@@ -354,6 +354,22 @@ export default function TechnicianProfile() {
             isRTL={isRTL}
           />
           <View style={styles.menuSection}>
+            {/* Quick dark-mode toggle — no need to dig into Settings. */}
+            <View style={styles.menuItem}>
+              <View style={styles.menuItemLeft}>
+                <View style={styles.menuIconContainer}>
+                  <Ionicons name={isDark ? 'moon' : 'sunny-outline'} size={20} color={C.text} />
+                </View>
+                <Text style={styles.menuLabel}>{isRTL ? 'الوضع الداكن' : 'Dark mode'}</Text>
+              </View>
+              <Switch
+                value={isDark}
+                onValueChange={toggleTheme}
+                trackColor={{ false: C.border, true: C.primary }}
+                thumbColor="#fff"
+                accessibilityLabel={isRTL ? 'تبديل الوضع الداكن' : 'Toggle dark mode'}
+              />
+            </View>
             {MENU_ITEMS.map((item, idx) => (
               <PressableScale
                 key={item.id}

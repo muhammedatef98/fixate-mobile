@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Alert, Switch } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -31,7 +31,7 @@ const VEHICLE_LABELS: Record<string, { ar: string; en: string; icon: string }> =
  */
 export default function CourierProfileScreen() {
   const router = useRouter();
-  const { language, isDark, setLanguage } = useApp();
+  const { language, isDark, setLanguage, toggleTheme } = useApp();
   const { user, userProfile, signOut } = useAuth();
   const COLORS = getColors(isDark);
   const SHADOWS = getShadows(isDark);
@@ -304,6 +304,27 @@ export default function CourierProfileScreen() {
 
         {/* Settings & session */}
         <View style={[styles.card, { backgroundColor: COLORS.card, borderColor: COLORS.border }, SHADOWS.small]}>
+          <Text style={[styles.sectionTitle, { color: COLORS.text, textAlign: isRTL ? 'right' : 'left' }]}>
+            {isRTL ? 'الإعدادات' : 'Settings'}
+          </Text>
+          {/* Dark mode — direct toggle, same preference the whole app uses. */}
+          <View style={[styles.actionRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+            <MaterialCommunityIcons
+              name={isDark ? 'weather-night' : 'white-balance-sunny'}
+              size={20}
+              color={COLORS.text}
+            />
+            <Text style={[styles.actionText, { color: COLORS.text, textAlign: isRTL ? 'right' : 'left' }]}>
+              {isRTL ? 'الوضع الداكن' : 'Dark mode'}
+            </Text>
+            <Switch
+              value={isDark}
+              onValueChange={toggleTheme}
+              trackColor={{ false: COLORS.border, true: COLORS.primary }}
+              thumbColor="#fff"
+              accessibilityLabel={isRTL ? 'تبديل الوضع الداكن' : 'Toggle dark mode'}
+            />
+          </View>
           <TouchableOpacity
             style={[styles.actionRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}
             onPress={() => setLanguage(isRTL ? 'en' : 'ar')}
@@ -312,6 +333,26 @@ export default function CourierProfileScreen() {
             <MaterialCommunityIcons name="translate" size={20} color={COLORS.text} />
             <Text style={[styles.actionText, { color: COLORS.text, textAlign: isRTL ? 'right' : 'left' }]}>
               {isRTL ? 'English' : 'العربية'}
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.actionRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}
+            onPress={() => router.push('/notifications-settings')}
+            accessibilityRole="button"
+          >
+            <MaterialCommunityIcons name="bell-outline" size={20} color={COLORS.text} />
+            <Text style={[styles.actionText, { color: COLORS.text, textAlign: isRTL ? 'right' : 'left' }]}>
+              {isRTL ? 'إعدادات الإشعارات' : 'Notification preferences'}
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.actionRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}
+            onPress={() => router.push('/contact')}
+            accessibilityRole="button"
+          >
+            <MaterialCommunityIcons name="lifebuoy" size={20} color={COLORS.text} />
+            <Text style={[styles.actionText, { color: COLORS.text, textAlign: isRTL ? 'right' : 'left' }]}>
+              {isRTL ? 'المساعدة والدعم' : 'Help & support'}
             </Text>
           </TouchableOpacity>
           <TouchableOpacity

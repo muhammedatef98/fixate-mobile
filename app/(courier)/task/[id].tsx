@@ -261,6 +261,59 @@ export default function CourierTaskDetailScreen() {
               ))}
             </View>
           )}
+          {/* Handshake status — each hand-over needs the counterparty's
+              confirmation; show the courier exactly what's still pending. */}
+          {['picked_up', 'delivered', 'completed'].includes(task.status) && (() => {
+            const senderLabel = isPickupLeg
+              ? isRTL ? 'العميل' : 'Customer'
+              : isRTL ? 'الفني' : 'Technician';
+            const receiverLabel = isPickupLeg
+              ? isRTL ? 'الفني' : 'Technician'
+              : isRTL ? 'العميل' : 'Customer';
+            const rows: { done: boolean; text: string }[] = [
+              {
+                done: !!task.pickup_confirmed_at,
+                text: isRTL
+                  ? `تأكيد ${senderLabel} تسليم الجهاز لك`
+                  : `${senderLabel} confirms handing you the device`,
+              },
+            ];
+            if (['delivered', 'completed'].includes(task.status)) {
+              rows.push({
+                done: !!task.delivery_confirmed_at,
+                text: isRTL
+                  ? `تأكيد ${receiverLabel} استلام الجهاز`
+                  : `${receiverLabel} confirms receiving the device`,
+              });
+            }
+            return (
+              <View style={{ marginTop: 12, gap: 6 }}>
+                {rows.map((r) => (
+                  <View
+                    key={r.text}
+                    style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 6 }}
+                  >
+                    <MaterialCommunityIcons
+                      name={r.done ? 'check-circle' : 'clock-outline'}
+                      size={16}
+                      color={r.done ? '#10B981' : COLORS.textSecondary}
+                    />
+                    <Text
+                      style={{
+                        color: r.done ? COLORS.text : COLORS.textSecondary,
+                        fontSize: 12.5,
+                        fontWeight: '700',
+                        textAlign: isRTL ? 'right' : 'left',
+                      }}
+                    >
+                      {r.text}
+                      {!r.done && (isRTL ? ' — بالانتظار' : ' — pending')}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            );
+          })()}
           {task.courier_fee != null && Number(task.courier_fee) > 0 && (
             <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 6, marginTop: 12 }}>
               <MaterialCommunityIcons name="cash" size={16} color={COLORS.primary} />
