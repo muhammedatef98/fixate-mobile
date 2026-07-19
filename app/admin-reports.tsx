@@ -124,7 +124,7 @@ interface ReportData {
 const STATUS_ORDER = [
   'pending', 'confirmed', 'accepted', 'picking_up', 'diagnosing', 'quoted',
   'awaiting_payment', 'waiting_parts', 'repairing', 'testing', 'delivering',
-  'completed', 'cancelled',
+  'completed', 'cancelled', 'rejected', 'expired',
 ];
 
 const STATUS_LABEL = (s: string, isRTL: boolean): { label: string; color: string } => {
@@ -142,6 +142,8 @@ const STATUS_LABEL = (s: string, isRTL: boolean): { label: string; color: string
     delivering:      { ar: 'جاري التوصيل',   en: 'Delivering',     color: '#06B6D4' },
     completed:       { ar: 'مكتمل',          en: 'Completed',      color: '#16A34A' },
     cancelled:       { ar: 'ملغي',           en: 'Cancelled',      color: '#DC2626' },
+    rejected:        { ar: 'مرفوض',          en: 'Rejected',       color: '#DC2626' },
+    expired:         { ar: 'انتهت المهلة',    en: 'Expired',        color: '#94A3B8' },
   };
   const m = map[s];
   return m ? { label: isRTL ? m.ar : m.en, color: m.color } : { label: s, color: '#8A94A3' };

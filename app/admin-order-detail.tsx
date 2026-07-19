@@ -25,7 +25,7 @@ import ImageViewer from '../components/ImageViewer';
 import { fmtAdminDate, fmtAdminDateTime, fmtAdminNumber } from '../utils/dateFormat';
 import { logger } from '../utils/logger';
 import { resolveStorageUrls } from '../utils/resolveStorageUrls';
-import { getOrderTimeline, actorTypeLabel, type OrderTimelineEvent } from '../services/orderTimelineService';
+import { getOrderTimeline, actorTypeLabel, timelineEventLabel, type OrderTimelineEvent } from '../services/orderTimelineService';
 import GearLoader from '../components/GearLoader';
 
 const STATUS_META = (s: string, isRTL: boolean): { label: string; color: string } => {
@@ -43,6 +43,8 @@ const STATUS_META = (s: string, isRTL: boolean): { label: string; color: string 
     delivering:      { ar: 'جاري التوصيل',   en: 'Delivering',    color: '#06B6D4' },
     completed:       { ar: 'مكتمل',          en: 'Completed',     color: '#16A34A' },
     cancelled:       { ar: 'ملغي',           en: 'Cancelled',     color: '#DC2626' },
+    rejected:        { ar: 'مرفوض',          en: 'Rejected',      color: '#DC2626' },
+    expired:         { ar: 'انتهت المهلة',    en: 'Expired',       color: '#94A3B8' },
   };
   const m = map[s];
   return m ? { label: isRTL ? m.ar : m.en, color: m.color } : { label: s, color: '#8A94A3' };
@@ -463,7 +465,9 @@ export default function AdminOrderDetailScreen() {
                     </View>
                     <View style={{ flex: 1, paddingBottom: isLast ? 0 : 14 }}>
                       <Text style={{ fontSize: 14, fontWeight: '800', color: COLORS.text, textAlign: isRTL ? 'right' : 'left' }}>
-                        {STATUS_META(ev.status, isRTL).label}
+                        {/* Courier / handoff rows carry event codes, not order
+                            statuses — the shared map localizes them too. */}
+                        {timelineEventLabel(ev.status, isRTL)?.label ?? STATUS_META(ev.status, isRTL).label}
                       </Text>
                       <Text style={{ fontSize: 11.5, fontWeight: '600', color: COLORS.textSecondary, marginTop: 3, textAlign: isRTL ? 'right' : 'left' }}>
                         {fmtAdminDateTime(ev.created_at, isRTL)} · {actorTypeLabel(ev.actor_type, isRTL)}

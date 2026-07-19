@@ -22,6 +22,7 @@ import { AdminActivityRow, AdminEmptyState } from '../components/admin/AdminUI';
 import { useIsAdmin } from '../hooks/useAdminGuard';
 import { logger } from '../utils/logger';
 import GearLoader from '../components/GearLoader';
+import { ORDER_STATUS_LABELS_AR, ORDER_STATUS_LABELS_EN } from '../types/order';
 
 type ActivityKind = 'order' | 'listing' | 'user';
 type Filter = 'all' | ActivityKind;
@@ -131,7 +132,11 @@ export default function AdminActivityScreen() {
             (o.order_number ? `#${o.order_number} · ` : '') +
             ([o.device_brand, o.device_model].filter(Boolean).join(' ') ||
               (isRTL ? 'طلب' : 'Order')),
-          meta: (isRTL ? 'الحالة: ' : 'Status: ') + o.status,
+          meta:
+            (isRTL ? 'الحالة: ' : 'Status: ') +
+            ((isRTL ? ORDER_STATUS_LABELS_AR : ORDER_STATUS_LABELS_EN)[
+              o.status as keyof typeof ORDER_STATUS_LABELS_AR
+            ] ?? o.status),
           time: fullStamp(o.created_at),
           raw: o.created_at,
           onPress: () => router.push({ pathname: '/admin-order-detail', params: { id: o.id } } as any),

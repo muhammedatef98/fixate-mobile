@@ -40,7 +40,7 @@ import { getOrderTotals, fmtSAR } from '../utils/orderMoney';
 import { estimatedRepairLabel } from '../utils/estimatedRepair';
 import { PAYMENT_MODE_LABELS } from '../utils/paymentPlan';
 import { resolveStorageUrls } from '../utils/resolveStorageUrls';
-import { getOrderTimeline, actorTypeLabel, type OrderTimelineEvent } from '../services/orderTimelineService';
+import { getOrderTimeline, actorTypeLabel, TIMELINE_EVENT_LABELS, type OrderTimelineEvent } from '../services/orderTimelineService';
 import {
   getDeliveryTasksForOrder,
   subscribeToOrderDeliveryTasks,
@@ -56,7 +56,7 @@ import { isCourierChatOpen } from '../services/courierChatService';
 import { getPendingOfferCount, subscribeToOrderOffers } from '../services/offerMarketplaceService';
 import { formatAppDate } from '../lib/formatDate';
 import GearLoader from '../components/GearLoader';
-import { getOrderStatusColor } from '../types/order';
+import { getOrderStatusColor, ORDER_STATUS_LABELS_AR, ORDER_STATUS_LABELS_EN } from '../types/order';
 
 const ORDER_TIMELINE: { status: string; arLabel: string; enLabel: string; icon: string }[] = [
   { status: 'pending', arLabel: 'بانتظار العروض', enLabel: 'Awaiting offers', icon: 'clock-outline' },
@@ -80,21 +80,8 @@ const ORDER_TIMELINE: { status: string; arLabel: string; enLabel: string; icon: 
 // burying the invoice and rating actions under the whole archive.
 const HISTORY_COLLAPSED_COUNT = 3;
 
-// §13 + courier steps — friendly labels for delivery-leg timeline events
-// written by the delivery_tasks trigger (courier_<leg>_<status>).
-const COURIER_TIMELINE_LABELS: Record<string, { ar: string; en: string; icon: string }> = {
-  courier_pickup_accepted: { ar: 'المندوب في الطريق لاستلام الجهاز منك', en: 'Courier heading to collect from you', icon: 'moped' },
-  courier_pickup_picked_up: { ar: 'تم استلام الجهاز من العميل', en: 'Device collected from customer', icon: 'package-up' },
-  courier_pickup_delivered: { ar: 'تم تسليم الجهاز للفني', en: 'Device delivered to the technician', icon: 'account-wrench' },
-  courier_return_accepted: { ar: 'المندوب في الطريق لإعادة الجهاز', en: 'Courier heading out to return your device', icon: 'moped' },
-  courier_return_picked_up: { ar: 'استلم المندوب الجهاز من الفني', en: 'Courier collected the device from the technician', icon: 'package-up' },
-  courier_return_delivered: { ar: 'تمت إعادة الجهاز إليك', en: 'Device returned to you', icon: 'check-decagram' },
-  // Handoff handshake confirmations (confirm_delivery_handoff RPC).
-  handoff_pickup_pickup_confirmed: { ar: 'أكد العميل تسليم الجهاز للمندوب', en: 'Customer confirmed handing the device to the courier', icon: 'handshake' },
-  handoff_pickup_delivery_confirmed: { ar: 'أكد الفني استلام الجهاز', en: 'Technician confirmed receiving the device', icon: 'handshake' },
-  handoff_return_pickup_confirmed: { ar: 'أكد الفني تسليم الجهاز للمندوب', en: 'Technician confirmed handing the device to the courier', icon: 'handshake' },
-  handoff_return_delivery_confirmed: { ar: 'أكد العميل استلام الجهاز — اكتمل الطلب', en: 'Customer confirmed receipt — order completed', icon: 'check-decagram' },
-};
+// §13 + courier steps — courier/handoff timeline labels come from the shared
+// TIMELINE_EVENT_LABELS in orderTimelineService (same source the admin uses).
 
 export default function OrderDetailsScreen() {
   const router = useRouter();
@@ -1346,11 +1333,17 @@ export default function OrderDetailsScreen() {
               )}
             </View>
             {visibleTimeline.map((ev, i) => {
-              const courierMeta = COURIER_TIMELINE_LABELS[ev.status];
+              const courierMeta = TIMELINE_EVENT_LABELS[ev.status];
               const meta = courierMeta
                 ? { icon: courierMeta.icon, arLabel: courierMeta.ar, enLabel: courierMeta.en }
                 : ORDER_TIMELINE.find((s) => s.status === ev.status);
-              const label = meta ? (isRTL ? meta.arLabel : meta.enLabel) : ev.status;
+              // Statuses that aren't stepper stages (expired, rejected, …)
+              // still get a proper localized label — never the raw code.
+              const label = meta
+                ? (isRTL ? meta.arLabel : meta.enLabel)
+                : (isRTL ? ORDER_STATUS_LABELS_AR : ORDER_STATUS_LABELS_EN)[
+                    ev.status as keyof typeof ORDER_STATUS_LABELS_AR
+                  ] ?? ev.status;
               const isLast = i === visibleTimeline.length - 1;
               return (
                 <View key={ev.id} style={[styles.historyRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
