@@ -77,11 +77,11 @@ const autoWidths = (rows: (string | number)[][]): { wch: number }[] => {
 /** Base64-encode a binary string. RN runtimes ship a `btoa` polyfill so
  *  this is safe in Expo without pulling in a base64 dep. */
 const toBase64 = (binary: string): string => {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const g: any = globalThis as any;
   if (typeof g.btoa === 'function') return g.btoa(binary);
   // Fallback: should never hit in Expo, but keep it safe.
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
+   
   return Buffer.from(binary, 'binary').toString('base64');
 };
 

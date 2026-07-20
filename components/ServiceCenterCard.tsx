@@ -49,7 +49,7 @@ export default function ServiceCenterCard({
 
       <View style={styles.coordRow}>
         <Ionicons name="location-outline" size={15} color={COLORS.textSecondary} />
-        <Text style={styles.coordText}>26°32'41.5"N 50°01'15.4"E</Text>
+        <Text style={styles.coordText}>{'26°32\'41.5"N 50°01\'15.4"E'}</Text>
       </View>
 
       <TouchableOpacity style={styles.cta} onPress={openMaps} activeOpacity={0.85}>

@@ -1,14 +1,4 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-
-// Lazy-require react-native-webview exactly as InvoiceViewerModal does:
-// avoids a crash on dev clients built before the native module was added.
-let WebView: any = null;
-try {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  WebView = require('react-native-webview').WebView;
-} catch {
-  WebView = null;
-}
 import {
   View,
   Text,
@@ -51,6 +41,16 @@ import {
 import { generateAndShareInvoicePdf, buildInvoiceHtml, formatInvoiceDate } from '../services/invoicePdf';
 import { getFriendlyError } from '../utils/errorMessages';
 import GearLoader from '../components/GearLoader';
+
+// Lazy-require react-native-webview exactly as InvoiceViewerModal does:
+// avoids a crash on dev clients built before the native module was added.
+let WebView: any = null;
+try {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  WebView = require('react-native-webview').WebView;
+} catch {
+  WebView = null;
+}
 
 type Tab = 'invoices' | 'settings';
 type Filter = InvoiceStatus | 'all';

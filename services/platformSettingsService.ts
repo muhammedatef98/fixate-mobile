@@ -331,7 +331,7 @@ export const upsertPlatformSetting = async (
  * admin screen can surface a single error instead of partial state.
  */
 export const upsertPlatformSettings = async (
-  entries: Array<{ key: string; value: number | string | boolean | object | any[] }>
+  entries: { key: string; value: number | string | boolean | object | any[] }[]
 ): Promise<void> => {
   if (entries.length === 0) return;
   const rows = entries.map((e) => ({

@@ -24,7 +24,7 @@ export interface LoginData {
 // Map raw Supabase auth errors to user-readable Arabic messages. Anything we
 // don't recognize falls through with its original message so real bugs stay
 // visible instead of hiding behind a generic string.
-const AUTH_ERROR_MESSAGES: Array<{ match: RegExp; message: string }> = [
+const AUTH_ERROR_MESSAGES: { match: RegExp; message: string }[] = [
   {
     match: /invalid login credentials|invalid_credentials/i,
     message: 'البريد الإلكتروني أو كلمة المرور غير صحيحة',

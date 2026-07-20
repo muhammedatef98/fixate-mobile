@@ -82,9 +82,9 @@ export function applyAppFontToText(): void {
   if (_installed) return;
   _installed = true;
   try {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
+     
     const RN = require('react-native');
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
+     
     const React = require('react');
     const { StyleSheet } = RN;
 

@@ -22,7 +22,7 @@ export function initSentry(): void {
 
   if (!dsn) {
     if (__DEV__) {
-      // eslint-disable-next-line no-console
+       
       console.warn(
         '[sentry] EXPO_PUBLIC_SENTRY_DSN is not set — Sentry is disabled. ' +
           'Set it in your env / EAS secrets to enable crash reporting.'
@@ -51,7 +51,7 @@ export function initSentry(): void {
  */
 export function reportError(error: unknown, context?: Record<string, unknown>): void {
   if (__DEV__) {
-    // eslint-disable-next-line no-console
+     
     console.error('[reportError]', error, context);
   }
 

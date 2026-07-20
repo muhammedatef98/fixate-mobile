@@ -22,7 +22,7 @@
 
 export const DELIVERY_FEE_MAX_SAR = 40;
 
-export const DELIVERY_FEE_TIERS: ReadonlyArray<{ maxKm: number; fee: number }> = [
+export const DELIVERY_FEE_TIERS: readonly { maxKm: number; fee: number }[] = [
   { maxKm: 5,  fee: 10 },
   { maxKm: 15, fee: 20 },
   { maxKm: 30, fee: 30 },

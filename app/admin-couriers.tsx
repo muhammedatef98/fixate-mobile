@@ -289,6 +289,19 @@ export default function AdminCouriersScreen() {
     }
   };
 
+  /** Live task counts per courier, derived from the tasks already loaded. */
+  const taskStats = useMemo(() => {
+    const m = new Map<string, { active: number; completed: number }>();
+    for (const t of tasks) {
+      if (!t.courier_id) continue;
+      const s = m.get(t.courier_id) ?? { active: 0, completed: 0 };
+      if (t.status === 'completed') s.completed += 1;
+      else if (t.status !== 'cancelled') s.active += 1;
+      m.set(t.courier_id, s);
+    }
+    return m;
+  }, [tasks]);
+
   if (checking || !isAdmin) {
     return (
       <View style={[styles.center, { backgroundColor: COLORS.background }]}>
@@ -307,19 +320,6 @@ export default function AdminCouriersScreen() {
   const roster = couriers.filter((c) => c.verification_status === 'approved');
   const activeTasks = tasks.filter((t) => !['completed', 'cancelled'].includes(t.status));
   const doneTasks = tasks.filter((t) => ['completed', 'cancelled'].includes(t.status));
-
-  /** Live task counts per courier, derived from the tasks already loaded. */
-  const taskStats = useMemo(() => {
-    const m = new Map<string, { active: number; completed: number }>();
-    for (const t of tasks) {
-      if (!t.courier_id) continue;
-      const s = m.get(t.courier_id) ?? { active: 0, completed: 0 };
-      if (t.status === 'completed') s.completed += 1;
-      else if (t.status !== 'cancelled') s.active += 1;
-      m.set(t.courier_id, s);
-    }
-    return m;
-  }, [tasks]);
 
   const renderCourier = (c: AdminCourierRow) => {
     const v = VERIFICATION_LABELS[c.verification_status] ?? VERIFICATION_LABELS.pending;

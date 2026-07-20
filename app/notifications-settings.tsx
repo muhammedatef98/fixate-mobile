@@ -22,7 +22,7 @@ import GearLoader from '../components/GearLoader';
 
 type Prefs = preferencesService.NotificationPreferences;
 
-const ROWS: Array<{ key: keyof Prefs; ar: string; en: string; descAr: string; descEn: string }> = [
+const ROWS: { key: keyof Prefs; ar: string; en: string; descAr: string; descEn: string }[] = [
   { key: 'push_enabled', ar: 'إشعارات الهاتف', en: 'Push notifications', descAr: 'تلقي إشعارات داخل التطبيق', descEn: 'Receive in-app push alerts' },
   { key: 'email_enabled', ar: 'البريد الإلكتروني', en: 'Email', descAr: 'الفواتير وملخصات الطلبات', descEn: 'Receipts and order summaries' },
   { key: 'sms_enabled', ar: 'الرسائل النصية', en: 'SMS', descAr: 'تأكيدات الطلب وتحديثات الفني', descEn: 'Order confirmations and technician updates' },

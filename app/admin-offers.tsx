@@ -15,10 +15,9 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
-} from 'react-native';
+ Image } from 'react-native';
 import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import { Image } from 'react-native';
 import { useApp } from '../contexts/AppContext';
 import { useIsAdmin } from '../hooks/useAdminGuard';
 import { getColors, SPACING, BORDER_RADIUS } from '../constants/theme';

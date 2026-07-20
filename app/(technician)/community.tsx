@@ -28,9 +28,6 @@ import { logger } from '../../utils/logger';
 import { buildCommentTree, type CommentSort } from '../../utils/buildCommentTree';
 import { getUnreadCount } from '../../utils/notifications';
 import { TECH_NAV_HEIGHT } from '../../components/BottomNavTech';
-
-// Feed ordering for the post list.
-type FeedSort = 'latest' | 'top';
 import {
   listPosts,
   createPost,
@@ -49,6 +46,9 @@ import {
   type CommunityComment,
   type CommunityCommentNode,
 } from '../../services/communityService';
+
+// Feed ordering for the post list.
+type FeedSort = 'latest' | 'top';
 
 // Tag filter chips shown above the feed ("الكل" + the four post tags).
 const TAG_FILTERS: (CommunityTag | 'all')[] = ['all', ...COMMUNITY_TAGS];

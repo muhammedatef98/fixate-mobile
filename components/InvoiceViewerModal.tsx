@@ -8,20 +8,6 @@ import {
   ActivityIndicator,
   Platform,
 } from 'react-native';
-// react-native-webview ships a native module (RNCWebViewModule). On a dev
-// client or a binary built before this dependency was added, importing it
-// throws at module-eval ("RNCWebViewModule could not be found"), which would
-// crash EVERY screen that renders an invoice button (orders, my-orders,
-// order-details). Require it lazily + defensively — exactly like OsmMap — so
-// the viewer degrades to summary + Download/Share instead of taking the screen
-// down. A native rebuild restores the inline preview.
-let WebView: any = null;
-try {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  WebView = require('react-native-webview').WebView;
-} catch {
-  WebView = null;
-}
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { SPACING, BORDER_RADIUS } from '../constants/theme';
 import {
@@ -38,6 +24,20 @@ import {
 import { getFriendlyError } from '../utils/errorMessages';
 import { Riyal, SAR_TEXT } from './Riyal';
 import GearLoader from './GearLoader';
+// react-native-webview ships a native module (RNCWebViewModule). On a dev
+// client or a binary built before this dependency was added, importing it
+// throws at module-eval ("RNCWebViewModule could not be found"), which would
+// crash EVERY screen that renders an invoice button (orders, my-orders,
+// order-details). Require it lazily + defensively — exactly like OsmMap — so
+// the viewer degrades to summary + Download/Share instead of taking the screen
+// down. A native rebuild restores the inline preview.
+let WebView: any = null;
+try {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  WebView = require('react-native-webview').WebView;
+} catch {
+  WebView = null;
+}
 
 interface Props {
   orderId: string;

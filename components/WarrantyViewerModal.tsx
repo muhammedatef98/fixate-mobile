@@ -8,18 +8,6 @@ import {
   ActivityIndicator,
   Platform,
 } from 'react-native';
-// react-native-webview ships a native module. On a dev client or a binary built
-// before the dependency existed, importing it throws at module-eval, which would
-// crash every screen that mounts this viewer. Require it lazily + defensively —
-// same guard as InvoiceViewerModal — so the viewer degrades to summary +
-// Download/Share instead of taking the screen down.
-let WebView: any = null;
-try {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  WebView = require('react-native-webview').WebView;
-} catch {
-  WebView = null;
-}
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { SPACING, BORDER_RADIUS } from '../constants/theme';
 import { getInvoiceSettings, type InvoiceSettings } from '../services/invoiceService';
@@ -33,6 +21,18 @@ import {
 import { deriveWarranty, deviceLabel } from '../utils/warranty';
 import { getFriendlyError } from '../utils/errorMessages';
 import GearLoader from './GearLoader';
+// react-native-webview ships a native module. On a dev client or a binary built
+// before the dependency existed, importing it throws at module-eval, which would
+// crash every screen that mounts this viewer. Require it lazily + defensively —
+// same guard as InvoiceViewerModal — so the viewer degrades to summary +
+// Download/Share instead of taking the screen down.
+let WebView: any = null;
+try {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  WebView = require('react-native-webview').WebView;
+} catch {
+  WebView = null;
+}
 
 interface Props {
   order: WarrantyCertificateOrder;

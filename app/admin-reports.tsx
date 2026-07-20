@@ -16,19 +16,6 @@ import {
   Platform,
   UIManager,
 } from 'react-native';
-
-if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
-  UIManager.setLayoutAnimationEnabledExperimental(true);
-}
-
-// Quick, soft expand/collapse for accordions and section toggles. Spring-y
-// enough to feel alive but capped at ~180ms so it never blocks the next tap.
-const SOFT_LAYOUT = {
-  duration: 180,
-  create:  { type: 'easeInEaseOut' as const, property: 'opacity' as const },
-  update:  { type: 'spring' as const, springDamping: 0.85 },
-  delete:  { type: 'easeInEaseOut' as const, property: 'opacity' as const },
-};
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
@@ -48,6 +35,19 @@ import { AnimatedBackButton } from '../components/AnimatedBackButton';
 import { AdminFilterChips, type AdminFilterChip } from '../components/admin/AdminUI';
 import { supabase } from '../services/supabaseClient';
 import GearLoader from '../components/GearLoader';
+
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
+
+// Quick, soft expand/collapse for accordions and section toggles. Spring-y
+// enough to feel alive but capped at ~180ms so it never blocks the next tap.
+const SOFT_LAYOUT = {
+  duration: 180,
+  create:  { type: 'easeInEaseOut' as const, property: 'opacity' as const },
+  update:  { type: 'spring' as const, springDamping: 0.85 },
+  delete:  { type: 'easeInEaseOut' as const, property: 'opacity' as const },
+};
 
 // Selectable reporting windows. Time-bound metrics (orders, revenue,
 // discounts) respect this; cumulative snapshots (users, technicians) do not.

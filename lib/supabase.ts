@@ -1,8 +1,8 @@
 import 'react-native-url-polyfill/auto';
+import { supabase } from '../services/supabaseClient';
 // Single shared Supabase client — re-export so existing imports keep working
 // while only one auth listener / one in-memory session exists app-wide.
 export { supabase } from '../services/supabaseClient';
-import { supabase } from '../services/supabaseClient';
 
 // Database Types
 export interface User {

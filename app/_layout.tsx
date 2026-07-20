@@ -1,4 +1,4 @@
-import { Stack } from 'expo-router';
+import { Stack , useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState, type ReactNode } from 'react';
 import { View, Platform, AppState } from 'react-native';
@@ -17,7 +17,6 @@ import { canAccessAdmin } from '../constants/admin';
 import { decideAuthFlowTarget } from '../utils/routeDecision';
 import { OrdersProvider } from '../contexts/OrdersContext';
 import { LoyaltyProvider } from '../contexts/LoyaltyContext';
-import { useRouter, useSegments } from 'expo-router';
 import { supabase } from '../lib/supabase';
 import ErrorBoundary from '../components/ErrorBoundary';
 import OfflineBanner from '../components/OfflineBanner';

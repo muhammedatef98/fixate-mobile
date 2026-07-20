@@ -3,6 +3,8 @@ import { logger } from '../utils/logger';
 import { subscribeUnique } from '../utils/realtimeChannel';
 import { notifyUsers, notifyAudience } from '../services/notifyService';
 
+import type { OrderStatus } from '../types/order';
+
 // Arabic labels for the push body when an order status changes (FEAT-01).
 const STATUS_LABEL_AR: Record<string, string> = {
   accepted: 'تم قبول طلبك',
@@ -43,8 +45,6 @@ export interface User {
     user_type?: 'customer' | 'technician';
   };
 }
-
-import type { OrderStatus } from '../types/order';
 export type { OrderStatus } from '../types/order';
 
 export interface Order {
