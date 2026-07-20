@@ -15,7 +15,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { MaterialIcons } from '@expo/vector-icons';
+import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { getColors, getShadows, SPACING, BORDER_RADIUS } from '../constants/theme';
 import { useApp } from '../contexts/AppContext';
 import { translations } from '../constants/translations';
@@ -23,6 +23,7 @@ import { auth } from '../lib/supabase';
 import { RTLMaterialIcon } from '../components/RTLIcon';
 import { getFriendlyError } from '../utils/errorMessages';
 import { signInWithGoogle, isGoogleSignInAvailable } from '../services/googleAuthService';
+import { signInWithApple, isAppleSignInAvailable } from '../services/appleAuthService';
 
 export default function AuthScreen() {
   const router = useRouter();
@@ -44,6 +45,7 @@ export default function AuthScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [appleLoading, setAppleLoading] = useState(false);
 
   const handleAuth = async () => {
     if (!email || !password || (!isLogin && !name)) {
@@ -100,6 +102,23 @@ export default function AuthScreen() {
       );
     } finally {
       setGoogleLoading(false);
+    }
+  };
+
+  const handleAppleSignIn = async () => {
+    setAppleLoading(true);
+    try {
+      await signInWithApple();
+      // AuthContext picks up the new session; _layout.tsx routes automatically.
+    } catch (error: any) {
+      Alert.alert(
+        language === 'ar' ? 'خطأ' : 'Error',
+        language === 'ar'
+          ? 'فشل تسجيل الدخول بـ Apple. حاول مرة أخرى.'
+          : 'Apple sign-in failed. Please try again.'
+      );
+    } finally {
+      setAppleLoading(false);
     }
   };
 
@@ -273,7 +292,7 @@ export default function AuthScreen() {
                 in this binary (a dev client / store build compiled with
                 @react-native-google-signin). Hidden in Expo Go or older builds
                 so users never tap a button that can't work. */}
-            {isGoogleSignInAvailable() && (
+            {(isGoogleSignInAvailable() || isAppleSignInAvailable()) && (
               <>
                 {/* Divider */}
                 <View style={styles.dividerRow}>
@@ -283,7 +302,33 @@ export default function AuthScreen() {
                   </Text>
                   <View style={styles.dividerLine} />
                 </View>
+              </>
+            )}
 
+            {/* Apple Sign-In — iOS builds that include the native module only.
+                Shown above Google per Apple HIG prominence guidance. */}
+            {isAppleSignInAvailable() && (
+              <TouchableOpacity
+                style={[styles.appleButton, SHADOWS.neuFlat]}
+                onPress={handleAppleSignIn}
+                disabled={appleLoading}
+                accessibilityLabel={language === 'ar' ? 'تسجيل الدخول بـ Apple' : 'Sign in with Apple'}
+              >
+                {appleLoading ? (
+                  <ActivityIndicator color="#FFF" />
+                ) : (
+                  <>
+                    <Ionicons name="logo-apple" size={22} color="#FFF" />
+                    <Text style={styles.appleButtonText}>
+                      {language === 'ar' ? 'المتابعة بـ Apple' : 'Continue with Apple'}
+                    </Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            )}
+
+            {isGoogleSignInAvailable() && (
+              <>
                 {/* Google Sign-In Button */}
                 <TouchableOpacity
                   style={[styles.googleButton, SHADOWS.neuFlat]}
@@ -436,6 +481,21 @@ const createStyles = (COLORS: any, SHADOWS: any, isRTL: boolean) => StyleSheet.c
     fontSize: 13,
     color: COLORS.textSecondary,
     fontWeight: '500',
+  },
+  appleButton: {
+    flexDirection: isRTL ? 'row-reverse' : 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#000',
+    borderRadius: BORDER_RADIUS.md,
+    height: 50,
+    gap: SPACING.sm,
+    marginBottom: SPACING.sm,
+  },
+  appleButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#FFF',
   },
   googleButton: {
     flexDirection: isRTL ? 'row-reverse' : 'row',

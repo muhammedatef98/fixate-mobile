@@ -19,6 +19,7 @@ import { execSync } from 'child_process';
 const NATIVE_ONLY_MODULES = [
   'react-native-webview',
   '@react-native-firebase/messaging',
+  'expo-apple-authentication',
 ];
 
 const grepStaticImport = (mod: string): string[] => {

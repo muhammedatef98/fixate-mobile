@@ -23,6 +23,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.fixate.app",
+      "usesAppleSignIn": true,
       "infoPlist": {
         "UIViewControllerBasedStatusBarAppearance": false,
         "UIStatusBarHidden": true,
@@ -149,6 +150,7 @@
       "./plugins/withAndroidIconBackgroundColor.js",
       "./plugins/withGradleMemory.js",
       "./plugins/withSentryUploadSkipWhenNoToken.js",
+      "expo-apple-authentication",
       [
         "@howincodes/expo-dynamic-app-icon",
         {
