@@ -7,6 +7,7 @@ import {
   normalizeSaudiPhone,
   validatePhone,
 } from '../utils/validation';
+import { pwnedCount } from '../utils/pwnedPassword';
 
 export interface SignUpData {
   email: string;
@@ -86,8 +87,14 @@ export interface UserProfile {
   created_at?: string;
 }
 
+const LEAKED_PASSWORD_MESSAGE =
+  'كلمة المرور هذه ظهرت في تسريبات بيانات معروفة — الرجاء اختيار كلمة مرور أخرى';
+
 export const signUpWithPhoneOrEmail = async (data: SignUpData) => {
   assertValidSignUp(data);
+  if ((await pwnedCount(data.password)) > 0) {
+    throw new Error(LEAKED_PASSWORD_MESSAGE);
+  }
   const normalizedPhone = data.phone ? normalizeSaudiPhone(data.phone) : undefined;
   const email = data.email.trim().toLowerCase();
   const name = data.name.trim();
@@ -195,6 +202,9 @@ export const updatePassword = async (newPassword: string) => {
   const passCheck = validatePassword(newPassword);
   if (!passCheck.isValid) {
     throw new Error(passCheck.errors[0] || 'كلمة المرور ضعيفة');
+  }
+  if ((await pwnedCount(newPassword)) > 0) {
+    throw new Error(LEAKED_PASSWORD_MESSAGE);
   }
   try {
     const { error } = await supabase.auth.updateUser({ password: newPassword });
