@@ -87,8 +87,10 @@ export interface UserProfile {
   created_at?: string;
 }
 
+// Deliberately worded as "weak password" — the real reason (found in breach
+// data) scares customers, and "weak, pick a stronger one" drives the same fix.
 const LEAKED_PASSWORD_MESSAGE =
-  'كلمة المرور هذه ظهرت في تسريبات بيانات معروفة — الرجاء اختيار كلمة مرور أخرى';
+  'كلمة المرور ضعيفة وسهلة التخمين — الرجاء اختيار كلمة مرور أقوى';
 
 export const signUpWithPhoneOrEmail = async (data: SignUpData) => {
   assertValidSignUp(data);
