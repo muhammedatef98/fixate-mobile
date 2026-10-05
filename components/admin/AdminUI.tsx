@@ -1,5 +1,7 @@
 import React from 'react';
 import {
+  ScrollView,
+  TextInput,
   View,
   Text,
   TouchableOpacity,
@@ -8,7 +10,10 @@ import {
   Platform,
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { BORDER_RADIUS, SPACING } from '../../constants/theme';
+import { BORDER_RADIUS, SPACING, getColors } from '../../constants/theme';
+import { useApp } from '../../contexts/AppContext';
+import { RTLIonicon } from '../RTLIcon';
+import { safeBack } from '../../utils/navigation';
 
 // ─── Shadow token ─────────────────────────────────────────────────────────────
 export const ADMIN_CARD_SHADOW = Platform.select({
@@ -314,9 +319,12 @@ interface AdminEmptyStateProps {
   body?: string;
   ctaLabel?: string;
   onCta?: () => void;
+  /** Alias of `onCta`. */
+  onCtaPress?: () => void;
   COLORS?: any;
 }
-export function AdminEmptyState({ variant = 'default', icon, title, body, ctaLabel, onCta, COLORS }: AdminEmptyStateProps) {
+export function AdminEmptyState({ variant = 'default', icon, title, body, ctaLabel, onCta: onCtaProp, onCtaPress, COLORS }: AdminEmptyStateProps) {
+  const onCta = onCtaProp ?? onCtaPress;
   const c = COLORS ?? {};
   const color = variant === 'error' ? '#ef4444' : (c.primary ?? '#6366f1');
   return (
@@ -341,4 +349,205 @@ const es = StyleSheet.create({
   body: { fontSize: 14, textAlign: 'center', lineHeight: 20 },
   cta: { borderRadius: BORDER_RADIUS.md, paddingHorizontal: 24, paddingVertical: 12, marginTop: 4 },
   ctaText: { color: '#fff', fontWeight: '800', fontSize: 15 },
+});
+
+// ─── Shared hook ──────────────────────────────────────────────────────────────
+function useAdminTheme() {
+  const { language, isDark } = useApp();
+  return { isRTL: language === 'ar', c: getColors(isDark) };
+}
+
+// ─── AdminScreenHeader ────────────────────────────────────────────────────────
+interface AdminScreenHeaderProps {
+  title: string;
+  subtitle?: string;
+  rightIcon?: string;
+  onRightPress?: () => void;
+  rightLabel?: string;
+  onBack?: () => void;
+}
+export function AdminScreenHeader({ title, subtitle, rightIcon, onRightPress, rightLabel, onBack }: AdminScreenHeaderProps) {
+  const { isRTL, c } = useAdminTheme();
+  return (
+    <View style={[sh.wrap, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+      <TouchableOpacity
+        onPress={onBack ?? (() => safeBack('/admin'))}
+        accessibilityRole="button"
+        accessibilityLabel={isRTL ? 'رجوع' : 'Back'}
+        hitSlop={8}
+      >
+        <RTLIonicon name="chevron-back" size={24} color={c.text} />
+      </TouchableOpacity>
+      <View style={{ flex: 1 }}>
+        <Text style={[sh.title, { color: c.text, textAlign: isRTL ? 'right' : 'left' }]} numberOfLines={1}>{title}</Text>
+        {subtitle ? (
+          <Text style={[sh.sub, { color: c.textSecondary, textAlign: isRTL ? 'right' : 'left' }]} numberOfLines={1}>{subtitle}</Text>
+        ) : null}
+      </View>
+      {rightIcon && onRightPress ? (
+        <TouchableOpacity onPress={onRightPress} accessibilityRole="button" accessibilityLabel={rightLabel} hitSlop={8}>
+          <MaterialCommunityIcons name={rightIcon as any} size={22} color={c.primary} />
+        </TouchableOpacity>
+      ) : (
+        <View style={{ width: 24 }} />
+      )}
+    </View>
+  );
+}
+const sh = StyleSheet.create({
+  wrap: { alignItems: 'center', gap: 12, paddingHorizontal: SPACING.lg, paddingVertical: 14 },
+  title: { fontSize: 20, fontWeight: '800' },
+  sub: { fontSize: 12, fontWeight: '600', marginTop: 2 },
+});
+
+// ─── AdminSearchBar ───────────────────────────────────────────────────────────
+interface AdminSearchBarProps {
+  value: string;
+  onChangeText: (t: string) => void;
+  placeholder?: string;
+  resultCount?: number;
+}
+export function AdminSearchBar({ value, onChangeText, placeholder, resultCount }: AdminSearchBarProps) {
+  const { isRTL, c } = useAdminTheme();
+  return (
+    <View
+      style={[
+        sb.wrap,
+        { flexDirection: isRTL ? 'row-reverse' : 'row', backgroundColor: c.card, borderColor: c.border },
+      ]}
+    >
+      <Ionicons name="search" size={18} color={c.textLight} />
+      <TextInput
+        value={value}
+        onChangeText={onChangeText}
+        placeholder={placeholder}
+        placeholderTextColor={c.textLight}
+        style={[sb.input, { color: c.text, textAlign: isRTL ? 'right' : 'left' }]}
+        autoCapitalize="none"
+        autoCorrect={false}
+        returnKeyType="search"
+      />
+      {resultCount !== undefined ? (
+        <Text style={[sb.count, { color: c.textSecondary }]}>{resultCount}</Text>
+      ) : null}
+      {value ? (
+        <TouchableOpacity onPress={() => onChangeText('')} accessibilityRole="button" hitSlop={8}>
+          <Ionicons name="close-circle" size={18} color={c.textLight} />
+        </TouchableOpacity>
+      ) : null}
+    </View>
+  );
+}
+const sb = StyleSheet.create({
+  wrap: {
+    alignItems: 'center',
+    gap: 8,
+    marginHorizontal: SPACING.lg,
+    marginBottom: SPACING.sm,
+    paddingHorizontal: 12,
+    height: 44,
+    borderRadius: BORDER_RADIUS.md,
+    borderWidth: 1,
+  },
+  input: { flex: 1, fontSize: 13 },
+  count: { fontSize: 12, fontWeight: '700' },
+});
+
+// ─── AdminFilterChips ─────────────────────────────────────────────────────────
+export interface AdminFilterChip<K extends string = string> {
+  key: K;
+  ar: string;
+  en: string;
+  count?: number;
+}
+interface AdminFilterChipsProps<K extends string> {
+  filters: AdminFilterChip<K>[];
+  value: K;
+  onChange: (key: K) => void;
+}
+export function AdminFilterChips<K extends string>({ filters, value, onChange }: AdminFilterChipsProps<K>) {
+  const { isRTL, c } = useAdminTheme();
+  return (
+    <View style={{ height: 52 }}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={[fc.row, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}
+      >
+        {filters.map((f) => {
+          const active = f.key === value;
+          return (
+            <TouchableOpacity
+              key={f.key}
+              onPress={() => onChange(f.key)}
+              accessibilityRole="button"
+              accessibilityState={{ selected: active }}
+              style={[
+                fc.chip,
+                { backgroundColor: active ? c.primary : c.card, borderColor: active ? c.primary : c.border },
+              ]}
+            >
+              <Text style={[fc.text, { color: active ? '#fff' : c.text }]}>
+                {isRTL ? f.ar : f.en}
+                {f.count !== undefined ? `  ${f.count}` : ''}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </ScrollView>
+    </View>
+  );
+}
+const fc = StyleSheet.create({
+  row: { paddingHorizontal: SPACING.lg, gap: 8, alignItems: 'center' },
+  chip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999, borderWidth: 1 },
+  text: { fontWeight: '700', fontSize: 13 },
+});
+
+// ─── AdminStatusPill + orderStatusTone ────────────────────────────────────────
+export type AdminTone = 'success' | 'warning' | 'danger' | 'info' | 'neutral';
+
+const TONE_COLORS: Record<AdminTone, string> = {
+  success: '#16A34A',
+  warning: '#F59E0B',
+  danger: '#DC2626',
+  info: '#6366F1',
+  neutral: '#8A94A3',
+};
+
+export function orderStatusTone(status: string): { tone: AdminTone; icon: string } {
+  switch (status) {
+    case 'completed': return { tone: 'success', icon: 'check-circle-outline' };
+    case 'cancelled': return { tone: 'danger', icon: 'close-circle-outline' };
+    case 'pending':   return { tone: 'warning', icon: 'clock-outline' };
+    case 'delivering':
+    case 'confirmed':
+    case 'accepted':
+    case 'picking_up':
+    case 'diagnosing':
+    case 'quoted':
+    case 'waiting_parts':
+    case 'repairing':
+    case 'testing':   return { tone: 'info', icon: 'progress-wrench' };
+    default:          return { tone: 'neutral', icon: 'help-circle-outline' };
+  }
+}
+
+interface AdminStatusPillProps {
+  label: string;
+  tone?: AdminTone;
+  icon?: string;
+}
+export function AdminStatusPill({ label, tone = 'neutral', icon }: AdminStatusPillProps) {
+  const color = TONE_COLORS[tone];
+  return (
+    <View style={[sp.pill, { backgroundColor: color + '18' }]}>
+      {icon ? <MaterialCommunityIcons name={icon as any} size={12} color={color} /> : null}
+      <Text style={[sp.text, { color }]}>{label}</Text>
+    </View>
+  );
+}
+const sp = StyleSheet.create({
+  pill: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999 },
+  text: { fontSize: 11, fontWeight: '800' },
 });
