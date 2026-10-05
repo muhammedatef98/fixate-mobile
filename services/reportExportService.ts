@@ -81,8 +81,7 @@ const toBase64 = (binary: string): string => {
   const g: any = globalThis as any;
   if (typeof g.btoa === 'function') return g.btoa(binary);
   // Fallback: should never hit in Expo, but keep it safe.
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  return Buffer.from(binary, 'binary').toString('base64');
+  return g.Buffer.from(binary, 'binary').toString('base64');
 };
 
 export const exportReportXlsx = async (payload: ExportPayload): Promise<void> => {
