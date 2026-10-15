@@ -284,8 +284,8 @@ const FAQS: Faq[] = [
     cat: 'orders',
     q_ar: 'ما هو الضمان؟',
     q_en: 'What warranty do I get?',
-    a_ar: 'كل إصلاح يشمل ضمان سنة كاملة (12 شهراً) على العمل والقطع المستبدلة.',
-    a_en: 'Every repair includes a full 1-year (12-month) warranty covering the work and any replaced parts.',
+    a_ar: 'مدة الضمان حسب نوع الإصلاح وتشمل العمل والقطعة: 6 أشهر للشاشة والبطارية، 3 أشهر لباقي الإصلاحات (منفذ الشحن، الكاميرا، السماعة…)، شهر واحد لأضرار السوائل والبرمجيات، و12 شهراً عند اختيار قطع أصلية. تجد مدة ضمان إصلاحك وتاريخ انتهائه في شاشة «ضمان الإصلاح».',
+    a_en: 'The warranty depends on the repair and covers the work and the part: 6 months for screens and batteries, 3 months for other repairs (charging port, camera, speaker…), 1 month for liquid damage and software, and 12 months when you choose original parts. Your repair\'s warranty and its end date are shown on the "Repair warranty" screen.',
     keywords: ['warranty', 'guarantee', 'ضمان', 'كفالة'],
   },
   {
@@ -338,8 +338,8 @@ const FAQS: Faq[] = [
     cat: 'payments',
     q_ar: 'ما هي سياسة الاسترداد؟',
     q_en: 'What is the refund policy?',
-    a_ar: 'إذا دفعت مقابل إصلاح ولم يتم تنفيذه، أو ظهر خلل في الإصلاح ضمن فترة الضمان (سنة كاملة)، تواصل مع الدعم لمراجعة حالتك واسترداد المبلغ أو إعادة الإصلاح مجاناً حسب الحالة. الفحص دائماً مجاني فلا استرداد عليه.',
-    a_en: 'If you paid for a repair that was not performed, or a fault appears within the warranty period (a full year), contact support to review your case for a refund or a free re-repair as appropriate. Inspection is always free, so there is nothing to refund there.',
+    a_ar: 'إذا دفعت مقابل إصلاح ولم يتم تنفيذه، أو ظهر خلل في الإصلاح ضمن فترة الضمان، تواصل مع الدعم لمراجعة حالتك واسترداد المبلغ أو إعادة الإصلاح مجاناً حسب الحالة. الفحص دائماً مجاني فلا استرداد عليه.',
+    a_en: 'If you paid for a repair that was not performed, or a fault appears within the warranty period, contact support to review your case for a refund or a free re-repair as appropriate. Inspection is always free, so there is nothing to refund there.',
     keywords: ['refund', 'money back', 'return money', 'استرداد', 'استرجاع', 'فلوسي', 'إرجاع المبلغ'],
   },
   {
