@@ -1,4 +1,4 @@
-import { isRunningInExpoGo } from 'expo';
+import { isRunningInExpoGo, requireOptionalNativeModule } from 'expo';
 import { NativeModules, TurboModuleRegistry } from 'react-native';
 
 /**
@@ -21,7 +21,11 @@ export function isExpoGo(): boolean {
   }
 }
 
-/** Whether a React Native (classic or Turbo) native module is linked into this binary. */
+/**
+ * Whether a React Native (classic or Turbo) native module is linked into this
+ * binary. React Native Firebase looks its modules up via `NativeModules[name]`,
+ * so this is true whenever Firebase itself would find the module.
+ */
 export function hasNativeModule(name: string): boolean {
   if (isExpoGo()) return false;
   try {
@@ -31,8 +35,16 @@ export function hasNativeModule(name: string): boolean {
   }
 }
 
-/** Whether an Expo native module is linked into this binary. */
+/**
+ * Whether an Expo native module is linked into this binary. Uses the same
+ * lookup Expo modules use for themselves (`requireNativeModule`), so this is
+ * true exactly when the module's own import would succeed.
+ */
 export function hasExpoNativeModule(name: string): boolean {
   if (isExpoGo()) return false;
-  return (globalThis as any).expo?.modules?.[name] != null;
+  try {
+    return requireOptionalNativeModule(name) != null;
+  } catch {
+    return false;
+  }
 }
