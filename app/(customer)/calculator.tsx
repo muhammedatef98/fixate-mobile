@@ -263,8 +263,8 @@ export default function PriceCalculatorScreen() {
             </View>
             <Text style={styles.breakdownNote}>
               {isRTL
-                ? 'السعر النهائي يتحدّد بعد فحص الجهاز ويشمل ضماناً لمدة سنة كاملة'
-                : 'Final price is set after diagnosis and includes a 1-year warranty'}
+                ? 'السعر النهائي يتحدّد بعد فحص الجهاز ويشمل ضماناً يصل إلى 12 شهراً'
+                : 'Final price is set after diagnosis and includes a warranty of up to 12 months'}
             </Text>
           </View>
         )}

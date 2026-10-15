@@ -8,6 +8,7 @@ import { useApp } from '../contexts/AppContext';
 import { RTLMaterialIcon } from '../components/RTLIcon';
 import { safeBack } from '../utils/navigation';
 import PolicyDocument from '../components/PolicyDocument';
+import IntlogyCredit from '../components/IntlogyCredit';
 
 export default function PrivacyScreen() {
   const router = useRouter();
@@ -19,11 +20,13 @@ export default function PrivacyScreen() {
   const privacyAr = `
 # سياسة الخصوصية
 
-**آخر تحديث: ديسمبر 2025**
+**آخر تحديث: أكتوبر 2026**
 
 ## 1. المقدمة
 
 نحن في Fixate نلتزم بحماية خصوصيتك. توضح هذه السياسة كيفية جمع واستخدام وحماية معلوماتك الشخصية وفقاً لنظام حماية البيانات الشخصية في المملكة العربية السعودية.
+
+تطبيق Fixate من تطوير Intlogy (Fixate by Intlogy).
 
 ## 2. المعلومات التي نجمعها
 
@@ -66,7 +69,10 @@ export default function PrivacyScreen() {
 ### 4.3 مع مقدمي الخدمات
 نستخدم خدمات طرف ثالث (مثل Supabase) لتخزين البيانات بشكل آمن.
 
-### 4.4 عدم البيع
+### 4.4 المساعد الذكي
+عند استخدامك للمساعد الذكي لتشخيص الأعطال، تُرسَل الصور والنصوص التي تشاركها معه إلى خدمة Google Gemini لمعالجتها وتوليد الرد، أو إلى خدمة OpenAI كمزوّد احتياطي عند تعذّر Gemini. يعالجها كل مزوّد وفق شروطه وسياسة الخصوصية الخاصة به، وقد تستخدمها Google لتحسين خدماتها. لا نحفظ هذه الصور أو المحادثات على خوادمنا. ننصحك بألا تُظهر في الصور أي بيانات شخصية (مثل الرسائل أو الحسابات المفتوحة على الشاشة).
+
+### 4.5 عدم البيع
 لا نبيع أو نؤجر معلوماتك الشخصية لأطراف ثالثة.
 
 ## 5. حماية المعلومات
@@ -137,17 +143,19 @@ export default function PrivacyScreen() {
 
 ---
 
-**آخر تحديث: ديسمبر 2025**
+**آخر تحديث: أكتوبر 2026**
 `;
 
   const privacyEn = `
 # Privacy Policy
 
-**Last Updated: December 2025**
+**Last Updated: October 2026**
 
 ## 1. Introduction
 
 At Fixate, we are committed to protecting your privacy. This policy explains how we collect, use, and protect your personal information in accordance with Saudi Arabia's Personal Data Protection Law.
+
+Fixate is developed by Intlogy (Fixate by Intlogy).
 
 ## 2. Information We Collect
 
@@ -190,7 +198,10 @@ We may share information when requested by competent government authorities.
 ### 4.3 With Service Providers
 We use third-party services (such as Supabase) to store data securely.
 
-### 4.4 No Selling
+### 4.4 AI Assistant
+When you use the AI repair assistant, the photos and text you share with it are sent to Google Gemini to be processed and to generate a reply, or to OpenAI as a backup provider when Gemini is unavailable. Each provider processes them under its own terms and privacy policy, and Google may use them to improve its services. We do not store these photos or conversations on our servers. Please avoid showing personal information in photos (such as messages or open accounts on the screen).
+
+### 4.5 No Selling
 We do not sell or rent your personal information to third parties.
 
 ## 5. Information Protection
@@ -261,7 +272,7 @@ For any privacy inquiries:
 
 ---
 
-**Last Updated: December 2025**
+**Last Updated: October 2026**
 `;
 
   return (
@@ -285,6 +296,7 @@ For any privacy inquiries:
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         <View style={styles.content}>
           <PolicyDocument content={isRTL ? privacyAr : privacyEn} isRTL={isRTL} COLORS={COLORS} />
+          <IntlogyCredit isDark={isDark} style={{ marginTop: SPACING.lg }} />
         </View>
       </ScrollView>
     </SafeAreaView>

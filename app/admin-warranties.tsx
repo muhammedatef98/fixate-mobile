@@ -25,7 +25,7 @@ import {
   AdminEmptyState,
   type AdminFilterChip,
 } from '../components/admin/AdminUI';
-import { deriveWarranty, deviceLabel, WARRANTY_MONTHS, type WarrantyInfo } from '../utils/warranty';
+import { deriveWarranty, deviceLabel, warrantyMonthsLabel, type WarrantyInfo } from '../utils/warranty';
 import WarrantyViewerModal from '../components/WarrantyViewerModal';
 import GearLoader from '../components/GearLoader';
 
@@ -35,6 +35,8 @@ interface WarrantyOrder {
   device_brand?: string | null;
   device_model?: string | null;
   status?: string | null;
+  service_id?: string | null;
+  spare_part_quality?: string | null;
   created_at: string;
   updated_at?: string | null;
   user_id?: string | null;
@@ -76,7 +78,7 @@ export default function AdminWarrantiesScreen() {
       const { data } = await supabase
         .from('orders')
         .select(
-          'id, order_number, device_brand, device_model, status, created_at, updated_at, user_id, customer:users!user_id(name)'
+          'id, order_number, device_brand, device_model, status, service_id, spare_part_quality, created_at, updated_at, user_id, customer:users!user_id(name)'
         )
         .eq('status', 'completed')
         .order('updated_at', { ascending: false })
@@ -183,8 +185,8 @@ export default function AdminWarrantiesScreen() {
                 title={isRTL ? 'لا توجد ضمانات' : 'No warranties'}
                 body={
                   isRTL
-                    ? `تظهر هنا كل الطلبات المكتملة، وكل منها مشمول بضمان ${WARRANTY_MONTHS} شهراً من تاريخ الإكمال.`
-                    : `Every completed order appears here, each covered for ${WARRANTY_MONTHS} months from completion.`
+                    ? 'تظهر هنا الطلبات المكتملة المشمولة بالضمان. مدة كل ضمان حسب نوع الإصلاح والقطعة: 6 أشهر للشاشة والبطارية، 3 أشهر لباقي الإصلاحات، شهر للسوائل والبرمجيات، و12 شهراً مع القطع الأصلية.'
+                    : 'Completed orders that carry a warranty appear here. Each length depends on the repair and the part: 6 months for screens and batteries, 3 months for other repairs, 1 month for liquid damage and software, and 12 months with original parts.'
                 }
               />
             </View>
@@ -233,6 +235,10 @@ export default function AdminWarrantiesScreen() {
                           fmtAdminDate(w.endDate.toISOString(), isRTL)}
                       </Text>
                     </View>
+
+                    <Text style={styles.meta}>
+                      {(isRTL ? 'مدة الضمان: ' : 'Warranty: ') + warrantyMonthsLabel(w.months, isRTL)}
+                    </Text>
 
                     {w.isActive && (
                       <Text style={styles.remaining}>

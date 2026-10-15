@@ -24,6 +24,7 @@ import { RTLIonicon } from '../components/RTLIcon';
 import { sendPasswordReset } from '../services/authService';
 import { getFriendlyError } from '../utils/errorMessages';
 import { supabase } from '../services/supabaseClient';
+import IntlogyCredit from '../components/IntlogyCredit';
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -279,6 +280,7 @@ export default function SettingsScreen() {
           <Text style={styles.versionText}>
             {isRTL ? 'إصدار التطبيق' : 'App version'}: {appVersion}
           </Text>
+          <IntlogyCredit isDark={isDark} style={{ marginTop: 8 }} />
         </View>
       </ScrollView>
     </SafeAreaView>

@@ -36,6 +36,7 @@ import { Skeleton } from '../../components/ui/Skeleton';
 import HomeHighlightsCarousel from '../../components/HomeHighlightsCarousel';
 import AnnouncementBanner from '../../components/AnnouncementBanner';
 import { Riyal } from '../../components/Riyal';
+import { deriveWarranty } from '../../utils/warranty';
 
 const { width } = Dimensions.get('window');
 
@@ -57,11 +58,6 @@ const DEVICE_CATEGORIES = [
 // Only the SIZE lives here, because the scroll padding below has to reserve room
 // for the puck as well as the bar.
 const ASSISTANT_FAB_SIZE = 54;
-
-// Warranty length applied to every completed repair (months). Used to derive
-// the warranty-expiry date shown on the home "Repair warranty" card.
-// Fixate offers a full 1-year (12-month / 365-day) warranty on all repairs.
-const WARRANTY_MONTHS = 12;
 
 // Rotating daily maintenance tips. The active tip is picked by the day-of-year
 // so it changes once a day at midnight and is stable for the whole day.
@@ -122,7 +118,7 @@ const getDailyTip = () => {
 };
 
 const TRUST_POINTS = [
-  { ar: 'ضمان سنة كاملة', en: '1-year warranty', sub_ar: 'على كل إصلاح', sub_en: 'On every repair', icon: 'shield-check', color: '#10b981' },
+  { ar: 'ضمان حتى 12 شهراً', en: 'Up to 12-month warranty', sub_ar: 'حسب الإصلاح والقطعة', sub_en: 'By repair & part', icon: 'shield-check', color: '#10b981' },
   { ar: 'استلام وتوصيل', en: 'Pickup & delivery', sub_ar: 'من بابك', sub_en: 'From your door', icon: 'truck-fast-outline', color: '#3b82f6' },
   { ar: 'فنيون معتمدون', en: 'Verified technicians', sub_ar: 'مهارة موثوقة', sub_en: 'Trusted experts', icon: 'check-decagram', color: '#8b5cf6' },
 ];
@@ -230,7 +226,7 @@ export default function CustomerHomeScreen() {
       // for returning customers (raises repeat-rate without nagging).
       const { data } = await supabase
         .from('orders')
-        .select('id, device_brand, device_model, issue_description, status, estimated_price, created_at, updated_at')
+        .select('id, device_brand, device_model, issue_description, status, estimated_price, service_id, spare_part_quality, created_at, updated_at')
         .eq('user_id', user.id)
         .eq('status', 'completed')
         .order('created_at', { ascending: false })
@@ -267,16 +263,9 @@ export default function CustomerHomeScreen() {
        (isRTL ? 'قيد المتابعة' : 'In progress'))
     : null;
 
-  // Warranty expiry = completion date + WARRANTY_MONTHS. We use updated_at as
-  // the completion proxy (orders flip to "completed" on their last update).
-  const warrantyExpiry = (() => {
-    const base = recentOrder?.updated_at ?? recentOrder?.created_at;
-    if (!base) return null;
-    const d = new Date(base);
-    if (Number.isNaN(d.getTime())) return null;
-    d.setMonth(d.getMonth() + WARRANTY_MONTHS);
-    return d;
-  })();
+  // Warranty expiry for the latest completed repair — length depends on the
+  // repair type and part grade (utils/warranty). null = no warranty on it.
+  const warrantyExpiry = recentOrder ? deriveWarranty(recentOrder)?.endDate ?? null : null;
   const warrantyActive = !!warrantyExpiry && warrantyExpiry.getTime() > Date.now();
   // Gregorian (Miladi) only — formatAppDateOnly pins the gregory calendar so
   // the expiry never renders as a Hijri date (ar-SA defaults to Hijri on
@@ -568,7 +557,7 @@ export default function CustomerHomeScreen() {
                 </Text>
               ) : (
                 <Text style={[styles.actionSub, { color: COLORS.textSecondary }]} numberOfLines={1}>
-                  {isRTL ? 'ضمان سنة كاملة' : '1-year warranty'}
+                  {isRTL ? 'ضمان حتى 12 شهراً' : 'Up to 12-month warranty'}
                 </Text>
               )}
             </PressableScale>

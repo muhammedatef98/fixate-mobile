@@ -9,6 +9,8 @@ import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { RTLMaterialIcon } from '../components/RTLIcon';
 import { logger } from '../utils/logger';
 import { supabase } from '../services/supabaseClient';
+import IntlogyCredit from '../components/IntlogyCredit';
+import FixateWordmark from '../components/FixateWordmark';
 
 const { width } = Dimensions.get('window');
 
@@ -215,7 +217,9 @@ export default function RoleSelectionScreen() {
 
           {/* Title — no tagline underneath: the screen reads logo → title →
               role question, so the extra sentence was removed for balance. */}
-          <Text style={styles.title}>Fixate</Text>
+          <View style={styles.title}>
+            <FixateWordmark width={172} isDark={isDark} />
+          </View>
 
           {/* Subtitle */}
           <Text style={styles.question}>
@@ -317,6 +321,10 @@ export default function RoleSelectionScreen() {
             </TouchableOpacity>
           </View>
 
+          {/* Pushes the legal line + brand credit to the bottom on tall
+              screens; collapses on short ones so nothing gets clipped. */}
+          <View style={{ flex: 1 }} />
+
           {/* Footer */}
           <Text style={styles.footer}>
             {language === 'ar' ? 'بالمتابعة، أنت توافق على ' : 'By continuing, you agree to our '}
@@ -328,6 +336,13 @@ export default function RoleSelectionScreen() {
               {language === 'ar' ? 'سياسة الخصوصية' : 'Privacy Policy'}
             </Text>
           </Text>
+
+          {/* Brand credit as a quiet footer ("from Meta"-style), matching
+              the splash where it also sits at the bottom. */}
+          <IntlogyCredit
+            isDark={isDark}
+            style={{ marginTop: SPACING.lg, marginBottom: SPACING.md }}
+          />
         </Animated.View>
         </ScrollView>
       </SafeAreaView>
@@ -382,9 +397,7 @@ const createStyles = (COLORS: any, SHADOWS: any, isRTL: boolean) => StyleSheet.c
     height: 120,
   },
   title: {
-    fontSize: 40,
-    fontWeight: 'bold',
-    color: COLORS.text,
+    marginTop: 4,
     marginBottom: SPACING.xl,
   },
   question: {

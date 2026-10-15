@@ -246,8 +246,8 @@ export default function MyOrdersScreen() {
               filter === 'completed'
                 ? undefined
                 : (isRTL
-                    ? 'اطلب فني معتمد يصلك أينما كنت، مع ضمان 12 شهراً على الإصلاح.'
-                    : 'Request a certified technician to come to you — every repair is covered by a 12-month warranty.')
+                    ? 'اطلب فني معتمد يصلك أينما كنت، مع ضمان على الإصلاح يصل إلى 12 شهراً.'
+                    : 'Request a certified technician to come to you — repairs carry a warranty of up to 12 months.')
             }
             actionLabel={filter === 'completed' ? undefined : (isRTL ? 'اطلب صيانة الآن' : 'Request a repair')}
             onAction={filter === 'completed' ? undefined : () => router.push('/request')}
