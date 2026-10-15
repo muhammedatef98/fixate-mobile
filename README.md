@@ -24,7 +24,7 @@ Four roles share one codebase: customer, technician, courier, and a full admin b
 2. **Bid** — verified technicians in the service area see the request and submit priced offers. Requests that get no response auto-expire.
 3. **Accept** — accepting an offer locks the price. There is no post-inspection renegotiation; the accepted amount plus delivery fee and any add-ons is what the customer pays ([payment architecture](docs/payment-architecture.md)).
 4. **Repair** — the order moves through an explicit status pipeline. Customers watch technician and courier locations live and chat in-app at every stage.
-5. **Pay and review** — payment is recorded in-app, the customer rates the job, and the completed order itself carries a 12-month repair warranty (computed from order history, not a separate ledger).
+5. **Pay and review** — payment is recorded in-app, the customer rates the job, and the completed order itself carries a repair warranty whose length depends on the repair type and part grade — 1 to 12 months, see `utils/warranty.ts` (computed from order history, not a separate ledger).
 
 ## App surfaces
 
@@ -123,6 +123,6 @@ Contact: **fixate01@gmail.com**
 
 ## 🇸🇦 بالعربية
 
-**Fixate** — منصّة سعودية لصيانة الأجهزة الإلكترونية: العميل ينشر طلب صيانة، الفنيون المعتمدون يقدّمون عروض أسعار، والعرض المقبول هو السعر النهائي — مع تتبّع مباشر، محادثة فورية، دفع داخل التطبيق، وضمان ١٢ شهرًا على الإصلاح. التطبيق عربي بالكامل (RTL + الوضع الليلي) ويشمل أربعة أدوار: عميل، فني، مندوب توصيل، وإدارة.
+**Fixate** — منصّة سعودية لصيانة الأجهزة الإلكترونية: العميل ينشر طلب صيانة، الفنيون المعتمدون يقدّمون عروض أسعار، والعرض المقبول هو السعر النهائي — مع تتبّع مباشر، محادثة فورية، دفع داخل التطبيق، وضمان على الإصلاح يصل إلى ١٢ شهرًا حسب نوع الإصلاح والقطعة. التطبيق عربي بالكامل (RTL + الوضع الليلي) ويشمل أربعة أدوار: عميل، فني، مندوب توصيل، وإدارة.
 
 **التشغيل:** `pnpm install` ثم انسخ `.env.example` إلى `.env` واملأه، ثم `pnpm start` — الأدلة الكاملة في [docs/setup/](docs/setup/).

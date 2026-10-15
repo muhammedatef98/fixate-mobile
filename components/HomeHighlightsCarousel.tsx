@@ -30,7 +30,7 @@ interface Slide {
 const SLIDES: Slide[] = [
   { icon: 'flash', color: '#10B981', titleAr: 'إصلاح سريع', titleEn: 'Fast repair', subAr: 'فنيون معتمدون يصلحون جهازك بسرعة', subEn: 'Verified technicians fix your device fast' },
   { icon: 'moped', color: '#3B82F6', titleAr: 'استلام حتى بابك', titleEn: 'Doorstep pickup', subAr: 'مندوبنا يستلم الجهاز ويعيده إليك', subEn: 'A courier collects and returns your device' },
-  { icon: 'shield-check', color: '#8B5CF6', titleAr: 'ضمان سنة كاملة', titleEn: '1-year warranty', subAr: 'كل إصلاح مضمون لمدة 365 يوماً', subEn: 'Every repair guaranteed for 365 days' },
+  { icon: 'shield-check', color: '#8B5CF6', titleAr: 'ضمان حتى 12 شهراً', titleEn: 'Up to 12-month warranty', subAr: 'حسب نوع الإصلاح والقطعة', subEn: 'Based on the repair and the part' },
   { icon: 'account-check', color: '#F59E0B', titleAr: 'فنيون موثّقون', titleEn: 'Vetted technicians', subAr: 'كل فني يُعتمد ويُقيَّم بعد كل طلب', subEn: 'Every technician is vetted and rated' },
   { icon: 'map-marker-path', color: '#EC4899', titleAr: 'تتبّع لحظي', titleEn: 'Live tracking', subAr: 'تابع حالة جهازك في كل مرحلة', subEn: 'Follow your device at every stage' },
 ];
