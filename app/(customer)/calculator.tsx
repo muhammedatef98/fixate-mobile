@@ -234,7 +234,7 @@ export default function PriceCalculatorScreen() {
           <Text style={styles.priceValue}>
             {range
               ? isRTL
-                ? <>{'تبدأ من '}{'\u2066'}<Riyal /> {`${range.min} – ${range.max}`}{'\u2069'}</>
+                ? <>{'تبدأ من '}{'⁦'}<Riyal /> {`${range.min} – ${range.max}`}{'⁩'}</>
                 : `Starts from ${range.min} – ${range.max} SAR`
               : '—'}
           </Text>
@@ -250,7 +250,7 @@ export default function PriceCalculatorScreen() {
                 {isRTL ? 'يستلمه الفني' : "Technician's payout"}
               </Text>
               <Text style={styles.breakdownValue}>
-                {'\u2066'}<Riyal /> {techMin} – {techMax}{'\u2069'}
+                {'⁦'}<Riyal /> {techMin} – {techMax}{'⁩'}
               </Text>
             </View>
             <View style={styles.breakdownRow}>
@@ -258,13 +258,13 @@ export default function PriceCalculatorScreen() {
                 {isRTL ? 'رسوم المنصة (15%)' : 'Platform fee (15%)'}
               </Text>
               <Text style={[styles.breakdownValue, { color: COLORS.textSecondary }]}>
-                {'\u2066'}<Riyal /> {platformMin} – {platformMax}{'\u2069'}
+                {'⁦'}<Riyal /> {platformMin} – {platformMax}{'⁩'}
               </Text>
             </View>
             <Text style={styles.breakdownNote}>
               {isRTL
-                ? 'السعر النهائي يتحدّد بعد فحص الجهاز ويشمل ضماناً لمدة سنة كاملة'
-                : 'Final price is set after diagnosis and includes a 1-year warranty'}
+                ? 'السعر النهائي يتحدّد بعد فحص الجهاز ويشمل ضماناً يصل إلى 12 شهراً'
+                : 'Final price is set after diagnosis and includes a warranty of up to 12 months'}
             </Text>
           </View>
         )}

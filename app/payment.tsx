@@ -399,8 +399,8 @@ export default function PaymentScreen() {
           <Ionicons name="shield-checkmark" size={18} color={COLORS.primary} />
           <Text style={[styles.trustText, { color: COLORS.text }]}>
             {isRTL
-              ? 'جميع العمليات مؤمّنة، والإصلاح يشمل ضمان سنة كاملة.'
-              : 'All transactions are secured and the repair includes a 1-year warranty.'}
+              ? 'جميع العمليات مؤمّنة، والإصلاح يشمل ضماناً يصل إلى 12 شهراً حسب نوع الإصلاح والقطعة.'
+              : 'All transactions are secured and the repair includes a warranty of up to 12 months, depending on the repair and the part.'}
           </Text>
         </View>
 

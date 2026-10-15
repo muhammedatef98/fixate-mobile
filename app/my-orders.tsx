@@ -143,7 +143,7 @@ export default function MyOrdersScreen() {
           </View>
           <View style={styles.priceTag}>
             <Text style={[styles.priceValue, { color: COLORS.primary }]}>
-              {(() => { const v = (order as any).accepted_offer_amount ?? (order as any).final_price ?? order.estimated_price; return v ? <>{'\u2066'}<Riyal /> {v}{'\u2069'}</> : (isRTL ? 'غير محدد' : 'TBD'); })()}
+              {(() => { const v = (order as any).accepted_offer_amount ?? (order as any).final_price ?? order.estimated_price; return v ? <>{'⁦'}<Riyal /> {v}{'⁩'}</> : (isRTL ? 'غير محدد' : 'TBD'); })()}
             </Text>
           </View>
         </View>
@@ -246,8 +246,8 @@ export default function MyOrdersScreen() {
               filter === 'completed'
                 ? undefined
                 : (isRTL
-                    ? 'اطلب فني معتمد يصلك أينما كنت، مع ضمان 12 شهراً على الإصلاح.'
-                    : 'Request a certified technician to come to you — every repair is covered by a 12-month warranty.')
+                    ? 'اطلب فني معتمد يصلك أينما كنت، مع ضمان على الإصلاح يصل إلى 12 شهراً.'
+                    : 'Request a certified technician to come to you — repairs carry a warranty of up to 12 months.')
             }
             actionLabel={filter === 'completed' ? undefined : (isRTL ? 'اطلب صيانة الآن' : 'Request a repair')}
             onAction={filter === 'completed' ? undefined : () => router.push('/request')}
