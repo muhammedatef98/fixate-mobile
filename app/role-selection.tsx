@@ -217,13 +217,6 @@ export default function RoleSelectionScreen() {
           {/* Title — no tagline underneath: the screen reads logo → title →
               role question, so the extra sentence was removed for balance. */}
           <Text style={styles.title}>Fixate</Text>
-          {/* Sits tight under the name; the title's large bottom margin is
-              reclaimed here so the gap to the role question is unchanged. */}
-          <IntlogyCredit
-            isDark={isDark}
-            size="md"
-            style={{ marginTop: -(SPACING.xl - 4), marginBottom: SPACING.xl }}
-          />
 
           {/* Subtitle */}
           <Text style={styles.question}>
@@ -325,6 +318,10 @@ export default function RoleSelectionScreen() {
             </TouchableOpacity>
           </View>
 
+          {/* Pushes the legal line + brand credit to the bottom on tall
+              screens; collapses on short ones so nothing gets clipped. */}
+          <View style={{ flex: 1 }} />
+
           {/* Footer */}
           <Text style={styles.footer}>
             {language === 'ar' ? 'بالمتابعة، أنت توافق على ' : 'By continuing, you agree to our '}
@@ -336,6 +333,13 @@ export default function RoleSelectionScreen() {
               {language === 'ar' ? 'سياسة الخصوصية' : 'Privacy Policy'}
             </Text>
           </Text>
+
+          {/* Brand credit as a quiet footer ("from Meta"-style), matching
+              the splash where it also sits at the bottom. */}
+          <IntlogyCredit
+            isDark={isDark}
+            style={{ marginTop: SPACING.lg, marginBottom: SPACING.md }}
+          />
         </Animated.View>
         </ScrollView>
       </SafeAreaView>
