@@ -9,6 +9,7 @@ import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { RTLMaterialIcon } from '../components/RTLIcon';
 import { logger } from '../utils/logger';
 import { supabase } from '../services/supabaseClient';
+import IntlogyCredit from '../components/IntlogyCredit';
 
 const { width } = Dimensions.get('window');
 
@@ -216,6 +217,13 @@ export default function RoleSelectionScreen() {
           {/* Title — no tagline underneath: the screen reads logo → title →
               role question, so the extra sentence was removed for balance. */}
           <Text style={styles.title}>Fixate</Text>
+          {/* Sits tight under the name; the title's large bottom margin is
+              reclaimed here so the gap to the role question is unchanged. */}
+          <IntlogyCredit
+            isDark={isDark}
+            size="md"
+            style={{ marginTop: -(SPACING.xl - 4), marginBottom: SPACING.xl }}
+          />
 
           {/* Subtitle */}
           <Text style={styles.question}>

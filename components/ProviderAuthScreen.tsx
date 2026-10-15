@@ -24,6 +24,7 @@ import { getFriendlyError } from '../utils/errorMessages';
 import { getColors } from '../constants/theme';
 import { validatePassword, getPasswordChecks } from '../utils/validation';
 import PasswordRequirements from './PasswordRequirements';
+import IntlogyCredit from './IntlogyCredit';
 
 export type ProviderFlow = 'technician' | 'courier';
 
@@ -199,6 +200,7 @@ export default function ProviderAuthScreen({ flow }: ProviderAuthScreenProps) {
               />
             </View>
             <Text style={styles.brandName}>Fixate</Text>
+            <IntlogyCredit isDark={isDark} style={{ marginBottom: 6 }} />
             <Text style={styles.brandSlogan}>
               {isCourier
                 ? isRTL ? 'انضم لفريق مناديب التوصيل' : 'Join our delivery courier team'
