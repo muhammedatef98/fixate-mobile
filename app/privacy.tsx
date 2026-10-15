@@ -69,7 +69,10 @@ export default function PrivacyScreen() {
 ### 4.3 مع مقدمي الخدمات
 نستخدم خدمات طرف ثالث (مثل Supabase) لتخزين البيانات بشكل آمن.
 
-### 4.4 عدم البيع
+### 4.4 المساعد الذكي
+عند استخدامك للمساعد الذكي لتشخيص الأعطال، تُرسَل الصور والنصوص التي تشاركها معه إلى خدمة Google Gemini لمعالجتها وتوليد الرد، وقد تستخدمها Google وفق شروطها لتحسين خدماتها. لا نحفظ هذه الصور أو المحادثات على خوادمنا. ننصحك بألا تُظهر في الصور أي بيانات شخصية (مثل الرسائل أو الحسابات المفتوحة على الشاشة).
+
+### 4.5 عدم البيع
 لا نبيع أو نؤجر معلوماتك الشخصية لأطراف ثالثة.
 
 ## 5. حماية المعلومات
@@ -195,7 +198,10 @@ We may share information when requested by competent government authorities.
 ### 4.3 With Service Providers
 We use third-party services (such as Supabase) to store data securely.
 
-### 4.4 No Selling
+### 4.4 AI Assistant
+When you use the AI repair assistant, the photos and text you share with it are sent to Google Gemini to be processed and to generate a reply, and Google may use them under its terms to improve its services. We do not store these photos or conversations on our servers. Please avoid showing personal information in photos (such as messages or open accounts on the screen).
+
+### 4.5 No Selling
 We do not sell or rent your personal information to third parties.
 
 ## 5. Information Protection
