@@ -20,7 +20,7 @@ export default function PrivacyScreen() {
   const privacyAr = `
 # سياسة الخصوصية
 
-**آخر تحديث: ديسمبر 2025**
+**آخر تحديث: أكتوبر 2026**
 
 ## 1. المقدمة
 
@@ -70,7 +70,7 @@ export default function PrivacyScreen() {
 نستخدم خدمات طرف ثالث (مثل Supabase) لتخزين البيانات بشكل آمن.
 
 ### 4.4 المساعد الذكي
-عند استخدامك للمساعد الذكي لتشخيص الأعطال، تُرسَل الصور والنصوص التي تشاركها معه إلى خدمة Google Gemini لمعالجتها وتوليد الرد، وقد تستخدمها Google وفق شروطها لتحسين خدماتها. لا نحفظ هذه الصور أو المحادثات على خوادمنا. ننصحك بألا تُظهر في الصور أي بيانات شخصية (مثل الرسائل أو الحسابات المفتوحة على الشاشة).
+عند استخدامك للمساعد الذكي لتشخيص الأعطال، تُرسَل الصور والنصوص التي تشاركها معه إلى خدمة Google Gemini لمعالجتها وتوليد الرد، أو إلى خدمة OpenAI كمزوّد احتياطي عند تعذّر Gemini. يعالجها كل مزوّد وفق شروطه وسياسة الخصوصية الخاصة به، وقد تستخدمها Google لتحسين خدماتها. لا نحفظ هذه الصور أو المحادثات على خوادمنا. ننصحك بألا تُظهر في الصور أي بيانات شخصية (مثل الرسائل أو الحسابات المفتوحة على الشاشة).
 
 ### 4.5 عدم البيع
 لا نبيع أو نؤجر معلوماتك الشخصية لأطراف ثالثة.
@@ -143,13 +143,13 @@ export default function PrivacyScreen() {
 
 ---
 
-**آخر تحديث: ديسمبر 2025**
+**آخر تحديث: أكتوبر 2026**
 `;
 
   const privacyEn = `
 # Privacy Policy
 
-**Last Updated: December 2025**
+**Last Updated: October 2026**
 
 ## 1. Introduction
 
@@ -199,7 +199,7 @@ We may share information when requested by competent government authorities.
 We use third-party services (such as Supabase) to store data securely.
 
 ### 4.4 AI Assistant
-When you use the AI repair assistant, the photos and text you share with it are sent to Google Gemini to be processed and to generate a reply, and Google may use them under its terms to improve its services. We do not store these photos or conversations on our servers. Please avoid showing personal information in photos (such as messages or open accounts on the screen).
+When you use the AI repair assistant, the photos and text you share with it are sent to Google Gemini to be processed and to generate a reply, or to OpenAI as a backup provider when Gemini is unavailable. Each provider processes them under its own terms and privacy policy, and Google may use them to improve its services. We do not store these photos or conversations on our servers. Please avoid showing personal information in photos (such as messages or open accounts on the screen).
 
 ### 4.5 No Selling
 We do not sell or rent your personal information to third parties.
@@ -272,7 +272,7 @@ For any privacy inquiries:
 
 ---
 
-**Last Updated: December 2025**
+**Last Updated: October 2026**
 `;
 
   return (
