@@ -20,7 +20,7 @@ export default function TermsScreen() {
   const termsAr = `
 # الشروط والأحكام
 
-**آخر تحديث: يوليو 2026**
+**آخر تحديث: أكتوبر 2026**
 
 ## 1. المقدمة
 
@@ -85,7 +85,7 @@ export default function TermsScreen() {
 ## 10. الضمان
 
 10.1. يقدم الفني ضماناً على الإصلاحات حسب نوع الخدمة
-10.2. مدة الضمان سنة كاملة (12 شهراً / 365 يوماً) على جميع الإصلاحات المنفذة عبر Fixate
+10.2. تختلف مدة الضمان حسب نوع الإصلاح ونوع قطعة الغيار، وتصل إلى 12 شهراً مع القطع الأصلية، كما هو موضح في «سياسة الضمان»
 10.3. الضمان لا يشمل الأضرار الناتجة عن سوء الاستخدام
 
 ## 11. المسؤولية
@@ -146,9 +146,17 @@ export default function TermsScreen() {
 
 ## سياسة الضمان
 
-أ. تقدّم Fixate ضماناً لمدة سنة كاملة (12 شهراً / 365 يوماً) على جميع الإصلاحات المنفذة عبر المنصة، ويشمل العمل والقطع المستبدلة.
+أ. تقدّم Fixate ضماناً على الإصلاحات المنفذة عبر المنصة يشمل العمل والقطع المستبدلة، وتختلف مدته حسب نوع الإصلاح:
 
-ب. يبدأ سريان الضمان من تاريخ إتمام الإصلاح وتسليم الجهاز للعميل، ويظهر تاريخ انتهائه في تفاصيل الطلب.
+- استبدال الشاشة أو البطارية: 6 أشهر.
+- باقي إصلاحات القطع (منفذ الشحن، الكاميرا، السماعة، الأزرار، اللوحة الأم وغيرها): 3 أشهر.
+- أضرار السوائل وإصلاحات البرمجيات: شهر واحد (30 يوماً).
+- عند اختيار قطع غيار أصلية: 12 شهراً على الإصلاح والقطعة.
+- استعادة البيانات والفحص دون إصلاح: لا يشملها الضمان.
+
+تظهر مدة الضمان الخاصة بكل إصلاح وتاريخ انتهائه في شاشة «ضمان الإصلاح» وشهادة الضمان داخل التطبيق.
+
+ب. يبدأ سريان الضمان من تاريخ إتمام الإصلاح وتسليم الجهاز للعميل، ويظهر تاريخ انتهائه في شاشة «ضمان الإصلاح».
 
 ج. لا يشمل الضمان الأضرار الناتجة عن سوء الاستخدام أو السقوط أو السوائل أو العبث بالجهاز بعد الإصلاح أو الإصلاح لدى جهة أخرى.
 
@@ -295,7 +303,7 @@ export default function TermsScreen() {
   const termsEn = `
 # Terms and Conditions
 
-**Last Updated: July 2026**
+**Last Updated: October 2026**
 
 ## 1. Introduction
 
@@ -360,7 +368,7 @@ Fixate is developed by Intlogy (Fixate by Intlogy).
 ## 10. Warranty
 
 10.1. Technicians provide warranty on repairs based on service type
-10.2. The warranty period is a full year (12 months / 365 days) on all repairs performed through Fixate
+10.2. The warranty period depends on the repair type and the spare-part grade, up to 12 months with original parts, as set out in the "Warranty Policy"
 10.3. Warranty does not cover damage from misuse
 
 ## 11. Liability
@@ -421,9 +429,17 @@ The following terms apply when a device is received for repair and collected aft
 
 ## Warranty Policy
 
-a. Fixate provides a full one-year (12-month / 365-day) warranty on all repairs performed through the platform, covering both the labor and any replaced parts.
+a. Fixate provides a warranty on repairs performed through the platform, covering both the labor and any replaced parts. Its length depends on the repair:
 
-b. The warranty starts from the date the repair is completed and the device is handed back to the customer, and its expiry date is shown in the order details.
+- Screen or battery replacement: 6 months.
+- Other part repairs (charging port, camera, speaker, buttons, motherboard, etc.): 3 months.
+- Liquid damage and software fixes: 1 month (30 days).
+- With original spare parts: 12 months on the repair and the part.
+- Data recovery and inspection-only jobs: not covered.
+
+The warranty length and end date for each repair are shown on the "Repair warranty" screen and the warranty certificate in the app.
+
+b. The warranty starts from the date the repair is completed and the device is handed back to the customer, and its expiry date is shown on the "Repair warranty" screen.
 
 c. The warranty does not cover damage caused by misuse, drops, liquids, tampering with the device after the repair, or repairs carried out by a third party.
 
