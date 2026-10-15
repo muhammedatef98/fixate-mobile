@@ -8,6 +8,7 @@ import { useApp } from '../contexts/AppContext';
 import { RTLMaterialIcon } from '../components/RTLIcon';
 import { safeBack } from '../utils/navigation';
 import PolicyDocument from '../components/PolicyDocument';
+import IntlogyCredit from '../components/IntlogyCredit';
 
 export default function TermsScreen() {
   const router = useRouter();
@@ -24,6 +25,8 @@ export default function TermsScreen() {
 ## 1. المقدمة
 
 مرحباً بك في تطبيق Fixate ("التطبيق"). باستخدامك لهذا التطبيق، فإنك توافق على الالتزام بهذه الشروط والأحكام. يرجى قراءتها بعناية قبل استخدام خدماتنا.
+
+تطبيق Fixate من تطوير Intlogy (Fixate by Intlogy).
 
 ## 2. التعريفات
 
@@ -297,6 +300,8 @@ export default function TermsScreen() {
 ## 1. Introduction
 
 Welcome to Fixate ("the App"). By using this App, you agree to comply with these Terms and Conditions. Please read them carefully before using our services.
+
+Fixate is developed by Intlogy (Fixate by Intlogy).
 
 ## 2. Definitions
 
@@ -583,6 +588,7 @@ If you have any questions about these terms, please contact us:
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         <View style={styles.content}>
           <PolicyDocument content={isRTL ? termsAr : termsEn} isRTL={isRTL} COLORS={COLORS} />
+          <IntlogyCredit isDark={isDark} style={{ marginTop: SPACING.lg }} />
         </View>
       </ScrollView>
     </SafeAreaView>
