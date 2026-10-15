@@ -26,6 +26,7 @@ import { RTLIonicon } from '../../components/RTLIcon';
 import { safeBack } from '../../utils/navigation';
 import { useScrollToEndOnKeyboard } from '../../hooks/useScrollToEndOnKeyboard';
 import { uploadOrderMedia } from '../../services/storageService';
+import { resolveStorageUrls } from '../../utils/resolveStorageUrls';
 import ImageViewer from '../../components/ImageViewer';
 
 // Quick-reply suggestions that match each side of the conversation. The
@@ -76,6 +77,10 @@ export default function ChatScreen() {
   const [viewerOpen, setViewerOpen] = useState(false);
   const [viewerImages, setViewerImages] = useState<string[]>([]);
   const [viewerIndex, setViewerIndex] = useState(0);
+  // Chat images live in the private `orders` bucket; map stored links to
+  // signed URLs for display.
+  const [signedUrls, setSignedUrls] = useState<Record<string, string>>({});
+  const displayUrl = (url: string) => signedUrls[url] ?? url;
 
   const flatListRef = useRef<FlatList>(null);
   useScrollToEndOnKeyboard(flatListRef);
@@ -207,8 +212,26 @@ export default function ChatScreen() {
     }
   };
 
+  useEffect(() => {
+    const pending = messages
+      .filter((m) => m.attachment_type === 'image' && m.attachment_url && !m.is_temp)
+      .map((m) => m.attachment_url as string)
+      .filter((u) => !signedUrls[u]);
+    if (!pending.length) return;
+    resolveStorageUrls(pending).then((signed) => {
+      setSignedUrls((prev) => {
+        const next = { ...prev };
+        pending.forEach((u, i) => {
+          next[u] = signed[i];
+        });
+        return next;
+      });
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messages]);
+
   const openImage = (url: string) => {
-    setViewerImages([url]);
+    setViewerImages([displayUrl(url)]);
     setViewerIndex(0);
     setViewerOpen(true);
   };
@@ -268,7 +291,7 @@ export default function ChatScreen() {
               accessibilityRole="button"
             >
               <Image
-                source={{ uri: item.attachment_url }}
+                source={{ uri: displayUrl(item.attachment_url) }}
                 style={{ width: 220, height: 180, borderRadius: 14, backgroundColor: '#00000020' }}
               />
             </TouchableOpacity>

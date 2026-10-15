@@ -1,6 +1,11 @@
 import { supabase } from '../services/supabaseClient';
 
-const BUCKET = 'order-media';
+// Order photos (customer media, technician before/after, chat images) are
+// uploaded by services/storageService.ts into the private `orders` bucket,
+// which stores getPublicUrl() links. Those links 400 on a private bucket,
+// so they must be exchanged for signed URLs before display.
+const BUCKET = 'orders';
+const OBJECT_PATH_RE = new RegExp(`/object/(?:public|sign|authenticated)/${BUCKET}/([^?]+)`);
 
 /**
  * Accepts an array of storage paths OR full Supabase storage URLs.
@@ -14,8 +19,11 @@ export async function resolveStorageUrls(urls: string[]): Promise<string[]> {
       if (!u) return u;
       // Already signed — don't re-sign
       if (u.includes('token=')) return u;
-      // Extract relative path from full URL if needed
-      const path = u.includes(`/${BUCKET}/`) ? u.split(`/${BUCKET}/`)[1] : u;
+      // Extract relative path from full URL if needed. Links to other buckets
+      // (e.g. public market-images) are returned untouched.
+      const match = u.match(OBJECT_PATH_RE);
+      if (!match && /^https?:\/\//.test(u)) return u;
+      const path = match ? decodeURIComponent(match[1]) : u;
       try {
         const { data, error } = await supabase.storage
           .from(BUCKET)
