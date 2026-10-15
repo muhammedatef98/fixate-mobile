@@ -4,7 +4,7 @@ import QRCode from 'qrcode';
 import { logger } from '../utils/logger';
 import { getInvoiceSettings, type InvoiceSettings } from './invoiceService';
 import { formatInvoiceDate } from './invoicePdf';
-import { deriveWarranty, deviceLabel, WARRANTY_MONTHS, type WarrantyOrderLike } from '../utils/warranty';
+import { deriveWarranty, deviceLabel, warrantyMonthsLabel, type WarrantyOrderLike } from '../utils/warranty';
 import { BRAND_LOGO_DATA_URI } from '../constants/brandLogo';
 
 const esc = (s: unknown): string =>
@@ -57,7 +57,7 @@ export const buildWarrantyHtml = async (
     issued: isRTL ? 'تاريخ الإصدار' : 'Issued on',
     validUntil: isRTL ? 'ساري حتى' : 'Valid until',
     duration: isRTL ? 'مدة التغطية' : 'Coverage period',
-    months: isRTL ? `${WARRANTY_MONTHS} شهراً` : `${WARRANTY_MONTHS} months`,
+    months: warrantyMonthsLabel(w.months, isRTL),
     status: isRTL ? 'الحالة' : 'Status',
     active: isRTL ? 'ساري' : 'Active',
     expired: isRTL ? 'منتهٍ' : 'Expired',
@@ -70,7 +70,7 @@ export const buildWarrantyHtml = async (
 
   const terms = isRTL
     ? [
-        `يبدأ سريان الضمان تلقائياً من تاريخ استلام العميل للجهاز بعد إتمام الإصلاح، ويستمر لمدة ${WARRANTY_MONTHS} شهراً — دون الحاجة لأي إجراء تفعيل إضافي.`,
+        `يبدأ سريان الضمان تلقائياً من تاريخ استلام العميل للجهاز بعد إتمام الإصلاح، ويستمر لمدة ${warrantyMonthsLabel(w.months, true)} — دون الحاجة لأي إجراء تفعيل إضافي.`,
         'يغطي الضمان عيب الإصلاح نفسه وقطع الغيار المستبدلة الموضحة في الطلب فقط.',
         'في حال تكرار نفس العطل خلال فترة الضمان، تُعاد معالجته مجاناً بالكامل شاملةً القطع والمصنعية.',
         'لا يشمل الضمان الأعطال الجديدة غير المرتبطة بالإصلاح الأصلي، أو الأضرار الناتجة عن سوء الاستخدام أو السقوط أو الكسر أو دخول السوائل أو الحرارة والرطوبة الزائدة.',
@@ -80,7 +80,7 @@ export const buildWarrantyHtml = async (
         'للمطالبة بالضمان، تواصل مع خدمة العملاء من داخل التطبيق مع ذكر رقم الشهادة، وقد يتطلب التحقق فحص الجهاز لدى الفني.',
       ]
     : [
-        `The warranty starts automatically on the date the customer receives the device after repair, and runs for ${WARRANTY_MONTHS} months — no extra activation step needed.`,
+        `The warranty starts automatically on the date the customer receives the device after repair, and runs for ${warrantyMonthsLabel(w.months, false)} — no extra activation step needed.`,
         'It covers the repaired defect itself and the replaced parts listed on the order only.',
         'If the same fault recurs within the warranty period, it is fixed again completely free of charge, parts and labor included.',
         'It does not cover new unrelated faults, or damage from misuse, drops, breakage, liquid ingress, or excessive heat and humidity.',

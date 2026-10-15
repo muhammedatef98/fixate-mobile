@@ -24,7 +24,8 @@ import GearLoader from '../components/GearLoader';
 import {
   deriveWarranty,
   deviceLabel,
-  WARRANTY_MONTHS,
+  warrantyMonthsLabel,
+  MAX_WARRANTY_MONTHS,
   type WarrantyInfo,
   type WarrantyOrderLike,
 } from '../utils/warranty';
@@ -68,7 +69,7 @@ export default function WarrantyScreen() {
       const { data } = await supabase
         .from('orders')
         .select(
-          'id, order_number, status, device_brand, device_model, issue_description, estimated_price, created_at, updated_at'
+          'id, order_number, status, device_brand, device_model, issue_description, estimated_price, service_id, spare_part_quality, created_at, updated_at'
         )
         .eq('user_id', user.id)
         .eq('status', 'completed')
@@ -146,8 +147,8 @@ export default function WarrantyScreen() {
             </View>
             <Text style={styles.introText}>
               {isRTL
-                ? `كل إصلاح مكتمل مشمول بضمان ${WARRANTY_MONTHS} شهراً. اعرض شهادة الضمان الخاصة بأجهزتك هنا في أي وقت.`
-                : `Every completed repair is covered for ${WARRANTY_MONTHS} months. View your devices' warranty certificates here anytime.`}
+                ? `إصلاحاتك المكتملة مشمولة بضمان يصل إلى ${warrantyMonthsLabel(MAX_WARRANTY_MONTHS, true)} حسب نوع الإصلاح والقطعة. اعرض شهادة الضمان الخاصة بأجهزتك هنا في أي وقت.`
+                : `Your completed repairs are covered for up to ${warrantyMonthsLabel(MAX_WARRANTY_MONTHS, false)}, depending on the repair and the part. View your devices' warranty certificates here anytime.`}
             </Text>
           </View>
 
