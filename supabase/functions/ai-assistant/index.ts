@@ -10,14 +10,23 @@
 //      sees anything that fails validation.
 //   3. Charge one unit of the caller's daily quota (refunded on failure).
 //   4. Call Google Gemini with a fixed system prompt and return the reply.
+//      If Gemini fails (rate limit, outage, timeout, bad key) and a backup
+//      provider is configured, the same request goes to the backup instead.
+//      A safety block from Gemini is final — it is never retried elsewhere.
 //
 // Nothing is stored: no conversation text or images are written anywhere;
 // only the per-day counter in public.ai_assistant_usage.
 //
-// Required secrets (Supabase → Edge Functions → Secrets):
-//   - GEMINI_API_KEY            Google AI Studio key (never shipped in the app)
+// Secrets (Supabase → Edge Functions → Secrets). At least one provider is
+// required; keys are never shipped in the app.
+//   - GEMINI_API_KEY            Google AI Studio key (primary)
+//   - GEMINI_MODEL              optional, defaults to "gemini-flash-latest"
+// Backup provider — any OpenAI-compatible Chat Completions API with image
+// input (OpenAI by default). Enabled only when both of these are set:
+//   - FALLBACK_API_KEY          API key for the backup provider
+//   - FALLBACK_MODEL            a vision-capable model id, e.g. an OpenAI "mini" model
+//   - FALLBACK_BASE_URL         optional, defaults to "https://api.openai.com/v1"
 // Optional:
-//   - GEMINI_MODEL              defaults to "gemini-flash-latest"
 //   - AI_ASSISTANT_DAILY_LIMIT  messages per user per day, defaults to 20
 // Provided by the platform:
 //   - SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
@@ -84,8 +93,9 @@ Deno.serve(async (req: Request) => {
   const url = Deno.env.get('SUPABASE_URL');
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
   const geminiKey = Deno.env.get('GEMINI_API_KEY');
+  const fallback = readFallbackConfig();
   if (!url || !serviceRoleKey) return json({ error: 'server_not_configured' }, 500);
-  if (!geminiKey) return json({ error: 'not_configured' }, 503);
+  if (!geminiKey && !fallback) return json({ error: 'not_configured' }, 503);
 
   // 1. Signed-in users only.
   const authHeader = req.headers.get('Authorization');
@@ -121,7 +131,7 @@ Deno.serve(async (req: Request) => {
   const refund = () =>
     admin.rpc('refund_ai_assistant_quota', { p_user_id: user.id }).then(() => {}, () => {});
   try {
-    const reply = await callGemini(geminiKey, parsed, language);
+    const reply = await askModels(geminiKey, fallback, parsed, language);
     if (reply.kind === 'blocked') {
       return json({ reply: null, blocked: true, remaining: dailyLimit - used });
     }
@@ -177,7 +187,7 @@ async function callGemini(
   apiKey: string,
   turns: Turn[],
   language: 'ar' | 'en',
-): Promise<{ kind: 'text'; text: string } | { kind: 'blocked' }> {
+): Promise<ModelReply> {
   const model = Deno.env.get('GEMINI_MODEL') || 'gemini-flash-latest';
   const contents = turns.map((t) => ({
     role: t.role === 'assistant' ? 'model' : 'user',
@@ -186,10 +196,6 @@ async function callGemini(
       ...(t.text ? [{ text: t.text }] : []),
     ],
   }));
-  const languageHint =
-    language === 'ar'
-      ? 'The app is set to Arabic: reply in Arabic unless the user clearly writes in another language.'
-      : 'The app is set to English: reply in English unless the user clearly writes in another language.';
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), MODEL_TIMEOUT_MS);
@@ -202,7 +208,7 @@ async function callGemini(
         signal: controller.signal,
         headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
         body: JSON.stringify({
-          system_instruction: { parts: [{ text: `${SYSTEM_PROMPT}\n\n${languageHint}` }] },
+          system_instruction: { parts: [{ text: `${SYSTEM_PROMPT}\n\n${languageHint(language)}` }] },
           contents,
           generationConfig: { temperature: 0.4, maxOutputTokens: 2048 },
         }),
@@ -230,6 +236,112 @@ async function callGemini(
     throw new ModelError(502);
   }
   return { kind: 'text', text };
+}
+
+type ModelReply = { kind: 'text'; text: string } | { kind: 'blocked' };
+type FallbackConfig = { apiKey: string; model: string; baseUrl: string };
+
+/** Backup provider settings, or null when it is not (fully) configured. */
+function readFallbackConfig(): FallbackConfig | null {
+  const apiKey = Deno.env.get('FALLBACK_API_KEY')?.trim();
+  const model = Deno.env.get('FALLBACK_MODEL')?.trim();
+  if (!apiKey || !model) return null;
+  const baseUrl = (Deno.env.get('FALLBACK_BASE_URL')?.trim() || 'https://api.openai.com/v1').replace(/\/+$/, '');
+  // Photos and messages go to this URL — refuse anything but HTTPS.
+  if (!baseUrl.startsWith('https://')) {
+    console.error('ai-assistant: FALLBACK_BASE_URL must use https; backup provider disabled');
+    return null;
+  }
+  return { apiKey, model, baseUrl };
+}
+
+/**
+ * Gemini first, then the backup provider. Any Gemini failure (rate limit,
+ * outage, timeout, rejected key, empty answer) moves on to the backup; a
+ * Gemini safety block is returned as-is so a refused request is never
+ * "shopped" to another model.
+ */
+async function askModels(
+  geminiKey: string | undefined,
+  fallback: FallbackConfig | null,
+  turns: Turn[],
+  language: 'ar' | 'en',
+): Promise<ModelReply> {
+  if (geminiKey) {
+    try {
+      return await callGemini(geminiKey, turns, language);
+    } catch (err) {
+      if (!fallback) throw err;
+      // Status only — never the request content (user photos/text).
+      console.warn('ai-assistant: gemini failed, using backup provider', err instanceof ModelError ? err.status : String(err));
+    }
+  }
+  return await callOpenAiCompatible(fallback!, turns, language);
+}
+
+/** OpenAI-compatible Chat Completions call (OpenAI by default). */
+async function callOpenAiCompatible(
+  cfg: FallbackConfig,
+  turns: Turn[],
+  language: 'ar' | 'en',
+): Promise<ModelReply> {
+  const messages = [
+    { role: 'system', content: `${SYSTEM_PROMPT}\n\n${languageHint(language)}` },
+    ...turns.map((t) =>
+      t.role === 'assistant'
+        ? { role: 'assistant', content: t.text ?? '' }
+        : {
+            role: 'user',
+            content: [
+              ...(t.images ?? []).map((img) => ({
+                type: 'image_url',
+                image_url: { url: `data:${img.mimeType};base64,${img.data}` },
+              })),
+              ...(t.text ? [{ type: 'text', text: t.text }] : []),
+            ],
+          },
+    ),
+  ];
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), MODEL_TIMEOUT_MS);
+  let res: Response;
+  try {
+    res = await fetch(`${cfg.baseUrl}/chat/completions`, {
+      method: 'POST',
+      signal: controller.signal,
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${cfg.apiKey}` },
+      // No temperature / token-limit fields: newer models reject some of them,
+      // and the system prompt already asks for short replies.
+      body: JSON.stringify({ model: cfg.model, messages }),
+    });
+  } catch {
+    throw new ModelError(504);
+  } finally {
+    clearTimeout(timer);
+  }
+  if (!res.ok) throw new ModelError(res.status);
+
+  const data = await res.json();
+  const choice = data?.choices?.[0];
+  const message = choice?.message;
+  if (message?.refusal || choice?.finish_reason === 'content_filter') return { kind: 'blocked' };
+  const content = message?.content;
+  const text = (
+    typeof content === 'string'
+      ? content
+      : Array.isArray(content)
+        ? content.filter((p: any) => typeof p?.text === 'string').map((p: any) => p.text).join('')
+        : ''
+  ).trim();
+  if (!text) throw new ModelError(502);
+  return { kind: 'text', text };
+}
+
+function languageHint(language: 'ar' | 'en') {
+  return language === 'ar'
+    ? 'The app is set to Arabic: reply in Arabic unless the user clearly writes in another language.'
+    : 'The app is set to English: reply in English unless the user clearly writes in another language.';
 }
 
 function clampInt(raw: string | undefined, fallback: number, min: number, max: number) {
