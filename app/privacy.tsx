@@ -8,6 +8,7 @@ import { useApp } from '../contexts/AppContext';
 import { RTLMaterialIcon } from '../components/RTLIcon';
 import { safeBack } from '../utils/navigation';
 import PolicyDocument from '../components/PolicyDocument';
+import IntlogyCredit from '../components/IntlogyCredit';
 
 export default function PrivacyScreen() {
   const router = useRouter();
@@ -24,6 +25,8 @@ export default function PrivacyScreen() {
 ## 1. المقدمة
 
 نحن في Fixate نلتزم بحماية خصوصيتك. توضح هذه السياسة كيفية جمع واستخدام وحماية معلوماتك الشخصية وفقاً لنظام حماية البيانات الشخصية في المملكة العربية السعودية.
+
+تطبيق Fixate من تطوير Intlogy (Fixate by Intlogy).
 
 ## 2. المعلومات التي نجمعها
 
@@ -148,6 +151,8 @@ export default function PrivacyScreen() {
 ## 1. Introduction
 
 At Fixate, we are committed to protecting your privacy. This policy explains how we collect, use, and protect your personal information in accordance with Saudi Arabia's Personal Data Protection Law.
+
+Fixate is developed by Intlogy (Fixate by Intlogy).
 
 ## 2. Information We Collect
 
@@ -285,6 +290,7 @@ For any privacy inquiries:
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         <View style={styles.content}>
           <PolicyDocument content={isRTL ? privacyAr : privacyEn} isRTL={isRTL} COLORS={COLORS} />
+          <IntlogyCredit isDark={isDark} style={{ marginTop: SPACING.lg }} />
         </View>
       </ScrollView>
     </SafeAreaView>
