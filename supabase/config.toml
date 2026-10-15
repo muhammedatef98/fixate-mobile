@@ -1,6 +1,6 @@
 project_id = "gpucisjxecupcyosumgy"
 
-# ── Auth ────────────────────────────────────────────────────────────────
+# ── Auth ──────────────────────────────────────────────────────────────
 # These values are pushed to the hosted project via `supabase config push`,
 # so every field here must hold the real production value — omitted fields
 # get overwritten with CLI defaults on push.
