@@ -26,6 +26,7 @@ import Avatar from '../../components/Avatar';
 import { formatAppDateOnly } from '../../lib/formatDate';
 import { getWalletBalance } from '../../services/customerWalletService';
 import { logger } from '../../utils/logger';
+import IntlogyCredit from '../../components/IntlogyCredit';
 
 interface MenuRow {
   id: string;
@@ -335,6 +336,7 @@ export default function ProfileScreen() {
           </TouchableOpacity>
 
           <Text style={styles.versionText}>Fixate · v1.0.0</Text>
+          <IntlogyCredit isDark={isDark} style={{ marginTop: 6 }} />
         </Animated.View>
       </ScrollView>
 
