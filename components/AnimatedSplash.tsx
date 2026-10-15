@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Animated, Easing, StyleSheet, View, Text, AccessibilityInfo } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { GEAR_PATH } from './GearLoader';
+import IntlogyLogo from './IntlogyLogo';
 
 /**
  * Animated splash overlay.
@@ -17,12 +18,13 @@ import { GEAR_PATH } from './GearLoader';
  *   2. The logo springs in from small with a slight counter-rotation, so the
  *      gear reads as "clicking" into place — thematic for a repair app.
  *   3. The "Fixate" wordmark fades and rises beneath the mark.
- *   4. Brief hold, then the whole overlay fades out into the app.
+ *   4. "by INTLOGY" rises in at the bottom of the screen.
+ *   5. Brief hold, then the whole overlay fades out into the app.
  *
  * The native static splash (assets/splash.png, #ffffff) is the first frame and
  * shares this background, so there is no flash on hand-off.
  *
- * Respects reduce-motion: the logo + wordmark are shown statically for 900ms,
+ * Respects reduce-motion: the logo, wordmark and credit are shown statically for 900ms,
  * then we continue (no rings, spin, or pulse).
  */
 
@@ -40,6 +42,8 @@ const GEAR_SIZE = 128 * SCALE;
 const GEAR_LEFT = 151 * SCALE;
 const GEAR_TOP = (LOGO_BOX - 380 * SCALE) / 2 + 251 * SCALE;
 const GEAR_COLOR = '#05956B';
+// "by INTLOGY" developer credit width (vector, see IntlogyLogo).
+const INTLOGY_WIDTH = 138;
 
 interface AnimatedSplashProps {
   onFinish: () => void;
@@ -52,6 +56,8 @@ export default function AnimatedSplash({ onFinish }: AnimatedSplashProps) {
   const gearTurn = useRef(new Animated.Value(0)).current; // 0 → 1 = one full turn, settling at 0°
   const wordOpacity = useRef(new Animated.Value(0)).current;
   const wordShift = useRef(new Animated.Value(14)).current;
+  const creditOpacity = useRef(new Animated.Value(0)).current;
+  const creditShift = useRef(new Animated.Value(16)).current;
   const containerOpacity = useRef(new Animated.Value(1)).current;
 
   // Each ring animates a shared 0→1 progress into scale + fade.
@@ -87,6 +93,8 @@ export default function AnimatedSplash({ onFinish }: AnimatedSplashProps) {
       gearTurn.setValue(1);
       wordOpacity.setValue(1);
       wordShift.setValue(0);
+      creditOpacity.setValue(1);
+      creditShift.setValue(0);
       const t = setTimeout(fadeOutAndFinish, 900);
       return () => clearTimeout(t);
     }
@@ -141,6 +149,22 @@ export default function AnimatedSplash({ onFinish }: AnimatedSplashProps) {
       }),
     ]);
 
+    // Developer credit rises in at the bottom once the name has landed.
+    const creditIn = Animated.parallel([
+      Animated.timing(creditOpacity, {
+        toValue: 1,
+        duration: 420,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+      Animated.timing(creditShift, {
+        toValue: 0,
+        duration: 480,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+    ]);
+
     // Rings run in parallel with the intro; the mark/word are sequenced.
     // The gear does ONE full decelerating turn across the intro — fast at
     // first, easing to rest in its original orientation right as the
@@ -158,7 +182,8 @@ export default function AnimatedSplash({ onFinish }: AnimatedSplashProps) {
         markIn,
         Animated.delay(120),
         wordIn,
-        Animated.delay(420),
+        creditIn,
+        Animated.delay(520),
       ]),
     ]).start(({ finished }) => {
       if (finished) fadeOutAndFinish();
@@ -214,6 +239,16 @@ export default function AnimatedSplash({ onFinish }: AnimatedSplashProps) {
       <Animated.View style={[styles.wordWrap, { opacity: wordOpacity, transform: [{ translateY: wordShift }] }]}>
         <Text style={styles.wordmark}>Fixate</Text>
       </Animated.View>
+
+      {/* Developer credit pinned to the bottom of the screen. */}
+      <Animated.View
+        style={[styles.credit, { opacity: creditOpacity, transform: [{ translateY: creditShift }] }]}
+        accessible
+        accessibilityLabel="by Intlogy"
+      >
+        <Text style={styles.creditBy}>by</Text>
+        <IntlogyLogo variant="full" width={INTLOGY_WIDTH} />
+      </Animated.View>
     </Animated.View>
   );
 }
@@ -253,5 +288,18 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     letterSpacing: 0.5,
     color: '#0f172a',
+  },
+  credit: {
+    position: 'absolute',
+    bottom: 56,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+  },
+  creditBy: {
+    fontSize: 13,
+    color: '#6B7280',
+    letterSpacing: 0.5,
+    marginBottom: 8,
   },
 });
