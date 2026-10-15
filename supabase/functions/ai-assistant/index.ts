@@ -33,7 +33,7 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
-// ── Input limits ──────────────────────────────────────────────────────────────────────────
+// ── Input limits ──────────────────────────────────────────────────────────
 const MAX_TURNS = 12; // only the most recent turns are sent to the model
 const MAX_TEXT_CHARS = 2000;
 const MAX_IMAGES = 3; // per request, across all turns
