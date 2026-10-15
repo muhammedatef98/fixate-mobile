@@ -9,7 +9,11 @@ import {
   Platform,
   SafeAreaView,
   StatusBar,
+  Image,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { useRouter } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -17,6 +21,13 @@ import { useApp } from '../contexts/AppContext';
 import { getColors, SPACING, BORDER_RADIUS } from '../constants/theme';
 import { RTLIonicon } from '../components/RTLIcon';
 import { safeBack } from '../utils/navigation';
+import { useAuth } from '../contexts/AuthContext';
+import {
+  askAssistant,
+  prepareAssistantImage,
+  type AssistantImage,
+  type AssistantTurn,
+} from '../services/aiAssistantService';
 
 interface Message {
   id: string;
@@ -24,8 +35,28 @@ interface Message {
   isBot: boolean;
   /** When set, the bubble shows a "talk to support" action. */
   offerHandoff?: boolean;
+  /** Damage photo attached to a user message (local URI, shown in the bubble). */
+  imageUri?: string;
+  /** Part of the AI conversation (sent to / answered by the AI assistant). */
+  ai?: boolean;
+  /** Show "sign in to use the AI assistant". */
+  loginCta?: boolean;
   timestamp: Date;
 }
+
+/**
+ * Words that signal a device fault (not an app question). A message with any
+ * of them goes to the AI repair assistant even if it also brushes an FAQ
+ * keyword like "جوال" / "phone".
+ */
+const DEVICE_FAULT_HINTS = [
+  'شاش', 'مكسور', 'انكسر', 'كسر', 'بطاري', 'منتفخ', 'انتفاخ', 'يشحن', 'الشحن', 'سماع', 'مايك',
+  'كامير', 'عدس', 'ماء', 'موية', 'مويه', 'سقط', 'طاح', 'خطوط', 'يعلق', 'معلق', 'حرار', 'سخون',
+  'يطفي', 'ما يفتح', 'لا يفتح', 'ما يشتغل', 'لا يعمل', 'عطل', 'خربان', 'بايظ', 'باظ', 'تهنيج', 'يهنج',
+  'screen', 'crack', 'broken', 'batter', 'swell', 'charging', "won't charge", 'water', 'camera',
+  'speaker', 'microphone', 'overheat', 'hot', 'dead', "won't turn on", 'not working', 'frozen',
+  'boot', 'lines on', 'flicker',
+];
 
 /**
  * Built-in knowledge base. Each entry is matched by keyword against free
@@ -999,8 +1030,8 @@ export default function ChatbotScreen() {
     {
       id: 'welcome',
       text: isRTL
-        ? 'مرحباً! أنا مساعد Fixate الذكي. اسألني عن الطلبات، الأسعار والدفع، الضمان، التوصيل، السوق، أو حسابك — سواء كنت عميلاً أو فنياً أو مندوب توصيل. وإن لم تكن لدي الإجابة سأحوّلك لفريق الدعم.'
-        : "Hi! I'm the Fixate assistant. Ask me about orders, pricing and payment, warranty, delivery, the marketplace or your account — whether you're a customer, a technician or a courier. If I don't have the answer, I'll hand you to our support team.",
+        ? 'مرحباً! أنا مساعد Fixate الذكي. جهازك فيه مشكلة؟ صف العطل أو أرسل صورة له 📷 وسأشخّصه لك وأقترح الحل. وتقدر كمان تسألني عن الطلبات، الدفع، الضمان، التوصيل، السوق أو حسابك.'
+        : "Hi! I'm the Fixate assistant. Something wrong with your device? Describe the problem or send a photo 📷 and I'll diagnose it and suggest a fix. You can also ask about orders, payment, warranty, delivery, the marketplace or your account.",
       isBot: true,
       timestamp: new Date(),
     },
@@ -1030,7 +1061,7 @@ export default function ChatbotScreen() {
   // wrong (pricing) answer. We now tokenize the message and require a token
   // to *equal or start with* the keyword (single words), or match the whole
   // phrase (multi-word keywords). The FAQ with the most hits wins.
-  const matchFaq = (msg: string): Faq | null => {
+  const matchFaq = (msg: string): { faq: Faq; score: number } | null => {
     const tokens = msg.split(/[^\p{L}\p{N}]+/u).filter(Boolean);
     let best: Faq | null = null;
     let bestScore = 0;
@@ -1048,54 +1079,212 @@ export default function ChatbotScreen() {
         best = f;
       }
     }
-    return bestScore > 0 ? best : null;
+    return best && bestScore > 0 ? { faq: best, score: bestScore } : null;
   };
 
-  const findAnswer = (raw: string): { text: string; offerHandoff: boolean } => {
+  const { user } = useAuth();
+  const [pendingImage, setPendingImage] = useState<{ uri: string; width?: number; height?: number } | null>(null);
+  const [aiBusy, setAiBusy] = useState(false);
+
+  const handoffReply = () => ({
+    text: isRTL
+      ? 'بالتأكيد — يمكنني تحويلك إلى فريق الدعم للرد عليك مباشرة.'
+      : 'Of course — I can connect you with our support team for direct help.',
+    offerHandoff: true,
+  });
+
+  const noAnswerReply = () => ({
+    text: isRTL
+      ? 'لا تتوفر لدي إجابة عن هذا السؤال، ولا أريد أن أخمّن. تواصل مع فريق الدعم وسيجيبك مباشرة — أو أعد صياغة سؤالك واختر من الأقسام أعلاه.'
+      : "I don't have an answer for that, and I won't guess. Please contact our support team — they'll answer you directly. You can also rephrase your question or pick one from the sections above.",
+    offerHandoff: true,
+  });
+
+  /**
+   * Where a typed message goes:
+   *   - "talk to support" → hand off;
+   *   - a clear app question (2+ FAQ keyword hits) → the built-in answer;
+   *   - a device fault ("cracked screen", "won't charge") → the AI assistant;
+   *   - any other FAQ hit → the built-in answer;
+   *   - everything else → the AI assistant.
+   * App answers stay local on purpose: the AI must never improvise a price,
+   * policy or warranty term the customer will act on.
+   */
+  const routeMessage = (raw: string): { kind: 'local'; text: string; offerHandoff: boolean } | { kind: 'ai' } => {
     const msg = raw.toLowerCase().trim();
-    if (HANDOFF_KEYWORDS.some((k) => msg.includes(k))) {
-      return {
-        text: isRTL
-          ? 'بالتأكيد — يمكنني تحويلك إلى فريق الدعم للرد عليك مباشرة.'
-          : 'Of course — I can connect you with our support team for direct help.',
-        offerHandoff: true,
-      };
-    }
-    // Answer from the app's own knowledge base first.
+    if (HANDOFF_KEYWORDS.some((k) => msg.includes(k))) return { kind: 'local', ...handoffReply() };
     const hit = matchFaq(msg);
-    if (hit) {
-      return { text: isRTL ? hit.a_ar : hit.a_en, offerHandoff: false };
+    if (hit && hit.score >= 2) {
+      return { kind: 'local', text: isRTL ? hit.faq.a_ar : hit.faq.a_en, offerHandoff: false };
     }
-    // Nothing matched → say so plainly and hand off. NEVER improvise an answer:
-    // a confident guess about a price, a policy or a warranty is worse than no
-    // answer at all, because the customer will act on it.
-    return {
-      text: isRTL
-        ? 'لا تتوفر لدي إجابة عن هذا السؤال، ولا أريد أن أخمّن. تواصل مع فريق الدعم وسيجيبك مباشرة — أو أعد صياغة سؤالك واختر من الأقسام أعلاه.'
-        : "I don't have an answer for that, and I won't guess. Please contact our support team — they'll answer you directly. You can also rephrase your question or pick one from the sections above.",
-      offerHandoff: true,
-    };
+    if (DEVICE_FAULT_HINTS.some((k) => msg.includes(k))) return { kind: 'ai' };
+    if (hit) return { kind: 'local', text: isRTL ? hit.faq.a_ar : hit.faq.a_en, offerHandoff: false };
+    return { kind: 'ai' };
   };
 
-  const pushBot = (text: string, offerHandoff: boolean) => {
+  const pushBot = (text: string, offerHandoff: boolean, extra: Partial<Message> = {}) => {
     setMessages((prev) => [
       ...prev,
-      { id: `${Date.now()}-bot`, text, isBot: true, offerHandoff, timestamp: new Date() },
+      { id: `${Date.now()}-bot`, text, isBot: true, offerHandoff, timestamp: new Date(), ...extra },
     ]);
   };
 
-  const sendMessage = (text: string) => {
+  const loginNeeded = () =>
+    pushBot(
+      isRTL
+        ? 'مساعد تشخيص الأعطال بالذكاء الاصطناعي متاح بعد تسجيل الدخول. سجّل دخولك ثم أرسل صورة جهازك أو صف المشكلة.'
+        : 'The AI repair assistant is available after you sign in. Sign in, then send a photo of your device or describe the problem.',
+      false,
+      { loginCta: true },
+    );
+
+  /** Sends the AI part of the conversation (text history + this turn's photo). */
+  const runAssistant = async (userMsgId: string, text: string, image: AssistantImage | null) => {
+    const history: AssistantTurn[] = messages
+      .filter((m) => m.ai)
+      .map((m) => ({
+        role: m.isBot ? ('assistant' as const) : ('user' as const),
+        text: m.text || (isRTL ? '[صورة للجهاز أُرسلت سابقاً]' : '[Photo of the device sent earlier]'),
+      }));
+    const turn: AssistantTurn = { role: 'user' };
+    if (text) turn.text = text;
+    if (image) turn.images = [image];
+
+    setAiBusy(true);
+    const result = await askAssistant([...history, turn], isRTL ? 'ar' : 'en');
+    setAiBusy(false);
+
+    if (result.ok && 'reply' in result) {
+      pushBot(result.reply, false, { ai: true });
+      return;
+    }
+    // Failed turn: drop it from the AI history so the next request stays valid.
+    setMessages((prev) => prev.map((m) => (m.id === userMsgId ? { ...m, ai: false } : m)));
+    if (result.ok) {
+      pushBot(
+        isRTL
+          ? 'لا أستطيع المساعدة في هذا الطلب. إن كانت لديك مشكلة في جهازك، صفها أو أرسل صورة لها.'
+          : "I can't help with that request. If your device has a problem, describe it or send a photo.",
+        false,
+      );
+      return;
+    }
+    switch (result.reason) {
+      case 'unauthorized':
+        loginNeeded();
+        return;
+      case 'daily_limit':
+        pushBot(
+          isRTL
+            ? `وصلت للحد اليومي للمساعد الذكي (${result.limit ?? ''} رسالة). يمكنك المحاولة غداً، أو طلب فحص مجاني من فني الآن.`
+            : `You've reached today's AI assistant limit (${result.limit ?? ''} messages). Try again tomorrow, or request a free inspection from a technician now.`,
+          false,
+          { ai: false },
+        );
+        return;
+      case 'busy':
+        pushBot(
+          isRTL ? 'المساعد الذكي مشغول الآن، حاول مرة أخرى بعد قليل.' : 'The AI assistant is busy right now — please try again in a moment.',
+          false,
+        );
+        return;
+      case 'network':
+        pushBot(
+          isRTL ? 'تعذّر الاتصال. تحقق من الإنترنت وحاول مرة أخرى.' : "Couldn't connect. Check your internet and try again.",
+          false,
+        );
+        return;
+      default:
+        pushBot(
+          isRTL
+            ? 'المساعد الذكي غير متاح حالياً. يمكنك التحدث مع فريق الدعم أو طلب فحص مجاني من فني.'
+            : 'The AI assistant is unavailable right now. You can talk to our support team or request a free technician inspection.',
+          true,
+        );
+    }
+  };
+
+  const sendMessage = async (text: string) => {
     const trimmed = text.trim();
-    if (!trimmed) return;
+    const image = pendingImage;
+    if ((!trimmed && !image) || aiBusy) return;
+
+    const route = image ? ({ kind: 'ai' } as const) : routeMessage(trimmed);
+    const toAi = route.kind === 'ai' && !!user;
+    const userMsgId = `${Date.now()}-user`;
     setMessages((prev) => [
       ...prev,
-      { id: `${Date.now()}-user`, text: trimmed, isBot: false, timestamp: new Date() },
+      { id: userMsgId, text: trimmed, isBot: false, imageUri: image?.uri, ai: toAi, timestamp: new Date() },
     ]);
     setInputText('');
-    setTimeout(() => {
-      const { text: answer, offerHandoff } = findAnswer(trimmed);
-      pushBot(answer, offerHandoff);
-    }, 600);
+    setPendingImage(null);
+
+    if (route.kind === 'local') {
+      setTimeout(() => pushBot(route.text, route.offerHandoff), 600);
+      return;
+    }
+    if (!user) {
+      // Signed-out: keep the old honest fallback, and point to sign-in for the AI.
+      setTimeout(() => {
+        const r = noAnswerReply();
+        if (image) loginNeeded();
+        else {
+          pushBot(r.text, r.offerHandoff);
+          loginNeeded();
+        }
+      }, 400);
+      return;
+    }
+
+    let prepared: AssistantImage | null = null;
+    if (image) {
+      try {
+        prepared = await prepareAssistantImage(image.uri, image.width, image.height);
+      } catch {
+        setMessages((prev) => prev.map((m) => (m.id === userMsgId ? { ...m, ai: false } : m)));
+        pushBot(isRTL ? 'تعذّر تجهيز الصورة، جرّب صورة أخرى.' : "Couldn't process that photo — please try another one.", false);
+        return;
+      }
+    }
+    await runAssistant(userMsgId, trimmed, prepared);
+  };
+
+  const pickImage = async (source: 'camera' | 'library') => {
+    const perm =
+      source === 'camera'
+        ? await ImagePicker.requestCameraPermissionsAsync()
+        : await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) {
+      Alert.alert(
+        isRTL ? 'الإذن مرفوض' : 'Permission denied',
+        source === 'camera'
+          ? isRTL ? 'يرجى السماح باستخدام الكاميرا' : 'Please allow camera access'
+          : isRTL ? 'يرجى السماح بالوصول للمعرض' : 'Please allow gallery access',
+      );
+      return;
+    }
+    const res =
+      source === 'camera'
+        ? await ImagePicker.launchCameraAsync({ quality: 1, allowsEditing: false })
+        : await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            quality: 1,
+            allowsEditing: false,
+          });
+    const asset = !res.canceled ? res.assets[0] : null;
+    if (asset?.uri) setPendingImage({ uri: asset.uri, width: asset.width, height: asset.height });
+  };
+
+  const onAttachPress = () => {
+    if (!user) {
+      loginNeeded();
+      return;
+    }
+    Alert.alert(isRTL ? 'أرسل صورة للجهاز' : 'Send a photo of the device', isRTL ? 'صوّر مكان العطل بوضوح.' : 'Show the damage clearly.', [
+      { text: isRTL ? 'الكاميرا' : 'Camera', onPress: () => pickImage('camera') },
+      { text: isRTL ? 'المعرض' : 'Gallery', onPress: () => pickImage('library') },
+      { text: isRTL ? 'إلغاء' : 'Cancel', style: 'cancel' },
+    ]);
   };
 
   const goToSupport = () => router.push('/support-chat');
@@ -1120,10 +1309,39 @@ export default function ChatbotScreen() {
   const renderMessage = (m: Message) => (
     <View key={m.id} style={{ width: '100%' }}>
       <View style={[styles.bubble, m.isBot ? styles.botBubble : styles.userBubble]}>
-        <Text style={[styles.bubbleText, { color: m.isBot ? COLORS.text : '#fff' }]}>
-          {m.text}
-        </Text>
+        {m.imageUri ? (
+          <Image
+            source={{ uri: m.imageUri }}
+            style={[styles.bubbleImage, !!m.text && { marginBottom: 8 }]}
+            resizeMode="cover"
+            accessibilityLabel={isRTL ? 'صورة الجهاز' : 'Device photo'}
+          />
+        ) : null}
+        {m.text ? (
+          <Text style={[styles.bubbleText, { color: m.isBot ? COLORS.text : '#fff' }]}>
+            {m.text}
+          </Text>
+        ) : null}
+        {m.isBot && m.ai ? (
+          <Text style={styles.aiNote}>
+            {isRTL
+              ? 'تشخيص مبدئي بالذكاء الاصطناعي — للتأكد اطلب فحصاً مجانياً من فني.'
+              : 'Preliminary AI diagnosis — request a free technician inspection to confirm.'}
+          </Text>
+        ) : null}
       </View>
+      {m.isBot && m.ai && (
+        <TouchableOpacity style={styles.handoffBtn} onPress={() => router.push('/request')} activeOpacity={0.85}>
+          <MaterialCommunityIcons name="account-wrench" size={16} color="#fff" />
+          <Text style={styles.handoffBtnText}>{isRTL ? 'اطلب فني الآن' : 'Request a technician'}</Text>
+        </TouchableOpacity>
+      )}
+      {m.loginCta && (
+        <TouchableOpacity style={styles.handoffBtn} onPress={() => router.push('/role-selection')} activeOpacity={0.85}>
+          <Ionicons name="log-in-outline" size={16} color="#fff" />
+          <Text style={styles.handoffBtnText}>{isRTL ? 'تسجيل الدخول' : 'Sign in'}</Text>
+        </TouchableOpacity>
+      )}
       {m.offerHandoff && (
         <TouchableOpacity style={styles.handoffBtn} onPress={goToSupport} activeOpacity={0.85}>
           <Ionicons name="headset" size={16} color="#fff" />
@@ -1249,13 +1467,49 @@ export default function ChatbotScreen() {
               answers, appear here BELOW the quick-questions panel so each new
               answer lands at the bottom and scrolls into view. */}
           {messages.slice(1).map(renderMessage)}
+
+          {aiBusy && (
+            <View style={[styles.bubble, styles.botBubble, styles.typingBubble]}>
+              <ActivityIndicator size="small" color={COLORS.primary} />
+              <Text style={[styles.bubbleText, { color: COLORS.textSecondary }]}>
+                {isRTL ? 'جاري تحليل المشكلة…' : 'Analysing the problem…'}
+              </Text>
+            </View>
+          )}
         </ScrollView>
+
+        {/* Photo waiting to be sent */}
+        {pendingImage && (
+          <View style={styles.pendingRow}>
+            <Image source={{ uri: pendingImage.uri }} style={styles.pendingThumb} />
+            <Text style={styles.pendingText} numberOfLines={2}>
+              {isRTL ? 'أضف وصفاً للمشكلة (اختياري) ثم أرسل' : 'Add a short description (optional), then send'}
+            </Text>
+            <TouchableOpacity
+              onPress={() => setPendingImage(null)}
+              style={styles.pendingRemove}
+              accessibilityRole="button"
+              accessibilityLabel={isRTL ? 'إزالة الصورة' : 'Remove photo'}
+            >
+              <Ionicons name="close" size={18} color={COLORS.text} />
+            </TouchableOpacity>
+          </View>
+        )}
 
         {/* Input */}
         <View style={styles.inputBar}>
+          <TouchableOpacity
+            style={styles.attachBtn}
+            onPress={onAttachPress}
+            disabled={aiBusy}
+            accessibilityRole="button"
+            accessibilityLabel={isRTL ? 'إرسال صورة للجهاز' : 'Send a photo of the device'}
+          >
+            <Ionicons name="camera-outline" size={22} color={COLORS.primary} />
+          </TouchableOpacity>
           <TextInput
             style={styles.input}
-            placeholder={isRTL ? 'اكتب سؤالك…' : 'Type your question…'}
+            placeholder={isRTL ? 'اكتب سؤالك أو صف مشكلة جهازك…' : 'Ask a question or describe the problem…'}
             placeholderTextColor={COLORS.textSecondary}
             value={inputText}
             onChangeText={setInputText}
@@ -1263,9 +1517,9 @@ export default function ChatbotScreen() {
             maxLength={500}
           />
           <TouchableOpacity
-            style={[styles.sendBtn, { opacity: inputText.trim() ? 1 : 0.5 }]}
+            style={[styles.sendBtn, { opacity: (inputText.trim() || pendingImage) && !aiBusy ? 1 : 0.5 }]}
             onPress={() => sendMessage(inputText)}
-            disabled={!inputText.trim()}
+            disabled={(!inputText.trim() && !pendingImage) || aiBusy}
           >
             <RTLIonicon name="send" size={18} color="#fff" />
           </TouchableOpacity>
@@ -1312,6 +1566,37 @@ const makeStyles = (C: any, isRTL: boolean) =>
       borderBottomLeftRadius: isRTL ? 4 : 16,
     },
     bubbleText: { fontSize: 14, lineHeight: 21, textAlign: isRTL ? 'right' : 'left' },
+    bubbleImage: { width: 200, height: 200, borderRadius: 12, backgroundColor: '#00000014' },
+    aiNote: {
+      marginTop: 8,
+      fontSize: 11,
+      lineHeight: 16,
+      color: C.textSecondary,
+      textAlign: isRTL ? 'right' : 'left',
+    },
+    typingBubble: { flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 8 },
+    pendingRow: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
+      gap: 10,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      backgroundColor: C.card,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: C.border,
+    },
+    pendingThumb: { width: 52, height: 52, borderRadius: 10 },
+    pendingText: { flex: 1, fontSize: 12, color: C.textSecondary, textAlign: isRTL ? 'right' : 'left' },
+    pendingRemove: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
+    attachBtn: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      borderWidth: 1,
+      borderColor: C.border,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
     handoffBtn: {
       flexDirection: isRTL ? 'row-reverse' : 'row',
       alignSelf: isRTL ? 'flex-end' : 'flex-start',
