@@ -25,6 +25,7 @@ import { getColors } from '../constants/theme';
 import { validatePassword, getPasswordChecks } from '../utils/validation';
 import PasswordRequirements from './PasswordRequirements';
 import IntlogyCredit from './IntlogyCredit';
+import FixateWordmark from './FixateWordmark';
 
 export type ProviderFlow = 'technician' | 'courier';
 
@@ -199,7 +200,9 @@ export default function ProviderAuthScreen({ flow }: ProviderAuthScreenProps) {
                 resizeMode="contain"
               />
             </View>
-            <Text style={styles.brandName}>Fixate</Text>
+            <View style={styles.brandName}>
+              <FixateWordmark width={124} isDark={isDark} />
+            </View>
             <Text style={styles.brandSlogan}>
               {isCourier
                 ? isRTL ? 'انضم لفريق مناديب التوصيل' : 'Join our delivery courier team'
@@ -450,9 +453,7 @@ const createStyles = (COLORS: any, isRTL: boolean) => StyleSheet.create({
     transform: [{ translateX: 2 }, { translateY: 4 }],
   },
   brandName: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: COLORS.text,
+    marginTop: 2,
   },
   brandSlogan: {
     fontSize: 14,
