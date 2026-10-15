@@ -3,6 +3,7 @@ import { Animated, Easing, StyleSheet, View, Text, AccessibilityInfo } from 'rea
 import Svg, { Path } from 'react-native-svg';
 import { GEAR_PATH } from './GearLoader';
 import IntlogyLogo from './IntlogyLogo';
+import FixateWordmark from './FixateWordmark';
 
 /**
  * Animated splash overlay.
@@ -44,6 +45,8 @@ const GEAR_TOP = (LOGO_BOX - 380 * SCALE) / 2 + 251 * SCALE;
 const GEAR_COLOR = '#05956B';
 // "by INTLOGY" developer credit width (vector, see IntlogyLogo).
 const INTLOGY_WIDTH = 138;
+// "Fixate" wordmark width under the mark (vector, see FixateWordmark).
+const WORDMARK_WIDTH = 150;
 
 interface AnimatedSplashProps {
   onFinish: () => void;
@@ -237,7 +240,7 @@ export default function AnimatedSplash({ onFinish }: AnimatedSplashProps) {
           nudges the logo off centre — the logo stays where the native splash
           put it, and the two read as one centered lockup). */}
       <Animated.View style={[styles.wordWrap, { opacity: wordOpacity, transform: [{ translateY: wordShift }] }]}>
-        <Text style={styles.wordmark}>Fixate</Text>
+        <FixateWordmark width={WORDMARK_WIDTH} />
       </Animated.View>
 
       {/* Developer credit pinned to the bottom of the screen. */}
@@ -283,12 +286,6 @@ const styles = StyleSheet.create({
     borderColor: BRAND,
   },
   logo: { width: 168, height: 168 },
-  wordmark: {
-    fontSize: 34,
-    fontWeight: '800',
-    letterSpacing: 0.5,
-    color: '#0f172a',
-  },
   credit: {
     position: 'absolute',
     bottom: 56,

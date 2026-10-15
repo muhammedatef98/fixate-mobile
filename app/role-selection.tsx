@@ -10,6 +10,7 @@ import { RTLMaterialIcon } from '../components/RTLIcon';
 import { logger } from '../utils/logger';
 import { supabase } from '../services/supabaseClient';
 import IntlogyCredit from '../components/IntlogyCredit';
+import FixateWordmark from '../components/FixateWordmark';
 
 const { width } = Dimensions.get('window');
 
@@ -216,7 +217,9 @@ export default function RoleSelectionScreen() {
 
           {/* Title — no tagline underneath: the screen reads logo → title →
               role question, so the extra sentence was removed for balance. */}
-          <Text style={styles.title}>Fixate</Text>
+          <View style={styles.title}>
+            <FixateWordmark width={172} isDark={isDark} />
+          </View>
 
           {/* Subtitle */}
           <Text style={styles.question}>
@@ -394,9 +397,7 @@ const createStyles = (COLORS: any, SHADOWS: any, isRTL: boolean) => StyleSheet.c
     height: 120,
   },
   title: {
-    fontSize: 40,
-    fontWeight: 'bold',
-    color: COLORS.text,
+    marginTop: 4,
     marginBottom: SPACING.xl,
   },
   question: {
