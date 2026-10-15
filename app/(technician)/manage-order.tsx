@@ -31,6 +31,7 @@ import ImageViewer from '../../components/ImageViewer';
 import ImagePickerSheet from '../../components/ImagePickerSheet';
 import { supabase } from '../../services/supabaseClient';
 import { uploadOrderMedia } from '../../services/storageService';
+import { resolveStorageUrls } from '../../utils/resolveStorageUrls';
 import {
   startBroadcastingLocation,
   stopBroadcastingLocation,
@@ -71,6 +72,10 @@ export default function ManageOrderScreen() {
   const [savingNotes, setSavingNotes] = useState(false);
   const [beforePhotos, setBeforePhotos] = useState<string[]>([]);
   const [afterPhotos, setAfterPhotos] = useState<string[]>([]);
+  // Stored photo URLs point at the private `orders` bucket; map each one to
+  // a signed URL for display while state/DB keep the original links.
+  const [signedUrls, setSignedUrls] = useState<Record<string, string>>({});
+  const displayUrl = (url: string) => signedUrls[url] ?? url;
   const [photoSheetOpen, setPhotoSheetOpen] = useState(false);
   const [photoTarget, setPhotoTarget] = useState<'before' | 'after'>('before');
   const [uploadingPhotos, setUploadingPhotos] = useState(false);
@@ -275,8 +280,25 @@ export default function ManageOrderScreen() {
     }
   };
 
+  useEffect(() => {
+    const pending = [...(order?.media_urls ?? []), ...beforePhotos, ...afterPhotos].filter(
+      (u) => u && !signedUrls[u]
+    );
+    if (!pending.length) return;
+    resolveStorageUrls(pending).then((signed) => {
+      setSignedUrls((prev) => {
+        const next = { ...prev };
+        pending.forEach((u, i) => {
+          next[u] = signed[i];
+        });
+        return next;
+      });
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [order?.media_urls, beforePhotos, afterPhotos]);
+
   const openPhotoViewer = (images: string[], index: number) => {
-    setViewerImages(images);
+    setViewerImages(images.map(displayUrl));
     setViewerIndex(index);
     setViewerOpen(true);
   };
@@ -797,7 +819,7 @@ export default function ManageOrderScreen() {
                   accessibilityRole="button"
                 >
                   <Image
-                    source={{ uri: url }}
+                    source={{ uri: displayUrl(url) }}
                     style={styles.mediaImage}
                     resizeMode="cover"
                   />
@@ -896,7 +918,7 @@ export default function ManageOrderScreen() {
                       onPress={() => openPhotoViewer(group.photos, i)}
                     >
                       <Image
-                        source={{ uri: url }}
+                        source={{ uri: displayUrl(url) }}
                         style={{ width: 72, height: 72, borderRadius: BORDER_RADIUS.md }}
                       />
                     </TouchableOpacity>

@@ -29,6 +29,7 @@ import ErrorState from '../../components/ErrorState';
 import { SkeletonOrderCard } from '../../components/SkeletonLoader';
 import { getFriendlyError } from '../../utils/errorMessages';
 import { logger } from '../../utils/logger';
+import { resolveStorageUrls } from '../../utils/resolveStorageUrls';
 
 // Human-readable label for how the customer wants the device serviced.
 function fulfillmentLabel(type: string | null | undefined, language: string): string {
@@ -80,6 +81,26 @@ export default function AvailableOrdersScreen() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   // Assignment eligibility — a suspended/excluded technician cannot take jobs.
   const [eligible, setEligible] = useState<boolean | null>(null);
+  // Request photos live in the private `orders` bucket; approved technicians
+  // may sign them while the order is still pending and unassigned.
+  const [signedUrls, setSignedUrls] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    const pending = orders
+      .flatMap((o: any) => (o.media_urls ?? []) as string[])
+      .filter((u) => u && !signedUrls[u]);
+    if (!pending.length) return;
+    resolveStorageUrls(pending).then((signed) => {
+      setSignedUrls((prev) => {
+        const next = { ...prev };
+        pending.forEach((u, i) => {
+          next[u] = signed[i];
+        });
+        return next;
+      });
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orders]);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -321,7 +342,7 @@ export default function AvailableOrdersScreen() {
             {order.media_urls.map((url: string, index: number) => (
               <Image
                 key={index}
-                source={{ uri: url }}
+                source={{ uri: signedUrls[url] ?? url }}
                 style={styles.mediaThumb}
               />
             ))}
