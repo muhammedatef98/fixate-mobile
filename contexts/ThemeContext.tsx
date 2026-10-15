@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useColorScheme, Platform } from 'react-native';
 import { logger } from '../utils/logger';
+import { hasExpoNativeModule } from '../utils/nativeRuntime';
 
 type ThemeMode = 'light' | 'dark' | 'system';
 
@@ -89,7 +90,8 @@ export const ThemeProvider = ({ children }: { children: ReactNode }) => {
   // that include it, and an OTA update reaching an older build must not
   // crash at import time.
   useEffect(() => {
-    if (Platform.OS !== 'android') return;
+    // Skipped in Expo Go and in builds without the icon module.
+    if (Platform.OS !== 'android' || !hasExpoNativeModule('ExpoDynamicAppIcon')) return;
     (async () => {
       try {
         const { setAppIcon, getAppIcon } = require('@howincodes/expo-dynamic-app-icon');

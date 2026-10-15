@@ -44,6 +44,7 @@ import { useOtaUpdates } from '../hooks/useOtaUpdates';
 import { ensureAndroidNotificationChannel } from '../lib/notifications';
 import GearLoader from '../components/GearLoader';
 import AnimatedSplash from '../components/AnimatedSplash';
+import { hasNativeModule } from '../utils/nativeRuntime';
 import '../i18n';
 
 initSentry();
@@ -213,7 +214,9 @@ function RootLayoutContent() {
   // expo-notifications remains the sole owner of push display logic.
   // iOS uses APNs via expo-notifications directly — intentionally untouched.
   useEffect(() => {
-    if (Platform.OS !== 'android') return;
+    // Expo Go and older binaries don't include Firebase; skip instead of
+    // requiring it (a failed native-module require red-boxes in dev).
+    if (Platform.OS !== 'android' || !hasNativeModule('RNFBAppModule')) return;
     try {
       // Lazy require so a binary without the Firebase native module degrades
       // gracefully instead of crashing at module-eval. expo-notifications stays

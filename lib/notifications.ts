@@ -4,6 +4,7 @@ import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 import { supabase } from './supabase';
 import { logger } from '../utils/logger';
+import { isExpoGo } from '../utils/nativeRuntime';
 
 // The EAS project the Expo push service issues tokens against. In a bare /
 // dev-client build (which is what we ship) getExpoPushTokenAsync() cannot infer
@@ -87,7 +88,10 @@ export async function healPushTokenIfNeeded(userId: string): Promise<void> {
 export const notificationManager = {
   registerForPushNotificationsAsync: async () => {
     let token;
-    if (Device.isDevice) {
+    if (isExpoGo()) {
+      // Remote push was removed from Expo Go (SDK 53+); only dev/store builds get a token.
+      logger.info('Push notifications are not available in Expo Go');
+    } else if (Device.isDevice) {
       const { status: existingStatus } = await Notifications.getPermissionsAsync();
       let finalStatus = existingStatus;
       if (existingStatus !== 'granted') {
