@@ -136,7 +136,7 @@ export default function TermsScreen() {
 
 4) في حالة تعرض الجهاز للسوائل، وتم إصلاحه من قبل الورشة وبعد استلام العميل له، فإن الورشة غير مسؤولة إذا ظهر عطل آخر في الجهاز لم يكن موجود عند تشغيل الجهاز عند استلامه.
 
-5) جميع الشاشات التي يتم استبدالها أو تركيبها لجهاز العميل لا يوجد ضمان عليها.
+5) الشاشات التي يتم استبدالها أو تركيبها لجهاز العميل يشملها الضمان وفق «سياسة الضمان» (6 أشهر، أو 12 شهراً مع القطع الأصلية)، ولا يشمل الضمان الكسر أو الضغط أو تعرّض الشاشة للسوائل بعد التسليم.
 
 6) لا يتم تسليم الجهاز للعميل إلا بفاتورة الاستلام.
 
@@ -419,7 +419,7 @@ The following terms apply when a device is received for repair and collected aft
 
 4) If the device was exposed to liquids and was repaired by the workshop, then after the customer collects it, the workshop is not responsible if another fault appears that was not present when the device was switched on at collection.
 
-5) All screens replaced or installed on the customer's device carry no warranty.
+5) Screens replaced or installed on the customer's device are covered under the "Warranty Policy" (6 months, or 12 months with original parts); the warranty does not cover cracks, pressure damage or liquid exposure after hand-over.
 
 6) The device is only handed over to the customer with the collection invoice.
 
