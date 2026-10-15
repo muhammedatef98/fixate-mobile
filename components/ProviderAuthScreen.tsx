@@ -200,7 +200,6 @@ export default function ProviderAuthScreen({ flow }: ProviderAuthScreenProps) {
               />
             </View>
             <Text style={styles.brandName}>Fixate</Text>
-            <IntlogyCredit isDark={isDark} style={{ marginBottom: 6 }} />
             <Text style={styles.brandSlogan}>
               {isCourier
                 ? isRTL ? 'انضم لفريق مناديب التوصيل' : 'Join our delivery courier team'
@@ -370,6 +369,10 @@ export default function ProviderAuthScreen({ flow }: ProviderAuthScreenProps) {
             )}
 
           </View>
+
+          {/* Brand credit as a quiet footer at the bottom of the form. */}
+          <View style={{ flex: 1 }} />
+          <IntlogyCredit isDark={isDark} style={{ marginTop: 28 }} />
         </ScrollView>
       </KeyboardAvoidingView>
     </View>
@@ -414,6 +417,7 @@ const createStyles = (COLORS: any, isRTL: boolean) => StyleSheet.create({
     fontWeight: 'bold',
   },
   scrollContent: {
+    flexGrow: 1,
     paddingHorizontal: 24,
     paddingTop: 20,
     paddingBottom: 40,
